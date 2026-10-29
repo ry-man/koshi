@@ -1,0 +1,10 @@
+{
+  "name": "koshis-quest",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test",
+    "start": "node tools/serve.js"
+  }
+}
