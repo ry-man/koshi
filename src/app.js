@@ -1,9 +1,9 @@
 (function () {
 'use strict';
 
-const { Game, WIDTH, HEIGHT, DURATION, GOAL, COOLDOWNS, FOODS } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, FOODS } = globalThis.KoshiGame;
 
-const game = new Game();
+let game;
 const canvas = document.querySelector('#canvas');
 const ctx = canvas.getContext('2d');
 const board = document.querySelector('#board');
@@ -18,6 +18,8 @@ const progress = document.querySelector('#progress');
 const progressLabel = document.querySelector('#progress-label');
 const status = document.querySelector('#game-status');
 const toast = document.querySelector('#toast');
+const levelSelect = document.querySelector('#level-select');
+const weaponStatus = document.querySelector('#weapon-status');
 const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81' };
 let lastTime = null;
 let displayedState = null;
@@ -25,13 +27,19 @@ let toastUntil = 0;
 let trail = [];
 let buttons = [];
 
+function createGame() {
+  const portrait = window.matchMedia('(max-width: 760px) and (orientation: portrait)').matches;
+  board.dataset.portrait = String(portrait);
+  return new Game(Math.random, { portrait, scale: portrait ? board.clientWidth / 600 : 1, level: Number(levelSelect.value) });
+}
+
 function makeBrickButtons() {
   const container = document.querySelector('#bricks');
   container.replaceChildren();
   buttons = game.bricks.map(brick => {
     const button = document.createElement('button');
     button.className = 'brick';
-    button.style.cssText = `left:${brick.x / WIDTH * 100}%;top:${brick.y / HEIGHT * 100}%;width:${brick.w / WIDTH * 100}%;height:${brick.h / HEIGHT * 100}%;--brick-color:${colors[brick.kind]}`;
+    button.style.cssText = `left:${brick.x / game.width * 100}%;top:${brick.y / game.height * 100}%;width:${brick.w / game.width * 100}%;height:${brick.h / game.height * 100}%;--brick-color:${colors[brick.kind]}`;
     button.setAttribute('aria-label', `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown`);
     button.title = `${brick.kind} brick · ${COOLDOWNS[brick.kind]}s cooldown`;
     const meter = document.createElement('span');
@@ -40,8 +48,8 @@ function makeBrickButtons() {
     button.addEventListener('click', event => {
       if (game.state !== 'playing') return;
       const bounds = board.getBoundingClientRect();
-      const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * WIDTH;
-      const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * HEIGHT;
+      const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
+      const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
       // Include clicks on the button border despite fractional CSS pixel rounding.
       if (!game.steer(brick.id, Math.max(brick.x, Math.min(brick.x + brick.w, x)), Math.max(brick.y, Math.min(brick.y + brick.h, y)))) {
         toast.textContent = 'That brick is recharging. Pick another!';
@@ -65,6 +73,7 @@ function showDialog(kicker, title, text, label, icon) {
 }
 
 function syncUI() {
+  const { duration: DURATION, goal: GOAL } = game.level;
   const fraction = Math.min(1, game.score / GOAL);
   timer.innerHTML = `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>`;
   foodCount.innerHTML = `🍗 ${game.score} <span>/ ${GOAL}</span>`;
@@ -72,6 +81,14 @@ function syncUI() {
   hearts.setAttribute('aria-label', `${game.hearts} of 3 hearts`);
   progress.style.width = `${fraction * 100}%`;
   progressLabel.textContent = `${Math.round(fraction * 100)}% complete`;
+  document.querySelector('#level-number').textContent = game.level.id;
+  document.querySelector('.level-badge strong').textContent = game.level.id;
+  document.querySelector('.level-badge span').textContent = game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS';
+  document.querySelector('#enemy-count').textContent = `👾 ${game.enemies}`;
+  const weaponText = game.weapon
+    ? `${SWORDS[game.weapon.type].name} · ${Number.isFinite(game.weapon.uses) ? `${game.weapon.uses} hits` : `${Math.ceil(game.weapon.expires - game.elapsed)}s`}`
+    : 'No sword equipped';
+  if (weaponStatus.textContent !== weaponText) weaponStatus.textContent = weaponText;
   pause.disabled = !['playing', 'paused'].includes(game.state);
   pause.textContent = game.state === 'paused' ? '▶ Resume' : 'Ⅱ Pause';
   for (const [i, brick] of game.bricks.entries()) {
@@ -89,8 +106,9 @@ function syncUI() {
     showDialog('TAKE A BREATHER', 'A little catnap.', 'The clock and cooldowns are paused. Your snacks will be right here when you return.', 'Keep exploring →', '☾');
     status.textContent = 'Paused. No snacks lost on our watch.';
   } else if (game.state === 'won') {
-    showDialog('LEVEL 1–1 COMPLETE', 'One well-fed hero.', `You gathered ${game.score} food with ${Math.ceil(DURATION - game.elapsed)} seconds to spare. This is just the beginning of Koshi's quest.`, 'Play again →', '🏆');
-    status.textContent = 'Level complete! More worlds are yet to be written.';
+    const hasNext = game.levelIndex + 1 < LEVELS.length;
+    showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', `You gathered ${game.score} food and defeated ${game.enemies} robots with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
+    status.textContent = hasNext ? 'Level complete! Robo trouble is next.' : 'Both levels explored! Replay or choose a level.';
     toast.textContent = 'Level complete!';
   } else if (game.state === 'lost') {
     const reason = game.hearts <= 0 ? 'Koshi ran out of hearts.' : game.elapsed >= DURATION ? 'Time ran out.' : 'Koshi slipped off the edge.';
@@ -101,11 +119,14 @@ function syncUI() {
 }
 
 function begin() {
-  game.reset();
+  game = createGame();
+  makeBrickButtons();
+  displayedState = null;
   game.start();
   trail = [];
   toast.textContent = '';
   lastTime = null;
+  resize();
   syncUI();
   pause.focus({ preventScroll: true });
 }
@@ -116,9 +137,13 @@ play.addEventListener('click', () => {
     lastTime = null;
     syncUI();
     pause.focus({ preventScroll: true });
-  } else begin();
+  } else {
+    if (game.state === 'won' && game.levelIndex + 1 < LEVELS.length) levelSelect.value = String(game.levelIndex + 1);
+    begin();
+  }
 });
 restart.addEventListener('click', begin);
+levelSelect.addEventListener('change', begin);
 function togglePause() {
   if (game.state === 'playing') game.pause();
   else if (game.state === 'paused') game.resume();
@@ -148,6 +173,11 @@ function line(points, color, width = 2) {
 function drawCat(x, y, now) {
   ctx.save();
   ctx.translate(x, y);
+  if (game.weapon) {
+    ctx.strokeStyle = SWORDS[game.weapon.type].color;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.stroke();
+  }
   ctx.shadowColor = '#0008'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 5;
   ctx.fillStyle = '#abb5bd';
   ctx.beginPath();
@@ -182,6 +212,7 @@ function drawCat(x, y, now) {
 }
 
 function render(now) {
+  const WIDTH = game.width, HEIGHT = game.height;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
   ctx.fillStyle = '#273941';
   for (let x = 60; x < WIDTH; x += 30) for (let y = 60; y < HEIGHT; y += 30) {
@@ -215,6 +246,13 @@ function render(now) {
     ctx.fillStyle = left < .25 ? '#df8c81' : '#d3ef8b'; ctx.fillRect(-15, -25, 30 * left, 3);
     ctx.restore();
   }
+  for (const heart of game.healing) {
+    ctx.fillStyle = '#ef9d9d'; ctx.font = '30px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('♥', heart.x, heart.y + 10);
+  }
+  for (const item of game.weapons) drawSword(item.x, item.y, SWORDS[item.type].color);
+  for (const enemy of game.robots) drawRobot(enemy);
+  if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);
   for (const pickup of game.pickups) {
     const age = game.elapsed - pickup.time;
     ctx.fillStyle = `rgba(211,239,139,${1 - age / .8})`;
@@ -224,11 +262,47 @@ function render(now) {
   drawCat(game.cat.x, game.cat.y, game.elapsed);
 }
 
+function drawSword(x, y, color) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(.5);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(0, -23); ctx.lineTo(6, -14); ctx.lineTo(4, 10); ctx.lineTo(-4, 10); ctx.lineTo(-6, -14); ctx.closePath(); ctx.fill();
+  line([[-10, 10], [10, 10]], color, 4);
+  line([[0, 12], [0, 22]], '#8a6953', 5);
+  ctx.restore();
+}
+
+function drawRobot(enemy) {
+  ctx.save(); ctx.translate(enemy.x, enemy.y);
+  ctx.fillStyle = '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
+  if (enemy.type === 'mouse') {
+    for (const x of [-15, 15]) { ctx.beginPath(); ctx.arc(x, -15, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  }
+  ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  if (enemy.type === 'wheel') {
+    ctx.save(); ctx.rotate(enemy.distance / 19);
+    for (let i = 0; i < 10; i++) {
+      ctx.rotate(Math.PI / 5); line([[20, 0], [24, 0]], '#596975', 4);
+    }
+    ctx.restore(); ctx.fillStyle = '#b2ca75'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+  }
+  line([[-12,-8],[-4,-4]], '#27353d', 3); line([[12,-8],[4,-4]], '#27353d', 3);
+  for (const x of [-8, 8]) {
+    ctx.fillStyle = '#d46665'; ctx.fillRect(x-4,-2,8,6);
+    if (enemy.type === 'mouse') for (let i = -3; i <= 3; i += 3) line([[x+i,-2],[x+i,4]], '#27353d', 1);
+  }
+  line([[-6,11],[0,7],[6,11]], '#27353d', 2);
+  if (enemy.resting) {
+    ctx.fillStyle = '#c9d4db'; ctx.beginPath(); ctx.arc(0, 17, 5, 0, Math.PI * 2); ctx.fill();
+    line([[0,10],[3,15]], '#e6a1a1', 3);
+  }
+  ctx.restore();
+}
+
 function resize() {
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.round(board.clientWidth * ratio);
   canvas.height = Math.round(board.clientHeight * ratio);
-  ctx.setTransform(canvas.width / WIDTH, 0, 0, canvas.height / HEIGHT, 0, 0);
+  ctx.setTransform(canvas.width / game.width, 0, 0, canvas.height / game.height, 0, 0);
   render(performance.now() / 1000);
 }
 
@@ -241,6 +315,7 @@ function frame(timestamp) {
   requestAnimationFrame(frame);
 }
 
+game = createGame();
 makeBrickButtons();
 syncUI();
 new ResizeObserver(resize).observe(board);

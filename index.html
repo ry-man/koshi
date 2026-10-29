@@ -25,12 +25,13 @@
       <section class="game-shell" aria-label="Koshi's Quest game">
         <div class="hud">
           <div class="stat"><span class="stat-label">TIME LEFT</span><strong id="timer">◷ 60<span>s</span></strong></div>
-          <div class="stat"><span class="stat-label">LEVEL</span><strong>1–1</strong></div>
+          <div class="stat"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div>
           <div class="stat"><span class="stat-label">FOOD</span><strong id="food-count">🍗 0 <span>/ 20</span></strong></div>
-          <div class="stat"><span class="stat-label">ENEMIES</span><strong>👾 0</strong></div>
+          <div class="stat"><span class="stat-label">ENEMIES</span><strong id="enemy-count">👾 0</strong></div>
           <div class="stat lives"><span class="stat-label">KOSHI'S HEALTH</span><strong id="hearts" aria-label="3 of 3 hearts">♥ ♥ ♥</strong></div>
         </div>
         <div class="objective"><span><span class="live-dot"></span> THE MISSION</span><strong>Collect 20 food before time runs out</strong><span id="progress-label">0% complete</span></div>
+        <div class="loadout"><label>Level <select id="level-select"><option value="0">1–1 · First steps</option><option value="1">1–2 · Robo trouble</option></select></label><span id="weapon-status" role="status">No sword equipped</span></div>
         <div class="progress-track"><div id="progress"></div></div>
         <div class="board" id="board">
           <canvas id="canvas" width="960" height="600" role="img" aria-label="Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center."></canvas>
@@ -42,7 +43,7 @@
               <h2 id="dialog-title">Follow your appetite.</h2>
               <p id="dialog-text">Click a brick to send Koshi toward it. Redirect him mid-flight to scoop up snacks. Get 20 food in 60 seconds!</p>
               <button class="primary" id="play">Let's play <span>→</span></button>
-              <p class="dialog-note" id="dialog-note">No enemies yet. Just you, the bricks, and a hungry cat.</p>
+              <p class="dialog-note" id="dialog-note">Start with snacks, then face the robots in Level 1–2.</p>
             </div>
           </div>
           <div id="toast" role="status" aria-live="polite"></div>
@@ -53,7 +54,7 @@
         <div class="guide-intro"><p class="eyebrow">THE FIELD GUIDE</p><h2>Small paws.<br>Smart moves.</h2><p>Click a brick, not a snack.<br>The journey is the trick.</p></div>
         <article><span class="guide-number">01 / MOVEMENT</span><h3>Point. Launch. Redirect.</h3><p>Koshi travels to the exact point you click on a brick, stopping at the first brick he touches. Pick a new brick while moving to change course.</p></article>
         <article><span class="guide-number">02 / TIMING</span><h3>Give bricks a breather.</h3><p>Used bricks need to recharge. Watch their meters and keep another route in mind.</p><div class="legend"><span><i class="normal"></i>Normal · 8s</span><span><i class="slow"></i>Slow · 15s</span><span><i class="fast"></i>Fast · 3s</span></div></article>
-        <article><span class="guide-number">03 / SNACKS</span><h3>Good things don't last.</h3><p>Grab food before its little timer runs out. Strawberries are worth 1; pretzels are worth 2. Reach 20 to win!</p><div class="snack-legend">🍓 <span>+1</span> 🥨 <span>+2</span></div></article>
+        <article><span class="guide-number">03 / SNACKS & SWORDS</span><h3>Snack. Heal. Fight.</h3><p>Reach 20 food to win! In Level 1–2, every 10 food spawns a healing heart. Pick up a sword to automatically strike robots: wood lasts 1 defeat, bronze 3, silver 10, and gold 15 seconds.</p><div class="snack-legend">🍓 <span>+1</span> 🥨 <span>+2</span></div></article>
       </section>
       <footer><span>KOSHI'S QUEST <span class="footer-dot">/</span> AN ADVENTURE IN THE MAKING</span><span>Made for curious cats & clever humans.</span></footer>
       <noscript><p class="error">Please enable JavaScript to play Koshi's Quest.</p></noscript>

@@ -37,6 +37,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .progress-track { height: 2px; background: #ffffff07; }
 #progress { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
 .board { position: relative; aspect-ratio: 8 / 5; margin: 16px; background: #111d25; border: 1px solid #ffffff09; border-radius: 8px; overflow: hidden; isolation: isolate; }
+.board[data-portrait="true"] { aspect-ratio: 5 / 8; width: min(100% - 32px, calc((100svh - 216px) * .625)); margin: 6px auto; }
 canvas { display: block; width: 100%; height: 100%; }
 .brick { position: absolute; border: 1px solid #ffffff27; border-radius: 4px; padding: 0; background: var(--brick-color); box-shadow: inset 0 2px 0 #ffffff20, 0 2px 4px #0003; overflow: hidden; transition: filter .12s, background .15s; touch-action: manipulation; }
 .brick:hover:not([aria-disabled="true"]) { filter: brightness(1.25); }
@@ -74,6 +75,9 @@ footer { display: flex; justify-content: space-between; padding: 23px 0 30px; bo
 footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { color: var(--accent); margin: 0 8px; }
 #toast { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); color: var(--accent); font-size: 12px; pointer-events: none; text-align: center; }
 .error { color: var(--fast); }
+.loadout { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 16px; font-size: 11px; color: var(--muted); min-height: 36px; }
+.loadout select { background: var(--bg); color: var(--text); border: 1px solid #ffffff26; border-radius: 5px; font: inherit; padding: 5px; min-height: 32px; }
+#weapon-status { color: var(--accent); text-align: right; }
 @media (max-width: 760px) {
   main { padding: 0 14px; }.masthead { padding: 20px 0; }.edition { display: none; }.intro { padding: 28px 0 24px; gap: 15px; }.level-badge { padding: 8px 12px; }.intro p:not(.eyebrow) { font-size: 12px; }
   .hud { padding: 16px 14px; gap: 13px; }.stat { min-width: 0; padding-right: 13px; }.stat strong { font-size: 18px; }.stat-label { font-size: 7px; letter-spacing: .7px; }.stat strong span { font-size: 11px; }.lives strong { letter-spacing: 0; }
@@ -86,3 +90,42 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   footer { flex-direction: column; }.field-guide { gap: 23px 14px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+@media (max-width: 760px) and (orientation: portrait) {
+  main { padding: env(safe-area-inset-top, 0px) 8px env(safe-area-inset-bottom, 0px); }
+  .masthead { height: 48px; padding: 6px 4px; border: 0; }
+  .brand { font-size: 13px; letter-spacing: 1.5px; gap: 9px; }
+  .brand-mark { width: 25px; height: 28px; font-size: 19px; }
+  .intro { display: none; }
+  .game-shell { border-radius: 12px; }
+  .hud { display: grid; grid-template-columns: repeat(5, auto); justify-content: space-between; height: 61px; padding: 10px 10px 8px; gap: 5px; }
+  .stat { border: 0; padding: 0; }
+  .stat-label { font-size: 7px; letter-spacing: .3px; margin-bottom: 5px; }
+  .stat strong { font-size: 17px; }
+  .stat strong span { font-size: 10px; }
+  .stat.lives { margin: 0; }
+  .objective { height: 29px; padding: 6px 10px; }
+  .objective > span:first-child { display: none; }
+  .objective strong { font-size: 11px; }
+  .board[data-portrait="true"] {
+    /* Reserve the header, HUD, objective, and 44px toolbar before sizing the board. */
+    width: min(100% - 12px, calc((100svh - 264px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * .625));
+    aspect-ratio: 5 / 8;
+    margin: 6px auto;
+    touch-action: none;
+  }
+  .game-toolbar { min-height: 56px; padding: 6px 8px; gap: 6px; }
+  .game-toolbar > span { font-size: 10px; line-height: 1.4; max-width: 43%; }
+  .game-toolbar button { min-height: 44px; padding: 8px 12px; font-size: 12px; touch-action: manipulation; }
+  .brick { border-radius: 6px; }
+  .brick-meter { height: 4px; }
+  .overlay { padding: 10px; overflow-y: auto; }
+  .dialog { padding: 8px; }
+  .dialog-icon { display: block; font-size: 30px; margin-bottom: 16px; }
+  .dialog h2 { font-size: 25px; }
+  .dialog > p:not(.eyebrow) { font-size: 13px; line-height: 1.6; margin-bottom: 18px; }
+  .primary { min-height: 48px; font-size: 14px; touch-action: manipulation; }
+  .field-guide { padding: 25px 6px; }
+  .loadout { padding: 2px 8px; min-height: 48px; font-size: 10px; }
+  .loadout select { min-height: 44px; max-width: 154px; }
+}

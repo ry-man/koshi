@@ -54,6 +54,11 @@ Note that food can only appear in locations where Koshi has access. Food does no
 
 Food will only remain on the screen for a limited amount of time. A timer bar will appear above the food when it appears and will decrease to indicate how long until the food disappears.
 
+Every level has a "heart cost". This is the amount of food points required to have a heart be randomly placed into the game board.
+
+### Hearts
+Hearts appear on the screen when triggered by enough food (the heart cost for the level) being gathered by Koshi. These fill one heart in his health meter. Hearts may also appear in other ways (Ex: through bosses or other enemies dropping them - see enemy descriptions)
+
 ## Bricks
 Bricks are colored based on their classification and can be clicked to move Koshi towards the precise location clicked on the brick. At this time, the brick becomes temporarily unclickable and turns a darker shade of color. The bricks have a cooldown time before they are once again clickable. A meter appears along the length of the brick which indicates how much longer the cooldown period is to last. Once the cooldown period is over, the brick returns to its original shade and is once again clickable.
 
@@ -66,7 +71,32 @@ The bricks have the following classifications based on their cooldown time:
 | Fast                  | 3                       | Red   |
 
 ## Enemies
-Enemies are not yet added into the game.
+Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.
+
+### Robo Mouse
+Appearance: Robotic mouse head with grated texture over its eyeballs.
+Movement: Mouse moves in random, curving patterns and periodically stops in place to lick its hands
+Attack: Does not fire projectiles nor directy chase Koshi. Only damages Koshi if they collide.
+Defeat: Mouse is defeated by any weapon.
+
+### Robo Wheel
+Appearance: Robotic wheel with "Mr. Yuck" like face on it.
+Movement: Rolls along the boundary of the game board
+Attack: Does not fire projectiles nor directy chase Koshi. Only damages Koshi if they collide.
+Defeat: Wheel is defeated by any weapon.
+
+## Weapons
+
+### Swords
+Swords randomly appear and do not ever disappear unless Koshi picks them up. When Koshi touches a sword, he then holds it and can use it to defeat enemies. Koshi cannot hold more than one weapon. If he already has a weapon, he cannot pick up another one until the weapon he is holding is broken. Swords either have a limit on the number of enemies or the time in which they are available. The swords come in the following colors/types:
+
+| Sword Type            | Description                                                                 |
+|-----------------------|-----------------------------------------------------------------------------|
+| Wood Sword            | Destroys 1 enemy then is broken                                             |
+| Bronze Sword          | Destroys 3 enemies then is broken                                           |
+| Silver Sword          | Destroys 10 enemies then is broken                                          |
+| Gold Sword            | Destroys all enemies touches for 15 seconds, then is broken                 |
+
 
 ## Death
 Koshi dies if he either runs out of hearts or if he runs off of the edge of the screen.
@@ -97,4 +127,75 @@ The food will appear at the following times ("Appear Time") in the following met
 | 55           | R5     |P     | 3         |
 
 
+#### Level 1-1
+This level has the following:
 
+1. Level time length: 60 seconds
+2. Level objective: Gather 20 food
+3. Level setup: Bricks along just boundary of screen. Most bricks are Normal speed but one each of Slow and Fast are included.
+4. Heart Cost: Infinity (no hearts)
+
+The food will appear at the following times ("Appear Time") in the following methods using the abbreviations defined above and only stay on screen for the following time in seconds ("Life Time"):
+| Appear Time  | Method | Food | Life Time |
+|--------------|--------|------|-----------|
+| 2            | S      |S     | 5         |
+| 4            | S      |S     | 5         |
+| 6            | S      |S     | 5         |
+| 10           | L3     |S     | 5         |
+| 15           | L3     |S     | 5         |
+| 20           | L3     |S     | 5         |
+| 25           | C3     |S     | 5         |
+| 30           | C4     |S     | 5         |
+| 35           | C5     |S     | 5         |
+| 35           | R5     |P     | 3         |
+| 45           | R5     |P     | 3         |
+| 55           | R5     |P     | 3         |
+
+
+#### Level 1-2
+This level has the following:
+
+1. Level time length: 120 seconds
+2. Level objective: Gather 20 food
+3. Level setup: Bricks along just boundary of screen. Most bricks are Normal speed but three each of Slow and Fast are included.
+4. Heart cost: 10
+
+The food will appear at the following times ("Appear Time") in the following methods using the abbreviations defined above and only stay on screen for the following time in seconds ("Life Time"):
+| Appear Time  | Method | Food | Life Time |
+|--------------|--------|------|-----------|
+| 5            | S      |S     | 10        |
+| 10           | S      |S     | 10        |
+| 15           | S      |S     | 10        |
+| 20           | L3     |S     | 10        |
+| 25           | L3     |S     | 10        |
+| 30           | L3     |S     | 10        |
+| 35           | C3     |S     | 10        |
+| 40           | C4     |S     | 10        |
+| 50           | C5     |S     | 10        |
+| 60           | R5     |P     | 15        |
+| 80           | R5     |P     | 15        |
+| 100          | R5     |P     | 15        |
+
+Enemies will appear at the following times
+| Appear Time | Enemy               | Count |
+|-------------|---------------------|-------|
+| 10          | Robo Mouse          | 3     |
+| 20          | Robo Wheel          | 1     |
+| 30          | Robo Mouse          | 3     |
+| 40          | Robo Wheel          | 1     |
+| 50          | Robo Wheel          | 1     |
+| 60          | Robo Mouse          | 3     |
+| 70          | Robo Mouse          | 3     |
+| 80          | Robo Wheel          | 1     |
+| 90          | Robo Wheel          | 1     |
+| 100         | Robo Mouse          | 3     |
+
+Weapons will appear at the following times:
+| Appear Time | Weapon              |
+|-------------|---------------------|
+| 5           | Wood Sword          |
+| 15          | Bronze Sword        |
+| 30          | Silver Sword        |
+| 50          | Gold Sword          |
+| 70          | Silver Sword        |
+| 80          | Gold Sword          |

@@ -195,3 +195,57 @@ test('invalid input does not consume cooldowns or corrupt the simulation', () =>
   assert.equal(game.elapsed, 0);
   assert.equal(game.bricks[0].readyAt, 0);
 });
+
+test('portrait boards provide touch-sized bricks, correct boundaries, and reachable food', () => {
+  for (const scale of [.36, .46, .57, .64, 1]) {
+    for (const random of [() => 0, () => .5, () => .99999]) {
+      const game = new Game(random, { portrait: true, scale });
+      assert.equal(game.width, 600);
+      assert.equal(game.height, 960);
+      assert.deepEqual([game.cat.x, game.cat.y], [300, 480]);
+      assert.equal(game.bricks.filter(b => b.kind === 'slow').length, 1);
+      assert.equal(game.bricks.filter(b => b.kind === 'fast').length, 1);
+      for (const brick of game.bricks) {
+        assert.ok(brick.w * scale >= 44 && brick.h * scale >= 44);
+        assert.ok(brick.x >= 0 && brick.y >= 0);
+        assert.ok(brick.x + brick.w <= game.width && brick.y + brick.h <= game.height);
+      }
+      for (const event of SCHEDULE) {
+        game.food = [];
+        game.spawn(event);
+        for (const food of game.food) {
+          for (const brick of game.bricks) {
+            const x = Math.max(brick.x, Math.min(brick.x + brick.w, food.x));
+            const y = Math.max(brick.y, Math.min(brick.y + brick.h, food.y));
+            assert.ok(Math.hypot(food.x - x, food.y - y) > 33);
+          }
+        }
+        if (event[1].startsWith('C')) {
+          const cx = game.food.reduce((sum, f) => sum + f.x, 0) / game.food.length;
+          const cy = game.food.reduce((sum, f) => sum + f.y, 0) / game.food.length;
+          for (const food of game.food) assert.ok(Math.abs(Math.hypot(food.x - cx, food.y - cy) - 88) < 1e-8);
+        }
+      }
+      game.food = [];
+      game.start();
+      aim(game, game.bricks[0]);
+      game.update(1.5);
+      assert.equal(game.state, 'playing');
+      assert.equal(game.cat.vy, 0);
+      assert.ok(game.cat.y >= game.bricks[0].y + game.bricks[0].h + game.cat.radius - 1e-8);
+      const opposite = game.bricks.reduce((best, brick) =>
+        brick.y > best.y || (brick.y === best.y && brick.x > best.x) ? brick : best);
+      aim(game, opposite);
+      const oldY = game.cat.y;
+      game.update(.1);
+      assert.ok(game.cat.y > oldY);
+      game.reset();
+      assert.equal(game.width, 600);
+      assert.deepEqual([game.cat.x, game.cat.y], [300, 480]);
+      game.start();
+      game.cat.x = 600;
+      game.update(.01);
+      assert.equal(game.state, 'lost');
+    }
+  }
+});
