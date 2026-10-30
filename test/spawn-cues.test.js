@@ -110,3 +110,61 @@ test('time-zero spawns keep their timing and early spawns get shortened previews
   assert.equal(game.robots.length, 4);
   assert.deepEqual(game.spawnCues, []);
 });
+
+test('earned hearts preview for exactly one second at their reserved positions in both layouts', () => {
+  for (const options of [{}, { portrait: true, scale: .35 }]) {
+    let calls = 0;
+    const game = new Game(() => (++calls * .137) % 1, {
+      ...options, customLevel: { ...custom([]), heartCost: 10 },
+    });
+    game.start();
+    game.score = 9;
+    game.hearts = 1;
+    game.food.push({ ...point(game.cat), type: 'S', expires: 5 });
+    game.update(1 / 120);
+    const [cue] = game.spawnCues;
+    assert.equal(cue.kind, 'heart');
+    assert.ok(Math.abs(cue.progress) < 1e-8);
+    const randomCalls = calls;
+    game.cat.x = cue.x; game.cat.y = cue.y;
+    game.update(.5);
+    assert.ok(Math.abs(game.spawnCues[0].progress - .5) < 1e-8);
+    assert.equal(game.healing.length, 0);
+    assert.equal(game.hearts, 1, 'clouds cannot heal');
+    game.cat.x = 22; game.cat.y = 22;
+    game.update(.499);
+    assert.equal(game.healing.length, 0);
+    assert.equal(game.spawnCues.length, 1);
+    game.update(.001);
+    assert.deepEqual(game.spawnCues, []);
+    assert.deepEqual(game.healing, [point(cue)]);
+    assert.equal(calls, randomCalls);
+    assert.equal(game.pendingSpawns.size, 0);
+    game.update(2);
+    assert.deepEqual(game.healing, [point(cue)], 'uncollected hearts persist');
+  }
+});
+
+test('multiple healing thresholds queue independent clouds; pause freezes and restart clears them', () => {
+  const game = new Game(() => .25, { customLevel: { ...custom([]), heartCost: 1 } });
+  game.start();
+  game.food.push({ ...point(game.cat), type: 'P', expires: 5 });
+  game.update(.01);
+  assert.equal(game.spawnCues.length, 2);
+  assert.ok(game.spawnCues.every(cue => cue.kind === 'heart'));
+  assert.equal(game.nextHeart, 3);
+  game.update(.25);
+  const cues = structuredClone(game.spawnCues);
+  game.pause(); game.update(10);
+  assert.deepEqual(game.spawnCues, cues);
+  game.resume(); game.update(.75);
+  assert.equal(game.healing.length, 2);
+  assert.deepEqual(game.spawnCues, []);
+  game.score++;
+  game.update(.01);
+  assert.equal(game.spawnCues.length, 1);
+  game.reset();
+  assert.deepEqual(game.spawnCues, []);
+  assert.equal(game.pendingSpawns.size, 0);
+  assert.equal(game.healing.length, 0);
+});

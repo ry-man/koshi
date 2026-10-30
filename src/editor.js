@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, CHARACTERS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime } = globalThis.KoshiGame;
+const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, CHARACTERS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes } = globalThis.KoshiGame;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
@@ -177,8 +177,8 @@ function renderBrickInspector(bricks) {
     if (color === MIXED) mixedOption($('#brick-slime-color')); else $('#brick-slime-color').value = color;
   }
   if (!chosen.length) {
-    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs']) $(selector).disabled = true;
-    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs']) $(selector).indeterminate = false;
+    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes']) $(selector).disabled = true;
+    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes']) $(selector).indeterminate = false;
     $('#brick-selection').textContent = 'Select one or more boundary bricks to change their attributes.';
     return;
   }
@@ -196,7 +196,7 @@ function renderBrickInspector(bricks) {
   };
   flag('#brick-crumbler', '#brick-uses', chosen.map(brick => brick.crumbler), 5);
   flag('#brick-warped', '#brick-warp-seconds', chosen.map(brick => brick.warped), 15);
-  for (const attribute of ['slimed', 'springs']) {
+  for (const attribute of ['slimed', 'springs', 'spikes']) {
     const box = $(`#brick-${attribute}`), count = chosen.filter(brick => brick[attribute]).length;
     box.disabled = false;
     box.checked = count === chosen.length;
@@ -232,7 +232,7 @@ function renderBoard() {
     element.textContent = [brick.crumbler ? `C:${brick.crumbler}` : '', brick.warped ? `W:${brick.warped}s` : ''].filter(Boolean).join(' ');
     element.dataset.id = brick.id;
     element.dataset.region = key;
-    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`);
+    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}`);
     element.setAttribute('aria-pressed', String(selectedBricks.has(key)));
     // Pointer clicks are handled by the board gesture; detail 0 means keyboard activation.
     element.addEventListener('click', event => {
@@ -255,6 +255,22 @@ function renderBoard() {
       path.setAttribute('vector-effect', 'non-scaling-stroke');
       svg.append(path);
       element.append(svg);
+      if (brick.springs) {
+        const spring = svg.cloneNode(false);
+        spring.setAttribute('class', 'brick-spring');
+        const platform = path.cloneNode();
+        platform.setAttribute('class', 'spring-platform');
+        const geometry = brickSpring([brick], previewGame.width, previewGame.height);
+        platform.setAttribute('d', geometry.platform);
+        spring.append(platform);
+        for (const detail of ['grain', 'highlight']) {
+          const texture = path.cloneNode();
+          texture.setAttribute('class', `spring-${detail}`);
+          texture.setAttribute('d', geometry[detail]);
+          spring.append(texture);
+        }
+        element.append(spring);
+      }
       if (brick.slimed) {
         const slime = svg.cloneNode(false);
         slime.setAttribute('class', 'brick-slime');
@@ -264,6 +280,29 @@ function renderBoard() {
         slime.append(icing);
         element.append(slime);
       }
+    }
+    const spring = element.querySelector('.brick-spring');
+    if (spring) {
+      spring.style.cssText = `left:${brick.x / previewGame.width * 100}%;top:${brick.y / previewGame.height * 100}%;width:${brick.w / previewGame.width * 100}%;height:${brick.h / previewGame.height * 100}%;`;
+      const fragment = document.createDocumentFragment();
+      fragment.append(element, spring);
+      return fragment;
+    }
+    if (brick.spikes) {
+      const ns = 'http://www.w3.org/2000/svg';
+      const spikes = document.createElementNS(ns, 'svg');
+      spikes.setAttribute('class', 'brick-spikes');
+      spikes.setAttribute('viewBox', '0 0 1 1');
+      spikes.setAttribute('preserveAspectRatio', 'none');
+      spikes.setAttribute('aria-hidden', 'true');
+      spikes.style.cssText = `left:${brick.x / previewGame.width * 100}%;top:${brick.y / previewGame.height * 100}%;width:${brick.w / previewGame.width * 100}%;height:${brick.h / previewGame.height * 100}%;`;
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', brickSpikes([brick], previewGame.width, previewGame.height).path);
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
+      spikes.append(path);
+      const fragment = document.createDocumentFragment();
+      fragment.append(element, spikes);
+      return fragment;
     }
     return element;
   }));
@@ -450,17 +489,19 @@ function saveBrick(event) {
     const number = selector => $(selector).value === '' ? null : Number($(selector).value);
     // Only the changed control is applied, so mixed values in other controls are preserved.
     const entries = targets.map(({ brick, region }) => {
-      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null, slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs) };
+      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null, slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs), spikes: Boolean(brick.spikes) };
       if (id === 'brick-slime-color' && $('#brick-slime-color').value !== MIXED) entry.slimeColor = $('#brick-slime-color').value;
       if (id === 'brick-kind' && $('#brick-kind').value !== MIXED) entry.kind = $('#brick-kind').value;
       if (id === 'brick-crumbler') entry.crumbler = $('#brick-crumbler').checked ? entry.crumbler ?? number('#brick-uses') ?? 5 : null;
       if (id === 'brick-uses' && entry.crumbler && number('#brick-uses') !== null) entry.crumbler = number('#brick-uses');
       if (id === 'brick-warped') entry.warped = $('#brick-warped').checked ? entry.warped ?? number('#brick-warp-seconds') ?? 15 : null;
       if (id === 'brick-warp-seconds' && entry.warped && number('#brick-warp-seconds') !== null) entry.warped = number('#brick-warp-seconds');
-      if (id === 'brick-slimed' || id === 'brick-springs') {
+      if (['brick-slimed', 'brick-springs', 'brick-spikes'].includes(id)) {
         const attribute = id.slice(6);
         entry[attribute] = $(`#${id}`).checked;
-        if (entry[attribute]) entry[attribute === 'slimed' ? 'springs' : 'slimed'] = false;
+        if (entry[attribute]) {
+          for (const other of ['slimed', 'springs', 'spikes']) if (other !== attribute) entry[other] = false;
+        }
       }
       return entry;
     });
@@ -473,7 +514,7 @@ function saveBrick(event) {
   // Re-render on success and failure so the inspector always reflects the saved level.
   renderBoard();
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs']) {
+for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes']) {
   $(selector).addEventListener('change', saveBrick);
 }
 $('#reset-brick-types').addEventListener('click', () => {

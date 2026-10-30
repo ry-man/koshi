@@ -6,6 +6,7 @@ const HEIGHT = 600;
 const DURATION = 60;
 const GOAL = 20;
 const SPEED = 420;
+const DAMAGE_DURATION = 1;
 const COOLDOWNS = { slow: 15, normal: 8, fast: 3 };
 const SLIMES = { blue: { duration: 5, color: '#287dcc' }, green: { duration: 3, color: '#399d24' }, red: { duration: 1, color: '#cd4136' } };
 const FOODS = {
@@ -130,6 +131,7 @@ const LEVELS = [
       { edge: 'bottom', start: .6, end: .8, kind: 'fast', crumbler: 5 },
       { edge: 'left', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'red' },
       { edge: 'right', start: .625, end: .75, kind: 'normal', springs: true },
+      { edge: 'bottom', start: .2, end: .4, kind: 'normal', spikes: true },
     ],
   },
   {
@@ -149,6 +151,7 @@ const LEVELS = [
       { edge: 'left', start: .5, end: .625, kind: 'fast', slimed: true, slimeColor: 'red' },
       { edge: 'right', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'green' },
       { edge: 'right', start: .75, end: .875, kind: 'normal', springs: true },
+      { edge: 'top', start: .4, end: .6, kind: 'normal', spikes: true },
     ],
   },
   {
@@ -171,6 +174,8 @@ const LEVELS = [
       { edge: 'left', start: .625, end: .75, kind: 'fast', slimed: true, slimeColor: 'red' },
       { edge: 'right', start: .75, end: .875, kind: 'normal', springs: true },
       { edge: 'bottom', start: .4, end: .6, kind: 'normal', springs: true },
+      { edge: 'top', start: .4, end: .6, kind: 'normal', spikes: true },
+      { edge: 'right', start: .5, end: .625, kind: 'normal', spikes: true },
     ],
   },
 ];
@@ -223,12 +228,13 @@ function validateCustomLevel(value) {
         if (typeof entry.slimeColor !== 'string' || !Object.hasOwn(SLIMES, entry.slimeColor)) fail(`Brick override ${i + 1} has an unknown slime color.`);
         override.slimeColor = entry.slimeColor;
       }
-      for (const attribute of ['slimed', 'springs']) {
+      for (const attribute of ['slimed', 'springs', 'spikes']) {
         if (entry[attribute] === undefined) continue;
         if (typeof entry[attribute] !== 'boolean') fail(`Brick override ${i + 1} ${attribute} must be a boolean.`);
         override[attribute] = entry[attribute];
       }
       if (override.slimed && override.springs) fail(`Brick override ${i + 1} cannot be both Slimed and Springs.`);
+      if (override.spikes && (override.slimed || override.springs)) fail(`Brick override ${i + 1} cannot combine Spikes with Slimed or Springs.`);
       return override;
     });
   }
@@ -360,11 +366,10 @@ function brickShape(parts, crumbly = false, wear = 0) {
   return { x, y, w, h, path, clipPath, cracks };
 }
 
-function brickSlime(parts, width, height) {
+function brickInnerEdges(parts, width, height) {
   const shape = brickShape(parts);
   const { x, y, w, h } = shape;
-  const point = (px, py) => `${px / w} ${py / h}`;
-  let path = '';
+  const edges = [];
   for (const loop of shape.path.split('M').slice(1)) {
     const vertices = loop.replace('Z', '').split('L').map(pair => pair.split(' ').map(Number))
       .map(([px, py]) => [px * w, py * h]);
@@ -383,21 +388,79 @@ function brickSlime(parts, width, height) {
       });
       if (!inner) continue;
       const thickness = Math.max(...touching.map(part => dx === 0 ? part.w : part.h));
-      const at = (t, inset) => point(ax + dx * t - dy / length * inset, ay + dy * t + dx / length * inset);
-      const lobes = Math.max(1, Math.round(length / 28));
-      const band = thickness * .08;
-      path += `M${at(0, 0)}L${at(1, 0)}L${at(1, band)}`;
-      for (let j = lobes - 1; j >= 0; j--) {
-        const variation = (Math.round(x + ax + y + ay) + j * 7) % 5;
-        const depth = Math.min(thickness * (.22 + variation * .05), length / lobes * .9);
-        path += `Q${at((j + .78) / lobes, band)} ${at((j + .65) / lobes, depth)}`;
-        path += `Q${at((j + .38) / lobes, depth * 1.15)} ${at((j + .24) / lobes, band)}`;
-        path += `Q${at((j + .12) / lobes, band * .6)} ${at(j / lobes, band)}`;
-      }
-      path += 'Z';
+      edges.push({ ax, ay, dx, dy, length, thickness });
     }
   }
+  return { ...shape, edges };
+}
+
+function brickSlime(parts, width, height) {
+  const { x, y, w, h, edges } = brickInnerEdges(parts, width, height);
+  const point = (px, py) => `${px / w} ${py / h}`;
+  let path = '';
+  for (const { ax, ay, dx, dy, length, thickness } of edges) {
+    const at = (t, inset) => point(ax + dx * t - dy / length * inset, ay + dy * t + dx / length * inset);
+    const lobes = Math.max(1, Math.round(length / 28));
+    const band = thickness * .08;
+    path += `M${at(0, 0)}L${at(1, 0)}L${at(1, band)}`;
+    for (let j = lobes - 1; j >= 0; j--) {
+      const variation = (Math.round(x + ax + y + ay) + j * 7) % 5;
+      const depth = Math.min(thickness * (.22 + variation * .05), length / lobes * .9);
+      path += `Q${at((j + .78) / lobes, band)} ${at((j + .65) / lobes, depth)}`;
+      path += `Q${at((j + .38) / lobes, depth * 1.15)} ${at((j + .24) / lobes, band)}`;
+      path += `Q${at((j + .12) / lobes, band * .6)} ${at(j / lobes, band)}`;
+    }
+    path += 'Z';
+  }
   return path;
+}
+
+function brickSpring(parts, width, height, compression = 0) {
+  const { w, h, edges } = brickInnerEdges(parts, width, height);
+  let platform = '', coils = '', grain = '', highlight = '';
+  for (const { ax, ay, dx, dy, length, thickness } of edges) {
+    const depth = Math.min(10, thickness * .32);
+    const overhang = 3;
+    const travel = Math.min(5, thickness * .18) * compression;
+    const at = (t, inset) => `${(ax + dx * t - dy / length * inset) / w} ${(ay + dy * t + dx / length * inset) / h}`;
+    const face = travel - overhang;
+    platform += `M${at(0, face)}L${at(1, face)}L${at(1, face + depth)}L${at(0, face + depth)}Z`;
+    highlight += `M${at(.01, face + 1)}L${at(.99, face + 1)}`;
+    const segments = Math.max(1, Math.round(length / 38));
+    for (let i = 0; i < segments; i++) {
+      for (const row of [.38, .72]) {
+        const inset = face + depth * row;
+        grain += `M${at((i + .08) / segments, inset)}Q${at((i + .32) / segments, inset - depth * .13)} ${at((i + .52) / segments, inset)}`;
+        grain += `T${at((i + .92) / segments, inset)}`;
+      }
+    }
+    if (compression <= 0) continue;
+    const count = Math.max(1, Math.round(length / 16));
+    for (let i = 0; i < count; i++) {
+      const center = (i + .5) / count;
+      coils += `M${at(center, 0)}`;
+      for (let j = 1; j <= 6; j++) {
+        const offset = j === 6 ? 0 : (j % 2 ? 2 : -2) / length;
+        coils += `L${at(center + offset, travel * j / 6)}`;
+      }
+    }
+  }
+  return { platform, coils, grain, highlight };
+}
+
+function brickSpikes(parts, width, height) {
+  const { x, y, w, h, edges } = brickInnerEdges(parts, width, height);
+  const triangles = [];
+  for (const { ax, ay, dx, dy, length, thickness } of edges) {
+    const count = Math.max(1, Math.round(length / 16));
+    const depth = Math.min(14, thickness * .6);
+    const at = (t, offset) => [x + ax + dx * t + dy / length * offset, y + ay + dy * t - dx / length * offset];
+    for (let i = 0; i < count; i++) {
+      triangles.push([at(i / count, 0), at((i + .5) / count, depth), at((i + 1) / count, 0)]);
+    }
+  }
+  const path = triangles.map(triangle => `M${triangle.map(([px, py]) => `${(px - x) / w} ${(py - y) / h}`).join('L')}Z`).join('');
+  return { path, triangles };
 }
 
 function brickRecharge(parts, bricks, perimeter, width, height) {
@@ -498,6 +561,33 @@ function distanceToSegment(px, py, x, y, endX, endY) {
   return Math.hypot(px - x - t * dx, py - y - t * dy);
 }
 
+function spikeContact(x, y, dx, dy, radius, triangle) {
+  let contact = Infinity;
+  const orientation = Math.sign(triangle.reduce((sum, [ax, ay], i) => {
+    const [bx, by] = triangle[(i + 1) % 3];
+    return sum + ax * by - ay * bx;
+  }, 0));
+  for (let i = 0; i < 3; i++) {
+    const [ax, ay] = triangle[i], [bx, by] = triangle[(i + 1) % 3];
+    const ex = bx - ax, ey = by - ay, length = Math.hypot(ex, ey);
+    const nx = orientation * ey / length, ny = -orientation * ex / length;
+    const speed = dx * nx + dy * ny;
+    if (speed < 0) {
+      const t = (radius - ((x - ax) * nx + (y - ay) * ny)) / speed;
+      const along = ((x + dx * t - ax) * ex + (y + dy * t - ay) * ey) / length;
+      if (t >= -1e-9 && t <= 1 && along >= 0 && along <= length) contact = Math.min(contact, Math.max(0, t));
+    }
+    const a = dx * dx + dy * dy, ox = x - ax, oy = y - ay;
+    const b = 2 * (ox * dx + oy * dy), c = ox * ox + oy * oy - radius * radius;
+    const discriminant = b * b - 4 * a * c;
+    if (a > 0 && b < 0 && discriminant >= 0) {
+      const t = (-b - Math.sqrt(discriminant)) / (2 * a);
+      if (t >= -1e-9 && t <= 1) contact = Math.min(contact, Math.max(0, t));
+    }
+  }
+  return contact;
+}
+
 function brickNormal(x, y, brick) {
   const dx = x - Math.max(brick.x, Math.min(brick.x + brick.w, x));
   const dy = y - Math.max(brick.y, Math.min(brick.y + brick.h, y));
@@ -532,6 +622,7 @@ class Game {
     this.score = 0;
     this.enemies = 0;
     this.hearts = 3;
+    this.invulnerableUntil = 0;
     this.nextEvent = 0;
     this.food = [];
     this.bricks = makeBricks(this.portrait, this.scale);
@@ -546,6 +637,7 @@ class Game {
     this.robots = [];
     this.weapons = [];
     this.healing = [];
+    this.spikeTouching = new Set();
     this.weapon = null;
     this.nextEnemy = 0;
     this.nextWeapon = 0;
@@ -579,13 +671,12 @@ class Game {
           if (entry.crumbler !== undefined) brick.crumbler = entry.crumbler;
           if (entry.warped !== undefined) brick.warped = entry.warped;
           if (entry.slimeColor !== undefined) brick.slimeColor = entry.slimeColor;
-          if (entry.slimed !== undefined) {
-            brick.slimed = entry.slimed;
-            if (entry.slimed) brick.springs = false;
-          }
-          if (entry.springs !== undefined) {
-            brick.springs = entry.springs;
-            if (entry.springs) brick.slimed = false;
+          for (const attribute of ['slimed', 'springs', 'spikes']) {
+            if (entry[attribute] === undefined) continue;
+            brick[attribute] = entry[attribute];
+            if (entry[attribute]) {
+              for (const other of ['slimed', 'springs', 'spikes']) if (other !== attribute) brick[other] = false;
+            }
           }
         }
       }
@@ -616,6 +707,19 @@ class Game {
   pause() { if (this.state === 'playing') this.state = 'paused'; }
   resume() { if (this.state === 'paused') this.state = 'playing'; }
 
+  get invulnerable() { return this.invulnerableUntil > this.elapsed + 1e-9; }
+
+  get damageProgress() {
+    return this.invulnerable ? 1 - (this.invulnerableUntil - this.elapsed) / DAMAGE_DURATION : null;
+  }
+
+  takeDamage() {
+    if (this.state !== 'playing' || this.hearts <= 0 || this.invulnerable) return false;
+    this.hearts--;
+    this.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
+    return true;
+  }
+
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
     if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
@@ -627,6 +731,8 @@ class Game {
     if (!distance) return false;
     const vx = dx / distance * SPEED, vy = dy / distance * SPEED;
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
+    if (this.spikeParts(parts).some(({ triangle }) =>
+      spikeContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, triangle) <= 1e-9)) return false;
     brick.readyAt = this.elapsed + COOLDOWNS[brick.kind];
     if (brick.usesLeft !== null) brick.usesLeft--;
     if (brick.warped) this.absorbNeighbor(brick);
@@ -649,6 +755,12 @@ class Game {
       else if (bottom > top) parts.push({ id: owner(a), afterId: a.id, x: Math.min(a.x + a.w, b.x + b.w), y: top, w: left - Math.min(a.x + a.w, b.x + b.w), h: bottom - top });
     }
     return parts;
+  }
+
+  spikeParts(parts) {
+    return this.bricks.filter(brick => brick.spikes && brick.absorbedBy === null).flatMap(brick =>
+      brickSpikes(parts.filter(part => part.id === brick.id), this.width, this.height).triangles
+        .map(triangle => ({ id: brick.id, triangle })));
   }
 
   absorbNeighbor(brick) {
@@ -840,7 +952,7 @@ class Game {
         return false;
       }
       const touching = distance <= this.cat.radius + enemy.radius;
-      if (touching && !enemy.touching) this.hearts = Math.max(0, this.hearts - 1);
+      if (touching && !enemy.touching) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
     });
@@ -879,16 +991,37 @@ class Game {
       const event = this.level.weapons[this.nextWeapon++];
       this.weapons.push(...this.takeSpawn(event, ([, type]) => [{ ...this.randomPoint(), type }]));
     }
+    for (const [event, pending] of this.pendingSpawns) {
+      if (pending.kind === 'heart' && pending.time <= this.elapsed + 1e-9) {
+        this.healing.push(...pending.items);
+        this.pendingSpawns.delete(event);
+      }
+    }
     this.food = this.food.filter(item => item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const dx = cat.vx * dt, dy = cat.vy * dt;
+    const parts = this.brickParts();
+    const spikes = dx || dy || this.spikeTouching.size ? this.spikeParts(parts) : [];
+    for (const id of this.spikeTouching) {
+      const touching = parts.some(part => part.id === id &&
+        Math.hypot(cat.x - Math.max(part.x, Math.min(part.x + part.w, cat.x)),
+          cat.y - Math.max(part.y, Math.min(part.y + part.h, cat.y))) <= cat.radius + 1e-6)
+        || spikes.some(spike => spike.id === id && spike.triangle.some(([x, y], i, triangle) =>
+          distanceToSegment(cat.x, cat.y, x, y, ...triangle[(i + 1) % 3]) <= cat.radius + 1e-6));
+      if (!touching) this.spikeTouching.delete(id);
+    }
     let contact = 1;
     let contacts = [];
     if (dx || dy) {
-      for (const brick of this.brickParts()) {
+      for (const brick of parts) {
         const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, brick);
         if (t < contact - 1e-9) { contact = t; contacts = [brick]; }
         else if (t <= contact + 1e-9 && t <= 1) contacts.push(brick);
+      }
+      for (const spike of spikes) {
+        const t = spikeContact(cat.x, cat.y, dx, dy, cat.radius, spike.triangle);
+        if (t < contact - 1e-9) { contact = t; contacts = [spike]; }
+        else if (t <= contact + 1e-9 && t <= 1) contacts.push(spike);
       }
     }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
@@ -900,11 +1033,15 @@ class Game {
       return false;
     });
     while (this.score >= this.nextHeart) {
-      this.healing.push(this.randomPoint());
+      const event = { time: this.elapsed + 1 };
+      this.pendingSpawns.set(event, { kind: 'heart', time: event.time, items: [this.randomPoint()] });
       this.nextHeart += this.level.heartCost;
     }
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
+    const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
+    if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
+    for (const id of spikeIds) this.spikeTouching.add(id);
     this.combat(dt, startX, startY);
     if (contacts.length) {
       const solid = contacts.filter(part => !this.bricks[part.id].springs);
@@ -946,7 +1083,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

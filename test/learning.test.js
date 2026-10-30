@@ -41,6 +41,21 @@ test('guide covers all playable topics and lessons have unique freely selectable
   }
 });
 
+test('guide illustrates every brick, enemy, heart, and weapon without a story section', () => {
+  const pictures = GUIDE.flatMap(chapter => chapter.sections.map(([, , picture]) => picture).filter(Boolean));
+  for (const picture of [
+    'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped', 'brick:warped-crumbler',
+    'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'heart',
+    'enemy:mouse', 'enemy:wheel', ...Object.keys(SWORDS).map(type => `weapon:${type}`),
+  ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
+  assert.equal(new Set(pictures).size, pictures.length);
+  for (const chapter of GUIDE) {
+    assert.doesNotMatch(chapter.title, /story/i);
+    for (const [title, description] of chapter.sections) assert.doesNotMatch(`${title} ${description}`, /story|cutscene/i);
+  }
+  assert.ok(GUIDE.some(chapter => chapter.title === 'Objectives'));
+});
+
 for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scale: .3 }]) {
   const layout = options.portrait ? `phone at scale ${options.scale}` : 'desktop';
   test(`movement, redirection, food, and recharge lessons use real actions on ${layout}`, () => {
@@ -115,6 +130,9 @@ test('healing, warnings, and pause steps require their specific interactions', (
     const healing = practice('healing', options);
     aim(healing); wait(healing, 1.05);
     assert.equal(healing.game.score, 10);
+    assert.equal(healing.game.healing.length, 0);
+    assert.equal(healing.game.spawnCues.filter(cue => cue.kind === 'heart').length, 1);
+    wait(healing, 1);
     assert.equal(healing.game.healing.length, 1);
     assert.equal(healing.observe(), false);
     aim(healing, opposite(healing)); wait(healing, 1);

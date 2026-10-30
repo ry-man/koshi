@@ -23,8 +23,11 @@ The title screen offers **How to play** and **Tutorial**.
 How to play is a browsable, eight-topic rules walkthrough. Players can select
 topics freely or move with Previous/Next. It describes movement and keyboard
 controls, all cooldown and special bricks, both robot enemies, every food,
-heart healing, all four swords, spawn warnings, current level goals, and story
-controls. Each topic links to a related tutorial step. Escape or Back to title
+heart healing, all four swords, spawn warnings, and current level goals.
+Labeled pictures illustrate every cooldown brick, Crumbler, Warped and combined
+brick, slime color, spring and spike surface, food, healing heart, enemy, and
+weapon using the gameplay shapes. Story instructions are not part of this guide.
+Each topic links to a related tutorial step. Escape or Back to title
 closes the guide.
 
 The interactive tutorial uses the actual game board and mechanics in 16 isolated
@@ -148,11 +151,16 @@ Some bricks are "Warped". These bricks, upon selecting, absorb an adjacent brick
 Some bricks have oozy slime only on the center-facing edge which Koshi touches, not around the other sides. It looks like bold cake icing with rounded, uneven goopy drips and a very dark border. Slime color is independent of brick cooldown color: blue holds Koshi for 5 seconds, green for 3 seconds, and red for 1 second. Unspecified slime color defaults to green. Warped groups use their owner's slime color along their exposed inner rim. This sticky slime holds Koshi stationary and blocks steering until he is released; simultaneous slime contacts use the longest hold. A matching-color countdown ring starts as a full circle and drains proportionally to the remaining hold time, without stuck text or duration messages. An expanding ring and FREE! label announce release. Koshi remains stationary until another valid brick is selected. Pause freezes the hold and countdown ring.
 
 ### Brick Attributes - Springs
-Some bricks have a thin brown, metallic layer on the edge of the brick which Koshi touches. When Koshi lands on this brick, he bounces off immediately, reflecting his incoming direction about the contact surface without changing speed (including rounded corners). The metallic edge compresses and rebounds slightly, revealing tiny springs underneath.
+Some bricks have a brown wooden platform with grain, a highlighted edge, and a clear dark outline only on the arena-facing edge, like slime, including the inner rim of warped groups. The platform is slightly thick and overhangs the brick toward the arena. The editor uses the same graphic. When Koshi lands on this brick, he bounces off immediately, reflecting his incoming direction about the contact surface without changing speed (including rounded corners). The platform compresses and rebounds slightly, revealing tiny springs underneath only during the bounce. At rest no coils are visible.
 
-Slimed and Springs are mutually exclusive: choosing one in the custom-level editor replaces the other. Both can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape. Built-in Levels 1-3 through 1-5 introduce these attributes.
+### Brick Attribute - Spikes
+Many triangular white spikes protrude from the arena-facing edge. Touching their tips or sides stops Koshi and costs one heart, even while armed. Staying against them does not repeatedly damage him; separating and touching them again can. Losing the last heart ends the attempt. The editor previews the same spikes used for collision in play.
+
+Slimed, Springs, and Spikes are mutually exclusive: choosing one in the custom-level editor replaces the others. All three can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Built-in Levels 1-3 through 1-5 introduce these attributes. Spikes occupy phone-layout bottom 20–40% in Level 1-3, top 40–60% in Level 1-4, and top 40–60% plus right 50–62.5% in Level 1-5; desktop rotates these slots with their bricks. The opening two levels stay unchanged. Restart clears spike contacts and restores health.
 
 ## Enemies
+Whenever Koshi loses a heart to an enemy or spikes, he becomes invulnerable to both for one second of game time. For exactly that interval he has an upset face and blinks between red shades. The animation uses the same timer as invulnerability: it ends precisely when he can take damage again. Blocked hits do not extend the timer. Pause freezes both; restart clears both. Contact tracking still requires separation before another hit from the same continuous contact. Protected Koshi can still move, collect items, attack, and be stopped by spikes; falling off the board still ends the attempt.
+
 Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.
 
 ### Robo Mouse
@@ -292,9 +300,9 @@ with the rest of the board.
 
 | Level | Name | Time | Food goal | Robot defeats | Brick setup |
 |-------|------|------|-----------|---------------|-------------|
-| 1-3 | Crumb patrol | 120s | 20 | 4 | Five-use fast Crumblers at top 20–40% and bottom 60–80%; red slime at left 25–37.5%; Springs at right 62.5–75%. |
-| 1-4 | Slime circuit | 150s | 25 | 8 | Fast Warped (12s) at top 80–100%; four-use fast Crumbler at bottom 0–20%; blue slime at left 12.5–25%, red at left 50–62.5%, green at right 25–37.5%; Springs at right 75–87.5%. |
-| 1-5 | Warped showdown | 180s | 30 | 12 | Four-use fast Warped Crumbler (15s) at top 80–100%; fast Warped (10s) at bottom 0–20%; three-use Crumblers at top 20–40% and bottom 60–80%; blue slime at left 12.5–25%, green at right 25–37.5%, red at left 62.5–75%; Springs at right 75–87.5% and bottom 40–60%. |
+| 1-3 | Crumb patrol | 120s | 20 | 4 | Five-use fast Crumblers at top 20–40% and bottom 60–80%; red slime at left 25–37.5%; Springs at right 62.5–75%; Spikes at bottom 20–40%. |
+| 1-4 | Slime circuit | 150s | 25 | 8 | Fast Warped (12s) at top 80–100%; four-use fast Crumbler at bottom 0–20%; blue slime at left 12.5–25%, red at left 50–62.5%, green at right 25–37.5%; Springs at right 75–87.5%; Spikes at top 40–60%. |
+| 1-5 | Warped showdown | 180s | 30 | 12 | Four-use fast Warped Crumbler (15s) at top 80–100%; fast Warped (10s) at bottom 0–20%; three-use Crumblers at top 20–40% and bottom 60–80%; blue slime at left 12.5–25%, green at right 25–37.5%, red at left 62.5–75%; Springs at right 75–87.5% and bottom 40–60%; Spikes at top 40–60% and right 50–62.5%. |
 
 The base cooldown mix is three slow and three fast bricks, with remaining bricks
 normal, before the overrides above. Green and red slime in 1-5, and red slime

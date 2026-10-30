@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, SPEED, brickEditRegions, brickRegions, validateCustomLevel } = require('../src/game.js');
+const { Game, SPEED, brickEditRegions, brickRegions, brickSpikes, validateCustomLevel } = require('../src/game.js');
 
 const blank = () => ({ version: 1, id: 'Contact bricks', duration: 120, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 function setup(attribute, options = {}, targetId = 0) {
@@ -210,5 +210,143 @@ test('merged groups use owner contact attributes, restore absorbed attributes, a
     game.update(.2);
     assert.equal(neighbor.absorbedBy, null);
     assert.equal(neighbor[attribute === 'slimed' ? 'springs' : 'slimed'], true);
+  }
+});
+
+test('spikes validate, round-trip, and replace either other surface without losing other attributes', () => {
+  for (const other of ['slimed', 'springs']) {
+    const game = setup('spikes');
+    const entry = game.customLevel.brickTypes[0];
+    for (const value of [null, 1, 'true', [], {}]) {
+      assert.throws(() => validateCustomLevel({ ...blank(), brickTypes: [{ ...entry, spikes: value }] }), TypeError);
+    }
+    assert.throws(() => validateCustomLevel({ ...blank(), brickTypes: [{ ...entry, [other]: true }] }), /cannot combine/);
+    for (const options of [{}, { portrait: true, scale: .31 }]) {
+      for (const [first, second] of [['spikes', other], [other, 'spikes']]) {
+        const level = validateCustomLevel(JSON.parse(JSON.stringify({
+          ...blank(), brickTypes: [
+            { ...entry, spikes: false, [first]: true, crumbler: 3, warped: 5 },
+            { edge: entry.edge, start: entry.start, end: entry.end, kind: 'slow', [second]: true },
+          ],
+        })));
+        const restored = new Game(() => .99, { ...options, customLevel: level });
+        const brick = restored.bricks[0];
+        assert.equal(brick[first], false);
+        assert.equal(brick[second], true);
+        assert.equal(brick.crumbler, 3);
+        assert.equal(brick.warped, 5);
+        assert.equal(brick.kind, 'slow');
+      }
+    }
+  }
+});
+
+function approachSpike(game, triangle) {
+  const [a, tip, b] = triangle;
+  const dx = tip[0] - (a[0] + b[0]) / 2, dy = tip[1] - (a[1] + b[1]) / 2;
+  const length = Math.hypot(dx, dy), nx = dx / length, ny = dy / length;
+  game.cat.x = tip[0] + nx * (game.cat.radius + 10);
+  game.cat.y = tip[1] + ny * (game.cat.radius + 10);
+  game.cat.vx = -nx * SPEED; game.cat.vy = -ny * SPEED;
+}
+
+test('white spike geometry and collision agree on every edge in both layouts', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const base = new Game(() => .99, options);
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+      const id = [...brickRegions(base.bricks, base.width, base.height)].find(([, region]) => region.edge === edge)[0];
+      const game = setup('spikes', options, id), brick = game.bricks[id];
+      const geometry = brickSpikes([brick], game.width, game.height);
+      assert.ok(geometry.triangles.length >= 3);
+      assert.equal(geometry.path.match(/M/g).length, geometry.triangles.length);
+      assert.ok(!/NaN|Infinity/.test(geometry.path));
+      const triangle = geometry.triangles[Math.floor(geometry.triangles.length / 2)];
+      const [a, tip, b] = triangle;
+      const depth = Math.hypot(tip[0] - (a[0] + b[0]) / 2, tip[1] - (a[1] + b[1]) / 2);
+      assert.ok(depth > 0 && depth <= 14 + 1e-8);
+      assert.ok(Math.hypot(tip[0] - game.width / 2, tip[1] - game.height / 2)
+        < Math.hypot((a[0] + b[0]) / 2 - game.width / 2, (a[1] + b[1]) / 2 - game.height / 2));
+      brick.readyAt = 50;
+      brick.usesLeft = 0;
+      game.weapon = { type: 'gold', expires: 100 };
+      approachSpike(game, triangle);
+      game.update(.05);
+      assert.equal(game.hearts, 2, 'weapons do not protect from spikes');
+      assert.equal(game.cat.vx, 0);
+      assert.equal(game.cat.vy, 0);
+      assert.ok(Math.abs(Math.hypot(game.cat.x - tip[0], game.cat.y - tip[1]) - game.cat.radius) < 1e-7);
+      assert.equal(brick.readyAt, 50);
+      assert.equal(brick.usesLeft, 0);
+      assert.equal(game.stuckUntil, 0);
+      game.update(1);
+      assert.equal(game.hearts, 2, 'stationary contact must not drain hearts');
+      game.pause(); game.update(10);
+      assert.equal(game.hearts, 2);
+      game.resume();
+      const other = game.bricks.find(candidate => candidate.id !== id && aim(game, candidate));
+      assert.ok(other, 'Koshi can steer away from the spike tip');
+      game.update(.1);
+      assert.equal(game.spikeTouching.size, 0);
+      approachSpike(game, triangle); game.update(.05);
+      assert.equal(game.hearts, 1);
+      game.cat.x = game.width / 2; game.cat.y = game.height / 2;
+      game.update(1);
+      approachSpike(game, triangle); game.update(.05);
+      assert.equal(game.hearts, 0);
+      assert.equal(game.state, 'lost');
+      game.reset();
+      assert.equal(game.hearts, 3);
+      assert.equal(game.spikeTouching.size, 0);
+    }
+  }
+});
+
+test('spike sides stop oblique motion before the brick body and blocked launches consume nothing', () => {
+  const game = setup('spikes'), brick = game.bricks[0];
+  const triangle = brickSpikes([brick], game.width, game.height).triangles[2];
+  // Isolate this side from neighboring tips in the dense spike row.
+  game.spikeParts = () => [{ id: brick.id, triangle }];
+  const [a, b] = triangle;
+  const ex = b[0] - a[0], ey = b[1] - a[1], length = Math.hypot(ex, ey);
+  const nx = ey / length, ny = -ex / length;
+  const x = a[0] + ex * .9, y = a[1] + ey * .9;
+  game.cat.x = x + nx * (game.cat.radius + 10);
+  game.cat.y = y + ny * (game.cat.radius + 10);
+  game.cat.vx = -nx * SPEED; game.cat.vy = -ny * SPEED;
+  game.update(.05);
+  assert.equal(game.hearts, 2);
+  assert.ok(Math.abs((game.cat.x - x) * nx + (game.cat.y - y) * ny - game.cat.radius) < 1e-7);
+  const before = JSON.stringify(game.bricks);
+  assert.equal(aim(game, brick), false);
+  assert.equal(JSON.stringify(game.bricks), before);
+});
+
+test('warped spike groups cover connecting gaps and restore absorbed surfaces', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const game = setup('spikes', options), owner = game.bricks[0], neighbor = game.bricks[2];
+    owner.warped = 1;
+    owner.crumbler = 3; owner.usesLeft = 3;
+    neighbor.slimed = true;
+    assert.equal(aim(game, owner), true);
+    assert.equal(neighbor.absorbedBy, owner.id);
+    const parts = game.brickParts().filter(part => part.id === owner.id);
+    const bridge = parts.find(part => part.sourceId === undefined);
+    const triangles = brickSpikes(parts, game.width, game.height).triangles;
+    const bridgeSpike = triangles.find(([, tip]) => options.portrait
+      ? tip[0] >= bridge.x && tip[0] <= bridge.x + bridge.w
+      : tip[1] >= bridge.y && tip[1] <= bridge.y + bridge.h);
+    assert.ok(bridgeSpike);
+    approachSpike(game, bridgeSpike);
+    const readyAt = owner.readyAt;
+    game.update(.05);
+    assert.equal(game.hearts, 2);
+    assert.equal(owner.usesLeft, 2);
+    assert.equal(owner.readyAt, readyAt);
+    assert.equal(game.stuckUntil, 0);
+    game.cat.x = game.width / 2; game.cat.y = game.height / 2;
+    game.update(1);
+    assert.equal(neighbor.absorbedBy, null);
+    assert.equal(neighbor.slimed, true);
+    assert.ok(!neighbor.spikes);
   }
 });

@@ -20,6 +20,7 @@ const GUIDE = [
       ...Object.entries(COOLDOWNS).map(([kind, seconds]) => [
         `${kind[0].toUpperCase() + kind.slice(1)} / ${{ slow: 'blue', normal: 'green', fast: 'red' }[kind]}`,
         `Wait ${seconds} seconds after selecting this brick before selecting it again. Its entire surface refills with color along the board boundary. Empty means recharging; fully colored means ready.`,
+        `brick:${kind}`,
       ]),
       ['Keep moving', 'Cooling bricks stay solid. Use other bricks while one recharges. Brick cooldown color is independent of its slime color.'],
     ],
@@ -27,39 +28,42 @@ const GUIDE = [
   {
     title: 'Crumblers & Warped',
     sections: [
-      ['Crumblers / C counter', 'Jagged Crumblers have limited selections. Each successful selection deepens their chips and cracks and reduces C by one. At C:0 the brick stays solid, but cannot be selected until restart. Its cooldown animation stops.'],
-      ['Warped / W counter', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes. The first absorption starts W; further selections do not restart it.'],
-      ['Restoration & combinations', 'When W expires, absorbed bricks regain their own attributes and remaining uses. A combined Warped Crumbler that reaches C:0 freezes enlarged with W:X until restart or absorption by another Warped owner.'],
+      ['Crumblers / C counter', 'Jagged Crumblers have limited selections. Each successful selection deepens their chips and cracks and reduces C by one. At C:0 the brick stays solid, but cannot be selected until restart. Its cooldown animation stops.', 'brick:crumbler'],
+      ['Warped / W counter', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes. The first absorption starts W; further selections do not restart it.', 'brick:warped'],
+      ['Restoration & combinations', 'When W expires, absorbed bricks regain their own attributes and remaining uses. A combined Warped Crumbler that reaches C:0 freezes enlarged with W:X until restart or absorption by another Warped owner.', 'brick:warped-crumbler'],
     ],
   },
   {
-    title: 'Slime & Springs',
+    title: 'Slime, Springs & Spikes',
     sections: [
       ...Object.entries(SLIMES).map(([color, { duration }]) => [
         `${color[0].toUpperCase() + color.slice(1)} slime / ${duration} second${duration === 1 ? '' : 's'}`,
         'Drippy icing covers only the edge facing the play area. Touching it freezes Koshi. A matching-color ring drains with the remaining hold; FREE! signals release. Select a brick to move again.',
+        `slime:${color}`,
       ]),
-      ['Springs', 'Brown metallic Springs reflect Koshi immediately instead of stopping him. Their edge compresses and exposes little springs on contact. Redirect him mid-bounce to take control.'],
-      ['Contact is not a selection', 'Slime and Springs work even on cooling or exhausted bricks. Contact does not consume cooldowns or C uses. They replace one another, but can combine with Crumbler and Warped attributes.'],
+      ['Springs', 'A wooden platform with grain and a dark outline covers only the arena-facing edge. It reflects Koshi immediately instead of stopping him. Little springs underneath are hidden at rest and appear only while the platform compresses and rebounds on contact. Redirect him mid-bounce to take control.', 'brick:springs'],
+      ['Spikes', 'Many white triangular spikes protrude toward the arena. Touching them costs one heart and stops Koshi. Resting against them does not cause more damage; leaving and touching them again does. Swords do not protect against spikes. Levels 1-3 through 1-5 introduce them.', 'brick:spikes'],
+      ['Contact is not a selection', 'Slime, Springs, and Spikes work even on cooling or exhausted bricks. Contact does not consume cooldowns or C uses. They replace one another, but can combine with Crumbler and Warped attributes.'],
     ],
   },
   {
     title: 'Food & healing',
     sections: [
-      ...Object.values(FOODS).map(food => [`${food.icon} ${food.name} / +${food.value}`, `Adds ${food.value} food point${food.value === 1 ? '' : 's'} when touched. Food may appear alone, in lines, in circles, or scattered around the arena.`]),
+      ...Object.entries(FOODS).map(([type, food]) => [`${food.icon} ${food.name} / +${food.value}`, `Adds ${food.value} food point${food.value === 1 ? '' : 's'} when touched. Food may appear alone, in lines, in circles, or scattered around the arena.`, `food:${type}`]),
       ['Food expires', 'The small bar above food shows its remaining lifetime. Expired snacks disappear; pause freezes their lifetime.'],
-      ['Hearts', 'Koshi starts with three hearts. From campaign Level 1-2 onward, every 10 food points spawns a healing heart. Touch it to restore one heart, capped at three. Hearts remain until collected. Custom levels can change or disable this threshold.'],
+      ['Hearts', 'Koshi starts with three hearts. From campaign Level 1-2 onward, every 10 food points creates a pink, sparkling cloud, followed one second later by a healing heart at the same spot. Touch the heart to restore one heart, capped at three. Hearts remain until collected. Custom levels can change or disable this threshold.', 'heart'],
     ],
   },
   {
     title: 'Robots & swords',
     sections: [
-      ['Robo Mouse', 'Mice wander in curved paths and periodically stop to lick their hands. They do not chase or shoot.'],
-      ['Robo Wheel', 'Wheels roll along the inner perimeter. Intercept them near a wall while armed.'],
-      ['Damage & defeats', 'Unarmed contact costs one heart. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
+      ['Robo Mouse', 'Mice wander in curved paths and periodically stop to lick their hands. They do not chase or shoot.', 'enemy:mouse'],
+      ['Robo Wheel', 'Wheels roll along the inner perimeter. Intercept them near a wall while armed.', 'enemy:wheel'],
+      ['Damage & defeats', 'Unarmed contact costs one heart. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
       ...Object.entries(SWORDS).map(([type, sword]) => [
         sword.name,
         type === 'gold' ? `${sword.seconds} seconds of unlimited defeats from pickup; pause freezes the timer.` : `Defeats ${sword.uses} robot${sword.uses === 1 ? '' : 's'} before breaking. Works on both enemy types.`,
+        `weapon:${type}`,
       ]),
       ['One sword at a time', 'You cannot swap while equipped. Uncollected swords remain on the board until you can pick them up.'],
     ],
@@ -70,11 +74,12 @@ const GUIDE = [
       ['Purple cloudy skull / enemy', 'Materializes at each robot’s starting location one second before it appears. Wheel warnings sit on the inner perimeter. Keep clear unless armed.'],
       ['Golden swirl / weapon', 'Grows from a point and dissipates over one second to reveal a sword at the same location.'],
       ['Twinkling star / food', 'A bright pinpoint grows into a star and fades over one second before food appears. Each snack in a pattern gets its own warning.'],
+      ['Pink sparkling cloud / heart', 'Appears when food reaches the healing threshold. One second later, a healing heart appears at the same location.'],
       ['Safe previews', 'Warnings cannot hurt or be collected. They freeze with pause and do not alter spawn times. Spawns within the first second have shortened warnings; time-zero objects appear immediately.'],
     ],
   },
   {
-    title: 'Objectives & story',
+    title: 'Objectives',
     sections: [
       ['Win before time runs out', 'Levels 1-1 and 1-2 require 20 food. Levels 1-3 through 1-5 require BOTH food and robot defeats. The HUD shows each target; progress follows the less-complete objective.'],
       ...LEVELS.map(level => [
@@ -82,8 +87,7 @@ const GUIDE = [
         `${level.duration} seconds. Collect ${level.goal} food${level.killGoal ? ` AND defeat ${level.killGoal} robots` : ''}.`,
       ]),
       ['Losing & retrying', 'Running out of time, losing all hearts, or leaving the board ends an attempt. Restart restores bricks, hearts, objects, and timers. Survival-only and boss objectives are not implemented yet.'],
-      ['Story scenes', 'Optional pre-level scenes keep gameplay frozen. Reveal text, Continue, or Begin level advances the dialogue; Skip scene or Escape starts play. Scenes replay when restarting.'],
-      ['Make your own', 'The level editor creates portable levels with timed food, robots, weapons, brick attributes, and optional story scenes. Playtest links work without a server.'],
+      ['Make your own', 'The level editor creates portable levels with timed food, robots, weapons, and brick attributes. Playtest links work without a server.'],
     ],
   },
 ];

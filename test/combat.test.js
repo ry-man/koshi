@@ -58,12 +58,13 @@ test('new campaign levels have reachable goals, timely supplies, and special bri
           && (brick.region.start + brick.region.end) / 2 < entry.end);
         assert.ok(matching.length);
         for (const brick of matching) {
-          for (const attribute of ['kind', 'crumbler', 'warped', 'slimed', 'slimeColor', 'springs']) {
+          for (const attribute of ['kind', 'crumbler', 'warped', 'slimed', 'slimeColor', 'springs', 'spikes']) {
             if (entry[attribute] !== undefined) assert.equal(brick[attribute], entry[attribute]);
           }
         }
       }
-      assert.ok(game.bricks.some(brick => !brick.crumbler && !brick.slimed && !brick.springs && !brick.warped));
+      assert.ok(game.bricks.some(brick => !brick.crumbler && !brick.slimed && !brick.springs && !brick.spikes && !brick.warped));
+      assert.equal(game.bricks.filter(brick => brick.spikes).length, levelIndex === 4 ? 2 : 1);
       const snapshot = structuredClone(game.bricks);
       game.steer(game.bricks.find(brick => brick.crumbler).id);
       game.reset();
@@ -210,11 +211,11 @@ test('unarmed damage happens once per contact, can recur, and can kill', () => {
   game.robots = [enemy];
   game.update(.2);
   assert.equal(game.hearts, 2);
-  game.cat.x += 100; game.update(.01);
-  game.cat.x -= 100; game.update(.01);
+  game.cat.x += 100; game.update(1);
+  game.cat.x = enemy.x; game.cat.y = enemy.y; game.update(.01);
   assert.equal(game.hearts, 1);
-  game.cat.x += 100; game.update(.01);
-  game.cat.x -= 100; game.update(.01);
+  game.cat.x += 100; game.update(1);
+  game.cat.x = enemy.x; game.cat.y = enemy.y; game.update(.01);
   assert.equal(game.hearts, 0);
   assert.equal(game.state, 'lost');
 });
@@ -224,8 +225,11 @@ test('food thresholds spawn healing hearts, pickups cap at three, and level 1-1 
   game.score = 9;
   game.food = [{ x: game.cat.x, y: game.cat.y, type: 'S', expires: 5 }];
   game.update(.01);
-  assert.equal(game.healing.length, 1);
+  assert.equal(game.healing.length, 0);
+  assert.equal(game.spawnCues.filter(cue => cue.kind === 'heart').length, 1);
   game.update(.1);
+  assert.equal(game.healing.length, 0);
+  game.update(1);
   assert.equal(game.healing.length, 1);
   game.hearts = 1;
   game.cat.x = game.healing[0].x; game.cat.y = game.healing[0].y;

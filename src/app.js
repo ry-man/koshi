@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, validateCustomLevel, brickShape, brickRecharge, brickSlime } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, validateCustomLevel, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes } = globalThis.KoshiGame;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 
 let game;
@@ -121,13 +121,27 @@ function makeBrickButtons() {
       const path = document.createElementNS(ns, 'path');
       path.setAttribute('d', part.path);
       path.setAttribute('vector-effect', 'non-scaling-stroke');
-      if (brick.springs) {
-        const coils = path.cloneNode();
-        coils.classList.add('spring-coils');
-        svg.append(coils);
-      }
       svg.append(path);
       button.append(svg);
+      if (brick.springs) {
+        const spring = svg.cloneNode(false);
+        spring.setAttribute('class', 'brick-spring');
+        const geometry = brickSpring(members, game.width, game.height);
+        const coils = path.cloneNode();
+        coils.setAttribute('class', 'spring-coils');
+        coils.setAttribute('d', geometry.coils);
+        const platform = path.cloneNode();
+        platform.setAttribute('class', 'spring-platform');
+        platform.setAttribute('d', geometry.platform);
+        spring.append(coils, platform);
+        for (const detail of ['grain', 'highlight']) {
+          const texture = path.cloneNode();
+          texture.setAttribute('class', `spring-${detail}`);
+          texture.setAttribute('d', geometry[detail]);
+          spring.append(texture);
+        }
+        button.append(spring);
+      }
       if (brick.slimed) {
         const slime = svg.cloneNode(false);
         slime.setAttribute('class', 'brick-slime');
@@ -176,6 +190,25 @@ function makeBrickButtons() {
       }
     });
     container.append(button);
+    const spring = button.querySelector('.brick-spring');
+    if (spring) {
+      spring.style.cssText = `left:${part.x / game.width * 100}%;top:${part.y / game.height * 100}%;width:${part.w / game.width * 100}%;height:${part.h / game.height * 100}%;`;
+      container.append(spring);
+    }
+    if (brick.spikes) {
+      const ns = 'http://www.w3.org/2000/svg';
+      const spikes = document.createElementNS(ns, 'svg');
+      spikes.setAttribute('class', 'brick-spikes');
+      spikes.setAttribute('viewBox', '0 0 1 1');
+      spikes.setAttribute('preserveAspectRatio', 'none');
+      spikes.setAttribute('aria-hidden', 'true');
+      spikes.style.cssText = `left:${part.x / game.width * 100}%;top:${part.y / game.height * 100}%;width:${part.w / game.width * 100}%;height:${part.h / game.height * 100}%;`;
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', brickSpikes(members, game.width, game.height).path);
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
+      spikes.append(path);
+      container.append(spikes);
+    }
     if (brick.crumbler) {
       // Keep labels outside the decaying clip path, including on merged bricks.
       const label = document.createElement('span');
@@ -185,7 +218,7 @@ function makeBrickButtons() {
       label.append(counter);
       container.append(label);
     }
-    return { brick, button, counter, members, usesLeft: null };
+    return { brick, button, counter, members, spring, usesLeft: null };
   });
 }
 
@@ -253,13 +286,17 @@ function syncUI() {
     button.setAttribute('aria-disabled', String(stuck || remaining > 1e-9 || brick.usesLeft === 0));
     if (brick.springs) {
       const age = brick.hitAt === null ? 1 : game.elapsed - brick.hitAt;
-      const compression = age < .32 ? Math.sin(Math.PI * age / .32) : 0;
-      button.style.setProperty('--spring-x', `${-(brick.hitNormal?.x ?? 0) * compression * 400 / Math.max(1, button.clientWidth)}%`);
-      button.style.setProperty('--spring-y', `${-(brick.hitNormal?.y ?? 0) * compression * 400 / Math.max(1, button.clientHeight)}%`);
-      button.style.setProperty('--spring-reveal', String(compression));
+      const compression = age > 0 && age < .32 ? Math.sin(Math.PI * age / .32) : 0;
+      if (item.springCompression !== compression) {
+        item.springCompression = compression;
+        const geometry = brickSpring(members, game.width, game.height, compression);
+        for (const detail of ['platform', 'coils', 'grain', 'highlight']) {
+          item.spring.querySelector(`.spring-${detail}`).setAttribute('d', geometry[detail]);
+        }
+      }
     }
     button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
@@ -433,15 +470,82 @@ document.querySelector('#tutorial-sword').addEventListener('change', event => {
   selectTutorial(tutorial.index);
 });
 
+function guidePicture(picture, title) {
+  const image = document.createElement('canvas');
+  image.className = 'guide-picture';
+  image.width = 320; image.height = 160;
+  image.setAttribute('role', 'img');
+  image.setAttribute('aria-label', title);
+  const previous = ctx;
+  ctx = image.getContext('2d');
+  ctx.scale(2, 2);
+  const [kind, type] = picture.split(':');
+  if (kind === 'brick' || kind === 'slime') {
+    const crumbler = type.includes('crumbler');
+    const warped = type.includes('warped');
+    const brick = { id: 0, x: 18, y: 22, w: 124, h: 28, region: { edge: 'top', start: 0, end: 1 } };
+    const shape = brickShape([brick], crumbler, crumbler ? .4 : 0);
+    ctx.save(); ctx.translate(brick.x, brick.y); ctx.scale(brick.w, brick.h);
+    ctx.fillStyle = colors[type] ?? colors.normal;
+    ctx.fill(new Path2D(shape.path));
+    ctx.restore();
+    if (warped) {
+      for (let x = 28; x < 140; x += 22) {
+        ctx.beginPath();
+        for (let i = 0; i <= 36; i++) {
+          const angle = i / 36 * Math.PI * 3, radius = 5 * i / 36;
+          const px = x + Math.cos(angle) * radius, py = 35 + Math.sin(angle) * radius;
+          if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+        }
+        ctx.strokeStyle = '#17232c88'; ctx.lineWidth = 1.2; ctx.stroke();
+      }
+    }
+    const surface = (path, fill, stroke, width = 1.5) => {
+      if (!path) return;
+      const source = new Path2D(path), transformed = new Path2D();
+      transformed.addPath(source, new DOMMatrix([brick.w, 0, 0, brick.h, brick.x, brick.y]));
+      if (fill) { ctx.fillStyle = fill; ctx.fill(transformed); }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.stroke(transformed); }
+    };
+    if (crumbler) surface(shape.cracks, null, '#080e14');
+    if (kind === 'slime') surface(brickSlime([brick], 600, 960), SLIMES[type].color, '#102619');
+    if (type === 'spikes') surface(brickSpikes([brick], 600, 960).path, '#fff', '#aab9c5', 1);
+    if (type === 'springs') {
+      const spring = brickSpring([brick], 600, 960);
+      surface(spring.platform, '#a77a52', '#302015');
+      surface(spring.grain, null, '#684128', .8);
+      surface(spring.highlight, null, '#dfb47d', 1);
+    }
+    if (crumbler || warped) {
+      ctx.fillStyle = '#111d25'; ctx.fillRect(45, 28, 70, 17);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+      ctx.fillText([crumbler ? 'C:3' : '', warped ? 'W:12' : ''].filter(Boolean).join(' '), 80, 41);
+    }
+  } else if (kind === 'enemy') {
+    drawRobot({ type, x: 80, y: 42, distance: 0 });
+  } else if (kind === 'weapon') {
+    ctx.save(); ctx.translate(80, 40); ctx.scale(1.25, 1.25);
+    drawSword(0, 0, SWORDS[type].color); ctx.restore();
+  } else {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = kind === 'heart' ? '#ef9d9d' : '#000';
+    ctx.font = kind === 'heart' ? '42px sans-serif' : '36px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.fillText(kind === 'heart' ? '♥' : FOODS[type].icon, 80, 42);
+  }
+  ctx = previous;
+  return image;
+}
+
 function showGuideChapter(index) {
   guideIndex = index;
   const content = document.querySelector('#guide-content');
   const heading = document.createElement('h3');
   heading.id = 'guide-chapter'; heading.textContent = GUIDE[index].title;
   content.replaceChildren(heading);
-  for (const [title, description] of GUIDE[index].sections) {
+  for (const [title, description, picture] of GUIDE[index].sections) {
     const section = document.createElement('section'), label = document.createElement('h4'), text = document.createElement('p');
     label.textContent = title; text.textContent = description;
+    if (picture) section.append(guidePicture(picture, title));
     section.append(label, text); content.append(section);
   }
   content.scrollTop = 0;
@@ -511,43 +615,57 @@ function line(points, color, width = 2) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.stroke();
 }
 
-function drawCat(x, y, now) {
+function drawCat(x, y, now, damageProgress = null) {
   ctx.save();
   ctx.translate(x, y);
+  const hurt = damageProgress !== null;
+  const darkRed = hurt && Math.floor(damageProgress * 4) % 2 === 0;
+  const fur = hurt ? darkRed ? '#dc626b' : '#f2a0a5' : '#abb5bd';
+  const stripes = hurt ? '#923c49' : '#596571';
   if (game.weapon) {
     ctx.strokeStyle = SWORDS[game.weapon.type].color;
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.stroke();
   }
   ctx.shadowColor = '#0008'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 5;
-  ctx.fillStyle = '#abb5bd';
+  ctx.fillStyle = fur;
   ctx.beginPath();
   ctx.moveTo(-20, -8); ctx.lineTo(-22, -32); ctx.lineTo(-6, -21);
   ctx.lineTo(7, -21); ctx.lineTo(23, -32); ctx.lineTo(21, -7);
   ctx.fill();
   ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-  ctx.fillStyle = '#d6a4a4';
+  ctx.fillStyle = hurt ? '#f6b3b8' : '#d6a4a4';
   ctx.beginPath(); ctx.moveTo(-18, -15); ctx.lineTo(-19, -25); ctx.lineTo(-11, -19); ctx.fill();
   ctx.beginPath(); ctx.moveTo(13, -19); ctx.lineTo(20, -25); ctx.lineTo(18, -14); ctx.fill();
-  line([[-10, -20], [-7, -13]], '#596571', 4);
-  line([[0, -22], [0, -14]], '#596571', 4);
-  line([[10, -20], [7, -13]], '#596571', 4);
-  line([[-22, -3], [-16, 0]], '#596571', 3);
-  line([[22, -3], [16, 0]], '#596571', 3);
-  ctx.fillStyle = '#eff2ed';
+  line([[-10, -20], [-7, -13]], stripes, 4);
+  line([[0, -22], [0, -14]], stripes, 4);
+  line([[10, -20], [7, -13]], stripes, 4);
+  line([[-22, -3], [-16, 0]], stripes, 3);
+  line([[22, -3], [16, 0]], stripes, 3);
+  ctx.fillStyle = hurt ? darkRed ? '#f2a0a5' : '#ffd3d5' : '#eff2ed';
   ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(-3, -5, -4, 7); ctx.quadraticCurveTo(0, 12, 4, 7); ctx.quadraticCurveTo(3, -5, 0, -12); ctx.fill();
   ctx.fillStyle = '#26323a';
-  const blink = now % 5.5 > 5.3;
+  const blink = !hurt && now % 5.5 > 5.3;
   for (const eye of [-9, 9]) {
     ctx.beginPath(); ctx.ellipse(eye, -3, 2.3, blink ? .7 : 3.2, 0, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.fillStyle = '#bd8d93';
+  if (hurt) {
+    line([[-14, -12], [-6, -8]], '#672c39', 2.5);
+    line([[6, -8], [14, -12]], '#672c39', 2.5);
+  }
+  ctx.fillStyle = hurt ? '#ab4759' : '#bd8d93';
   ctx.beginPath(); ctx.moveTo(-4, 5); ctx.lineTo(4, 5); ctx.lineTo(0, 9); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#34414a'; ctx.lineWidth = 1.7;
-  ctx.beginPath(); ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11); ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11); ctx.stroke();
+  ctx.beginPath();
+  if (hurt) {
+    ctx.moveTo(-8, 16); ctx.quadraticCurveTo(0, 7, 8, 16);
+  } else {
+    ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11); ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11);
+  }
+  ctx.stroke();
   for (const sign of [-1, 1]) {
-    for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], '#d7dfdc', 1.2);
+    for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], hurt ? '#ffd3d5' : '#d7dfdc', 1.2);
   }
   ctx.restore();
 }
@@ -609,24 +727,7 @@ function render(now) {
     ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
-  for (const brick of game.bricks) {
-    if (!brick.springs || brick.absorbedBy !== null || !brick.hitPoint || !brick.hitNormal || brick.hitAt === null) continue;
-    const age = game.elapsed - brick.hitAt;
-    if (age >= .32) continue;
-    const compression = Math.sin(Math.PI * age / .32);
-    const normal = brick.hitNormal, origin = brick.hitPoint;
-    ctx.save(); ctx.globalAlpha = compression;
-    for (const offset of [-9, 0, 9]) {
-      const points = Array.from({ length: 7 }, (_, i) => {
-        const across = offset + (i === 0 || i === 6 ? 0 : i % 2 ? 2 : -2);
-        const depth = i / 6 * (2 + compression * 5);
-        return [origin.x - normal.y * across - normal.x * depth, origin.y + normal.x * across - normal.y * depth];
-      });
-      line(points, '#e0cba6', 1.2);
-    }
-    ctx.restore();
-  }
-  drawCat(game.cat.x, game.cat.y, game.elapsed);
+  drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress);
   const stuck = game.stuckUntil > game.elapsed + 1e-9;
   const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
   if (stuck || releaseAge < .65) {
@@ -653,7 +754,7 @@ function drawSpawnCue({ kind, x, y, progress }) {
   ctx.save();
   ctx.translate(x, y);
   const fade = Math.min(1, progress * 5) * Math.min(1, (1 - progress) * 5);
-  if (kind === 'enemy') {
+  if (kind === 'enemy' || kind === 'heart') {
     const size = .35 + progress * .65;
     ctx.scale(size, size);
     for (let i = 0; i < 7; i++) {
@@ -661,21 +762,42 @@ function drawSpawnCue({ kind, x, y, progress }) {
       const radius = 15 + Math.sin(progress * 7 + i) * 5;
       const cx = Math.cos(angle) * radius, cy = Math.sin(angle) * radius;
       const cloud = ctx.createRadialGradient(cx, cy, 0, cx, cy, 19);
-      cloud.addColorStop(0, `rgba(174,100,239,${fade * .6})`);
-      cloud.addColorStop(1, 'rgba(126,65,191,0)');
+      cloud.addColorStop(0, `rgba(${kind === 'heart' ? '255,135,195' : '174,100,239'},${fade * .6})`);
+      cloud.addColorStop(1, kind === 'heart' ? 'rgba(240,90,165,0)' : 'rgba(126,65,191,0)');
       ctx.fillStyle = cloud;
       ctx.fillRect(cx - 19, cy - 19, 38, 38);
     }
     ctx.globalAlpha = fade;
-    ctx.shadowColor = '#bb82ff'; ctx.shadowBlur = 12;
-    ctx.fillStyle = '#d4afff';
-    ctx.beginPath(); ctx.arc(0, -4, 14, Math.PI, 0);
-    ctx.lineTo(13, 7); ctx.lineTo(8, 10); ctx.lineTo(8, 17); ctx.lineTo(-8, 17); ctx.lineTo(-8, 10); ctx.lineTo(-13, 7); ctx.closePath(); ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#45245e';
-    for (const eye of [-6, 6]) { ctx.beginPath(); ctx.ellipse(eye, -2, 4, 5, 0, 0, Math.PI * 2); ctx.fill(); }
-    ctx.beginPath(); ctx.moveTo(0, 3); ctx.lineTo(-3, 8); ctx.lineTo(3, 8); ctx.fill();
-    for (const tooth of [-4, 2]) ctx.fillRect(tooth, 12, 2, 5);
+    if (kind === 'heart') {
+      ctx.shadowColor = '#ff99cf'; ctx.shadowBlur = 12;
+      for (let i = 0; i < 8; i++) {
+        const angle = i * Math.PI / 4 + progress * .8;
+        const radius = 12 + (i % 3) * 9;
+        const sx = Math.cos(angle) * radius, sy = Math.sin(angle) * radius;
+        const sparkle = 2 + 4 * (.5 + .5 * Math.sin(progress * Math.PI * 6 + i * 2));
+        ctx.fillStyle = i % 2 ? '#fff5fc' : '#ffd1e9';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - sparkle);
+        ctx.lineTo(sx + sparkle * .25, sy - sparkle * .25);
+        ctx.lineTo(sx + sparkle, sy);
+        ctx.lineTo(sx + sparkle * .25, sy + sparkle * .25);
+        ctx.lineTo(sx, sy + sparkle);
+        ctx.lineTo(sx - sparkle * .25, sy + sparkle * .25);
+        ctx.lineTo(sx - sparkle, sy);
+        ctx.lineTo(sx - sparkle * .25, sy - sparkle * .25);
+        ctx.closePath(); ctx.fill();
+      }
+    } else {
+      ctx.shadowColor = '#bb82ff'; ctx.shadowBlur = 12;
+      ctx.fillStyle = '#d4afff';
+      ctx.beginPath(); ctx.arc(0, -4, 14, Math.PI, 0);
+      ctx.lineTo(13, 7); ctx.lineTo(8, 10); ctx.lineTo(8, 17); ctx.lineTo(-8, 17); ctx.lineTo(-8, 10); ctx.lineTo(-13, 7); ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#45245e';
+      for (const eye of [-6, 6]) { ctx.beginPath(); ctx.ellipse(eye, -2, 4, 5, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.beginPath(); ctx.moveTo(0, 3); ctx.lineTo(-3, 8); ctx.lineTo(3, 8); ctx.fill();
+      for (const tooth of [-4, 2]) ctx.fillRect(tooth, 12, 2, 5);
+    }
   } else if (kind === 'weapon') {
     ctx.globalAlpha = fade;
     ctx.rotate(progress * Math.PI * 3);

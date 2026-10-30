@@ -195,7 +195,8 @@ test('custom objectives, duration, heart costs, and every pickup type use the re
     game.start(); game.update(.01);
     assert.equal(game.state, 'won');
     assert.equal(game.score, FOODS[type].value);
-    assert.equal(game.healing.length, FOODS[type].value);
+    assert.equal(game.healing.length, 0);
+    assert.equal(game.spawnCues.filter(cue => cue.kind === 'heart').length, FOODS[type].value);
   }
   for (const type of Object.keys(SWORDS)) {
     const game = new Game(() => .1, { customLevel: { ...blank(), events: [{ ...event('weapon', type, 0), x: .5, y: .5 }] } });

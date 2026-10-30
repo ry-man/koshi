@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, validateCustomLevel, brickEditRegions, brickContact, brickShape, brickRecharge, brickRegions, brickSlime } = require('../src/game.js');
+const { Game, validateCustomLevel, brickEditRegions, brickContact, brickShape, brickRecharge, brickRegions, brickSlime, brickSpring } = require('../src/game.js');
 
 const blank = () => ({ version: 1, id: 'Brick test', duration: 120, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 function setup(attributes, options = {}, random = () => .99) {
@@ -45,6 +45,62 @@ test('slime icing covers only center-facing edges, with curved drips in both lay
         assert.ok(Number(x) >= -1e-8 && Number(x) <= 1 + 1e-8);
         assert.ok(Number(y) >= -1e-8 && Number(y) <= 1 + 1e-8);
       }
+      game.bricks[0].readyAt = 0;
+      aim(game, game.bricks[0]);
+    }
+  }
+});
+
+test('spring platforms cover only inner edges and reveal coils only while compressed in both layouts', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const game = setup({ springs: true, warped: 100 }, options);
+    const regions = brickRegions(game.bricks, game.width, game.height);
+    for (const brick of game.bricks) {
+      const resting = brickSpring([brick], game.width, game.height);
+      assert.equal(resting.coils, '');
+      assert.equal((resting.platform.match(/M/g) || []).length, 1);
+      assert.match(resting.grain, /Q.*T/);
+      assert.match(resting.highlight, /M.*L/);
+      const vertices = [...resting.platform.matchAll(/([\d.e+-]+) ([\d.e+-]+)/g)].map(([, x, y]) => [Number(x), Number(y)]);
+      const edge = regions.get(brick.id).edge;
+      const across = vertices.map(([x, y]) => edge === 'top' || edge === 'bottom' ? y * brick.h : x * brick.w);
+      assert.ok(Math.max(...across) - Math.min(...across) >= 7 - 1e-8, 'platform is thicker than the former 4.84-unit desktop face');
+      if (edge === 'top') assert.ok(Math.abs(Math.max(...across) - brick.h - 3) < 1e-8);
+      if (edge === 'bottom') assert.ok(Math.abs(Math.min(...across) + 3) < 1e-8);
+      if (edge === 'left') assert.ok(Math.abs(Math.max(...across) - brick.w - 3) < 1e-8);
+      if (edge === 'right') assert.ok(Math.abs(Math.min(...across) + 3) < 1e-8);
+      const compressed = brickSpring([brick], game.width, game.height, 1);
+      assert.notEqual(compressed.platform, resting.platform);
+      assert.match(compressed.coils, /M.*L/);
+      for (const shape of [resting.platform, compressed.platform, compressed.coils, resting.grain, compressed.grain, resting.highlight, compressed.highlight]) {
+        assert.doesNotMatch(shape, /NaN|Infinity|undefined/);
+        for (const [, px, py] of shape.matchAll(/([\d.e+-]+) ([\d.e+-]+)/g)) {
+          const x = Number(px), y = Number(py);
+          assert.ok(x >= -3 / brick.w - 1e-8 && x <= 1 + 3 / brick.w + 1e-8 && y >= -3 / brick.h - 1e-8 && y <= 1 + 3 / brick.h + 1e-8);
+          const edge = regions.get(brick.id).edge;
+          if (edge === 'top') assert.ok(y > .5);
+          if (edge === 'bottom') assert.ok(y < .5);
+          if (edge === 'left') assert.ok(x > .5);
+          if (edge === 'right') assert.ok(x < .5);
+        }
+      }
+      assert.deepEqual(brickSpring([brick], game.width, game.height, 0), resting);
+    }
+    for (let count = 0; count <= 25; count++) {
+      const parts = game.brickParts().filter(part => part.id === 0);
+      const resting = brickSpring(parts, game.width, game.height);
+      const compressed = brickSpring(parts, game.width, game.height, .5);
+      const bounds = brickShape(parts);
+      assert.equal(resting.coils, '');
+      assert.match(compressed.coils, /M.*L/);
+      for (const shape of [resting.platform, compressed.platform, compressed.coils, resting.grain, compressed.grain, resting.highlight, compressed.highlight]) {
+        assert.doesNotMatch(shape, /NaN|Infinity|undefined/);
+        for (const [, x, y] of shape.matchAll(/([\d.e+-]+) ([\d.e+-]+)/g)) {
+          assert.ok(Number(x) >= -3 / bounds.w - 1e-8 && Number(x) <= 1 + 3 / bounds.w + 1e-8);
+          assert.ok(Number(y) >= -3 / bounds.h - 1e-8 && Number(y) <= 1 + 3 / bounds.h + 1e-8);
+        }
+      }
+      assert.equal((resting.platform.match(/M/g) || []).length, (brickSlime(parts, game.width, game.height).match(/M/g) || []).length);
       game.bricks[0].readyAt = 0;
       aim(game, game.bricks[0]);
     }

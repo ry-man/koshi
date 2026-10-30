@@ -33,8 +33,10 @@ offline and direct-file play.
 The title screen includes two learning paths:
 
 - **How to play** opens an eight-topic walkthrough of movement and controls,
-  cooldown colors, Crumblers/Warped bricks, slime/Springs, every food and healing
-  item, both robots and all swords, spawn warnings, and objectives/story scenes.
+  cooldown colors, Crumblers/Warped bricks, slime/Springs/Spikes, every food and healing
+  item, both robots and all swords, spawn warnings, and objectives.
+  Labeled pictures show every cooldown brick, Crumbler/Warped combination,
+  slime color, spring and spike surface, food, healing heart, robot, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
 - **Tutorial** opens 16 interactive practice steps on the real game board:
@@ -89,8 +91,15 @@ the board; phones keep compact controls above it without scrolling away from pla
   hands; Robo Wheels roll around the inside boundary. Neither fires or chases
   Koshi. Unarmed contact costs one heart per enemy contact; remaining overlapped
   does not repeatedly drain hearts. Separation and another collision can hurt again.
+- Taking damage grants **one second of invulnerability** against both robots and
+  spikes. Koshi wears an upset face and blinks between red shades for exactly
+  that same second; normal colors return when he can take damage again.
+  Further contacts do not extend the timer. Pause freezes both protection and
+  animation; restart clears them. Spikes still stop him while protected.
 - Every **10 food points** from Level 1–2 onward spawns a heart in the playable area.
-  Touch it to restore one heart, capped at three. No hearts spawn in Level 1–1.
+  A **pink, sparkling cloud** marks its exact location for **one second** before
+  the heart appears. The cloud cannot be collected and freezes while paused.
+  Touch the heart to restore one heart, capped at three. No hearts spawn in Level 1–1.
 - Collect a sword to automatically strike robots within its reach.
   **Wood** defeats 1 enemy, **bronze** 3, **silver** 10; **gold** lasts
   15 seconds from pickup and has unlimited defeats during that time.
@@ -106,9 +115,9 @@ the board; phones keep compact controls above it without scrolling away from pla
 
 | Level | Name | Time | Food required | Robots required | Special bricks |
 |-------|------|------|---------------|-----------------|----------------|
-| 1–3 | Crumb patrol | 120s | 20 | 4 | Five-use Crumblers, red slime, Springs |
-| 1–4 | Slime circuit | 150s | 25 | 8 | Four-use Crumbler, 12s Warped, all three slime colors, Springs |
-| 1–5 | Warped showdown | 180s | 30 | 12 | Three-use Crumblers, four-use Warped Crumbler (15s), 10s Warped, all slime colors, Springs |
+| 1–3 | Crumb patrol | 120s | 20 | 4 | Five-use Crumblers, red slime, Springs, Spikes |
+| 1–4 | Slime circuit | 150s | 25 | 8 | Four-use Crumbler, 12s Warped, all three slime colors, Springs, Spikes |
+| 1–5 | Warped showdown | 180s | 30 | 12 | Three-use Crumblers, four-use Warped Crumbler (15s), 10s Warped, all slime colors, Springs, Spikes |
 
 These levels supply swords before the first robots, additional weapons and enemy
 waves throughout, and food for healing. Ordinary, unlimited-use steering bricks
@@ -205,7 +214,7 @@ playtest links, direct-file play, and the offline app.
    Click/tap any boundary brick (or focus it and press Enter) to select it,
    then change **Selected brick type** in the brick inspector: slow/blue (15s),
    normal/green (8s), or fast/red (3s). Enable **Crumbler** and/or **Warped**
-   independently, or choose **Slimed** or **Springs** for contact effects.
+   independently, or choose **Slimed**, **Springs**, or **Spikes** for contact effects.
    Set the selection limit (default 5) or warp duration
    (default 15 seconds). Changes apply immediately. Each brick
    can have its own type, independent of the preset. **Reset brick types to
@@ -308,10 +317,10 @@ slot order when phone left/right edges become desktop top/bottom.
 Optional
 `crumbler` is an integer selection limit (1–100000); `warped` is a duration
 in seconds (0.1–3600). Set either to `null` to explicitly remove that attribute.
-Optional `slimed` and `springs` are booleans; `false` removes the attribute.
-They are mutually exclusive: importing both as `true` in the same override is
-an error, while enabling one in the editor replaces the other. A later
-overlapping override enabling one also removes the other.
+Optional `slimed`, `springs`, and `spikes` are booleans; `false` removes the attribute.
+They are mutually exclusive: importing more than one as `true` in the same
+override is an error, while enabling one in the editor replaces the others.
+A later overlapping override enabling one also removes the others.
 Omitted attributes leave earlier overlapping attribute edits unchanged. For example:
 
 ```json
@@ -379,9 +388,9 @@ merge during play.
   Pause freezes cooldowns and warp timers. Restart restores
   every brick and replenishes Crumbler selections.
 
-### Slimed and Springs behavior
+### Slimed, Springs, and Spikes behavior
 
-- Both contact attributes are available in the custom-level brick inspector,
+- All three contact attributes are available in the custom-level brick inspector,
   work with every cooldown color, and can combine with Crumbler and Warped.
   Levels 1–3 through 1–5 also use these attributes.
 - Slimed bricks have bold, dark-outlined icing with rounded, uneven drips only along
@@ -395,16 +404,28 @@ merge during play.
   freezing while paused. No stuck text or duration message covers play;
   an expanding ring, `FREE!` label, and
   accessible message announce release. Release does not launch Koshi automatically.
-- Springs have a thin brown metallic edge. Contact reflects the incoming
+- Springs have a brown wooden platform with grain, a highlighted edge, and a
+  clear dark outline only on the
+  arena-facing edge, including the inner rim of warped groups. The editor uses
+  the same platform. The thicker platform slightly overhangs the brick toward
+  the arena. Coils are hidden at rest and visible underneath only
+  during the platform's bounce animation. Contact reflects the incoming
   velocity about the surface normal, including rounded corner contacts, without
-  changing speed. The edge compresses and rebounds, revealing tiny springs.
+  changing speed. The platform compresses and rebounds, revealing tiny springs.
   Koshi can still be redirected in flight after a bounce.
+- Spikes are many white triangles protruding from the arena-facing edge.
+  Their visible tips and sides stop Koshi and cost **one heart per contact**,
+  even while armed. Resting against them does not repeatedly hurt; leaving and
+  returning can hurt again, and losing the last heart ends the attempt.
+  Level 1–3 has spikes at phone bottom 20–40%, Level 1–4 at top 40–60%,
+  and Level 1–5 at top 40–60% and right 50–62.5%. Desktop rotates these slots
+  with their bricks. The opening two levels remain unchanged.
 - Contact effects do not consume selections or trigger cooldowns; they work
   even on cooling-down or exhausted bricks. A merged group uses its owner's
   contact attribute over its entire shape, including connecting gaps. Absorbed
   bricks regain their own attributes on restoration.
 - Pause freezes slime locks, release feedback, and spring compression. Restart
-  clears all contact effects and animation state.
+  clears all contact effects, spike-contact tracking, and animation state.
 
 ## GitHub Pages
 
