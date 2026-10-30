@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#101a22">
     <meta name="description" content="Help Koshi the tabby collect food in a click-to-steer arcade adventure.">
     <title>Koshi's Quest</title>
@@ -55,6 +55,7 @@
         <div class="objective"><span><span class="live-dot"></span> THE MISSION</span><strong>Collect 20 food before time runs out</strong><span id="progress-label">0% complete</span></div>
         <div class="loadout"><label>Level <select id="level-select"><option value="0">1–1 · First steps</option><option value="1">1–2 · Robo trouble</option></select></label><span id="weapon-status" role="status">No sword equipped</span></div>
         <div class="progress-track"><div id="progress"></div></div>
+        <div class="play-area">
         <div class="board" id="board">
           <canvas id="canvas" width="960" height="600" role="img" aria-label="Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center."></canvas>
           <div id="bricks" aria-label="Steering bricks"></div>
@@ -70,6 +71,7 @@
             </div>
           </div>
           <div id="toast" role="status" aria-live="polite"></div>
+        </div>
         </div>
         <div class="game-toolbar"><span id="game-status">Your next adventure is one click away.</span><div><button id="pause" disabled>Ⅱ Pause</button><button id="restart">↻ Restart</button></div></div>
       </section>

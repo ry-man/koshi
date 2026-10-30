@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, FOODS, validateCustomLevel, brickShape } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, FOODS, validateCustomLevel, brickShape, brickRecharge } = globalThis.KoshiGame;
 
 let game;
 const canvas = document.querySelector('#canvas');
@@ -74,6 +74,7 @@ function makeBrickButtons() {
     const merged = members.length > 1;
     const outlined = merged || brick.crumbler || brick.slimed || brick.springs;
     const part = outlined ? brickShape(members, Boolean(brick.crumbler)) : members[0];
+    const recharge = brickRecharge(members, game.bricks, game.perimeter, game.width, game.height);
     const button = document.createElement('button');
     button.className = 'brick';
     button.classList.toggle('crumbler', Boolean(brick.crumbler));
@@ -85,13 +86,15 @@ function makeBrickButtons() {
     if (brick.crumbler) button.style.clipPath = part.clipPath;
     if (merged) {
       button.classList.add('brick-merged');
-      for (const member of members) {
+      for (const { part: member, direction, start, scale } of recharge) {
         const surface = document.createElement('span');
         surface.className = 'brick-surface';
         surface.setAttribute('aria-hidden', 'true');
-        surface.style.cssText = `left:${(member.x - part.x) / part.w * 100}%;top:${(member.y - part.y) / part.h * 100}%;width:${member.w / part.w * 100}%;height:${member.h / part.h * 100}%;--pattern-x:calc(${-member.x}px * var(--board-scale-x));--pattern-y:calc(${-member.y}px * var(--board-scale-y));`;
+        surface.style.cssText = `left:${(member.x - part.x) / part.w * 100}%;top:${(member.y - part.y) / part.h * 100}%;width:${member.w / part.w * 100}%;height:${member.h / part.h * 100}%;--surface-start:${start}%;--surface-scale:${scale};--recharge-direction:to ${direction};--pattern-x:calc(${-member.x}px * var(--board-scale-x));--pattern-y:calc(${-member.y}px * var(--board-scale-y));`;
         button.append(surface);
       }
+    } else {
+      button.style.setProperty('--recharge-direction', `to ${recharge[0].direction}`);
     }
     if (outlined) {
       const ns = 'http://www.w3.org/2000/svg';
@@ -110,18 +113,27 @@ function makeBrickButtons() {
       }
       svg.append(path);
       button.append(svg);
+      if (brick.crumbler) {
+        const cracks = document.createElementNS(ns, 'svg');
+        cracks.classList.add('brick-cracks');
+        cracks.setAttribute('viewBox', '0 0 1 1');
+        cracks.setAttribute('preserveAspectRatio', 'none');
+        cracks.setAttribute('aria-hidden', 'true');
+        const fissures = document.createElementNS(ns, 'path');
+        fissures.setAttribute('vector-effect', 'non-scaling-stroke');
+        cracks.append(fissures);
+        button.append(cracks);
+      }
     }
-    const meter = document.createElement('span');
-    meter.className = 'brick-meter';
     const counter = document.createElement('span');
     counter.className = 'brick-counter';
-    button.append(meter, counter);
+    button.append(counter);
     const anchorStyle = `left:${(brick.x - part.x) / part.w * 100}%;top:${(brick.y - part.y) / part.h * 100}%;width:${brick.w / part.w * 100}%;height:${brick.h / part.h * 100}%;`;
     if (merged) {
       const anchor = document.createElement('span');
       anchor.className = 'brick-anchor';
       anchor.style.cssText = anchorStyle;
-      anchor.append(meter, counter);
+      anchor.append(counter);
       button.append(anchor);
     }
     button.addEventListener('click', event => {
@@ -139,7 +151,16 @@ function makeBrickButtons() {
       }
     });
     container.append(button);
-    return { brick, button, meter, counter };
+    if (brick.crumbler) {
+      // Keep labels outside the decaying clip path, including on merged bricks.
+      const label = document.createElement('span');
+      label.className = 'brick-label';
+      label.setAttribute('aria-hidden', 'true');
+      label.style.cssText = `left:${brick.x / game.width * 100}%;top:${brick.y / game.height * 100}%;width:${brick.w / game.width * 100}%;height:${brick.h / game.height * 100}%;`;
+      label.append(counter);
+      container.append(label);
+    }
+    return { brick, button, counter, members, usesLeft: null };
   });
 }
 
@@ -188,7 +209,17 @@ function syncUI() {
     makeBrickButtons();
     if (focusedId !== undefined) buttons.find(item => String(item.brick.id) === focusedId)?.button.focus({ preventScroll: true });
   }
-  for (const { brick, button, meter, counter } of buttons) {
+  for (const item of buttons) {
+    const { brick, button, counter, members } = item;
+    if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
+      item.usesLeft = brick.usesLeft;
+      const wear = 1 - brick.usesLeft / brick.crumbler;
+      const shape = brickShape(members, true, wear);
+      button.style.clipPath = shape.clipPath;
+      button.style.setProperty('--crumbler-wear', wear);
+      for (const path of button.querySelectorAll('.brick-outline path')) path.setAttribute('d', shape.path);
+      button.querySelector('.brick-cracks path').setAttribute('d', shape.cracks);
+    }
     const remaining = Math.max(0, brick.readyAt - game.elapsed);
     const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
     button.setAttribute('aria-disabled', String(stuck || remaining > 1e-9 || brick.usesLeft === 0));
@@ -207,7 +238,7 @@ function syncUI() {
     }
     counter.textContent = [brick.crumbler ? `C:${brick.usesLeft}` : '', brick.warped ? `W:${brick.usesLeft === 0 ? 'X' : warpSeconds === null ? '-' : `${warpSeconds}s`}` : ''].filter(Boolean).join(' ');
     button.tabIndex = game.state === 'playing' ? 0 : -1;
-    meter.style.transform = `scaleX(${remaining / COOLDOWNS[brick.kind]})`;
+    button.style.setProperty('--cooldown-fill', `${brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
   }
   if (displayedState === game.state) return;
   displayedState = game.state;

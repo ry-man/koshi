@@ -32,7 +32,11 @@ offline and direct-file play.
 - Redirect him mid-flight by selecting another available brick. Koshi stops
   when his circular head first touches any brick, including recharging bricks.
 - Blue bricks recharge in **15 seconds**, green in **8**, and red in **3**.
-  Their meters show the remaining cooldown.
+  Their whole surface refills with color clockwise along the board boundary during cooldown:
+  empty immediately after activation, fully colored when ready. Pause freezes
+  the refill. Warped groups refill sequentially along their connected perimeter,
+  switching between horizontal and vertical at corners rather than sweeping
+  across their bounding rectangle. Exhausted Crumblers stay static with no cooldown refill.
 - Collect **20 food points** to win immediately: within **60 seconds** in
   Level 1–1 or **120 seconds** in Level 1–2.
   Strawberries give 1 point, pretzels give 2. Food patterns, appearance times,
@@ -59,8 +63,10 @@ offline and direct-file play.
   level directly; changing it begins a fresh attempt.
 
 On phones held upright, the board uses a **portrait 5:8 layout** with compact
-stats and controls, sized to fit the visible screen without scrolling to the
-bottom bricks. Both layouts always have **26 boundary bricks**. Phones have
+stats and controls. The game fills the visible viewport, with the largest board
+that fits between the controls; extra mission copy, the field guide, and footer
+are hidden on phones so the page cannot scroll away from play. Landscape phones
+also use the viewport-fitted layout. Both layouts always have **26 boundary bricks**. Phones have
 **five on top/bottom and eight on each side**. Desktop bricks are rotated
 **90 degrees clockwise** relative to the phone: **eight on top/bottom and
 five on each side**. Phone top maps to desktop right, right to bottom,
@@ -71,7 +77,7 @@ Toolbar buttons retain at least 44px touch targets.
 Level 1–1 has one slow and one fast brick, and Level 1–2
 has three of each. Food patterns stay
 inside the playable area, and the level schedule, scoring, and cooldowns are
-unchanged. Instructions remain below the game instead of pushing it offscreen.
+unchanged. Desktop instructions remain below the game.
 Desktop play keeps the original landscape board. A restart picks the layout
 for the current screen; resizing during an attempt preserves its game state.
 
@@ -228,9 +234,15 @@ merge during play.
   to add these attributes to custom levels.
 - Brick selections only activate when Koshi can actually move in the clicked
   direction. Blocked clicks leave cooldowns, Crumbler uses, and warps unchanged.
-- Crumblers have chipped, uneven boundaries instead of a crack texture, plus a
-  `C` counter. Merged Crumblers keep one continuous chipped outer edge without
-  internal seams; editor previews use the same shape. These chips are visual
+- Crumblers begin with chipped, uneven boundaries. Each successful selection
+  deepens and distorts the chips and grows branching cracks in proportion to
+  the selections used; at zero, their outline is heavily eroded and visibly
+  fractured. Rejected selections and cooldowns do not add wear, and restarting
+  restores the initial appearance. These changes are visual: exhausted bricks
+  remain solid. Crumblers also show a `C` counter in an unclipped label above
+  the damage, so every remaining-use count stays readable. Merged Crumblers keep one
+  continuous chipped outer edge without internal seams; editor previews use
+  the initial, unworn shape. These chips are visual
   only and do not change collision geometry. Only a successful selection consumes
   one use. At zero, the entire brick (including any absorbed area) remains
   solid but permanently unselectable until the level restarts.

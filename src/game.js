@@ -124,7 +124,8 @@ function brickEditRegions(bricks) {
   return new Map(bricks.map(brick => [brick.id, brick.region]));
 }
 
-function brickShape(parts, crumbly = false) {
+function brickShape(parts, crumbly = false, wear = 0) {
+  wear = crumbly ? Math.max(0, Math.min(1, wear)) : 0;
   const coordinates = axis => [...new Set(parts.flatMap(part =>
     [part[axis], part[axis] + part[axis === 'x' ? 'w' : 'h']].map(value => Math.round(value * 1e6) / 1e6)))].sort((a, b) => a - b);
   const xs = coordinates('x'), ys = coordinates('y');
@@ -162,14 +163,25 @@ function brickShape(parts, crumbly = false) {
       if (crumbly) {
         const [ax, ay] = point(current), [bx, by] = point(next);
         const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
-        const cuts = Math.max(1, Math.floor(length / 9));
+        const mx = x + (ax + bx) / 2 - dy / length * .001;
+        const my = y + (ay + by) / 2 + dx / length * .001;
+        // A merged perimeter can be large while its solid rim stays thin.
+        const thickness = Math.min(w, h, Math.max(...parts.filter(part =>
+          mx >= part.x && mx <= part.x + part.w && my >= part.y && my <= part.y + part.h)
+          .map(part => dx === 0 ? part.w : part.h)));
+        const cuts = Math.max(1, Math.floor(length / 12));
         for (let i = 0; i < cuts; i++) {
           const variation = (Math.round(ax * 3 + ay * 5 + bx + by * 7) + i * 17) % 23;
-          const depth = Math.min(1.7 + variation % 7 * .55, length / cuts * .38, Math.min(w, h) * .18);
+          const depth = Math.min(
+            (3.5 + variation % 7 * .85) * (1 + wear * (1.2 + variation % 4 * .6))
+              + wear * thickness * (.12 + variation % 4 * .03),
+            length / cuts * .48 + wear * thickness * .25,
+            thickness * (.3 + wear * .14));
           const start = .04 + variation % 5 * .035;
           const tip = .3 + variation % 6 * .045;
           const end = .78 + variation % 4 * .05;
-          for (const [offset, inset] of [[start, 0], [tip, depth], [tip + .16, depth * (.2 + variation % 3 * .2)], [end, 0]]) {
+          const shoulder = depth * wear * (variation % 3) * .12;
+          for (const [offset, inset] of [[start, shoulder], [tip, depth], [tip + .16, depth * (.2 + variation % 3 * .2)], [end, shoulder]]) {
             const t = (i + offset) / cuts;
             loop.push([ax + dx * t - dy / length * inset, ay + dy * t + dx / length * inset]);
           }
@@ -184,8 +196,56 @@ function brickShape(parts, crumbly = false) {
     polygon.push(...loop);
     if (polygon.length) polygon.push(polygon[0]);
   }
+  let cracks = '';
+  if (wear > 0) {
+    for (const part of parts) {
+      const vertical = part.h > part.w;
+      const seed = Math.round(part.x * 3 + part.y * 7) % 11;
+      const local = (along, across) => normalized([
+        part.x - x + part.w * (vertical ? across : along),
+        part.y - y + part.h * (vertical ? along : across),
+      ]);
+      for (let i = 0; i < 3; i++) {
+        const along = .18 + i * .29 + seed * .003;
+        const flip = i % 2 ? -1 : 1;
+        const across = i % 2 ? 1 : 0;
+        cracks += `M${local(along, across)}L${local(along - .06 * wear, across + flip * .28 * wear)}L${local(along + .07 * wear, across + flip * .54 * wear)}L${local(along - .03 * wear, across + flip * .92 * wear)}`;
+        cracks += `M${local(along + .07 * wear, across + flip * .54 * wear)}L${local(along + .2 * wear, across + flip * .45 * wear)}L${local(along + .23 * wear, across + flip * .68 * wear)}`;
+      }
+    }
+  }
   const clipPath = `polygon(evenodd, ${polygon.map(([px, py]) => `${px / w * 100}% ${py / h * 100}%`).join(', ')})`;
-  return { x, y, w, h, path, clipPath };
+  return { x, y, w, h, path, clipPath, cracks };
+}
+
+function brickRecharge(parts, bricks, perimeter, width, height) {
+  const regions = brickRegions(bricks, width, height);
+  const ids = new Set(parts.filter(part => part.sourceId !== undefined).map(part => part.sourceId));
+  const first = perimeter.findIndex((id, i) => ids.has(id) && !ids.has(perimeter[(i + perimeter.length - 1) % perimeter.length]));
+  const start = first < 0 ? 0 : first;
+  const position = part => {
+    const index = perimeter.indexOf(part.sourceId ?? part.afterId);
+    return (index - start + perimeter.length) % perimeter.length + (part.sourceId === undefined ? .5 : 0);
+  };
+  const segments = [...parts].sort((a, b) => position(a) - position(b)).map(part => {
+    let edge;
+    if (part.sourceId !== undefined) edge = regions.get(part.sourceId).edge;
+    else {
+      const before = bricks.find(brick => brick.id === part.afterId);
+      // Corner connectors run along the side after a horizontal brick, or before it.
+      const vertical = part.x >= before.x && part.x + part.w <= before.x + before.w + 1e-6;
+      edge = vertical ? (part.x < width / 2 ? 'left' : 'right') : (part.y < height / 2 ? 'top' : 'bottom');
+    }
+    return { part, direction: { top: 'right', right: 'bottom', bottom: 'left', left: 'top' }[edge],
+      length: edge === 'top' || edge === 'bottom' ? part.w : part.h };
+  });
+  const total = segments.reduce((sum, segment) => sum + segment.length, 0);
+  let distance = 0;
+  return segments.map(({ part, direction, length }) => {
+    const segment = { part, direction, start: distance / total * 100, scale: total / length };
+    distance += length;
+    return segment;
+  });
 }
 
 function makeBricks(portrait = false, scale = 1) {
@@ -399,8 +459,8 @@ class Game {
       const left = Math.max(a.x, b.x), right = Math.min(a.x + a.w, b.x + b.w);
       const top = Math.max(a.y, b.y), bottom = Math.min(a.y + a.h, b.y + b.h);
       // Fill only the perimeter gap, preserving an L-shaped union around corners.
-      if (right > left) parts.push({ id: owner(a), x: left, y: Math.min(a.y + a.h, b.y + b.h), w: right - left, h: top - Math.min(a.y + a.h, b.y + b.h) });
-      else if (bottom > top) parts.push({ id: owner(a), x: Math.min(a.x + a.w, b.x + b.w), y: top, w: left - Math.min(a.x + a.w, b.x + b.w), h: bottom - top });
+      if (right > left) parts.push({ id: owner(a), afterId: a.id, x: left, y: Math.min(a.y + a.h, b.y + b.h), w: right - left, h: top - Math.min(a.y + a.h, b.y + b.h) });
+      else if (bottom > top) parts.push({ id: owner(a), afterId: a.id, x: Math.min(a.x + a.w, b.x + b.w), y: top, w: left - Math.min(a.x + a.w, b.x + b.w), h: bottom - top });
     }
     return parts;
   }
@@ -655,7 +715,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape };
+const api = { Game, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

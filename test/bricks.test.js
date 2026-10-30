@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, validateCustomLevel, brickEditRegions, brickContact, brickShape } = require('../src/game.js');
+const { Game, validateCustomLevel, brickEditRegions, brickContact, brickShape, brickRecharge, brickRegions } = require('../src/game.js');
 
 const blank = () => ({ version: 1, id: 'Brick test', duration: 120, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 function setup(attributes, options = {}, random = () => .99) {
@@ -17,12 +17,53 @@ function recenter(game) {
   game.cat.y = game.height / 2;
 }
 
+test('recharge follows every contiguous perimeter group, including corners, wraparound and the full ring', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const game = setup({ warped: 100 }, options);
+    const regions = brickRegions(game.bricks, game.width, game.height);
+    const directions = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' };
+    for (let first = 0; first < game.perimeter.length; first++) {
+      for (let count = 1; count <= game.perimeter.length; count++) {
+        for (const brick of game.bricks) brick.absorbedBy = null;
+        const ids = Array.from({ length: count }, (_, i) => game.perimeter[(first + i) % game.perimeter.length]);
+        const owner = ids[0];
+        for (const id of ids.slice(1)) game.bricks[id].absorbedBy = owner;
+        const parts = game.brickParts().filter(part => part.id === owner);
+        const segments = brickRecharge(parts, game.bricks, game.perimeter, game.width, game.height);
+        assert.equal(segments.length, parts.length);
+        assert.equal(segments[0].start, 0);
+        const sourceIds = segments.filter(segment => segment.part.sourceId !== undefined).map(segment => segment.part.sourceId);
+        assert.deepEqual(sourceIds, count === game.perimeter.length ? game.perimeter : ids);
+        let progress = 0;
+        for (const segment of segments) {
+          assert.ok(Math.abs(segment.start - progress) < 1e-8, 'no gap or overlap in refill timing');
+          assert.ok(segment.scale >= 1 && Number.isFinite(segment.scale));
+          if (segment.part.sourceId !== undefined) {
+            assert.equal(segment.direction, directions[regions.get(segment.part.sourceId).edge]);
+          } else {
+            const vertical = segment.part.w > segment.part.h;
+            // Connecting strips are thin in their travel direction.
+            assert.ok((vertical ? ['top', 'bottom'] : ['left', 'right']).includes(segment.direction));
+          }
+          const midpoint = segment.start + 50 / segment.scale;
+          assert.ok(Math.abs((midpoint - segment.start) * segment.scale - 50) < 1e-8);
+          progress += 100 / segment.scale;
+        }
+        assert.ok(Math.abs(progress - 100) < 1e-8);
+        assert.ok(segments.every(segment => (0 - segment.start) * segment.scale <= 0));
+        assert.ok(segments.every(segment => (100 - segment.start) * segment.scale >= 100 - 1e-8));
+      }
+    }
+  }
+});
+
 test('crumbly edges have deep chips with varied widths and depths', () => {
   const shape = brickShape([{ x: 0, y: 0, w: 110, h: 22 }], true);
   const top = [...shape.path.split('L1 0')[0].matchAll(/[ML]([\d.e+-]+) ([\d.e+-]+)/g)]
     .map(([, x, y]) => [Number(x) * 110, Number(y) * 22]);
   const depths = top.filter(([, y]) => y > 0).map(([, y]) => y);
-  assert.ok(Math.max(...depths) > 3);
+  assert.ok(Math.max(...depths) > 5.5, 'chips should cut through at least a quarter of the brick thickness');
+  assert.ok(Math.max(...depths) <= 22 * .3, 'opposing chips must leave a solid center');
   assert.ok(new Set(depths.map(y => y.toFixed(3))).size >= 5);
   const widths = top.slice(1).map(([x], i) => (x - top[i][0]).toFixed(3));
   assert.ok(new Set(widths).size >= 5);
@@ -33,10 +74,11 @@ test('crumbly outlines chip only exposed boundaries and preserve merged holes in
     const game = setup({ warped: 100, crumbler: 100 }, options);
     for (let count = 0; count <= 25; count++) {
       const parts = game.brickParts().filter(part => part.id === 0);
-      const smooth = brickShape(parts), chipped = brickShape(parts, true);
-      assert.deepEqual(chipped, brickShape(parts, true));
+      const wear = count / 25;
+      const smooth = brickShape(parts), chipped = brickShape(parts, true, wear);
+      assert.deepEqual(chipped, brickShape(parts, true, wear));
       assert.deepEqual([chipped.x, chipped.y, chipped.w, chipped.h], [smooth.x, smooth.y, smooth.w, smooth.h]);
-      assert.doesNotMatch(chipped.path + chipped.clipPath, /NaN|undefined|Infinity/);
+      assert.doesNotMatch(chipped.path + chipped.clipPath + chipped.cracks, /NaN|undefined|Infinity/);
       assert.equal((chipped.path.match(/M/g) || []).length, count === 25 ? 2 : 1);
       assert.ok(chipped.path.length > smooth.path.length);
       assert.match(chipped.clipPath, /^polygon\(evenodd, /);
@@ -55,6 +97,56 @@ test('crumbly outlines chip only exposed boundaries and preserve merged holes in
       assert.equal(inside, false, 'the gameplay area stays outside the clipped brick');
       game.bricks[0].readyAt = 0;
       aim(game, game.bricks[0]);
+    }
+  }
+});
+
+test('each successful Crumbler activation erodes its outline and grows cracks until exhaustion, then resets', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    for (const uses of [1, 5]) {
+      const game = setup({ crumbler: uses }, options);
+      const brick = game.bricks[0];
+      const appearance = () => brickShape(game.brickParts().filter(part => part.id === brick.id),
+        true, 1 - brick.usesLeft / brick.crumbler);
+      const area = shape => {
+        const points = [...shape.path.matchAll(/[ML]([\d.e+-]+) ([\d.e+-]+)/g)].map(([, x, y]) => [Number(x), Number(y)]);
+        return Math.abs(points.reduce((sum, [x, y], i) => {
+          const [nx, ny] = points[(i + 1) % points.length];
+          return sum + x * ny - nx * y;
+        }, 0)) / 2;
+      };
+      const crackLength = shape => [...shape.cracks.matchAll(/M([^M]+)/g)].reduce((total, [, segment]) => {
+        const points = segment.split('L').map(point => point.split(' ').map(Number));
+        return total + points.slice(1).reduce((sum, [x, y], i) =>
+          sum + Math.hypot(x - points[i][0], y - points[i][1]), 0);
+      }, 0);
+      const initial = appearance();
+      assert.equal(initial.cracks, '');
+      let previous = initial;
+      for (let i = 1; i <= uses; i++) {
+        recenter(game);
+        brick.readyAt = 0;
+        assert.equal(aim(game, brick), true);
+        const current = appearance();
+        assert.notEqual(current.clipPath, previous.clipPath);
+        assert.ok(area(current) < area(previous), 'every activation removes more of the visible outline');
+        assert.notEqual(current.cracks, previous.cracks);
+        assert.ok(crackLength(current) > crackLength(previous), 'cracks lengthen at every activation');
+        for (const [, x, y] of current.cracks.matchAll(/[ML]([\d.e+-]+) ([\d.e+-]+)/g)) {
+          assert.ok(Number(x) >= 0 && Number(x) <= 1);
+          assert.ok(Number(y) >= 0 && Number(y) <= 1);
+        }
+        assert.equal(aim(game, brick), false);
+        assert.deepEqual(appearance(), current, 'rejected selections do not add wear');
+        previous = current;
+      }
+      assert.equal(brick.usesLeft, 0);
+      assert.ok(area(previous) < area(initial) * .85, 'exhaustion causes prominent erosion');
+      game.reset();
+      const restored = game.bricks[0];
+      assert.equal(restored.usesLeft, uses);
+      assert.deepEqual(brickShape(game.brickParts().filter(part => part.id === restored.id),
+        true, 1 - restored.usesLeft / restored.crumbler), initial);
     }
   }
 });
