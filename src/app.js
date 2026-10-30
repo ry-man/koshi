@@ -428,6 +428,7 @@ function render(now) {
     trail.push({ x: game.cat.x, y: game.cat.y, born: now });
   }
   trail = trail.filter(point => now - point.born < .22);
+  for (const cue of game.spawnCues) drawSpawnCue(cue);
   for (const food of game.food) {
     const left = Math.max(0, (food.expires - game.elapsed) / food.lifetime);
     ctx.save(); ctx.translate(food.x, food.y);
@@ -500,6 +501,68 @@ function render(now) {
   }
   if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);
   ctx = boardCtx;
+}
+
+function drawSpawnCue({ kind, x, y, progress }) {
+  ctx.save();
+  ctx.translate(x, y);
+  const fade = Math.min(1, progress * 5) * Math.min(1, (1 - progress) * 5);
+  if (kind === 'enemy') {
+    const size = .35 + progress * .65;
+    ctx.scale(size, size);
+    for (let i = 0; i < 7; i++) {
+      const angle = i * Math.PI * 2 / 7 + progress * 1.5;
+      const radius = 15 + Math.sin(progress * 7 + i) * 5;
+      const cx = Math.cos(angle) * radius, cy = Math.sin(angle) * radius;
+      const cloud = ctx.createRadialGradient(cx, cy, 0, cx, cy, 19);
+      cloud.addColorStop(0, `rgba(174,100,239,${fade * .6})`);
+      cloud.addColorStop(1, 'rgba(126,65,191,0)');
+      ctx.fillStyle = cloud;
+      ctx.fillRect(cx - 19, cy - 19, 38, 38);
+    }
+    ctx.globalAlpha = fade;
+    ctx.shadowColor = '#bb82ff'; ctx.shadowBlur = 12;
+    ctx.fillStyle = '#d4afff';
+    ctx.beginPath(); ctx.arc(0, -4, 14, Math.PI, 0);
+    ctx.lineTo(13, 7); ctx.lineTo(8, 10); ctx.lineTo(8, 17); ctx.lineTo(-8, 17); ctx.lineTo(-8, 10); ctx.lineTo(-13, 7); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#45245e';
+    for (const eye of [-6, 6]) { ctx.beginPath(); ctx.ellipse(eye, -2, 4, 5, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(0, 3); ctx.lineTo(-3, 8); ctx.lineTo(3, 8); ctx.fill();
+    for (const tooth of [-4, 2]) ctx.fillRect(tooth, 12, 2, 5);
+  } else if (kind === 'weapon') {
+    ctx.globalAlpha = fade;
+    ctx.rotate(progress * Math.PI * 3);
+    const radius = 1 + progress * 32;
+    ctx.shadowColor = '#ffcb52'; ctx.shadowBlur = 10;
+    for (let arm = 0; arm < 3; arm++) {
+      ctx.beginPath();
+      for (let i = 0; i <= 36; i++) {
+        const t = i / 36, angle = arm * Math.PI * 2 / 3 + t * Math.PI * 1.7;
+        const px = Math.cos(angle) * t * radius, py = Math.sin(angle) * t * radius;
+        if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      }
+      ctx.strokeStyle = arm === 0 ? '#fff1aa' : '#f7be42';
+      ctx.lineWidth = 2.5; ctx.stroke();
+    }
+  } else {
+    const size = 1 + Math.sin(Math.PI * progress) * 25;
+    ctx.globalAlpha = fade;
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 1.5);
+    glow.addColorStop(0, '#fffcebcc'); glow.addColorStop(1, '#fff3bc00');
+    ctx.fillStyle = glow; ctx.fillRect(-size * 1.5, -size * 1.5, size * 3, size * 3);
+    ctx.rotate(Math.sin(progress * Math.PI * 2) * .15);
+    ctx.fillStyle = '#fffde5'; ctx.shadowColor = '#fff4bd'; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = i * Math.PI / 4, radius = i % 2 ? size * .18 : size;
+      const px = Math.cos(angle) * radius, py = Math.sin(angle) * radius;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawSword(x, y, color) {

@@ -51,6 +51,19 @@ test('both pages link the manifest and register offline support', () => {
   assert.doesNotMatch(read('style.css'), /fonts\.googleapis|@import/);
 });
 
+test('cutscene pixel font is bundled with its license and applied consistently', () => {
+  const css = read('style.css');
+  const font = fs.readFileSync(path.join(root, 'fonts', 'pixelify-sans.ttf'));
+  assert.equal(font.readUInt32BE(0), 0x00010000, 'bundled font has a TrueType header');
+  assert.match(read('fonts/OFL-Pixelify-Sans.txt'), /SIL OPEN FONT LICENSE Version 1\.1/);
+  assert.match(css, /@font-face\s*\{[^}]*font-family: 'Pixelify Sans';[^}]*url\('\.\/fonts\/pixelify-sans\.ttf'\)/);
+  assert.match(css, /#cutscene\s*\{[^}]*--scene-font: 'Pixelify Sans', monospace/);
+  for (const selector of ['#cutscene-heading', '#cutscene button', '.cutscene-dialogue', '#cutscene-speaker']) {
+    const rule = css.slice(css.indexOf(`${selector} {`)).split('}')[0];
+    assert.ok(rule.includes('var(--scene-font)'), `${selector} uses the cutscene pixel font`);
+  }
+});
+
 test('service worker precaches every local asset the pages load', () => {
   const sw = read('sw.js');
   const assets = JSON.parse(sw.match(/const ASSETS = (\[[\s\S]*?\]);/)[1].replace(/'/g, '"').replace(/,\s*\]/, ']'));

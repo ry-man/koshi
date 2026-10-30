@@ -43,6 +43,14 @@ offline and direct-file play.
   before time expires; food alone no longer clears these levels.
   Strawberries give 1 point, pretzels give 2. Food patterns, appearance times,
   and lifetimes match the description exactly, including both events at 35s.
+- Each scheduled appearance has a **one-second preview at its exact spawn
+  location**: a cloudy purple skull for each enemy, an expanding golden spiral
+  for each sword, and a bright growing/fading star for each food item.
+  Food patterns and robot waves preview every individual object; wheel previews
+  sit on the inner perimeter. Previews cannot be collected or cause damage.
+  Pause freezes the effects, and restart clears them. Built-in and editor levels
+  use the same effects without changing spawn times or food lifetimes. Spawns
+  within the first second have shortened previews; time-zero spawns remain instant.
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
 - From Level 1–2 onward, Robo Mice wander in curves and periodically stop to lick their
@@ -96,7 +104,7 @@ Desktop play keeps the original landscape board. A restart picks the layout
 for the current screen; resizing during an attempt preserves its game state.
 
 Artwork is drawn locally;
-system emoji represent food. The DM Sans and Space Grotesk fonts are bundled in
+system emoji represent food. The DM Sans, Space Grotesk, and Pixelify Sans fonts are bundled in
 [fonts/](./fonts/) under the SIL Open Font License (license texts included), so
 the game makes no requests to external services.
 
@@ -117,7 +125,8 @@ without a scene start immediately as before.
 The upper two-thirds of the viewport show a garden or workshop stage, with
 characters using the same drawings as gameplay. Speakers step forward and
 animate while talking. The lower third holds an animated, 32-by-32 pixel
-portrait on the left and retro monospace dialogue on the right. Koshi, Robo
+portrait on the left and blocky Pixelify Sans dialogue on the right. The same
+pixel font styles speaker names, scene headings, and controls. Koshi, Robo
 Mouse, and Robo Wheel each have their own portrait and stage character.
 Dialogue reveals at **30 characters per second**. **Reveal text** shows the
 rest of a line; **Continue** advances; **Begin level** finishes the last line.

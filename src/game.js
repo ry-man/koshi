@@ -550,6 +550,7 @@ class Game {
     this.nextEnemy = 0;
     this.nextWeapon = 0;
     this.nextCustom = 0;
+    this.pendingSpawns = new Map();
     this.nextHeart = this.level.heartCost;
     if (this.levelIndex === 1 || this.level.brickSet === 3) {
       for (const brick of this.bricks) brick.kind = 'normal';
@@ -608,6 +609,7 @@ class Game {
   start() {
     if (this.state === 'ready') {
       this.state = 'playing';
+      this.prepareSpawns();
       this.spawnCustomEvents();
     }
   }
@@ -680,7 +682,40 @@ class Game {
     }
   }
 
-  spawn([time, method, type, lifetime]) {
+  prepareSpawns() {
+    const prepare = (events, index, kind, create, timeOf = event => event[0]) => {
+      for (let i = index; i < events.length; i++) {
+        const event = events[i], time = timeOf(event);
+        if (time > this.elapsed + 1 + 1e-9) break;
+        if (!this.pendingSpawns.has(event)) this.pendingSpawns.set(event, { kind: kind ?? event.kind, time, items: create(event) });
+      }
+    };
+    prepare(this.customEvents, this.nextCustom, null, event => this.createCustomSpawn(event), event => event.time);
+    prepare(this.level.food, this.nextEvent, 'food', event => this.createFood(event));
+    prepare(this.level.enemies, this.nextEnemy, 'enemy', event => this.createEnemies(event));
+    prepare(this.level.weapons, this.nextWeapon, 'weapon', ([, type]) => [{ ...this.randomPoint(), type }]);
+  }
+
+  get spawnCues() {
+    return [...this.pendingSpawns.values()].flatMap(({ kind, time, items }) => {
+      if (time <= this.elapsed + 1e-9) return [];
+      const progress = Math.max(0, Math.min(1, this.elapsed - (time - 1)));
+      return items.map(({ x, y }) => ({ kind, x, y, progress }));
+    });
+  }
+
+  takeSpawn(event, create) {
+    const pending = this.pendingSpawns.get(event);
+    this.pendingSpawns.delete(event);
+    return pending ? pending.items : create(event);
+  }
+
+  spawn(event) {
+    this.food.push(...this.takeSpawn(event, entry => this.createFood(entry)));
+  }
+
+  createFood([time, method, type, lifetime]) {
+    const items = [];
     const count = method === 'S' ? 1 : Number(method.slice(1));
     const angle = this.random() * Math.PI * 2;
     const margin = this.portrait ? 8 + 45 / this.scale + 35 : 95;
@@ -701,8 +736,9 @@ class Game {
         x = margin + this.random() * (this.width - margin * 2);
         y = margin + this.random() * (this.height - margin * 2);
       }
-      this.food.push({ id: this.foodId++, x, y, type, born: time, expires: time + lifetime, lifetime });
+      items.push({ id: this.foodId++, x, y, type, born: time, expires: time + lifetime, lifetime });
     }
+    return items;
   }
 
   bounds() {
@@ -725,33 +761,40 @@ class Game {
   spawnCustomEvents() {
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
       const event = this.customEvents[this.nextCustom++];
-      const point = this.pointFromRelative(event.x, event.y);
-      if (event.kind === 'food') {
-        this.food.push({ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime });
-      } else if (event.kind === 'weapon') {
-        this.weapons.push({ ...point, type: event.type });
-      } else {
-        const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
-        if (event.type === 'wheel') {
-          const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
-          if (event.y === 0) enemy.distance = event.x * w;
-          else if (event.x === 1) enemy.distance = w + event.y * h;
-          else if (event.y === 1) enemy.distance = w + h + (1 - event.x) * w;
-          else enemy.distance = 2 * w + h + (1 - event.y) * h;
-          this.placeWheel(enemy);
-        }
-        this.robots.push(enemy);
-      }
+      const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : this.robots;
+      target.push(...this.takeSpawn(event, entry => this.createCustomSpawn(entry)));
     }
   }
 
-  spawnEnemies([, type, count]) {
+  createCustomSpawn(event) {
+    const point = this.pointFromRelative(event.x, event.y);
+    if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
+    if (event.kind === 'weapon') return [{ ...point, type: event.type }];
+    const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
+    if (event.type === 'wheel') {
+      const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
+      if (event.y === 0) enemy.distance = event.x * w;
+      else if (event.x === 1) enemy.distance = w + event.y * h;
+      else if (event.y === 1) enemy.distance = w + h + (1 - event.x) * w;
+      else enemy.distance = 2 * w + h + (1 - event.y) * h;
+      this.placeWheel(enemy);
+    }
+    return [enemy];
+  }
+
+  spawnEnemies(event) {
+    this.robots.push(...this.takeSpawn(event, entry => this.createEnemies(entry)));
+  }
+
+  createEnemies([, type, count]) {
+    const items = [];
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
     for (let i = 0; i < count; i++) {
       const enemy = { ...this.randomPoint(), type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: this.random() * 2 * (w + h) };
       if (type === 'wheel') this.placeWheel(enemy);
-      this.robots.push(enemy);
+      items.push(enemy);
     }
+    return items;
   }
 
   placeWheel(enemy) {
@@ -826,14 +869,15 @@ class Game {
       this.stuckUntil = 0;
     }
     this.restoreWarps();
+    this.prepareSpawns();
     this.spawnCustomEvents();
     while (this.nextEvent < this.level.food.length && this.level.food[this.nextEvent][0] <= this.elapsed + 1e-9) {
       this.spawn(this.level.food[this.nextEvent++]);
     }
     while (this.nextEnemy < this.level.enemies.length && this.level.enemies[this.nextEnemy][0] <= this.elapsed + 1e-9) this.spawnEnemies(this.level.enemies[this.nextEnemy++]);
     while (this.nextWeapon < this.level.weapons.length && this.level.weapons[this.nextWeapon][0] <= this.elapsed + 1e-9) {
-      const [, type] = this.level.weapons[this.nextWeapon++];
-      this.weapons.push({ ...this.randomPoint(), type });
+      const event = this.level.weapons[this.nextWeapon++];
+      this.weapons.push(...this.takeSpawn(event, ([, type]) => [{ ...this.randomPoint(), type }]));
     }
     this.food = this.food.filter(item => item.expires > this.elapsed + 1e-9);
     const cat = this.cat;

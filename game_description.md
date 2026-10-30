@@ -23,7 +23,9 @@ of the screen show the cast interacting against a background matching the
 level's world: a garden path for Levels 1-1 through 1-3 and the Clockwork Pantry
 workshop for Levels 1-4 and 1-5. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
-monospace dialogue on the right. Koshi, Robo Mouse, and Robo Wheel each have a
+dialogue in the locally bundled Pixelify Sans pixel font on the right.
+Speaker names, scene headings, and controls use the same blocky retro font.
+Koshi, Robo Mouse, and Robo Wheel each have a
 distinct pixel portrait; stage characters reuse their actual gameplay drawings.
 
 Dialogue appears at 30 characters per second. Players may reveal the current
@@ -55,6 +57,18 @@ The top of the screen holds locations for the following information:
 4. Enemy count - an evil face icone followed by a counter of how many enemies Koshi has destroyed this level
 5. Objective - level objective
 6. Life Meter - Koshi has 3 hearts. If he touches an enemy, a heart is lost.
+
+### Spawn Previews
+
+One second before a scheduled appearance, its exact location displays a visual
+cue: a cloudy purple skull materializes for an enemy, a golden swirling pattern
+grows from a point and dissipates to reveal a weapon, and a pinpoint of light
+grows into a bright twinkling star then fades before food appears. Each object
+in a food pattern or enemy wave gets its own cue. Wheels preview their actual
+inner-perimeter starting position. Cues are visual only and pause with the game;
+they never trigger damage or pickups. They apply to built-in and custom levels.
+Spawn times and food lifetimes are unchanged: events before one second have
+shortened previews, and events at zero appear immediately with no preview.
 
 ### Food
 Food randomly appears throughout the level. Food often appears in groups and placed along straight lines so that Koshi may grab them all if he travels along that line. Different foods give Koshi different counts towards his food counters, according to the following table (note the abbreviations for the food will be used in outlining the levels):

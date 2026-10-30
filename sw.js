@@ -17,6 +17,7 @@ const ASSETS = [
   './manifest.webmanifest',
   './fonts/dm-sans-latin.woff2',
   './fonts/space-grotesk-latin.woff2',
+  './fonts/pixelify-sans.ttf',
   './icons/koshi.svg',
   './icons/title-scene.svg',
   './icons/icon-192.png',
