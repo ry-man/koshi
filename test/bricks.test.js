@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, validateCustomLevel, brickEditRegions, brickContact, brickShape, brickRecharge, brickRegions } = require('../src/game.js');
+const { Game, validateCustomLevel, brickEditRegions, brickContact, brickShape, brickRecharge, brickRegions, brickSlime } = require('../src/game.js');
 
 const blank = () => ({ version: 1, id: 'Brick test', duration: 120, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 function setup(attributes, options = {}, random = () => .99) {
@@ -16,6 +16,40 @@ function recenter(game) {
   game.cat.x = game.width / 2;
   game.cat.y = game.height / 2;
 }
+
+test('slime icing covers only center-facing edges, with curved drips in both layouts and merged rings', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const game = setup({ slimed: true, warped: 100 }, options);
+    const regions = brickRegions(game.bricks, game.width, game.height);
+    for (const brick of game.bricks) {
+      const shape = brickSlime([brick], game.width, game.height);
+      assert.equal((shape.match(/M/g) || []).length, 1);
+      assert.match(shape, /Q/);
+      const points = [...shape.matchAll(/([\d.e+-]+) ([\d.e+-]+)/g)].map(([, x, y]) => [Number(x), Number(y)]);
+      for (const [x, y] of points) {
+        assert.ok(x >= -1e-8 && x <= 1 + 1e-8 && y >= -1e-8 && y <= 1 + 1e-8);
+        const edge = regions.get(brick.id).edge;
+        if (edge === 'top') assert.ok(y > .5);
+        if (edge === 'bottom') assert.ok(y < .5);
+        if (edge === 'left') assert.ok(x > .5);
+        if (edge === 'right') assert.ok(x < .5);
+      }
+    }
+    for (let count = 0; count <= 25; count++) {
+      const parts = game.brickParts().filter(part => part.id === 0);
+      const shape = brickSlime(parts, game.width, game.height);
+      assert.match(shape, /Q/);
+      assert.doesNotMatch(shape, /NaN|Infinity|undefined/);
+      assert.equal(shape, brickSlime(parts, game.width, game.height));
+      for (const [, x, y] of shape.matchAll(/([\d.e+-]+) ([\d.e+-]+)/g)) {
+        assert.ok(Number(x) >= -1e-8 && Number(x) <= 1 + 1e-8);
+        assert.ok(Number(y) >= -1e-8 && Number(y) <= 1 + 1e-8);
+      }
+      game.bricks[0].readyAt = 0;
+      aim(game, game.bricks[0]);
+    }
+  }
+});
 
 test('recharge follows every contiguous perimeter group, including corners, wraparound and the full ring', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {

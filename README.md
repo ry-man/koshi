@@ -39,15 +39,17 @@ offline and direct-file play.
   across their bounding rectangle. Exhausted Crumblers stay static with no cooldown refill.
 - Collect **20 food points** to win immediately: within **60 seconds** in
   Level 1–1 or **120 seconds** in Level 1–2.
+  Levels 1–3 through 1–5 require **both** their food and robot-defeat goals
+  before time expires; food alone no longer clears these levels.
   Strawberries give 1 point, pretzels give 2. Food patterns, appearance times,
   and lifetimes match the description exactly, including both events at 35s.
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
-- In Level 1–2, Robo Mice wander in curves and periodically stop to lick their
+- From Level 1–2 onward, Robo Mice wander in curves and periodically stop to lick their
   hands; Robo Wheels roll around the inside boundary. Neither fires or chases
   Koshi. Unarmed contact costs one heart per enemy contact; remaining overlapped
   does not repeatedly drain hearts. Separation and another collision can hurt again.
-- Every **10 food points** in Level 1–2 spawns a heart in the playable area.
+- Every **10 food points** from Level 1–2 onward spawns a heart in the playable area.
   Touch it to restore one heart, capped at three. No hearts spawn in Level 1–1.
 - Collect a sword to automatically strike robots within its reach.
   **Wood** defeats 1 enemy, **bronze** 3, **silver** 10; **gold** lasts
@@ -58,9 +60,20 @@ offline and direct-file play.
   leaving the window pauses automatically; resume explicitly when you return.
 - **Tab** through the bricks and press **Enter** or **Space** to aim at a
   brick's center. Mouse/touch controls allow precise off-center aiming.
-- **Restart** starts a fresh attempt of the selected level. After Level 1–1,
-  **Next level** starts Level 1–2. The level selector can also start either
+- **Restart** starts a fresh attempt of the selected level.
+  **Next level** advances through Level 1–5. The level selector can also start any
   level directly; changing it begins a fresh attempt.
+
+| Level | Name | Time | Food required | Robots required | Special bricks |
+|-------|------|------|---------------|-----------------|----------------|
+| 1–3 | Crumb patrol | 120s | 20 | 4 | Five-use Crumblers, red slime, Springs |
+| 1–4 | Slime circuit | 150s | 25 | 8 | Four-use Crumbler, 12s Warped, all three slime colors, Springs |
+| 1–5 | Warped showdown | 180s | 30 | 12 | Three-use Crumblers, four-use Warped Crumbler (15s), 10s Warped, all slime colors, Springs |
+
+These levels supply swords before the first robots, additional weapons and enemy
+waves throughout, and food for healing. Ordinary, unlimited-use steering bricks
+remain available. The enemy counter shows defeats against the required total,
+and mission progress follows the less-complete of the two goals.
 
 On phones held upright, the board uses a **portrait 5:8 layout** with compact
 stats and controls. The game fills the visible viewport, with the largest board
@@ -75,7 +88,8 @@ and Warped attributes follow each brick through the rotation. Brick dimensions a
 some bricks are narrower than 44px on small phones to keep the count fixed.
 Toolbar buttons retain at least 44px touch targets.
 Level 1–1 has one slow and one fast brick, and Level 1–2
-has three of each. Food patterns stay
+has three of each. Levels 1–3 through 1–5 start with that same mix before
+applying their special-brick overrides. Food patterns stay
 inside the playable area, and the level schedule, scoring, and cooldowns are
 unchanged. Desktop instructions remain below the game.
 Desktop play keeps the original landscape board. A restart picks the layout
@@ -230,8 +244,8 @@ merge during play.
 ### Crumbler and Warped behavior
 
 - Both attributes work with every cooldown color and can be combined on one
-  brick. The existing built-in level presets remain unchanged; use the editor
-  to add these attributes to custom levels.
+  brick. Levels 1–3 through 1–5 introduce these attributes; the editor can
+  also add them to custom levels. Levels 1–1 and 1–2 remain unchanged.
 - Brick selections only activate when Koshi can actually move in the clicked
   direction. Blocked clicks leave cooldowns, Crumbler uses, and warps unchanged.
 - Crumblers begin with chipped, uneven boundaries. Each successful selection
@@ -276,10 +290,17 @@ merge during play.
 
 - Both contact attributes are available in the custom-level brick inspector,
   work with every cooldown color, and can combine with Crumbler and Warped.
-  Built-in levels are unchanged.
-- Slimed bricks have an oozing green edge. Touching one holds Koshi stationary
-  and blocks all steering for exactly one second of game time. A green ring
-  and `STUCK` label indicate the hold; an expanding ring, `FREE!` label, and
+  Levels 1–3 through 1–5 also use these attributes.
+- Slimed bricks have bold, dark-outlined icing with rounded, uneven drips only along
+  their center-facing contact edge, including the inner rim of warped groups.
+  The editor uses the same graphic and lets slime color be chosen independently
+  of brick cooldown: **blue holds for 5 seconds, green for 3, red for 1**.
+  Existing levels without a slime color use green (now a 3-second hold).
+  Touching one holds Koshi stationary and blocks steering for that duration.
+  At simultaneous contacts, the longest slime hold wins. A matching-color
+  countdown ring starts full and drains in proportion to the remaining hold,
+  freezing while paused. No stuck text or duration message covers play;
+  an expanding ring, `FREE!` label, and
   accessible message announce release. Release does not launch Koshi automatically.
 - Springs have a thin brown metallic edge. Contact reflects the incoming
   velocity about the surface normal, including rounded corner contacts, without
@@ -371,5 +392,6 @@ event scheduling (including time-zero events).
 Level 1–2 uses the exact food, enemy, and weapon timelines from the description.
 Movement speeds, automatic sword reach, persistent healing pickups, and
 one-hit-per-continuous-contact damage are implementation choices where the
-description does not specify those details. Bosses and additional objective
-types are not playable yet because no such levels have been described.
+description does not specify those details. Levels 1–3 through 1–5 add combined
+food and robot-defeat objectives. Bosses and survival-only objectives are not
+playable yet.

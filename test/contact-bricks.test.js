@@ -53,14 +53,17 @@ test('Slimed and Springs validate, round-trip and replace overlapping contact at
   }
 });
 
-test('slime locks steering for one exact second, preserves activation state, pauses, and releases without launching', () => {
+test('all slime colors hold for their exact duration, preserve activation state, pause, and release without launching', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
+    for (const [color, duration] of [['blue', 5], ['green', 3], ['red', 1]]) {
     const game = setup('slimed', options, 4), brick = game.bricks[4];
+    brick.slimeColor = color;
     approach(game, brick);
     game.update(.1);
     assert.equal(game.cat.vx, 0);
     assert.equal(game.cat.vy, 0);
-    assert.ok(Math.abs(game.stuckUntil - (1 + 10 / SPEED)) < 1e-8);
+    assert.ok(Math.abs(game.stuckUntil - (duration + 10 / SPEED)) < 1e-8);
+    assert.equal(game.stuckColor, color);
     const position = { ...game.cat }, bricks = JSON.stringify(game.bricks);
     assert.equal(aim(game, game.bricks[5]), false);
     assert.equal(JSON.stringify(game.bricks), bricks);
@@ -81,7 +84,28 @@ test('slime locks steering for one exact second, preserves activation state, pau
     game.reset();
     assert.equal(game.stuckUntil, 0);
     assert.equal(game.releasedAt, null);
+    }
   }
+});
+
+test('slime colors validate, round-trip independently of cooldown kind, and legacy slime defaults to green', () => {
+  for (const color of ['blue', 'green', 'red']) {
+    const game = setup('slimed');
+    const entry = { ...game.customLevel.brickTypes[0], slimeColor: color };
+    const level = validateCustomLevel(JSON.parse(JSON.stringify({ ...game.customLevel, brickTypes: [entry] })));
+    assert.equal(level.brickTypes[0].slimeColor, color);
+    for (const kind of ['slow', 'normal', 'fast']) {
+      const restored = new Game(() => .99, { customLevel: { ...level, brickTypes: [{ ...entry, kind }] } });
+      assert.equal(restored.bricks[0].slimeColor, color);
+    }
+    for (const invalid of ['purple', '', null, 3, {}, [], ['green']]) {
+      assert.throws(() => validateCustomLevel({ ...level, brickTypes: [{ ...entry, slimeColor: invalid }] }), TypeError);
+    }
+  }
+  const game = setup('slimed'), brick = game.bricks[0];
+  approach(game, brick);
+  game.update(.1);
+  assert.ok(Math.abs(game.stuckUntil - (3 + 10 / SPEED)) < 1e-8);
 });
 
 test('springs reflect oblique velocity on all four sides in both layouts without consuming cooldowns', () => {

@@ -7,6 +7,7 @@ const DURATION = 60;
 const GOAL = 20;
 const SPEED = 420;
 const COOLDOWNS = { slow: 15, normal: 8, fast: 3 };
+const SLIMES = { blue: { duration: 5, color: '#287dcc' }, green: { duration: 3, color: '#399d24' }, red: { duration: 1, color: '#cd4136' } };
 const FOODS = {
   S: { icon: '🍓', value: 1, name: 'Strawberry' },
   P: { icon: '🥨', value: 2, name: 'Pretzel' },
@@ -35,6 +36,49 @@ const LEVELS = [
     food: [[5,'S','S',10],[10,'S','S',10],[15,'S','S',10],[20,'L3','S',10],[25,'L3','S',10],[30,'L3','S',10],[35,'C3','S',10],[40,'C4','S',10],[50,'C5','S',10],[60,'R5','P',15],[80,'R5','P',15],[100,'R5','P',15]],
     enemies: [[10,'mouse',3],[20,'wheel',1],[30,'mouse',3],[40,'wheel',1],[50,'wheel',1],[60,'mouse',3],[70,'mouse',3],[80,'wheel',1],[90,'wheel',1],[100,'mouse',3]],
     weapons: [[5,'wood'],[15,'bronze'],[30,'silver'],[50,'gold'],[70,'silver'],[80,'gold']],
+  },
+  {
+    id: '1-3', name: 'Crumb patrol', duration: 120, goal: 20, killGoal: 4, heartCost: 10, brickSet: 3,
+    food: [[3,'L3','S',15],[15,'C4','S',20],[30,'R5','P',25],[50,'L3','C',25],[75,'R5','P',30],[100,'C4','P',20]],
+    enemies: [[10,'mouse',2],[25,'mouse',2],[45,'wheel',1],[65,'mouse',2],[90,'wheel',1]],
+    weapons: [[2,'bronze'],[20,'silver'],[50,'bronze'],[80,'silver']],
+    brickTypes: [
+      { edge: 'top', start: .2, end: .4, kind: 'fast', crumbler: 5 },
+      { edge: 'bottom', start: .6, end: .8, kind: 'fast', crumbler: 5 },
+      { edge: 'left', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'red' },
+      { edge: 'right', start: .625, end: .75, kind: 'normal', springs: true },
+    ],
+  },
+  {
+    id: '1-4', name: 'Slime circuit', duration: 150, goal: 25, killGoal: 8, heartCost: 10, brickSet: 3,
+    food: [[3,'C4','S',20],[18,'L3','P',20],[35,'R5','P',25],[55,'C4','C',25],[80,'R5','P',30],[110,'L3','C',30],[135,'C4','P',15]],
+    enemies: [[10,'mouse',3],[25,'wheel',1],[40,'mouse',3],[60,'wheel',2],[85,'mouse',3],[110,'wheel',2],[130,'mouse',2]],
+    weapons: [[2,'silver'],[30,'bronze'],[55,'gold'],[85,'silver'],[115,'silver']],
+    brickTypes: [
+      { edge: 'top', start: .8, end: 1, kind: 'fast', warped: 12 },
+      { edge: 'bottom', start: 0, end: .2, kind: 'fast', crumbler: 4 },
+      { edge: 'left', start: .125, end: .25, kind: 'normal', slimed: true, slimeColor: 'blue' },
+      { edge: 'left', start: .5, end: .625, kind: 'fast', slimed: true, slimeColor: 'red' },
+      { edge: 'right', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'green' },
+      { edge: 'right', start: .75, end: .875, kind: 'normal', springs: true },
+    ],
+  },
+  {
+    id: '1-5', name: 'Warped showdown', duration: 180, goal: 30, killGoal: 12, heartCost: 10, brickSet: 3,
+    food: [[3,'L3','P',20],[20,'C4','P',25],[40,'R5','P',25],[60,'L3','C',30],[85,'C5','P',30],[115,'R5','C',30],[145,'C4','P',30],[165,'L3','C',15]],
+    enemies: [[10,'mouse',3],[25,'wheel',2],[40,'mouse',3],[60,'wheel',2],[80,'mouse',4],[105,'wheel',2],[130,'mouse',4],[155,'wheel',2]],
+    weapons: [[2,'silver'],[30,'silver'],[55,'gold'],[80,'silver'],[105,'gold'],[135,'silver'],[155,'gold']],
+    brickTypes: [
+      { edge: 'top', start: .8, end: 1, kind: 'fast', crumbler: 4, warped: 15 },
+      { edge: 'bottom', start: 0, end: .2, kind: 'fast', warped: 10 },
+      { edge: 'top', start: .2, end: .4, kind: 'normal', crumbler: 3 },
+      { edge: 'bottom', start: .6, end: .8, kind: 'normal', crumbler: 3 },
+      { edge: 'left', start: .125, end: .25, kind: 'normal', slimed: true, slimeColor: 'blue' },
+      { edge: 'right', start: .25, end: .375, kind: 'fast', slimed: true, slimeColor: 'green' },
+      { edge: 'left', start: .625, end: .75, kind: 'fast', slimed: true, slimeColor: 'red' },
+      { edge: 'right', start: .75, end: .875, kind: 'normal', springs: true },
+      { edge: 'bottom', start: .4, end: .6, kind: 'normal', springs: true },
+    ],
   },
 ];
 
@@ -81,6 +125,10 @@ function validateCustomLevel(value) {
         if (override.crumbler !== null && !Number.isInteger(override.crumbler)) fail(`Brick override ${i + 1} selections must be a whole number.`);
       }
       if (entry.warped !== undefined) override.warped = entry.warped === null ? null : number(entry.warped, .1, 3600, `Brick override ${i + 1} warp duration`);
+      if (entry.slimeColor !== undefined) {
+        if (typeof entry.slimeColor !== 'string' || !Object.hasOwn(SLIMES, entry.slimeColor)) fail(`Brick override ${i + 1} has an unknown slime color.`);
+        override.slimeColor = entry.slimeColor;
+      }
       for (const attribute of ['slimed', 'springs']) {
         if (entry[attribute] === undefined) continue;
         if (typeof entry[attribute] !== 'boolean') fail(`Brick override ${i + 1} ${attribute} must be a boolean.`);
@@ -216,6 +264,46 @@ function brickShape(parts, crumbly = false, wear = 0) {
   }
   const clipPath = `polygon(evenodd, ${polygon.map(([px, py]) => `${px / w * 100}% ${py / h * 100}%`).join(', ')})`;
   return { x, y, w, h, path, clipPath, cracks };
+}
+
+function brickSlime(parts, width, height) {
+  const shape = brickShape(parts);
+  const { x, y, w, h } = shape;
+  const point = (px, py) => `${px / w} ${py / h}`;
+  let path = '';
+  for (const loop of shape.path.split('M').slice(1)) {
+    const vertices = loop.replace('Z', '').split('L').map(pair => pair.split(' ').map(Number))
+      .map(([px, py]) => [px * w, py * h]);
+    for (let i = 0; i < vertices.length - 1; i++) {
+      const [ax, ay] = vertices[i], [bx, by] = vertices[i + 1];
+      const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
+      if (!length) continue;
+      const mx = x + (ax + bx) / 2 - dy / length * .001;
+      const my = y + (ay + by) / 2 + dx / length * .001;
+      const touching = parts.filter(part =>
+        mx >= part.x - 1e-6 && mx <= part.x + part.w + 1e-6 && my >= part.y - 1e-6 && my <= part.y + part.h + 1e-6);
+      const inner = touching.some(part => {
+        const edge = brickRegions([part], width, height).get(part.id).edge;
+        return { top: dx < 0 && dy === 0, bottom: dx > 0 && dy === 0,
+          left: dy > 0 && dx === 0, right: dy < 0 && dx === 0 }[edge];
+      });
+      if (!inner) continue;
+      const thickness = Math.max(...touching.map(part => dx === 0 ? part.w : part.h));
+      const at = (t, inset) => point(ax + dx * t - dy / length * inset, ay + dy * t + dx / length * inset);
+      const lobes = Math.max(1, Math.round(length / 28));
+      const band = thickness * .08;
+      path += `M${at(0, 0)}L${at(1, 0)}L${at(1, band)}`;
+      for (let j = lobes - 1; j >= 0; j--) {
+        const variation = (Math.round(x + ax + y + ay) + j * 7) % 5;
+        const depth = Math.min(thickness * (.22 + variation * .05), length / lobes * .9);
+        path += `Q${at((j + .78) / lobes, band)} ${at((j + .65) / lobes, depth)}`;
+        path += `Q${at((j + .38) / lobes, depth * 1.15)} ${at((j + .24) / lobes, band)}`;
+        path += `Q${at((j + .12) / lobes, band * .6)} ${at(j / lobes, band)}`;
+      }
+      path += 'Z';
+    }
+  }
+  return path;
 }
 
 function brickRecharge(parts, bricks, perimeter, width, height) {
@@ -357,6 +445,7 @@ class Game {
     this.cat = { x: this.width / 2, y: this.height / 2, radius: 21, vx: 0, vy: 0 };
     this.target = null;
     this.stuckUntil = 0;
+    this.stuckColor = 'green';
     this.releasedAt = null;
     this.pickups = [];
     this.foodId = 0;
@@ -368,16 +457,16 @@ class Game {
     this.nextWeapon = 0;
     this.nextCustom = 0;
     this.nextHeart = this.level.heartCost;
-    if (this.levelIndex === 1 || this.customLevel?.brickSet === 3) {
+    if (this.levelIndex === 1 || this.level.brickSet === 3) {
       for (const brick of this.bricks) brick.kind = 'normal';
       for (let i = 0; i < 3; i++) {
         this.bricks[Math.floor(i * this.bricks.length / 3)].kind = 'slow';
         this.bricks[Math.floor((i + .5) * this.bricks.length / 3)].kind = 'fast';
       }
     }
-    if (this.customLevel?.brickTypes) {
+    if (this.level.brickTypes) {
       const regions = brickEditRegions(this.bricks);
-      for (const entry of this.customLevel.brickTypes) {
+      for (const entry of this.level.brickTypes) {
         const edgeBricks = this.bricks.filter(brick => regions.get(brick.id).edge === entry.edge);
         const matching = edgeBricks.filter(brick => {
           const region = regions.get(brick.id), center = (region.start + region.end) / 2;
@@ -394,6 +483,7 @@ class Game {
           brick.kind = entry.kind;
           if (entry.crumbler !== undefined) brick.crumbler = entry.crumbler;
           if (entry.warped !== undefined) brick.warped = entry.warped;
+          if (entry.slimeColor !== undefined) brick.slimeColor = entry.slimeColor;
           if (entry.slimed !== undefined) {
             brick.slimed = entry.slimed;
             if (entry.slimed) brick.springs = false;
@@ -452,7 +542,7 @@ class Game {
 
   brickParts() {
     const owner = brick => brick.absorbedBy ?? brick.id;
-    const parts = this.bricks.map(brick => ({ x: brick.x, y: brick.y, w: brick.w, h: brick.h, id: owner(brick), sourceId: brick.id }));
+    const parts = this.bricks.map(brick => ({ x: brick.x, y: brick.y, w: brick.w, h: brick.h, id: owner(brick), sourceId: brick.id, region: brick.region }));
     for (let i = 0; i < this.perimeter.length; i++) {
       const a = this.bricks[this.perimeter[i]], b = this.bricks[this.perimeter[(i + 1) % this.perimeter.length]];
       if (owner(a) !== owner(b)) continue;
@@ -682,8 +772,11 @@ class Game {
       const solid = contacts.filter(part => !this.bricks[part.id].springs);
       if (solid.length) {
         cat.vx = 0; cat.vy = 0;
-        if (solid.some(part => this.bricks[part.id].slimed)) {
-          this.stuckUntil = this.elapsed - dt + dt * contact + 1;
+        const slimes = solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed)
+          .sort((a, b) => SLIMES[b.slimeColor ?? 'green'].duration - SLIMES[a.slimeColor ?? 'green'].duration);
+        if (slimes.length) {
+          this.stuckColor = slimes[0].slimeColor ?? 'green';
+          this.stuckUntil = this.elapsed - dt + dt * contact + SLIMES[this.stuckColor].duration;
           this.releasedAt = null;
         }
       } else {
@@ -705,7 +798,7 @@ class Game {
     this.pickups = this.pickups.filter(item => this.elapsed - item.time < .8);
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';
-    } else if (this.score >= this.level.goal) {
+    } else if (this.score >= this.level.goal && this.enemies >= (this.level.killGoal ?? 0)) {
       this.state = 'won';
     } else if (this.elapsed >= this.level.duration - 1e-9) {
       this.elapsed = this.level.duration;
@@ -715,7 +808,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge };
+const api = { Game, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

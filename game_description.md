@@ -81,12 +81,12 @@ Some bricks are "Crumblers". These bricks can only be selected a certain number 
 Some bricks are "Warped". These bricks, upon selecting, absorb an adjacent brick and form a larger brick. The specific brick selected is randomly chosen from the two adjacent bricks. Once the warped brick first absorbs an adjacent brick, it then kicks off a timer on the warped brick which counts down each second. Once this timer reaches zero, the warped brick returns to its original size and shape and all absorbed bricks return to their original state.
 
 ### Brick Attribute - Slimed
-Some bricks have a layer of green oozy slime on the edge of the brick which Koshi touches. This sticky slime holds Koshi stationary and blocks steering for 1 full second of game time before he is released. A green ring and STUCK label indicate the hold; an expanding ring and FREE! label announce release. Koshi remains stationary until another valid brick is selected. Pause freezes the hold.
+Some bricks have oozy slime only on the center-facing edge which Koshi touches, not around the other sides. It looks like bold cake icing with rounded, uneven goopy drips and a very dark border. Slime color is independent of brick cooldown color: blue holds Koshi for 5 seconds, green for 3 seconds, and red for 1 second. Unspecified slime color defaults to green. Warped groups use their owner's slime color along their exposed inner rim. This sticky slime holds Koshi stationary and blocks steering until he is released; simultaneous slime contacts use the longest hold. A matching-color countdown ring starts as a full circle and drains proportionally to the remaining hold time, without stuck text or duration messages. An expanding ring and FREE! label announce release. Koshi remains stationary until another valid brick is selected. Pause freezes the hold and countdown ring.
 
 ### Brick Attributes - Springs
 Some bricks have a thin brown, metallic layer on the edge of the brick which Koshi touches. When Koshi lands on this brick, he bounces off immediately, reflecting his incoming direction about the contact surface without changing speed (including rounded corners). The metallic edge compresses and rebounds slightly, revealing tiny springs underneath.
 
-Slimed and Springs are mutually exclusive: choosing one in the custom-level editor replaces the other. Both can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape. Built-in levels do not use these attributes yet.
+Slimed and Springs are mutually exclusive: choosing one in the custom-level editor replaces the other. Both can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape. Built-in Levels 1-3 through 1-5 introduce these attributes.
 
 ## Enemies
 Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.
@@ -217,3 +217,49 @@ Weapons will appear at the following times:
 | 50          | Gold Sword          |
 | 70          | Silver Sword        |
 | 80          | Gold Sword          |
+
+#### Levels 1-3 through 1-5
+
+These levels require both objectives before the timer expires. The enemy HUD
+shows the defeat target, and progress tracks the less-complete objective.
+All have a heart cost of 10 and retain ordinary unlimited-use steering bricks.
+Brick segments below use portrait coordinates; desktop rotates them clockwise
+with the rest of the board.
+
+| Level | Name | Time | Food goal | Robot defeats | Brick setup |
+|-------|------|------|-----------|---------------|-------------|
+| 1-3 | Crumb patrol | 120s | 20 | 4 | Five-use fast Crumblers at top 20–40% and bottom 60–80%; red slime at left 25–37.5%; Springs at right 62.5–75%. |
+| 1-4 | Slime circuit | 150s | 25 | 8 | Fast Warped (12s) at top 80–100%; four-use fast Crumbler at bottom 0–20%; blue slime at left 12.5–25%, red at left 50–62.5%, green at right 25–37.5%; Springs at right 75–87.5%. |
+| 1-5 | Warped showdown | 180s | 30 | 12 | Four-use fast Warped Crumbler (15s) at top 80–100%; fast Warped (10s) at bottom 0–20%; three-use Crumblers at top 20–40% and bottom 60–80%; blue slime at left 12.5–25%, green at right 25–37.5%, red at left 62.5–75%; Springs at right 75–87.5% and bottom 40–60%. |
+
+The base cooldown mix is three slow and three fast bricks, with remaining bricks
+normal, before the overrides above. Green and red slime in 1-5, and red slime
+in 1-4, have fast cooldowns; other slime and Springs have normal cooldowns.
+
+Food timelines use `(time, method, food, lifetime)` in seconds:
+
+- **1-3:** `(3,L3,S,15)`, `(15,C4,S,20)`, `(30,R5,P,25)`,
+  `(50,L3,C,25)`, `(75,R5,P,30)`, `(100,C4,P,20)`.
+- **1-4:** `(3,C4,S,20)`, `(18,L3,P,20)`, `(35,R5,P,25)`,
+  `(55,C4,C,25)`, `(80,R5,P,30)`, `(110,L3,C,30)`, `(135,C4,P,15)`.
+- **1-5:** `(3,L3,P,20)`, `(20,C4,P,25)`, `(40,R5,P,25)`,
+  `(60,L3,C,30)`, `(85,C5,P,30)`, `(115,R5,C,30)`,
+  `(145,C4,P,30)`, `(165,L3,C,15)`.
+
+Robot timelines use `(time, type, count)`:
+
+- **1-3:** `(10,mouse,2)`, `(25,mouse,2)`, `(45,wheel,1)`,
+  `(65,mouse,2)`, `(90,wheel,1)`.
+- **1-4:** `(10,mouse,3)`, `(25,wheel,1)`, `(40,mouse,3)`,
+  `(60,wheel,2)`, `(85,mouse,3)`, `(110,wheel,2)`, `(130,mouse,2)`.
+- **1-5:** `(10,mouse,3)`, `(25,wheel,2)`, `(40,mouse,3)`,
+  `(60,wheel,2)`, `(80,mouse,4)`, `(105,wheel,2)`,
+  `(130,mouse,4)`, `(155,wheel,2)`.
+
+Sword timelines use `(time, type)`; uncollected swords persist:
+
+- **1-3:** `(2,bronze)`, `(20,silver)`, `(50,bronze)`, `(80,silver)`.
+- **1-4:** `(2,silver)`, `(30,bronze)`, `(55,gold)`, `(85,silver)`,
+  `(115,silver)`.
+- **1-5:** `(2,silver)`, `(30,silver)`, `(55,gold)`, `(80,silver)`,
+  `(105,gold)`, `(135,silver)`, `(155,gold)`.

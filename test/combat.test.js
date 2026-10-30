@@ -30,7 +30,82 @@ test('level 1-2 has the exact food, robot, weapon timelines and brick mix', () =
     assert.equal(game.bricks.filter(b => b.kind === 'slow').length, 3);
     assert.equal(game.bricks.filter(b => b.kind === 'fast').length, 3);
   }
-  assert.throws(() => new Game(Math.random, { level: 2 }), RangeError);
+  assert.throws(() => new Game(Math.random, { level: LEVELS.length }), RangeError);
+});
+
+test('new campaign levels have reachable goals, timely supplies, and special bricks in both layouts', () => {
+  assert.deepEqual(LEVELS.map(level => level.id), ['1-1', '1-2', '1-3', '1-4', '1-5']);
+  const { FOODS, validateCustomLevel } = require('../src/game.js');
+  for (const [offset, killGoal] of [4, 8, 12].entries()) {
+    const levelIndex = offset + 2, level = LEVELS[levelIndex];
+    assert.equal(level.killGoal, killGoal);
+    const enemyTotal = level.enemies.reduce((sum, event) => sum + event[2], 0);
+    assert.ok(enemyTotal > killGoal);
+    const foodTotal = level.food.reduce((sum, [, method, type]) =>
+      sum + (method === 'S' ? 1 : Number(method.slice(1))) * FOODS[type].value, 0);
+    assert.ok(foodTotal >= level.goal * 2);
+    for (const timeline of [level.food, level.enemies, level.weapons]) {
+      assert.ok(timeline.every(([time], i) => time >= 0 && time < level.duration && (!i || time >= timeline[i - 1][0])));
+    }
+    assert.ok(level.weapons[0][0] < level.enemies[0][0]);
+    assert.ok(level.weapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0) >= killGoal);
+    validateCustomLevel({ ...level, version: 1, events: [] });
+    for (const options of [{}, { portrait: true, scale: .6 }]) {
+      const game = arena({ level: levelIndex, ...options });
+      for (const entry of level.brickTypes) {
+        const matching = game.bricks.filter(brick => brick.region.edge === entry.edge
+          && (brick.region.start + brick.region.end) / 2 >= entry.start
+          && (brick.region.start + brick.region.end) / 2 < entry.end);
+        assert.ok(matching.length);
+        for (const brick of matching) {
+          for (const attribute of ['kind', 'crumbler', 'warped', 'slimed', 'slimeColor', 'springs']) {
+            if (entry[attribute] !== undefined) assert.equal(brick[attribute], entry[attribute]);
+          }
+        }
+      }
+      assert.ok(game.bricks.some(brick => !brick.crumbler && !brick.slimed && !brick.springs && !brick.warped));
+      const snapshot = structuredClone(game.bricks);
+      game.steer(game.bricks.find(brick => brick.crumbler).id);
+      game.reset();
+      assert.deepEqual(game.bricks, snapshot);
+      assert.equal(game.enemies, 0);
+      assert.equal(game.score, 0);
+    }
+  }
+});
+
+test('new campaign levels require both goals and count the final real sword defeat', () => {
+  for (const level of [2, 3, 4]) {
+    for (const options of [{}, { portrait: true, scale: .6 }]) {
+      const game = arena({ level, ...options });
+      game.score = game.level.goal;
+      game.enemies = game.level.killGoal - 1;
+      equip(game, 'silver');
+      assert.equal(game.state, 'playing', 'food alone must not win');
+      game.robots.push(mouse(game));
+      game.update(.01);
+      assert.equal(game.enemies, game.level.killGoal);
+      assert.equal(game.state, 'won');
+
+      const hungry = arena({ level, ...options });
+      hungry.enemies = hungry.level.killGoal;
+      hungry.score = hungry.level.goal - 1;
+      hungry.update(.01);
+      assert.equal(hungry.state, 'playing', 'defeats alone must not win');
+      hungry.food.push({ x: hungry.cat.x, y: hungry.cat.y, type: 'S', expires: 5 });
+      hungry.update(.01);
+      assert.equal(hungry.state, 'won');
+
+      const timeout = arena({ level, ...options });
+      timeout.score = timeout.level.goal;
+      timeout.elapsed = timeout.level.duration - .01;
+      timeout.nextEnemy = timeout.level.enemies.length;
+      timeout.nextWeapon = timeout.level.weapons.length;
+      timeout.nextEvent = timeout.level.food.length;
+      timeout.update(.02);
+      assert.equal(timeout.state, 'lost', 'missing defeats must lose at timeout');
+    }
+  }
 });
 
 test('all scheduled events fire once, including late events and 120-second timeout', () => {

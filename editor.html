@@ -59,9 +59,10 @@
             <label>Selections before deactivation <input id="brick-uses" type="number" min="1" max="100000" step="1" value="5" disabled></label>
             <label><input id="brick-warped" type="checkbox" disabled> Warped</label>
             <label>Warp duration (seconds) <input id="brick-warp-seconds" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
-            <label><input id="brick-slimed" type="checkbox" disabled> Slimed · sticks for 1 second</label>
+            <label><input id="brick-slimed" type="checkbox" disabled> Slimed</label>
+            <label>Slime color <select id="brick-slime-color" disabled><option value="blue">Blue · 5 seconds</option><option value="green" selected>Green · 3 seconds</option><option value="red">Red · 1 second</option></select></label>
             <label><input id="brick-springs" type="checkbox" disabled> Springs · reflects Koshi</label>
-            <p class="editor-help">Slimed and Springs replace one another. Slime locks steering for one second on contact, then flashes a release cue. Springs bounce Koshi even during cooldown; their brown edge compresses to reveal tiny springs. Both work with Crumbler and Warped attributes.</p>
+            <p class="editor-help">Slimed and Springs replace one another. Slime color is independent of brick cooldown: blue holds for 5 seconds, green for 3, red for 1, then flashes a release cue. Springs bounce Koshi even during cooldown; their brown edge compresses to reveal tiny springs. Both work with Crumbler and Warped attributes.</p>
             <button id="reset-brick-types" type="button">Reset brick types to preset</button>
             <p class="editor-help">Changes apply immediately to every selected brick; only the control you change is applied, so mixed values elsewhere are kept. Desktop bricks rotate 90 degrees clockwise from the phone layout; selection and attributes follow the same brick between previews. Attributes work with any cooldown color. Crumblers stay solid after their selections run out. Warped bricks absorb one random perimeter neighbor or group per selection, including around corners and during cooldown; the first absorption starts the timer. If a Warped Crumbler runs out of selections, its enlarged shape freezes until restart or absorption by another Warped brick. Playtest to see contact effects, absorption, and countdowns.</p>
           </section>

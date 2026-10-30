@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, FOODS, validateCustomLevel, brickShape, brickRecharge } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, validateCustomLevel, brickShape, brickRecharge, brickSlime } = globalThis.KoshiGame;
 
 let game;
 const canvas = document.querySelector('#canvas');
@@ -113,6 +113,15 @@ function makeBrickButtons() {
       }
       svg.append(path);
       button.append(svg);
+      if (brick.slimed) {
+        const slime = svg.cloneNode(false);
+        slime.setAttribute('class', 'brick-slime');
+        slime.style.setProperty('--slime-color', SLIMES[brick.slimeColor ?? 'green'].color);
+        const icing = path.cloneNode();
+        icing.setAttribute('d', brickSlime(members, game.width, game.height));
+        slime.append(icing);
+        button.append(slime);
+      }
       if (brick.crumbler) {
         const cracks = document.createElementNS(ns, 'svg');
         cracks.classList.add('brick-cracks');
@@ -143,7 +152,7 @@ function makeBrickButtons() {
       const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
       // Include clicks on the button border despite fractional CSS pixel rounding.
       if (!game.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
-        toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? 'Koshi is stuck in slime for a moment!'
+        toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? ''
           : brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
           : brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
           : "Koshi can't move toward that spot. Pick another!";
@@ -180,13 +189,13 @@ function syncUI() {
   if (stuck !== displayedStuck) {
     displayedStuck = stuck;
     if (game.state === 'playing') {
-      toast.textContent = stuck ? 'Sticky slime! Koshi is stuck for 1 second.' : 'Free of the slime! Pick a brick to move.';
+      toast.textContent = stuck ? '' : 'Free of the slime! Pick a brick to move.';
       toastUntil = performance.now() + 1800;
-      status.textContent = toast.textContent;
+      status.textContent = stuck ? '' : toast.textContent;
     }
   }
-  const { duration: DURATION, goal: GOAL } = game.level;
-  const fraction = Math.min(1, game.score / GOAL);
+  const { duration: DURATION, goal: GOAL, killGoal = 0 } = game.level;
+  const fraction = Math.min(1, game.score / GOAL, killGoal ? game.enemies / killGoal : 1);
   timer.innerHTML = `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>`;
   foodCount.innerHTML = `🍗 ${game.score} <span>/ ${GOAL}</span>`;
   hearts.textContent = '♥ '.repeat(game.hearts).trim() + ' ♡'.repeat(3 - game.hearts);
@@ -195,9 +204,11 @@ function syncUI() {
   progressLabel.textContent = `${Math.round(fraction * 100)}% complete`;
   document.querySelector('#level-number').textContent = game.level.id;
   document.querySelector('.level-badge strong').textContent = game.level.id;
-  document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS';
-  document.querySelector('.objective strong').textContent = `Collect ${GOAL} food before time runs out`;
-  document.querySelector('#enemy-count').textContent = `👾 ${game.enemies}`;
+  document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.level.name?.toUpperCase() ?? (game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS');
+  document.querySelector('.objective strong').textContent = `Collect ${GOAL} food${killGoal ? ` and defeat ${killGoal} robots` : ''} before time runs out`;
+  const enemyCount = document.querySelector('#enemy-count');
+  enemyCount.textContent = `👾 ${game.enemies}${killGoal ? ` / ${killGoal}` : ''}`;
+  enemyCount.setAttribute('aria-label', killGoal ? `${game.enemies} of ${killGoal} robots defeated` : `${game.enemies} robots defeated`);
   const weaponText = game.weapon
     ? `${SWORDS[game.weapon.type].name} · ${Number.isFinite(game.weapon.uses) ? `${game.weapon.uses} hits` : `${Math.ceil(game.weapon.expires - game.elapsed)}s`}`
     : 'No sword equipped';
@@ -231,7 +242,7 @@ function syncUI() {
       button.style.setProperty('--spring-reveal', String(compression));
     }
     button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? ', Slimed: sticks for 1 second' : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
@@ -244,18 +255,18 @@ function syncUI() {
   displayedState = game.state;
   if (game.state === 'playing') {
     overlay.hidden = true;
-    status.textContent = stuck ? 'Sticky slime! Koshi is stuck for 1 second.' : 'Click a brick to move. Change course anytime.';
+    status.textContent = stuck ? '' : 'Click a brick to move. Change course anytime.';
   } else if (game.state === 'paused') {
     showDialog('TAKE A BREATHER', 'A little catnap.', 'The clock and cooldowns are paused. Your snacks will be right here when you return.', 'Keep exploring →', '☾');
     status.textContent = 'Paused. No snacks lost on our watch.';
   } else if (game.state === 'won') {
     const hasNext = !game.customLevel && game.levelIndex + 1 < LEVELS.length;
     showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', `You gathered ${game.score} food and defeated ${game.enemies} robots with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
-    status.textContent = hasNext ? 'Level complete! Robo trouble is next.' : 'Level complete! Replay or choose a level.';
+    status.textContent = hasNext ? `Level complete! Level ${LEVELS[game.levelIndex + 1].id} is next.` : 'Level complete! Replay or choose a level.';
     toast.textContent = 'Level complete!';
   } else if (game.state === 'lost') {
     const reason = game.hearts <= 0 ? 'Koshi ran out of hearts.' : game.elapsed >= DURATION ? 'Time ran out.' : 'Koshi slipped off the edge.';
-    showDialog('ANOTHER TRY, ANOTHER ADVENTURE', 'Still hungry for more?', `${reason} You collected ${game.score} of ${GOAL} food. Try redirecting mid-flight to catch a whole line of snacks!`, 'Try again →', '🐾');
+    showDialog('ANOTHER TRY, ANOTHER ADVENTURE', 'Still hungry for more?', `${reason} You collected ${game.score} of ${GOAL} food.${killGoal ? ` You defeated ${game.enemies} of ${killGoal} robots. Pick up a sword before taking on robots!` : ' Try redirecting mid-flight to catch a whole line of snacks!'}`, 'Try again →', '🐾');
     status.textContent = `${reason} Give it another go.`;
     toast.textContent = 'Try again!';
   }
@@ -458,11 +469,18 @@ function render(now) {
   const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
   if (stuck || releaseAge < .65) {
     ctx.save();
-    ctx.strokeStyle = stuck ? '#7ddd43' : `rgba(211,255,158,${1 - releaseAge / .65})`;
+    ctx.strokeStyle = SLIMES[game.stuckColor].color;
+    ctx.globalAlpha = stuck ? 1 : 1 - releaseAge / .65;
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(game.cat.x, game.cat.y, game.cat.radius + 5 + (stuck ? 0 : releaseAge * 28), 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = '#d3ff9e'; ctx.textAlign = 'center'; ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(stuck ? 'STUCK' : 'FREE!', game.cat.x, game.cat.y - game.cat.radius - 14);
+    const remaining = stuck ? Math.max(0, Math.min(1, (game.stuckUntil - game.elapsed) / SLIMES[game.stuckColor].duration)) : 1;
+    ctx.beginPath();
+    ctx.arc(game.cat.x, game.cat.y, game.cat.radius + 5 + (stuck ? 0 : releaseAge * 28),
+      -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * remaining);
+    ctx.stroke();
+    if (!stuck) {
+      ctx.fillStyle = '#d3ff9e'; ctx.textAlign = 'center'; ctx.font = 'bold 12px sans-serif';
+      ctx.fillText('FREE!', game.cat.x, game.cat.y - game.cat.radius - 14);
+    }
     ctx.restore();
   }
   if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);

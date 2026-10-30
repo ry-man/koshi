@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, FOODS, SWORDS, COOLDOWNS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape } = globalThis.KoshiGame;
+const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime } = globalThis.KoshiGame;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
@@ -170,6 +170,12 @@ function renderBrickInspector(bricks) {
   const displayedRegions = brickRegions(previewGame.bricks, previewGame.width, previewGame.height);
   const chosen = bricks.filter(brick => selectedBricks.has(regionKey(regions.get(brick.id))));
   $('#brick-kind').querySelector('option[value=""]')?.remove();
+  $('#brick-slime-color').querySelector('option[value=""]')?.remove();
+  $('#brick-slime-color').disabled = !chosen.some(brick => brick.slimed);
+  if (chosen.length) {
+    const color = common(chosen.map(brick => brick.slimeColor ?? 'green'));
+    if (color === MIXED) mixedOption($('#brick-slime-color')); else $('#brick-slime-color').value = color;
+  }
   if (!chosen.length) {
     for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs']) $(selector).disabled = true;
     for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs']) $(selector).indeterminate = false;
@@ -226,7 +232,7 @@ function renderBoard() {
     element.textContent = [brick.crumbler ? `C:${brick.crumbler}` : '', brick.warped ? `W:${brick.warped}s` : ''].filter(Boolean).join(' ');
     element.dataset.id = brick.id;
     element.dataset.region = key;
-    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? ', Slimed: sticks for 1 second' : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`);
+    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`);
     element.setAttribute('aria-pressed', String(selectedBricks.has(key)));
     // Pointer clicks are handled by the board gesture; detail 0 means keyboard activation.
     element.addEventListener('click', event => {
@@ -249,6 +255,15 @@ function renderBoard() {
       path.setAttribute('vector-effect', 'non-scaling-stroke');
       svg.append(path);
       element.append(svg);
+      if (brick.slimed) {
+        const slime = svg.cloneNode(false);
+        slime.setAttribute('class', 'brick-slime');
+        slime.style.setProperty('--slime-color', SLIMES[brick.slimeColor ?? 'green'].color);
+        const icing = path.cloneNode();
+        icing.setAttribute('d', brickSlime([brick], previewGame.width, previewGame.height));
+        slime.append(icing);
+        element.append(slime);
+      }
     }
     return element;
   }));
@@ -435,7 +450,8 @@ function saveBrick(event) {
     const number = selector => $(selector).value === '' ? null : Number($(selector).value);
     // Only the changed control is applied, so mixed values in other controls are preserved.
     const entries = targets.map(({ brick, region }) => {
-      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null, slimed: Boolean(brick.slimed), springs: Boolean(brick.springs) };
+      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null, slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs) };
+      if (id === 'brick-slime-color' && $('#brick-slime-color').value !== MIXED) entry.slimeColor = $('#brick-slime-color').value;
       if (id === 'brick-kind' && $('#brick-kind').value !== MIXED) entry.kind = $('#brick-kind').value;
       if (id === 'brick-crumbler') entry.crumbler = $('#brick-crumbler').checked ? entry.crumbler ?? number('#brick-uses') ?? 5 : null;
       if (id === 'brick-uses' && entry.crumbler && number('#brick-uses') !== null) entry.crumbler = number('#brick-uses');
@@ -457,7 +473,7 @@ function saveBrick(event) {
   // Re-render on success and failure so the inspector always reflects the saved level.
   renderBoard();
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs']) {
+for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs']) {
   $(selector).addEventListener('change', saveBrick);
 }
 $('#reset-brick-types').addEventListener('click', () => {
