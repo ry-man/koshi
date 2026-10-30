@@ -214,7 +214,9 @@ merge during play.
 - Both attributes work with every cooldown color and can be combined on one
   brick. The existing built-in level presets remain unchanged; use the editor
   to add these attributes to custom levels.
-- Crumblers show cracks and a `C` counter. Only a successful selection consumes
+- Brick selections only activate when Koshi can actually move in the clicked
+  direction. Blocked clicks leave cooldowns, Crumbler uses, and warps unchanged.
+- Crumblers show a repeating pattern of small cracks and a `C` counter. Only a successful selection consumes
   one use. At zero, the entire brick (including any absorbed area) remains
   solid but permanently unselectable until the level restarts.
 - Warped bricks keep their cooldown color and normal solid border, with a
@@ -224,19 +226,23 @@ merge during play.
   gaps are painted; the bounding rectangle has no background or pattern.
   Corner cutouts and the gameplay area remain clear without relying on clipping.
   Each successful selection absorbs
-  one randomly chosen available neighbor at either end of the merged perimeter
+  one randomly chosen neighboring brick or group at either end of the merged perimeter
   group, wrapping around corners. The enlarged area can be clicked to select
   the owner and shares its cooldown, attributes, and selection limit. Connecting
   gaps become solid; corner merges stay L-shaped rather than filling the board.
 - The first absorption starts the `W` countdown. Further absorptions do not
-  restart it. Absorbed bricks cannot be selected separately. Other active warp
-  groups cannot be absorbed; if no neighbor is available, no absorption occurs.
+  restart it. Absorbed bricks cannot be selected separately. Neighbors can be
+  absorbed even while cooling down, exhausted, or already warped. An existing
+  warp group is absorbed in full, with its old timer replaced by the selected
+  owner's countdown. Absorption only stops once the entire perimeter is owned.
 - At expiry, all absorbed bricks regain their original geometry and attributes.
   Their original cooldown deadlines continue to elapse while absorbed; their
   remaining Crumbler selections are preserved. If the owner exhausts its
-  Crumbler selections, the entire enlarged brick is permanently frozen and
-  deactivated, including its absorbed bricks; its warp timer no longer restores
-  it. The counter shows `W:X` for this state. Pause freezes cooldowns and warp timers. Restart restores
+  Crumbler selections, the entire enlarged brick is frozen and deactivated,
+  including its absorbed bricks; its own warp timer no longer restores it.
+  Another Warped brick can still absorb this group; when that new owner restores
+  it, exhausted bricks remain unselectable. The counter shows `W:X` for this state.
+  Pause freezes cooldowns and warp timers. Restart restores
   every brick and replenishes Crumbler selections.
 
 ## GitHub Pages

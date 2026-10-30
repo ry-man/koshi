@@ -324,16 +324,19 @@ class Game {
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
     if (this.state !== 'playing' || !brick || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !this.brickParts().some(part =>
+    const parts = this.brickParts();
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
     const dx = x - this.cat.x, dy = y - this.cat.y;
     const distance = Math.hypot(dx, dy);
     if (!distance) return false;
+    const vx = dx / distance * SPEED, vy = dy / distance * SPEED;
+    if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
     brick.readyAt = this.elapsed + COOLDOWNS[brick.kind];
     if (brick.usesLeft !== null) brick.usesLeft--;
     if (brick.warped) this.absorbNeighbor(brick);
-    this.cat.vx = dx / distance * SPEED;
-    this.cat.vy = dy / distance * SPEED;
+    this.cat.vx = vx;
+    this.cat.vy = vy;
     this.target = { x, y };
     return true;
   }
@@ -360,12 +363,17 @@ class Game {
       if (member.id !== brick.id && member.absorbedBy !== brick.id) continue;
       for (const offset of [-1, 1]) {
         const neighbor = this.bricks[this.perimeter[(i + offset + this.perimeter.length) % this.perimeter.length]];
-        if (neighbor.id !== brick.id && neighbor.absorbedBy === null && neighbor.warpUntil === null) candidates.add(neighbor.id);
+        const owner = neighbor.absorbedBy ?? neighbor.id;
+        if (owner !== brick.id) candidates.add(owner);
       }
     }
     if (!candidates.size) return;
     const ids = [...candidates];
-    this.bricks[ids[Math.floor(this.random() * ids.length)]].absorbedBy = brick.id;
+    const neighbor = this.bricks[ids[Math.floor(this.random() * ids.length)]];
+    for (const member of this.bricks) {
+      if (member.id === neighbor.id || member.absorbedBy === neighbor.id) member.absorbedBy = brick.id;
+    }
+    neighbor.warpUntil = null;
     if (brick.warpUntil === null) brick.warpUntil = this.elapsed + brick.warped;
     this.brickRevision++;
   }

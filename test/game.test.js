@@ -54,6 +54,8 @@ test('steering targets exact click, redirects in flight, and enforces each coold
     assert.equal(aim(game, brick), false);
     assert.equal(aim(game, game.bricks.find(b => b.id !== brick.id)), true);
     game.update(COOLDOWNS[kind] + .01);
+    game.cat.x = game.width / 2;
+    game.cat.y = game.height / 2;
     assert.equal(aim(game, brick), true);
   }
 });

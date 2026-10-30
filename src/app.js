@@ -118,7 +118,9 @@ function makeBrickButtons() {
       const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
       // Include clicks on the button border despite fractional CSS pixel rounding.
       if (!game.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
-        toast.textContent = brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!' : 'That brick is recharging. Pick another!';
+        toast.textContent = brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
+          : brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
+          : "Koshi can't move toward that spot. Pick another!";
         toastUntil = performance.now() + 1800;
       }
     });
@@ -168,7 +170,7 @@ function syncUI() {
     const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
     button.setAttribute('aria-disabled', String(remaining > 1e-9 || brick.usesLeft === 0));
     button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'permanently frozen' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
