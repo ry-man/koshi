@@ -59,14 +59,14 @@ test('steering targets exact click, redirects in flight, and enforces each coold
 
 test('Koshi stops at first brick and can leave it on his next launch', () => {
   const game = playing();
-  aim(game, game.bricks[0]);
+  aim(game, game.bricks[10]);
   game.update(3);
   assert.equal(game.cat.vx, 0);
   assert.equal(game.cat.vy, 0);
   assert.equal(game.target, null);
   assert.ok(game.cat.y >= 42 + game.cat.radius - 1e-8);
   const oldY = game.cat.y;
-  assert.equal(aim(game, game.bricks[15]), true);
+  assert.equal(aim(game, game.bricks[11]), true);
   game.update(.1);
   assert.ok(game.cat.y > oldY);
 });
@@ -196,7 +196,7 @@ test('invalid input does not consume cooldowns or corrupt the simulation', () =>
   assert.equal(game.bricks[0].readyAt, 0);
 });
 
-test('portrait boards provide touch-sized bricks, correct boundaries, and reachable food', () => {
+test('portrait boards preserve brick thickness, correct boundaries, and reachable food', () => {
   for (const scale of [.36, .46, .57, .64, 1]) {
     for (const random of [() => 0, () => .5, () => .99999]) {
       const game = new Game(random, { portrait: true, scale });
@@ -206,7 +206,8 @@ test('portrait boards provide touch-sized bricks, correct boundaries, and reacha
       assert.equal(game.bricks.filter(b => b.kind === 'slow').length, 1);
       assert.equal(game.bricks.filter(b => b.kind === 'fast').length, 1);
       for (const brick of game.bricks) {
-        assert.ok(brick.w * scale >= 44 && brick.h * scale >= 44);
+        assert.ok(Math.max(brick.w, brick.h) * scale >= 44);
+        assert.ok(Math.min(brick.w, brick.h) > 0);
         assert.ok(brick.x >= 0 && brick.y >= 0);
         assert.ok(brick.x + brick.w <= game.width && brick.y + brick.h <= game.height);
       }

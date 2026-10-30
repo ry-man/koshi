@@ -62,6 +62,7 @@ Hearts appear on the screen when triggered by enough food (the heart cost for th
 ## Bricks
 Bricks are colored based on their classification and can be clicked to move Koshi towards the precise location clicked on the brick. At this time, the brick becomes temporarily unclickable and turns a darker shade of color. The bricks have a cooldown time before they are once again clickable. A meter appears along the length of the brick which indicates how much longer the cooldown period is to last. Once the cooldown period is over, the brick returns to its original shade and is once again clickable.
 
+### Brick Attribute - Cooldown
 The bricks have the following classifications based on their cooldown time:
 
 | Classification        | Cooldown Time (seconds) | Color |
@@ -69,6 +70,12 @@ The bricks have the following classifications based on their cooldown time:
 | Slow                  | 15                      | Blue  |
 | Normal                | 8                       | Green |
 | Fast                  | 3                       | Red   |
+
+### Brick Attribute - Crumbler
+Some bricks are "Crumblers". These bricks can only be selected a certain number of times before they are permanently de-activated for the rest of the level. These crumbler bricks appear cracked and also have a numerical counter on them which indicates how many times the brick may be selected before it permanently de-activates. This number counts down by one each time it is selected.
+
+### Brick Attribute - Warped
+Some bricks are "Warped". These bricks, upon selecting, absorb an adjacent brick and form a larger brick. The specific brick selected is randomly chosen from the two adjacent bricks. Once the warped brick first absorbs an adjacent brick, it then kicks off a timer on the warped brick which counts down each second. Once this timer reaches zero, the warped brick returns to its original size and shape and all absorbed bricks return to their original state.
 
 ## Enemies
 Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.

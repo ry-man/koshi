@@ -38,35 +38,155 @@ const LEVELS = [
   },
 ];
 
+function validateCustomLevel(value) {
+  const fail = message => { throw new TypeError(message); };
+  const number = (v, min, max, name) => {
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) fail(`${name} must be a number from ${min} to ${max}.`);
+    return v;
+  };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Level must be a JSON object.');
+  if (value.version !== 1) fail('Unsupported level version. Expected version 1.');
+  if (typeof value.id !== 'string' || !value.id.trim() || value.id.length > 60) fail('Level name must contain 1–60 characters.');
+  const duration = number(value.duration, 1, 3600, 'Duration');
+  const goal = number(value.goal, 1, 100000, 'Food goal');
+  if (!Number.isInteger(goal)) fail('Food goal must be a whole number.');
+  const heartCost = value.heartCost === null ? null : number(value.heartCost, 1, 100000, 'Heart cost');
+  if (heartCost !== null && !Number.isInteger(heartCost)) fail('Heart cost must be a whole number or null.');
+  if (![1, 3].includes(value.brickSet)) fail('Brick set must be 1 or 3 (slow and fast bricks each).');
+  if (!Array.isArray(value.events) || value.events.length > 2000) fail('Events must be an array of at most 2000 placements.');
+  const events = value.events.map((event, i) => {
+    const name = `Event ${i + 1}`;
+    if (!event || typeof event !== 'object' || Array.isArray(event)) fail(`${name} must be an object.`);
+    const time = number(event.time, 0, duration, `${name} time`);
+    if (time >= duration) fail(`${name} must appear before the level ends.`);
+    const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true }, weapon: SWORDS };
+    if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
+    if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
+    const result = { time, kind: event.kind, type: event.type, x, y };
+    if (event.kind === 'food') result.lifetime = number(event.lifetime, .1, 3600, `${name} food lifetime`);
+    return result;
+  });
+  const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
+  if (value.brickTypes !== undefined) {
+    if (!Array.isArray(value.brickTypes) || value.brickTypes.length > 2000) fail('Brick types must be an array of at most 2000 edge overrides.');
+    result.brickTypes = value.brickTypes.map((entry, i) => {
+      if (!entry || !['top', 'bottom', 'left', 'right'].includes(entry.edge) || !Object.hasOwn(COOLDOWNS, entry.kind)) fail(`Brick override ${i + 1} has an unknown edge or type.`);
+      const start = number(entry.start, 0, 1, `Brick override ${i + 1} start`);
+      const end = number(entry.end, 0, 1, `Brick override ${i + 1} end`);
+      if (end <= start) fail(`Brick override ${i + 1} must have an end greater than its start.`);
+      const override = { edge: entry.edge, start, end, kind: entry.kind };
+      if (entry.crumbler !== undefined) {
+        override.crumbler = entry.crumbler === null ? null : number(entry.crumbler, 1, 100000, `Brick override ${i + 1} selections`);
+        if (override.crumbler !== null && !Number.isInteger(override.crumbler)) fail(`Brick override ${i + 1} selections must be a whole number.`);
+      }
+      if (entry.warped !== undefined) override.warped = entry.warped === null ? null : number(entry.warped, .1, 3600, `Brick override ${i + 1} warp duration`);
+      return override;
+    });
+  }
+  return result;
+}
+
+function brickRegions(bricks, width, height) {
+  const groups = { top: [], bottom: [], left: [], right: [] };
+  for (const brick of bricks) {
+    if (brick.region) {
+      const edge = width > height
+        ? { top: 'right', right: 'bottom', bottom: 'left', left: 'top' }[brick.region.edge]
+        : brick.region.edge;
+      groups[edge].push(brick);
+      continue;
+    }
+    const distances = [brick.y, height - brick.y - brick.h, brick.x, width - brick.x - brick.w].map(distance => Math.round(distance * 1e6) / 1e6);
+    groups[Object.keys(groups)[distances.indexOf(Math.min(...distances))]].push(brick);
+  }
+  const regions = new Map();
+  for (const [edge, group] of Object.entries(groups)) {
+    group.sort((a, b) => edge === 'top' || edge === 'bottom' ? a.x - b.x : a.y - b.y);
+    group.forEach((brick, i) => regions.set(brick.id, { edge, start: i / group.length, end: (i + 1) / group.length }));
+  }
+  return regions;
+}
+
+function snapWheel(x, y) {
+  const distances = [x, 1 - x, y, 1 - y];
+  const edge = distances.indexOf(Math.min(...distances));
+  return { x: edge === 0 ? 0 : edge === 1 ? 1 : x, y: edge === 2 ? 0 : edge === 3 ? 1 : y };
+}
+
+function brickEditRegions(bricks) {
+  return new Map(bricks.map(brick => [brick.id, brick.region]));
+}
+
+function brickShape(parts) {
+  const coordinates = axis => [...new Set(parts.flatMap(part =>
+    [part[axis], part[axis] + part[axis === 'x' ? 'w' : 'h']].map(value => Math.round(value * 1e6) / 1e6)))].sort((a, b) => a - b);
+  const xs = coordinates('x'), ys = coordinates('y');
+  const x = xs[0], y = ys[0], w = xs.at(-1) - x, h = ys.at(-1) - y;
+  const edges = new Map();
+  const edge = (a, b) => {
+    const reverse = `${b}:${a}`;
+    if (edges.has(reverse)) edges.delete(reverse);
+    else edges.set(`${a}:${b}`, { a, b });
+  };
+  // Cancel shared cell edges so the outline contains no seams between absorbed bricks.
+  for (let i = 0; i < xs.length - 1; i++) {
+    for (let j = 0; j < ys.length - 1; j++) {
+      const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
+      if (!parts.some(part => cx >= part.x && cx <= part.x + part.w && cy >= part.y && cy <= part.y + part.h)) continue;
+      const a = `${i},${j}`, b = `${i + 1},${j}`, c = `${i + 1},${j + 1}`, d = `${i},${j + 1}`;
+      edge(a, b); edge(b, c); edge(c, d); edge(d, a);
+    }
+  }
+  const outgoing = new Map([...edges.values()].map(item => [item.a, item.b]));
+  const point = key => {
+    const [i, j] = key.split(',').map(Number);
+    return `${(xs[i] - x) / w} ${(ys[j] - y) / h}`;
+  };
+  let path = '';
+  while (outgoing.size) {
+    const start = outgoing.keys().next().value;
+    let current = start;
+    path += `M${point(start)}`;
+    do {
+      const next = outgoing.get(current);
+      outgoing.delete(current);
+      path += `L${point(next)}`;
+      current = next;
+    } while (current !== start);
+    path += 'Z';
+  }
+  return { x, y, w, h, path };
+}
+
 function makeBricks(portrait = false, scale = 1) {
   const bricks = [];
   const add = (x, y, w, h, kind = 'normal') =>
     bricks.push({ id: bricks.length, x, y, w, h, kind, readyAt: 0 });
-  if (portrait) {
-    const inset = 8, gap = 8, thickness = 45 / scale;
-    const columns = Math.max(2, Math.floor((HEIGHT - inset * 2 + gap) / (thickness + gap)));
-    const sideStart = inset + thickness + gap;
-    const sideLength = WIDTH - sideStart * 2;
-    const rows = Math.max(2, Math.floor((sideLength + gap) / (thickness + gap)));
-    const horizontal = (HEIGHT - inset * 2 - gap * (columns - 1)) / columns;
-    const vertical = (sideLength - gap * (rows - 1)) / rows;
-    for (let i = 0; i < columns; i++) {
-      add(inset + i * (horizontal + gap), inset, horizontal, thickness, i === 1 ? 'slow' : 'normal');
-      add(inset + i * (horizontal + gap), WIDTH - inset - thickness, horizontal, thickness);
-    }
-    for (let i = 0; i < rows; i++) {
-      add(inset, sideStart + i * (vertical + gap), thickness, vertical);
-      add(HEIGHT - inset - thickness, sideStart + i * (vertical + gap), thickness, vertical, i === Math.floor(rows / 2) ? 'fast' : 'normal');
-    }
-    return bricks;
+  const width = HEIGHT, height = WIDTH;
+  const inset = portrait ? 8 : 20, gap = 8, thickness = portrait ? 45 / scale : 22;
+  const columns = 5, rows = 8;
+  const sideStart = inset + thickness + gap;
+  const horizontal = (width - inset * 2 - gap * (columns - 1)) / columns;
+  const vertical = (height - sideStart * 2 - gap * (rows - 1)) / rows;
+  for (let i = 0; i < columns; i++) {
+    add(inset + i * (horizontal + gap), inset, horizontal, thickness, i === 1 ? 'slow' : 'normal');
+    add(inset + i * (horizontal + gap), height - inset - thickness, horizontal, thickness);
   }
-  for (let i = 0; i < 8; i++) {
-    add(20 + i * 116, 20, 108, 22, i === 2 ? 'slow' : 'normal');
-    add(20 + i * 116, 558, 108, 22);
+  for (let i = 0; i < rows; i++) {
+    add(inset, sideStart + i * (vertical + gap), thickness, vertical);
+    add(width - inset - thickness, sideStart + i * (vertical + gap), thickness, vertical, i === 4 ? 'fast' : 'normal');
   }
-  for (let i = 0; i < 5; i++) {
-    add(20, 50 + i * 102, 22, 94);
-    add(918, 50 + i * 102, 22, 94, i === 2 ? 'fast' : 'normal');
+  const regions = brickRegions(bricks, width, height);
+  for (const brick of bricks) {
+    brick.region = regions.get(brick.id);
+    if (!portrait) {
+      const { x, y, w, h } = brick;
+      brick.x = height - y - h;
+      brick.y = x;
+      brick.w = h;
+      brick.h = w;
+    }
   }
   return bricks;
 }
@@ -108,10 +228,18 @@ function distanceToSegment(px, py, x, y, endX, endY) {
 }
 
 class Game {
-  constructor(random = Math.random, { portrait = false, scale = 1, level = 0 } = {}) {
-    if (!LEVELS[level]) throw new RangeError(`Unknown level: ${level}`);
-    this.levelIndex = level;
-    this.level = LEVELS[level];
+  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null } = {}) {
+    if (customLevel) {
+      this.customLevel = validateCustomLevel(customLevel);
+      this.levelIndex = -1;
+      this.level = { ...this.customLevel, heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [] };
+      this.customEvents = [...this.customLevel.events].sort((a, b) => a.time - b.time);
+    } else {
+      if (!LEVELS[level]) throw new RangeError(`Unknown level: ${level}`);
+      this.levelIndex = level;
+      this.level = LEVELS[level];
+      this.customEvents = [];
+    }
     this.random = random;
     this.portrait = portrait;
     this.scale = scale;
@@ -129,6 +257,7 @@ class Game {
     this.nextEvent = 0;
     this.food = [];
     this.bricks = makeBricks(this.portrait, this.scale);
+    this.brickRevision = 0;
     this.cat = { x: this.width / 2, y: this.height / 2, radius: 21, vx: 0, vy: 0 };
     this.target = null;
     this.pickups = [];
@@ -139,32 +268,115 @@ class Game {
     this.weapon = null;
     this.nextEnemy = 0;
     this.nextWeapon = 0;
+    this.nextCustom = 0;
     this.nextHeart = this.level.heartCost;
-    if (this.levelIndex === 1) {
+    if (this.levelIndex === 1 || this.customLevel?.brickSet === 3) {
       for (const brick of this.bricks) brick.kind = 'normal';
       for (let i = 0; i < 3; i++) {
         this.bricks[Math.floor(i * this.bricks.length / 3)].kind = 'slow';
         this.bricks[Math.floor((i + .5) * this.bricks.length / 3)].kind = 'fast';
       }
     }
+    if (this.customLevel?.brickTypes) {
+      const regions = brickEditRegions(this.bricks);
+      for (const entry of this.customLevel.brickTypes) {
+        const edgeBricks = this.bricks.filter(brick => regions.get(brick.id).edge === entry.edge);
+        const matching = edgeBricks.filter(brick => {
+          const region = regions.get(brick.id), center = (region.start + region.end) / 2;
+          return center >= entry.start && center < entry.end;
+        });
+        if (!matching.length) {
+          const position = (entry.start + entry.end) / 2;
+          matching.push(edgeBricks.reduce((best, brick) => {
+            const center = item => (regions.get(item.id).start + regions.get(item.id).end) / 2;
+            return Math.abs(center(brick) - position) < Math.abs(center(best) - position) ? brick : best;
+          }));
+        }
+        for (const brick of matching) {
+          brick.kind = entry.kind;
+          if (entry.crumbler !== undefined) brick.crumbler = entry.crumbler;
+          if (entry.warped !== undefined) brick.warped = entry.warped;
+        }
+      }
+    }
+    for (const brick of this.bricks) {
+      brick.usesLeft = brick.crumbler ?? null;
+      brick.absorbedBy = null;
+      brick.warpUntil = null;
+    }
+    const regions = brickRegions(this.bricks, this.width, this.height);
+    this.perimeter = ['top', 'right', 'bottom', 'left'].flatMap(edge => {
+      const group = this.bricks.filter(brick => regions.get(brick.id).edge === edge)
+        .sort((a, b) => regions.get(a.id).start - regions.get(b.id).start);
+      return (edge === 'bottom' || edge === 'left' ? group.reverse() : group).map(brick => brick.id);
+    });
   }
 
-  start() { if (this.state === 'ready') this.state = 'playing'; }
+  start() {
+    if (this.state === 'ready') {
+      this.state = 'playing';
+      this.spawnCustomEvents();
+    }
+  }
   pause() { if (this.state === 'playing') this.state = 'paused'; }
   resume() { if (this.state === 'paused') this.state = 'playing'; }
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || !brick || brick.readyAt > this.elapsed) return false;
-    if (!Number.isFinite(x) || !Number.isFinite(y) || x < brick.x || x > brick.x + brick.w || y < brick.y || y > brick.y + brick.h) return false;
+    if (this.state !== 'playing' || !brick || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !this.brickParts().some(part =>
+      part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
     const dx = x - this.cat.x, dy = y - this.cat.y;
     const distance = Math.hypot(dx, dy);
     if (!distance) return false;
     brick.readyAt = this.elapsed + COOLDOWNS[brick.kind];
+    if (brick.usesLeft !== null) brick.usesLeft--;
+    if (brick.warped) this.absorbNeighbor(brick);
     this.cat.vx = dx / distance * SPEED;
     this.cat.vy = dy / distance * SPEED;
     this.target = { x, y };
     return true;
+  }
+
+  brickParts() {
+    const owner = brick => brick.absorbedBy ?? brick.id;
+    const parts = this.bricks.map(brick => ({ x: brick.x, y: brick.y, w: brick.w, h: brick.h, id: owner(brick), sourceId: brick.id }));
+    for (let i = 0; i < this.perimeter.length; i++) {
+      const a = this.bricks[this.perimeter[i]], b = this.bricks[this.perimeter[(i + 1) % this.perimeter.length]];
+      if (owner(a) !== owner(b)) continue;
+      const left = Math.max(a.x, b.x), right = Math.min(a.x + a.w, b.x + b.w);
+      const top = Math.max(a.y, b.y), bottom = Math.min(a.y + a.h, b.y + b.h);
+      // Fill only the perimeter gap, preserving an L-shaped union around corners.
+      if (right > left) parts.push({ id: owner(a), x: left, y: Math.min(a.y + a.h, b.y + b.h), w: right - left, h: top - Math.min(a.y + a.h, b.y + b.h) });
+      else if (bottom > top) parts.push({ id: owner(a), x: Math.min(a.x + a.w, b.x + b.w), y: top, w: left - Math.min(a.x + a.w, b.x + b.w), h: bottom - top });
+    }
+    return parts;
+  }
+
+  absorbNeighbor(brick) {
+    const candidates = new Set();
+    for (let i = 0; i < this.perimeter.length; i++) {
+      const member = this.bricks[this.perimeter[i]];
+      if (member.id !== brick.id && member.absorbedBy !== brick.id) continue;
+      for (const offset of [-1, 1]) {
+        const neighbor = this.bricks[this.perimeter[(i + offset + this.perimeter.length) % this.perimeter.length]];
+        if (neighbor.id !== brick.id && neighbor.absorbedBy === null && neighbor.warpUntil === null) candidates.add(neighbor.id);
+      }
+    }
+    if (!candidates.size) return;
+    const ids = [...candidates];
+    this.bricks[ids[Math.floor(this.random() * ids.length)]].absorbedBy = brick.id;
+    if (brick.warpUntil === null) brick.warpUntil = this.elapsed + brick.warped;
+    this.brickRevision++;
+  }
+
+  restoreWarps() {
+    for (const brick of this.bricks) {
+      if (brick.usesLeft === 0 || brick.warpUntil === null || brick.warpUntil > this.elapsed + 1e-9) continue;
+      for (const member of this.bricks) if (member.absorbedBy === brick.id) member.absorbedBy = null;
+      brick.warpUntil = null;
+      this.brickRevision++;
+    }
   }
 
   spawn([time, method, type, lifetime]) {
@@ -202,6 +414,34 @@ class Game {
   randomPoint() {
     const b = this.bounds();
     return { x: b.left + this.random() * (b.right - b.left), y: b.top + this.random() * (b.bottom - b.top) };
+  }
+
+  pointFromRelative(x, y) {
+    const b = this.bounds();
+    return { x: b.left + x * (b.right - b.left), y: b.top + y * (b.bottom - b.top) };
+  }
+
+  spawnCustomEvents() {
+    while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
+      const event = this.customEvents[this.nextCustom++];
+      const point = this.pointFromRelative(event.x, event.y);
+      if (event.kind === 'food') {
+        this.food.push({ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime });
+      } else if (event.kind === 'weapon') {
+        this.weapons.push({ ...point, type: event.type });
+      } else {
+        const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
+        if (event.type === 'wheel') {
+          const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
+          if (event.y === 0) enemy.distance = event.x * w;
+          else if (event.x === 1) enemy.distance = w + event.y * h;
+          else if (event.y === 1) enemy.distance = w + h + (1 - event.x) * w;
+          else enemy.distance = 2 * w + h + (1 - event.y) * h;
+          this.placeWheel(enemy);
+        }
+        this.robots.push(enemy);
+      }
+    }
   }
 
   spawnEnemies([, type, count]) {
@@ -280,6 +520,8 @@ class Game {
 
   tick(dt) {
     this.elapsed = Math.min(this.level.duration, this.elapsed + dt);
+    this.restoreWarps();
+    this.spawnCustomEvents();
     while (this.nextEvent < this.level.food.length && this.level.food[this.nextEvent][0] <= this.elapsed + 1e-9) {
       this.spawn(this.level.food[this.nextEvent++]);
     }
@@ -294,7 +536,7 @@ class Game {
     let contact = 1;
     let stopped = false;
     if (dx || dy) {
-      for (const brick of this.bricks) {
+      for (const brick of this.brickParts()) {
         const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, brick);
         if (t <= contact) { contact = t; stopped = true; }
       }
@@ -328,7 +570,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact };
+const api = { Game, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101a22">
+    <title>Level Editor · Koshi's Quest</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./editor.css">
+    <script defer src="./src/game.js"></script>
+    <script defer src="./src/editor.js"></script>
+  </head>
+  <body>
+    <main class="editor-main">
+      <header class="masthead">
+        <a class="brand" href="./index.html"><span class="brand-mark">K</span> KOSHI'S QUEST</a>
+        <a href="./index.html">Back to game →</a>
+      </header>
+      <div class="editor-heading"><div><p class="eyebrow">THE DESIGN STUDIO</p><h1>Build the next adventure.</h1></div><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
+      <p id="editor-message" role="status" aria-live="polite">Place a snack, set a time, and make a little magic.</p>
+      <section class="editor-panel" aria-label="Level settings">
+        <form id="settings-form" class="settings-grid">
+          <label>Name <input id="level-name" maxlength="60" required value="My level"></label>
+          <label>Duration (seconds) <input id="duration" type="number" min="1" max="3600" step="any" value="60" required></label>
+          <label>Food goal <input id="goal" type="number" min="1" max="100000" step="1" value="20" required></label>
+          <label>Heart cost <input id="heart-cost" type="number" min="1" max="100000" step="1" placeholder="None (disabled)"></label>
+          <label>Boundary bricks <select id="brick-set"><option value="1">1 slow + 1 fast</option><option value="3">3 slow + 3 fast</option></select></label>
+          <button type="submit">Apply settings</button>
+        </form>
+      </section>
+      <div class="editor-workspace">
+        <section class="editor-panel stage-panel" aria-label="Placement board">
+          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
+          <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
+          <p class="editor-help" id="board-hint">Place: click the dotted playable area to add the chosen object. Select: click bricks or markers, or drag a box around them. Shift/Ctrl/⌘-click (or “Add to selection” on touch) toggles items; Shift-drag adds a box. Drag any selected marker to move the whole group. Arrow keys nudge, Delete removes events, Esc clears.</p>
+          <div id="editor-board" data-orientation="landscape" tabindex="-1">
+            <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
+            <div id="playable-area" aria-hidden="true"></div>
+            <div id="markers"></div>
+            <div id="selection-box" aria-hidden="true" hidden></div>
+          </div>
+          <div class="timeline-controls">
+            <label for="timeline">Preview time <output id="time-label">0.0s</output></label>
+            <input id="timeline" type="range" min="0" max="60" step="0.1" value="0">
+            <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
+          </div>
+          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food disappears at its expiry; swords and enemy spawn markers persist. Wheels snap to the nearest playable edge. Positions adapt between layouts.</p>
+        </section>
+        <section class="editor-panel inspector" aria-label="Event inspector">
+          <section class="brick-inspector" aria-label="Brick inspector">
+            <p class="eyebrow">BRICK TYPE</p>
+            <p id="brick-selection" class="editor-help">Select a boundary brick to change its cooldown type.</p>
+            <label>Selected brick type <select id="brick-kind" disabled><option value="slow">Slow · Blue · 15 seconds</option><option value="normal">Normal · Green · 8 seconds</option><option value="fast">Fast · Red · 3 seconds</option></select></label>
+            <label><input id="brick-crumbler" type="checkbox" disabled> Crumbler</label>
+            <label>Selections before deactivation <input id="brick-uses" type="number" min="1" max="100000" step="1" value="5" disabled></label>
+            <label><input id="brick-warped" type="checkbox" disabled> Warped</label>
+            <label>Warp duration (seconds) <input id="brick-warp-seconds" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
+            <button id="reset-brick-types" type="button">Reset brick types to preset</button>
+            <p class="editor-help">Changes apply immediately to every selected brick; only the control you change is applied, so mixed values elsewhere are kept. Desktop bricks rotate 90 degrees clockwise from the phone layout; selection and attributes follow the same brick between previews. Attributes can be combined with any cooldown color. Crumblers stay solid after their selections run out. Warped bricks absorb one random available perimeter neighbor per selection, including around corners; the first absorption starts the timer. If a Warped Crumbler runs out of selections, its entire enlarged shape freezes permanently until restart. Playtest to see absorption and countdowns.</p>
+          </section>
+          <p class="eyebrow" id="inspector-heading">NEW PLACEMENT</p>
+          <form id="event-form">
+            <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option></select></label>
+            <label>Object <select id="event-type"></select></label>
+            <div class="input-pair">
+              <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
+              <label id="lifetime-label">Lifetime (seconds) <input id="event-lifetime" type="number" min="0.1" max="3600" step="any" value="5" required></label>
+            </div>
+            <div class="input-pair">
+              <label>X (%) <input id="event-x" type="number" min="0" max="100" step="any" value="50" required></label>
+              <label>Y (%) <input id="event-y" type="number" min="0" max="100" step="any" value="50" required></label>
+            </div>
+            <p class="editor-help">0% is the left/top of the safe playable area; 100% is the right/bottom. Use numeric coordinates for keyboard placement or precise alignment.</p>
+            <p class="editor-help" id="multi-event-help" hidden>Several events are selected. Only fields you change are applied to all of them; fields marked “Mixed” keep each event's own value. Setting X or Y lines the whole group up on that coordinate.</p>
+            <button type="submit" class="primary" id="apply-event">Add event</button>
+          </form>
+          <div class="inspector-actions"><button id="new-event">New event</button><button id="duplicate-event" disabled>Duplicate</button><button id="delete-event" disabled>Delete</button></div>
+        </section>
+      </div>
+      <section class="editor-panel" aria-label="Scheduled events">
+        <div class="section-heading"><h2>Event timeline <span id="event-count">0 events</span></h2><button id="new-level">New level</button></div>
+        <p class="editor-help">Select an event to edit it; Shift/Ctrl/⌘-click toggles events into a multiselection. Events at the same time run in list order. Duplicate an event, then move it to build lines, circles, or groups.</p>
+        <ol id="event-list"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
+      </section>
+      <section class="editor-panel" aria-label="Import and export">
+        <div class="section-heading"><h2>Take your level with you</h2><div class="file-actions"><button id="save-draft">Save draft</button><button id="load-draft">Load draft</button></div></div>
+        <p class="editor-help">JSON is the portable source of truth. Save a draft in this browser, download a file, or paste JSON below. Importing replaces the current level only after validation. Playtest sends a snapshot to the game; use its editor link to return.</p>
+        <label for="level-json">Level JSON</label>
+        <textarea id="level-json" rows="9" spellcheck="false" placeholder="Generate JSON, or paste an exported level here to import."></textarea>
+        <div class="file-actions"><button id="generate-json">Generate JSON</button><button id="import-json">Import JSON</button><button id="download-json">Download JSON</button><label class="file-label">Import file <input id="import-file" type="file" accept=".json,application/json"></label></div>
+      </section>
+      <noscript><p class="error">Please enable JavaScript to use the level editor.</p></noscript>
+    </main>
+  </body>
+</html>

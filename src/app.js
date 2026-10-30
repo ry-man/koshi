@@ -1,11 +1,16 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, FOODS } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, FOODS, validateCustomLevel, brickShape } = globalThis.KoshiGame;
 
 let game;
 const canvas = document.querySelector('#canvas');
-const ctx = canvas.getContext('2d');
+const actorCanvas = document.querySelector('#actors');
+const boardCtx = canvas.getContext('2d');
+// Koshi is drawn on a canvas layered above the brick buttons so he is never hidden by them.
+const actorCtx = actorCanvas.getContext('2d');
+let ctx = boardCtx;
+const FOOD_COLORS = { S: '#ff2d55', P: '#ff9f0a', B: '#ffd60a', C: '#ffcc00', L: '#ff6b2c', F: '#0a84ff', H: '#34c759' };
 const board = document.querySelector('#board');
 const overlay = document.querySelector('#overlay');
 const play = document.querySelector('#play');
@@ -26,38 +31,99 @@ let displayedState = null;
 let toastUntil = 0;
 let trail = [];
 let buttons = [];
+let brickRevision = -1;
+let customLevel = null;
+
+if (location.hash.startsWith('#level=')) {
+  try {
+    customLevel = validateCustomLevel(JSON.parse(decodeURIComponent(location.hash.slice(7))));
+    const option = document.createElement('option');
+    option.value = 'custom';
+    option.textContent = `Editor · ${customLevel.id}`;
+    levelSelect.append(option);
+    levelSelect.value = 'custom';
+    document.querySelector('#editor-link').href = `./editor.html${location.hash}`;
+    document.querySelector('#dialog-text').textContent = `Collect ${customLevel.goal} food in ${customLevel.duration} seconds. This is your custom level from the editor.`;
+  } catch (error) {
+    console.error('Custom level could not be loaded:', error);
+    const message = document.querySelector('#level-error');
+    message.textContent = `Custom level could not be loaded: ${error.message} Open the editor to fix it. The built-in levels are still available.`;
+    message.hidden = false;
+  }
+}
 
 function createGame() {
   const portrait = window.matchMedia('(max-width: 760px) and (orientation: portrait)').matches;
   board.dataset.portrait = String(portrait);
-  return new Game(Math.random, { portrait, scale: portrait ? board.clientWidth / 600 : 1, level: Number(levelSelect.value) });
+  return new Game(Math.random, {
+    portrait, scale: portrait ? board.clientWidth / 600 : 1,
+    level: levelSelect.value === 'custom' ? 0 : Number(levelSelect.value),
+    customLevel: levelSelect.value === 'custom' ? customLevel : null,
+  });
 }
 
 function makeBrickButtons() {
   const container = document.querySelector('#bricks');
   container.replaceChildren();
-  buttons = game.bricks.map(brick => {
+  brickRevision = game.brickRevision;
+  const parts = game.brickParts();
+  buttons = game.bricks.filter(brick => brick.absorbedBy === null).map(brick => {
+    const members = parts.filter(part => part.id === brick.id);
+    const merged = members.length > 1;
+    const part = merged ? brickShape(members) : members[0];
     const button = document.createElement('button');
     button.className = 'brick';
-    button.style.cssText = `left:${brick.x / game.width * 100}%;top:${brick.y / game.height * 100}%;width:${brick.w / game.width * 100}%;height:${brick.h / game.height * 100}%;--brick-color:${colors[brick.kind]}`;
-    button.setAttribute('aria-label', `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown`);
-    button.title = `${brick.kind} brick · ${COOLDOWNS[brick.kind]}s cooldown`;
+    button.classList.toggle('crumbler', Boolean(brick.crumbler));
+    button.classList.toggle('warped', Boolean(brick.warped));
+    button.dataset.id = brick.id;
+    button.style.cssText = `left:${part.x / game.width * 100}%;top:${part.y / game.height * 100}%;width:${part.w / game.width * 100}%;height:${part.h / game.height * 100}%;--brick-color:${colors[brick.kind]}`;
+    if (merged) {
+      button.classList.add('brick-merged');
+      for (const member of members) {
+        const surface = document.createElement('span');
+        surface.className = 'brick-surface';
+        surface.setAttribute('aria-hidden', 'true');
+        surface.style.cssText = `left:${(member.x - part.x) / part.w * 100}%;top:${(member.y - part.y) / part.h * 100}%;width:${member.w / part.w * 100}%;height:${member.h / part.h * 100}%;--pattern-x:calc(${-member.x}px * var(--board-scale-x));--pattern-y:calc(${-member.y}px * var(--board-scale-y));`;
+        button.append(surface);
+      }
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.classList.add('brick-outline');
+      svg.setAttribute('viewBox', '0 0 1 1');
+      svg.setAttribute('preserveAspectRatio', 'none');
+      svg.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', part.path);
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
+      svg.append(path);
+      button.append(svg);
+    }
     const meter = document.createElement('span');
     meter.className = 'brick-meter';
-    button.append(meter);
+    const counter = document.createElement('span');
+    counter.className = 'brick-counter';
+    button.append(meter, counter);
+    const anchorStyle = `left:${(brick.x - part.x) / part.w * 100}%;top:${(brick.y - part.y) / part.h * 100}%;width:${brick.w / part.w * 100}%;height:${brick.h / part.h * 100}%;`;
+    if (merged) {
+      const anchor = document.createElement('span');
+      anchor.className = 'brick-anchor';
+      anchor.style.cssText = anchorStyle;
+      anchor.append(meter, counter);
+      button.append(anchor);
+    }
     button.addEventListener('click', event => {
       if (game.state !== 'playing') return;
       const bounds = board.getBoundingClientRect();
       const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
       const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
       // Include clicks on the button border despite fractional CSS pixel rounding.
-      if (!game.steer(brick.id, Math.max(brick.x, Math.min(brick.x + brick.w, x)), Math.max(brick.y, Math.min(brick.y + brick.h, y)))) {
-        toast.textContent = 'That brick is recharging. Pick another!';
+      if (!game.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
+        toast.textContent = brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!' : 'That brick is recharging. Pick another!';
         toastUntil = performance.now() + 1800;
       }
     });
     container.append(button);
-    return { button, meter };
+    return { brick, button, meter, counter };
   });
 }
 
@@ -83,7 +149,8 @@ function syncUI() {
   progressLabel.textContent = `${Math.round(fraction * 100)}% complete`;
   document.querySelector('#level-number').textContent = game.level.id;
   document.querySelector('.level-badge strong').textContent = game.level.id;
-  document.querySelector('.level-badge span').textContent = game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS';
+  document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS';
+  document.querySelector('.objective strong').textContent = `Collect ${GOAL} food before time runs out`;
   document.querySelector('#enemy-count').textContent = `👾 ${game.enemies}`;
   const weaponText = game.weapon
     ? `${SWORDS[game.weapon.type].name} · ${Number.isFinite(game.weapon.uses) ? `${game.weapon.uses} hits` : `${Math.ceil(game.weapon.expires - game.elapsed)}s`}`
@@ -91,11 +158,24 @@ function syncUI() {
   if (weaponStatus.textContent !== weaponText) weaponStatus.textContent = weaponText;
   pause.disabled = !['playing', 'paused'].includes(game.state);
   pause.textContent = game.state === 'paused' ? '▶ Resume' : 'Ⅱ Pause';
-  for (const [i, brick] of game.bricks.entries()) {
+  if (brickRevision !== game.brickRevision) {
+    const focusedId = document.activeElement?.closest('.brick')?.dataset.id;
+    makeBrickButtons();
+    if (focusedId !== undefined) buttons.find(item => String(item.brick.id) === focusedId)?.button.focus({ preventScroll: true });
+  }
+  for (const { brick, button, meter, counter } of buttons) {
     const remaining = Math.max(0, brick.readyAt - game.elapsed);
-    buttons[i].button.setAttribute('aria-disabled', String(remaining > 1e-9));
-    buttons[i].button.tabIndex = game.state === 'playing' ? 0 : -1;
-    buttons[i].meter.style.transform = `scaleX(${remaining / COOLDOWNS[brick.kind]})`;
+    const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
+    button.setAttribute('aria-disabled', String(remaining > 1e-9 || brick.usesLeft === 0));
+    button.dataset.deactivated = String(brick.usesLeft === 0);
+    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'permanently frozen' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}`;
+    if (button.getAttribute('aria-label') !== label) {
+      button.setAttribute('aria-label', label);
+      button.title = label;
+    }
+    counter.textContent = [brick.crumbler ? `C:${brick.usesLeft}` : '', brick.warped ? `W:${brick.usesLeft === 0 ? 'X' : warpSeconds === null ? '-' : `${warpSeconds}s`}` : ''].filter(Boolean).join(' ');
+    button.tabIndex = game.state === 'playing' ? 0 : -1;
+    meter.style.transform = `scaleX(${remaining / COOLDOWNS[brick.kind]})`;
   }
   if (displayedState === game.state) return;
   displayedState = game.state;
@@ -106,9 +186,9 @@ function syncUI() {
     showDialog('TAKE A BREATHER', 'A little catnap.', 'The clock and cooldowns are paused. Your snacks will be right here when you return.', 'Keep exploring →', '☾');
     status.textContent = 'Paused. No snacks lost on our watch.';
   } else if (game.state === 'won') {
-    const hasNext = game.levelIndex + 1 < LEVELS.length;
+    const hasNext = !game.customLevel && game.levelIndex + 1 < LEVELS.length;
     showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', `You gathered ${game.score} food and defeated ${game.enemies} robots with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
-    status.textContent = hasNext ? 'Level complete! Robo trouble is next.' : 'Both levels explored! Replay or choose a level.';
+    status.textContent = hasNext ? 'Level complete! Robo trouble is next.' : 'Level complete! Replay or choose a level.';
     toast.textContent = 'Level complete!';
   } else if (game.state === 'lost') {
     const reason = game.hearts <= 0 ? 'Koshi ran out of hearts.' : game.elapsed >= DURATION ? 'Time ran out.' : 'Koshi slipped off the edge.';
@@ -138,7 +218,7 @@ play.addEventListener('click', () => {
     syncUI();
     pause.focus({ preventScroll: true });
   } else {
-    if (game.state === 'won' && game.levelIndex + 1 < LEVELS.length) levelSelect.value = String(game.levelIndex + 1);
+    if (game.state === 'won' && !game.customLevel && game.levelIndex + 1 < LEVELS.length) levelSelect.value = String(game.levelIndex + 1);
     begin();
   }
 });
@@ -152,7 +232,7 @@ function togglePause() {
 }
 pause.addEventListener('click', togglePause);
 document.addEventListener('keydown', event => {
-  if (event.code === 'Escape' || (event.code === 'Space' && !['BUTTON', 'A', 'INPUT'].includes(event.target.tagName))) {
+  if (event.code === 'Escape' || (event.code === 'Space' && !['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName))) {
     event.preventDefault();
     togglePause();
   }
@@ -213,6 +293,7 @@ function drawCat(x, y, now) {
 
 function render(now) {
   const WIDTH = game.width, HEIGHT = game.height;
+  ctx = boardCtx;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
   ctx.fillStyle = '#273941';
   for (let x = 60; x < WIDTH; x += 30) for (let y = 60; y < HEIGHT; y += 30) {
@@ -232,18 +313,20 @@ function render(now) {
     trail.push({ x: game.cat.x, y: game.cat.y, born: now });
   }
   trail = trail.filter(point => now - point.born < .22);
-  for (const point of trail) {
-    ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
-    ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
-  }
   for (const food of game.food) {
     const left = Math.max(0, (food.expires - game.elapsed) / food.lifetime);
     ctx.save(); ctx.translate(food.x, food.y);
-    ctx.fillStyle = '#0003'; ctx.beginPath(); ctx.ellipse(0, 13, 13, 4, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.font = '27px "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(FOODS[food.type].icon, 0, 0);
-    ctx.fillStyle = '#ffffff19'; ctx.fillRect(-15, -25, 30, 3);
-    ctx.fillStyle = left < .25 ? '#df8c81' : '#d3ef8b'; ctx.fillRect(-15, -25, 30 * left, 3);
+    ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(0, 17, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = FOOD_COLORS[food.type]; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Emoji glyphs inherit fillStyle alpha, so draw them with an opaque fill and boosted color.
+    ctx.globalAlpha = 1; ctx.fillStyle = '#000';
+    ctx.filter = 'saturate(1.8) brightness(1.15) contrast(1.1)';
+    ctx.font = '25px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(FOODS[food.type].icon, 0, 1);
+    ctx.filter = 'none';
+    ctx.fillStyle = '#10191f'; ctx.fillRect(-16, -28, 32, 5);
+    ctx.fillStyle = left < .25 ? '#ff5a4a' : '#b8ff3c'; ctx.fillRect(-15, -27, 30 * left, 3);
     ctx.restore();
   }
   for (const heart of game.healing) {
@@ -252,14 +335,21 @@ function render(now) {
   }
   for (const item of game.weapons) drawSword(item.x, item.y, SWORDS[item.type].color);
   for (const enemy of game.robots) drawRobot(enemy);
-  if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);
   for (const pickup of game.pickups) {
     const age = game.elapsed - pickup.time;
     ctx.fillStyle = `rgba(211,239,139,${1 - age / .8})`;
     ctx.font = 'bold 19px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(`+${pickup.value}`, pickup.x, pickup.y - 20 - age * 45);
   }
+  ctx = actorCtx;
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  for (const point of trail) {
+    ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
+    ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
+  }
   drawCat(game.cat.x, game.cat.y, game.elapsed);
+  if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);
+  ctx = boardCtx;
 }
 
 function drawSword(x, y, color) {
@@ -299,10 +389,14 @@ function drawRobot(enemy) {
 }
 
 function resize() {
+  board.style.setProperty('--board-scale-x', board.clientWidth / game.width);
+  board.style.setProperty('--board-scale-y', board.clientHeight / game.height);
   const ratio = window.devicePixelRatio || 1;
-  canvas.width = Math.round(board.clientWidth * ratio);
-  canvas.height = Math.round(board.clientHeight * ratio);
-  ctx.setTransform(canvas.width / game.width, 0, 0, canvas.height / game.height, 0, 0);
+  for (const layer of [canvas, actorCanvas]) {
+    layer.width = Math.round(board.clientWidth * ratio);
+    layer.height = Math.round(board.clientHeight * ratio);
+    layer.getContext('2d').setTransform(layer.width / game.width, 0, 0, layer.height / game.height, 0, 0);
+  }
   render(performance.now() / 1000);
 }
 

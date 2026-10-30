@@ -53,9 +53,15 @@ blocks the npm script. Both direct `file://` access and HTTP hosting are support
 
 On phones held upright, the board uses a **portrait 5:8 layout** with compact
 stats and controls, sized to fit the visible screen without scrolling to the
-bottom bricks. Bricks and toolbar buttons have at least 44px touch targets
-at the start of an attempt. The number of normal boundary bricks adapts to
-the available space; Level 1–1 has one slow and one fast brick, and Level 1–2
+bottom bricks. Both layouts always have **26 boundary bricks**. Phones have
+**five on top/bottom and eight on each side**. Desktop bricks are rotated
+**90 degrees clockwise** relative to the phone: **eight on top/bottom and
+five on each side**. Phone top maps to desktop right, right to bottom,
+bottom to left, and left to top. Brick IDs, cooldown types, Crumbler limits,
+and Warped attributes follow each brick through the rotation. Brick dimensions adapt to the screen;
+some bricks are narrower than 44px on small phones to keep the count fixed.
+Toolbar buttons retain at least 44px touch targets.
+Level 1–1 has one slow and one fast brick, and Level 1–2
 has three of each. Food patterns stay
 inside the playable area, and the level schedule, scoring, and cooldowns are
 unchanged. Instructions remain below the game instead of pushing it offscreen.
@@ -65,6 +71,172 @@ for the current screen; resizing during an attempt preserves its game state.
 Artwork is drawn locally;
 system emoji represent food. Optional Google Fonts have local sans-serif
 fallbacks; gameplay does not require an external service.
+
+## Graphical level editor
+
+Open [editor.html](./editor.html), or choose **Open level editor** in the game.
+It is a separate page, works by double-clicking the file, and is included in
+the GitHub Pages deployment at `/koshi/editor.html`. No server-side storage
+or build tools are needed.
+
+1. Set the level name, time limit, food goal, optional heart cost (blank disables
+   food-triggered hearts), and boundary brick set. Choose **Apply settings**.
+   Click/tap any boundary brick (or focus it and press Enter) to select it,
+   then change **Selected brick type** in the brick inspector: slow/blue (15s),
+   normal/green (8s), or fast/red (3s). Enable **Crumbler** and/or **Warped**
+   independently, and set the selection limit (default 5) or warp duration
+   (default 15 seconds). Changes apply immediately. Each brick
+   can have its own type, independent of the preset. **Reset brick types to
+   preset** clears all individual edits. Applying a different boundary preset
+   changes defaults but keeps individual overrides until reset.
+2. Choose a food, enemy, or weapon in the inspector. Set its appearance time
+   and, for food, lifetime. With the **Place** tool, click/tap the dotted
+   playable area to add objects. Each click creates one timed placement;
+   repeating clicks creates a group with the same timing.
+3. Select a marker or event in the chronological list to edit it. Drag a marker,
+   or enter X/Y percentages and choose **Apply event changes**. Markers also
+   support arrow keys (1% steps). **Duplicate** copies an event at the same
+   time and position; move it to create lines/circles. **Delete** removes it.
+   **New event** returns to placement mode. Overlapping markers can always
+   be selected separately from the event list.
+4. **Multiselection** works for any mix of bricks and food/enemy/weapon markers:
+   - Drag a selection box on the board (with either tool, or from a brick) to
+     select every brick it touches and every marker whose center it contains.
+   - Shift/Ctrl/⌘-click a brick, marker, or event-list row to toggle it;
+     Shift/Ctrl/⌘-drag adds a box to the existing selection. On touch screens,
+     enable **Add to selection** for the same behavior.
+   - **Select all** (or Ctrl/⌘+A on the board), **Clear**, and Esc manage the
+     selection; the summary shows how many bricks and events are selected.
+   - Brick inspector changes apply to every selected brick. Only the changed
+     control is applied, so differing values shown as “Mixed” (or an
+     indeterminate checkbox) are preserved.
+   - With several events selected, the event inspector applies only edited
+     fields; “Mixed” fields keep each event’s value, and setting X or Y aligns
+     the group. Drag any selected marker or use arrow keys to move the whole
+     group; **Duplicate**/**Delete** (or the Delete key) act on all selected
+     events.
+5. Scrub **Preview time**. Disable **Show all spawn locations** to see which
+   objects have appeared and when food expires. This is a placement preview,
+   not an enemy-movement or collection simulation; **Playtest** runs the real
+   game. Switch **Preview** to check phone portrait placement.
+6. **Save draft / Load draft** stores one level in this browser. Storage errors
+   are reported; browser storage is not a portable backup, especially on
+   `file://`. **Generate JSON** fills the text area; **Download JSON** saves a
+   portable file. Paste JSON and choose **Import JSON**, or use **Import file**.
+   Invalid imports leave the existing level unchanged.
+7. **Playtest** opens a snapshot in the game, including its settings, exact spawn
+   times, and placements. The game’s editor link returns the snapshot for more
+   edits. Restart replays that custom level; built-in levels remain selectable.
+   The snapshot is encoded in the URL fragment (not sent to a server), so an
+   HTTP/Pages playtest URL can be shared. Download JSON for long-term storage.
+
+Apply form edits before exporting or playtesting. Neither export nor playtest
+changes the built-in levels. Closing the editor with unsaved level changes
+prompts before leaving.
+
+### Placement format
+
+The versioned JSON contains individual placements, not random pattern commands.
+Coordinates are fractions of the **safe playable area inside the boundary
+bricks**, not raw screen pixels: `x: 0` is its left edge and `y: 1` is its
+bottom. The same fractions map to each layout's safe area, so objects stay
+accessible and off bricks on phones and desktops.
+
+Robo Wheels must start on this area's perimeter (at least one coordinate is
+0 or 1). The editor snaps them to the nearest edge; they then roll normally.
+Mice begin at the specified point and wander; swords remain until collected.
+Food lifetime begins at the scheduled appearance time. Simultaneous events
+spawn in their original list order. Normal pickup/combat rules still apply,
+including automatic collection of objects placed over Koshi's starting point.
+
+```json
+{
+  "version": 1,
+  "id": "My level",
+  "duration": 60,
+  "goal": 20,
+  "heartCost": 10,
+  "brickSet": 3,
+  "events": [
+    { "time": 0, "kind": "weapon", "type": "wood", "x": 0.5, "y": 0.5 },
+    { "time": 2, "kind": "food", "type": "S", "x": 0.3, "y": 0.4, "lifetime": 5 },
+    { "time": 5, "kind": "enemy", "type": "mouse", "x": 0.7, "y": 0.6 },
+    { "time": 10, "kind": "enemy", "type": "wheel", "x": 1, "y": 0.3 }
+  ]
+}
+```
+
+Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
+`wheel`; weapon types are `wood`, `bronze`, `silver`, `gold`. `brickSet` is 1
+or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
+Duration is 1–3600 seconds, food goal/heart cost are positive integers up to
+100000, and a level supports up to 2000 events. Appearance times must be
+nonnegative and strictly before the time limit; food lifetimes are
+0.1–3600 seconds. JSON files imported through the file picker have a 1 MB limit.
+Only timed food-collection objectives and boundary-brick layouts are supported,
+matching the game's current playable level types.
+
+Individual brick edits are an optional `brickTypes` array, preserved in drafts,
+JSON exports/imports, and playtest snapshots. Older levels without it use their
+boundary preset unchanged. Each entry has an `edge` (`top`, `bottom`, `left`,
+`right`), `start` and `end` fractions along that edge (left-to-right on top/bottom,
+top-to-bottom on sides) in the **phone layout**, and `kind` (`slow`, `normal`,
+`fast`). Desktop rotates these saved slots clockwise, including reversing
+slot order when phone left/right edges become desktop top/bottom.
+Optional
+`crumbler` is an integer selection limit (1–100000); `warped` is a duration
+in seconds (0.1–3600). Set either to `null` to explicitly remove that attribute.
+Omitted attributes leave earlier overlapping attribute edits unchanged. For example:
+
+```json
+"brickTypes": [
+  { "edge": "top", "start": 0, "end": 0.2, "kind": "fast", "crumbler": 5, "warped": 15 }
+]
+```
+
+Edits map to bricks whose centers fall within the saved edge segment. If a
+layout has fewer bricks and no center lies in that segment, the nearest brick
+on the same edge receives the edit. Later overlapping entries take priority.
+Edits map one-to-one between desktop and phone by stable brick IDs, not by
+the currently displayed edge. The editor keeps the same brick selected when
+switching previews and labels it with its displayed edge. Existing saved
+edge overrides retain their phone placement; desktop now shows those same
+bricks at their rotated positions. Food, enemy, and weapon placement coordinates
+are unchanged and are not rotated. Older exports from the variable-count
+editor continue to use their saved edge segments and may affect more than
+one current brick. Up to 2000 overrides are
+supported. Base positions and counts remain unchanged; Warped bricks temporarily
+merge during play.
+
+### Crumbler and Warped behavior
+
+- Both attributes work with every cooldown color and can be combined on one
+  brick. The existing built-in level presets remain unchanged; use the editor
+  to add these attributes to custom levels.
+- Crumblers show cracks and a `C` counter. Only a successful selection consumes
+  one use. At zero, the entire brick (including any absorbed area) remains
+  solid but permanently unselectable until the level restarts.
+- Warped bricks keep their cooldown color and normal solid border, with a
+  repeating pattern of small swirly squiggles. Absorbed areas form one continuous
+  patterned surface with no internal outlines or seams; the pattern stays the
+  same size as the brick grows. Only the solid brick sections and connecting
+  gaps are painted; the bounding rectangle has no background or pattern.
+  Corner cutouts and the gameplay area remain clear without relying on clipping.
+  Each successful selection absorbs
+  one randomly chosen available neighbor at either end of the merged perimeter
+  group, wrapping around corners. The enlarged area can be clicked to select
+  the owner and shares its cooldown, attributes, and selection limit. Connecting
+  gaps become solid; corner merges stay L-shaped rather than filling the board.
+- The first absorption starts the `W` countdown. Further absorptions do not
+  restart it. Absorbed bricks cannot be selected separately. Other active warp
+  groups cannot be absorbed; if no neighbor is available, no absorption occurs.
+- At expiry, all absorbed bricks regain their original geometry and attributes.
+  Their original cooldown deadlines continue to elapse while absorbed; their
+  remaining Crumbler selections are preserved. If the owner exhausts its
+  Crumbler selections, the entire enlarged brick is permanently frozen and
+  deactivated, including its absorbed bricks; its warp timer no longer restores
+  it. The counter shows `W:X` for this state. Pause freezes cooldowns and warp timers. Restart restores
+  every brick and replenishes Crumbler selections.
 
 ## GitHub Pages
 
@@ -88,7 +260,9 @@ npm test
 Uses Node's built-in test runner with no packages to install. Tests cover
 exact aiming, in-flight redirection, all cooldown durations, swept collision
 and collection, all food values, scheduled spawns and expiry, pattern geometry,
-pause, win/loss, and restart.
+pause, win/loss, restart, custom-level validation, portable JSON round trips,
+normalized placements in both layouts, wheel perimeter starts, and custom
+event scheduling (including time-zero events).
 
 Level 1–2 uses the exact food, enemy, and weapon timelines from the description.
 Movement speeds, automatic sword reach, persistent healing pickups, and

@@ -15,7 +15,7 @@
     <main>
       <header class="masthead">
         <a class="brand" href="./" aria-label="Koshi's Quest home"><span class="brand-mark">K</span> KOSHI'S QUEST</a>
-        <span class="edition">A SMALL CAT. A BIG ADVENTURE.</span>
+        <a class="edition" id="editor-link" href="./editor.html">OPEN LEVEL EDITOR →</a>
       </header>
       <section class="intro">
         <div><p class="eyebrow">WORLD 01 / THE BEGINNING</p><h1>A quest starts with <em>a snack.</em></h1>
@@ -23,6 +23,7 @@
         <div class="level-badge"><span>FIRST STEPS</span><strong>1–1</strong></div>
       </section>
       <section class="game-shell" aria-label="Koshi's Quest game">
+        <p id="level-error" class="error" role="alert" hidden></p>
         <div class="hud">
           <div class="stat"><span class="stat-label">TIME LEFT</span><strong id="timer">◷ 60<span>s</span></strong></div>
           <div class="stat"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div>
@@ -36,6 +37,7 @@
         <div class="board" id="board">
           <canvas id="canvas" width="960" height="600" role="img" aria-label="Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center."></canvas>
           <div id="bricks" aria-label="Steering bricks"></div>
+          <canvas id="actors" aria-hidden="true"></canvas>
           <div class="overlay" id="overlay">
             <div class="dialog">
               <span class="dialog-icon" id="dialog-icon">🐾</span>
@@ -53,7 +55,7 @@
       <section class="field-guide" aria-label="How to play">
         <div class="guide-intro"><p class="eyebrow">THE FIELD GUIDE</p><h2>Small paws.<br>Smart moves.</h2><p>Click a brick, not a snack.<br>The journey is the trick.</p></div>
         <article><span class="guide-number">01 / MOVEMENT</span><h3>Point. Launch. Redirect.</h3><p>Koshi travels to the exact point you click on a brick, stopping at the first brick he touches. Pick a new brick while moving to change course.</p></article>
-        <article><span class="guide-number">02 / TIMING</span><h3>Give bricks a breather.</h3><p>Used bricks need to recharge. Watch their meters and keep another route in mind.</p><div class="legend"><span><i class="normal"></i>Normal · 8s</span><span><i class="slow"></i>Slow · 15s</span><span><i class="fast"></i>Fast · 3s</span></div></article>
+        <article><span class="guide-number">02 / TIMING</span><h3>Give bricks a breather.</h3><p>Used bricks need to recharge. Cracked Crumblers count down their remaining selections (C); at zero they stay solid but cannot be selected. Swirl-patterned Warped bricks absorb a neighbor each selection; their timer (W) counts down until all absorbed bricks return. An exhausted Warped Crumbler permanently freezes its entire enlarged shape (W:X) until restart.</p><div class="legend"><span><i class="normal"></i>Normal · 8s</span><span><i class="slow"></i>Slow · 15s</span><span><i class="fast"></i>Fast · 3s</span></div></article>
         <article><span class="guide-number">03 / SNACKS & SWORDS</span><h3>Snack. Heal. Fight.</h3><p>Reach 20 food to win! In Level 1–2, every 10 food spawns a healing heart. Pick up a sword to automatically strike robots: wood lasts 1 defeat, bronze 3, silver 10, and gold 15 seconds.</p><div class="snack-legend">🍓 <span>+1</span> 🥨 <span>+2</span></div></article>
       </section>
       <footer><span>KOSHI'S QUEST <span class="footer-dot">/</span> AN ADVENTURE IN THE MAKING</span><span>Made for curious cats & clever humans.</span></footer>

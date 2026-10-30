@@ -25,7 +25,7 @@ jobs:
       - name: Stage static site
         run: |
           mkdir _site
-          cp index.html style.css _site/
+          cp index.html editor.html style.css editor.css _site/
           cp -r src _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
