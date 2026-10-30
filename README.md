@@ -69,8 +69,9 @@ Desktop play keeps the original landscape board. A restart picks the layout
 for the current screen; resizing during an attempt preserves its game state.
 
 Artwork is drawn locally;
-system emoji represent food. Optional Google Fonts have local sans-serif
-fallbacks; gameplay does not require an external service.
+system emoji represent food. The DM Sans and Space Grotesk fonts are bundled in
+[fonts/](./fonts/) under the SIL Open Font License (license texts included), so
+the game makes no requests to external services.
 
 ## Graphical level editor
 
@@ -250,6 +251,36 @@ All site asset paths are relative, so repository subpaths work on Pages.
 If you rename the default branch, update the workflow's branch filter.
 Alternatively, deploy directly from the repository root using Pages'
 **Deploy from a branch** option; `.nojekyll` is included for static hosting.
+With branch deployment the service worker keeps its `koshi-dev` name and
+always checks the network first, so it never serves stale files.
+
+## Install on Android
+
+The site is a Progressive Web App (PWA): it has a
+[manifest](./manifest.webmanifest), Koshi-head [icons](./icons/), and an
+offline [service worker](./sw.js).
+
+1. Open <https://ry-man.github.io/koshi/> in Chrome on the phone.
+2. Tap **Install app** when prompted, or open **⋮ → Add to Home screen →
+   Install**.
+3. Launch **Koshi** from the home screen. It opens full-window in portrait
+   with no browser bar, and it works offline after the first visit.
+
+Each deploy stamps the service worker with the commit SHA. An installed app
+downloads the new version in the background while online and uses it on the
+next launch. The level editor is also cached and available as a long-press
+shortcut on the app icon.
+
+To test installation locally, run `npm start` and open
+<http://127.0.0.1:4173>; service workers need `http(s)`, so they are skipped
+when opening `index.html` directly from disk. Icons are PNG renders of
+[koshi.svg](./icons/koshi.svg) and [koshi-maskable.svg](./icons/koshi-maskable.svg).
+If you add any file the pages load, also add it to `ASSETS` in `sw.js`;
+`npm test` checks this.
+
+A Google Play listing is optional: wrap the Pages URL with
+[Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) (a Trusted Web
+Activity) and publish with a Play developer account.
 
 ## Tests
 

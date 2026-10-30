@@ -9,13 +9,14 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 2);
+  assert.equal(scripts.length, 3);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
   }
   assert.match(scripts[0][1], /src="\.\/src\/game\.js"/);
   assert.match(scripts[1][1], /src="\.\/src\/app\.js"/);
+  assert.match(scripts[2][1], /src="\.\/src\/pwa\.js"/);
   const context = vm.createContext({});
   vm.runInContext(readFileSync(path.join(root, 'src', 'game.js'), 'utf8'), context);
   const game = new context.KoshiGame.Game();

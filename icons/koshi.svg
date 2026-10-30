@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#2a4044"/>
+      <stop offset="1" stop-color="#101a22"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000" flood-opacity=".5"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="268" r="206" fill="none" stroke="#d3ef8b" stroke-width="10" opacity=".35"/>
+  <!-- Koshi's head, drawn with the same shapes as drawCat() in src/app.js. -->
+  <g transform="translate(256 282) scale(5.6)" stroke-linecap="round">
+    <g fill="#abb5bd" filter="url(#shadow)">
+      <path d="M-20 -8 L-22 -32 L-6 -21 L7 -21 L23 -32 L21 -7 Z"/>
+      <circle r="23"/>
+    </g>
+    <path fill="#d6a4a4" d="M-18 -15 L-19 -25 L-11 -19 Z M13 -19 L20 -25 L18 -14 Z"/>
+    <path stroke="#596571" stroke-width="4" d="M-10 -20 L-7 -13 M0 -22 L0 -14 M10 -20 L7 -13"/>
+    <path stroke="#596571" stroke-width="3" d="M-22 -3 L-16 0 M22 -3 L16 0"/>
+    <path fill="#eff2ed" d="M0 -12 Q-3 -5 -4 7 Q0 12 4 7 Q3 -5 0 -12 Z"/>
+    <ellipse cx="-9" cy="-3" rx="2.3" ry="3.2" fill="#26323a"/>
+    <ellipse cx="9" cy="-3" rx="2.3" ry="3.2" fill="#26323a"/>
+    <path fill="#bd8d93" d="M-4 5 L4 5 L0 9 Z"/>
+    <path fill="none" stroke="#34414a" stroke-width="1.7" d="M0 9 Q-4 16 -8 11 M0 9 Q4 16 8 11"/>
+    <path stroke="#d7dfdc" stroke-width="1.2" d="M13 5 L32.5 -2 M13 7 L33.5 5 M13 9 L33.5 12 M13 11 L32.5 19 M-13 5 L-32.5 -2 M-13 7 L-33.5 5 M-13 9 L-33.5 12 M-13 11 L-32.5 19"/>
+  </g>
+</svg>

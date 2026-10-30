@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+/* Self-hosted (SIL Open Font License, see fonts/) so the installed app works offline. */
+@font-face { font-family: 'DM Sans'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('./fonts/dm-sans-latin.woff2') format('woff2'); }
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('./fonts/space-grotesk-latin.woff2') format('woff2'); }
 
 :root { color-scheme: dark; --bg: #10191f; --panel: #19252d; --muted: #91a1a7; --text: #edf2e8; --accent: #d3ef8b; --normal: #83bca1; --slow: #7eacdb; --fast: #df8c81; }
 * { box-sizing: border-box; }
