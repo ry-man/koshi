@@ -266,6 +266,26 @@ offline [service worker](./sw.js).
 3. Launch **Koshi** from the home screen. It opens full-window in portrait
    with no browser bar, and it works offline after the first visit.
 
+### Troubleshooting installation
+
+Tap **📲 Install app** at the top of the game page (or open
+`index.html#install`). The panel:
+
+- installs directly when Chrome allows it;
+- says whether Chrome already considers the app installed (via
+  `related_applications` in the manifest);
+- gives the next steps to try;
+- lists diagnostics (browser, manifest, icons, offline cache) that **Copy
+  report** puts on the clipboard to share.
+
+If Chrome says the app is already installed but you can't find it:
+
+- Look for an app named **Koshi** under **Settings → Apps → See all apps**.
+- Some home screens don't add new apps automatically.
+- To start over, uninstall Koshi there, or reset the site under
+  **Chrome ⋮ → Settings → Site settings → All sites → ry-man.github.io**.
+  Then reinstall it.
+
 Each deploy stamps the service worker with the commit SHA. An installed app
 downloads the new version in the background while online and uses it on the
 next launch. The level editor is also cached and available as a long-press

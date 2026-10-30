@@ -26,6 +26,18 @@ test('manifest meets Android install requirements', () => {
   assert.ok(pngs.some(icon => icon.sizes === '512x512' && icon.purpose === 'any'));
   assert.ok(pngs.some(icon => icon.purpose === 'maskable'));
   for (const shortcut of manifest.shortcuts) assert.ok(fs.existsSync(path.join(root, shortcut.url)));
+  // Lets the install panel ask Chrome whether this app is already installed.
+  assert.deepEqual(manifest.related_applications, [{ platform: 'webapp', url: 'https://ry-man.github.io/koshi/manifest.webmanifest' }]);
+});
+
+test('game page has an install and troubleshooting panel', () => {
+  const html = read('index.html');
+  for (const id of ['install-button', 'install-dialog', 'install-summary', 'install-now', 'install-help', 'install-checks', 'install-copy', 'install-close']) {
+    assert.match(html, new RegExp(`id="${id}"`), `${id} exists`);
+  }
+  const pwa = read('src/pwa.js');
+  assert.match(pwa, /beforeinstallprompt/);
+  assert.match(pwa, /getInstalledRelatedApps/);
 });
 
 test('both pages link the manifest and register offline support', () => {

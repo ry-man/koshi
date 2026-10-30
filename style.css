@@ -15,6 +15,28 @@ main { max-width: 1184px; padding: 0 32px; margin: auto; }
 .edition, .eyebrow, .stat-label, .guide-number, footer, .level-badge span { font-size: 10px; font-weight: 700; letter-spacing: 1.8px; }
 .edition { color: var(--muted); }
 #editor-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 10px; text-decoration: none; }
+.masthead-links { display: flex; align-items: center; gap: 22px; }
+.install-button { min-height: 36px; padding: 0 14px; border: 1px solid #d3ef8b55; border-radius: 99px; background: #d3ef8b14; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; }
+.install-button:hover { background: #d3ef8b26; }
+.install-dialog { width: min(440px, calc(100vw - 24px)); max-height: calc(100svh - 24px); overflow: auto; padding: 24px; border: 1px solid #ffffff20; border-radius: 16px; background: var(--panel); color: var(--text); box-shadow: 0 25px 70px #000a; }
+.install-dialog::backdrop { background: #050a0dcc; }
+.install-dialog h2 { margin: 0 0 10px; font-size: 24px; font-weight: 500; }
+#install-summary { margin: 0 0 14px; font-size: 14px; line-height: 1.5; }
+.install-dialog .primary { margin-bottom: 14px; }
+.install-help { margin: 0 0 14px; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.install-help:empty { display: none; }
+.install-help li + li { margin-top: 6px; }
+.install-dialog details { margin-bottom: 16px; font-size: 12px; }
+.install-dialog summary { cursor: pointer; color: var(--muted); font-weight: 700; letter-spacing: 1px; }
+.install-checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.install-checks li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px; border-radius: 6px; background: #ffffff08; }
+.install-checks li::before { content: '·'; color: var(--muted); }
+.install-checks li[data-status="ok"]::before { content: '✓'; color: var(--normal); }
+.install-checks li[data-status="bad"]::before { content: '✗'; color: var(--fast); }
+.install-checks span { flex: 1; color: var(--muted); }
+.install-checks strong { font: 600 11px 'DM Sans', sans-serif; text-align: right; overflow-wrap: anywhere; }
+.install-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.install-actions button { min-height: 40px; padding: 0 14px; border: 1px solid #ffffff24; border-radius: 8px; background: transparent; color: var(--text); font-size: 12px; }
 #level-number { display: block; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
 .level-badge strong { display: block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
 .intro { padding: 43px 0 30px; display: flex; align-items: center; justify-content: space-between; }

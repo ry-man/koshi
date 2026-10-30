@@ -232,6 +232,7 @@ function togglePause() {
 }
 pause.addEventListener('click', togglePause);
 document.addEventListener('keydown', event => {
+  if (document.querySelector('dialog[open]')) return;
   if (event.code === 'Escape' || (event.code === 'Space' && !['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName))) {
     event.preventDefault();
     togglePause();
@@ -241,6 +242,8 @@ function autoPause() {
   if (game.state === 'playing') { game.pause(); syncUI(); }
   lastTime = null;
 }
+const installButton = document.getElementById('install-button');
+if (installButton) installButton.addEventListener('click', autoPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
 window.addEventListener('blur', autoPause);
 

@@ -21,7 +21,10 @@
     <main>
       <header class="masthead">
         <a class="brand" href="./" aria-label="Koshi's Quest home"><span class="brand-mark">K</span> KOSHI'S QUEST</a>
-        <a class="edition" id="editor-link" href="./editor.html">OPEN LEVEL EDITOR →</a>
+        <div class="masthead-links">
+          <button class="install-button" id="install-button" type="button" aria-haspopup="dialog">📲 INSTALL APP</button>
+          <a class="edition" id="editor-link" href="./editor.html">OPEN LEVEL EDITOR →</a>
+        </div>
       </header>
       <section class="intro">
         <div><p class="eyebrow">WORLD 01 / THE BEGINNING</p><h1>A quest starts with <em>a snack.</em></h1>
@@ -67,5 +70,20 @@
       <footer><span>KOSHI'S QUEST <span class="footer-dot">/</span> AN ADVENTURE IN THE MAKING</span><span>Made for curious cats & clever humans.</span></footer>
       <noscript><p class="error">Please enable JavaScript to play Koshi's Quest.</p></noscript>
     </main>
+    <dialog class="install-dialog" id="install-dialog" aria-labelledby="install-title">
+      <p class="eyebrow">PLAY ANYWHERE, EVEN OFFLINE</p>
+      <h2 id="install-title">Install Koshi's Quest</h2>
+      <p id="install-summary" role="status">Checking this browser…</p>
+      <button class="primary" id="install-now" type="button" hidden>Install now →</button>
+      <ol class="install-help" id="install-help"></ol>
+      <details>
+        <summary>Diagnostics</summary>
+        <ul class="install-checks" id="install-checks"></ul>
+      </details>
+      <div class="install-actions">
+        <button type="button" id="install-copy">Copy report</button>
+        <button type="button" id="install-close">Close</button>
+      </div>
+    </dialog>
   </body>
 </html>
