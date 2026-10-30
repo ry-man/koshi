@@ -2,6 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, validateCustomLevel, brickShape, brickRecharge, brickSlime } = globalThis.KoshiGame;
+const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 
 let game;
 const canvas = document.querySelector('#canvas');
@@ -35,6 +36,9 @@ let buttons = [];
 let brickRevision = -1;
 let customLevel = null;
 let displayedStuck = false;
+let tutorial = null;
+let guideIndex = 0;
+const guide = document.querySelector('#how-to-play');
 const cutscene = new globalThis.KoshiCutscenePlayer((context, character, time, speaking) => {
   const previous = ctx;
   ctx = context;
@@ -61,11 +65,15 @@ if (location.hash.startsWith('#level=')) {
   }
 }
 
-function createGame() {
+function layoutOptions() {
   const portrait = window.matchMedia('(max-width: 760px) and (orientation: portrait)').matches;
   board.dataset.portrait = String(portrait);
+  return { portrait, scale: portrait ? board.clientWidth / 600 : 1 };
+}
+
+function createGame() {
   return new Game(Math.random, {
-    portrait, scale: portrait ? board.clientWidth / 600 : 1,
+    ...layoutOptions(),
     level: levelSelect.value === 'custom' ? 0 : Number(levelSelect.value),
     customLevel: levelSelect.value === 'custom' ? customLevel : null,
   });
@@ -158,7 +166,8 @@ function makeBrickButtons() {
       const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
       const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
       // Include clicks on the button border despite fractional CSS pixel rounding.
-      if (!game.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
+      const steering = tutorial ?? game;
+      if (!steering.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
         toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? ''
           : brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
           : brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
@@ -203,8 +212,8 @@ function syncUI() {
   }
   const { duration: DURATION, goal: GOAL, killGoal = 0 } = game.level;
   const fraction = Math.min(1, game.score / GOAL, killGoal ? game.enemies / killGoal : 1);
-  timer.innerHTML = `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>`;
-  foodCount.innerHTML = `🍗 ${game.score} <span>/ ${GOAL}</span>`;
+  timer.innerHTML = Number.isFinite(DURATION) ? `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '◷ ∞';
+  foodCount.innerHTML = `🍗 ${game.score}${Number.isFinite(GOAL) ? ` <span>/ ${GOAL}</span>` : ''}`;
   hearts.textContent = '♥ '.repeat(game.hearts).trim() + ' ♡'.repeat(3 - game.hearts);
   hearts.setAttribute('aria-label', `${game.hearts} of 3 hearts`);
   progress.style.width = `${fraction * 100}%`;
@@ -220,6 +229,7 @@ function syncUI() {
     ? `${SWORDS[game.weapon.type].name} · ${Number.isFinite(game.weapon.uses) ? `${game.weapon.uses} hits` : `${Math.ceil(game.weapon.expires - game.elapsed)}s`}`
     : 'No sword equipped';
   if (weaponStatus.textContent !== weaponText) weaponStatus.textContent = weaponText;
+  if (tutorial) updateTutorial();
   pause.disabled = !['playing', 'paused'].includes(game.state);
   pause.textContent = game.state === 'paused' ? '▶ Resume' : 'Ⅱ Pause';
   if (brickRevision !== game.brickRevision) {
@@ -249,29 +259,45 @@ function syncUI() {
       button.style.setProperty('--spring-reveal', String(compression));
     }
     button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
     }
     counter.textContent = [brick.crumbler ? `C:${brick.usesLeft}` : '', brick.warped ? `W:${brick.usesLeft === 0 ? 'X' : warpSeconds === null ? '-' : `${warpSeconds}s`}` : ''].filter(Boolean).join(' ');
     button.tabIndex = game.state === 'playing' ? 0 : -1;
+    button.classList.toggle('tutorial-target', Boolean(tutorial && tutorial.target.id === brick.id));
     button.style.setProperty('--cooldown-fill', `${brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
   }
   if (displayedState === game.state) return;
   displayedState = game.state;
-  if (game.state === 'playing') {
+  if (game.state === 'ready') {
+    const description = game.customLevel
+      ? `Collect ${GOAL} food in ${DURATION} seconds. This is your custom level from the editor.`
+      : `Click a brick to send Koshi toward it. Collect ${GOAL} food${killGoal ? ` and defeat ${killGoal} robots` : ''} in ${DURATION} seconds!`;
+    showDialog('READY, LITTLE HERO?', 'Follow your appetite.', description, "Let's play →", '🐾');
+    status.textContent = 'Your next adventure is one click away.';
+  } else if (game.state === 'playing') {
     overlay.hidden = true;
     status.textContent = stuck ? '' : 'Click a brick to move. Change course anytime.';
   } else if (game.state === 'paused') {
     showDialog('TAKE A BREATHER', 'A little catnap.', 'The clock and cooldowns are paused. Your snacks will be right here when you return.', 'Keep exploring →', '☾');
     status.textContent = 'Paused. No snacks lost on our watch.';
   } else if (game.state === 'won') {
+    if (tutorial) {
+      overlay.hidden = true;
+      status.textContent = 'Practice challenge complete. Choose another step or exit to the title.';
+      return;
+    }
     const hasNext = !game.customLevel && game.levelIndex + 1 < LEVELS.length;
     showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', `You gathered ${game.score} food and defeated ${game.enemies} robots with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
     status.textContent = hasNext ? `Level complete! Level ${LEVELS[game.levelIndex + 1].id} is next.` : 'Level complete! Replay or choose a level.';
     toast.textContent = 'Level complete!';
   } else if (game.state === 'lost') {
+    if (tutorial) {
+      showDialog('PRACTICE MAKES PROGRESS', 'Try that step again.', 'Nothing lost! Retry this step, or choose any other topic in the tutorial menu.', 'Retry step →', '🐾');
+      return;
+    }
     const reason = game.hearts <= 0 ? 'Koshi ran out of hearts.' : game.elapsed >= DURATION ? 'Time ran out.' : 'Koshi slipped off the edge.';
     showDialog('ANOTHER TRY, ANOTHER ADVENTURE', 'Still hungry for more?', `${reason} You collected ${game.score} of ${GOAL} food.${killGoal ? ` You defeated ${game.enemies} of ${killGoal} robots. Pick up a sword before taking on robots!` : ' Try redirecting mid-flight to catch a whole line of snacks!'}`, 'Try again →', '🐾');
     status.textContent = `${reason} Give it another go.`;
@@ -280,6 +306,7 @@ function syncUI() {
 }
 
 function begin() {
+  if (tutorial) { selectTutorial(tutorial.index); return; }
   game = createGame();
   makeBrickButtons();
   displayedState = null;
@@ -329,6 +356,125 @@ titleScreen.addEventListener('cancel', event => {
   event.preventDefault();
   dismissTitle();
 });
+function showTitle() {
+  if (tutorial) {
+    tutorial = null;
+    document.body.classList.remove('tutorial-active');
+    document.querySelector('#tutorial-panel').hidden = true;
+    game = createGame();
+    makeBrickButtons();
+    displayedState = null;
+    displayedStuck = false;
+    toast.textContent = '';
+    trail = [];
+    resize();
+    syncUI();
+  } else autoPause();
+  if (!titleScreen.open) titleScreen.showModal();
+  document.querySelector('#title-tutorial').focus({ preventScroll: true });
+}
+document.querySelector('#title-menu').addEventListener('click', showTitle);
+document.querySelector('#tutorial-exit').addEventListener('click', showTitle);
+
+function updateTutorial() {
+  const completed = tutorial.observe();
+  const result = document.querySelector('#tutorial-result');
+  const text = completed ? 'Step complete! Keep practicing or choose another step.' : 'Practice on the board. Jump to any step anytime.';
+  if (result.textContent !== text) result.textContent = text;
+  document.querySelector('#tutorial-progress').textContent = `${tutorial.completed.size} / ${LESSONS.length} learned`;
+  for (const [index, option] of [...document.querySelector('#tutorial-step').options].entries()) {
+    const label = `${index + 1}. ${LESSONS[index].title}${tutorial.completed.has(LESSONS[index].id) ? ' (done)' : ''}`;
+    if (option.textContent !== label) option.textContent = label;
+  }
+}
+
+function selectTutorial(index) {
+  game = tutorial.select(index, layoutOptions());
+  document.querySelector('#tutorial-step').value = String(index);
+  document.querySelector('#tutorial-instruction').textContent = tutorial.lesson.instruction;
+  document.querySelector('#tutorial-prev').disabled = index === 0;
+  document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
+  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'objectives'].includes(tutorial.lesson.id);
+  makeBrickButtons();
+  displayedState = null;
+  displayedStuck = false;
+  lastTime = null;
+  trail = [];
+  toast.textContent = '';
+  resize();
+  syncUI();
+}
+
+function startTutorial(index = 0) {
+  if (titleScreen.open) titleScreen.close();
+  if (guide.open) guide.close();
+  tutorial = new Tutorial();
+  document.body.classList.add('tutorial-active');
+  document.querySelector('#tutorial-panel').hidden = false;
+  document.querySelector('#tutorial-sword').value = tutorial.sword;
+  selectTutorial(index);
+  document.querySelector('#tutorial-step').focus({ preventScroll: true });
+}
+for (const [index, lesson] of LESSONS.entries()) {
+  const option = document.createElement('option');
+  option.value = String(index); option.textContent = `${index + 1}. ${lesson.title}`;
+  document.querySelector('#tutorial-step').append(option);
+}
+document.querySelector('#title-tutorial').addEventListener('click', () => startTutorial());
+document.querySelector('#tutorial-step').addEventListener('change', event => selectTutorial(Number(event.target.value)));
+document.querySelector('#tutorial-prev').addEventListener('click', () => selectTutorial(tutorial.index - 1));
+document.querySelector('#tutorial-retry').addEventListener('click', () => selectTutorial(tutorial.index));
+document.querySelector('#tutorial-next').addEventListener('click', () => {
+  if (tutorial.index === LESSONS.length - 1) showTitle();
+  else selectTutorial(tutorial.index + 1);
+});
+document.querySelector('#tutorial-sword').addEventListener('change', event => {
+  tutorial.sword = event.target.value;
+  selectTutorial(tutorial.index);
+});
+
+function showGuideChapter(index) {
+  guideIndex = index;
+  const content = document.querySelector('#guide-content');
+  const heading = document.createElement('h3');
+  heading.id = 'guide-chapter'; heading.textContent = GUIDE[index].title;
+  content.replaceChildren(heading);
+  for (const [title, description] of GUIDE[index].sections) {
+    const section = document.createElement('section'), label = document.createElement('h4'), text = document.createElement('p');
+    label.textContent = title; text.textContent = description;
+    section.append(label, text); content.append(section);
+  }
+  content.scrollTop = 0;
+  document.querySelector('#guide-topic').value = String(index);
+  document.querySelector('#guide-page').textContent = `${index + 1} / ${GUIDE.length}`;
+  document.querySelector('#guide-prev').disabled = index === 0;
+  document.querySelector('#guide-next').disabled = index === GUIDE.length - 1;
+}
+for (const [index, chapter] of GUIDE.entries()) {
+  const option = document.createElement('option');
+  option.value = String(index); option.textContent = chapter.title;
+  document.querySelector('#guide-topic').append(option);
+}
+document.querySelector('#title-help').addEventListener('click', () => {
+  titleScreen.close();
+  showGuideChapter(guideIndex);
+  guide.showModal();
+  document.querySelector('#guide-topic').focus({ preventScroll: true });
+});
+function closeGuide() {
+  guide.close();
+  titleScreen.showModal();
+  document.querySelector('#title-help').focus({ preventScroll: true });
+}
+document.querySelector('#guide-close').addEventListener('click', closeGuide);
+guide.addEventListener('cancel', event => { event.preventDefault(); closeGuide(); });
+guide.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeGuide(); }
+});
+document.querySelector('#guide-topic').addEventListener('change', event => showGuideChapter(Number(event.target.value)));
+document.querySelector('#guide-prev').addEventListener('click', () => showGuideChapter(guideIndex - 1));
+document.querySelector('#guide-next').addEventListener('click', () => showGuideChapter(guideIndex + 1));
+document.querySelector('#guide-practice').addEventListener('click', () => startTutorial([0, 3, 4, 6, 2, 10, 13, 15][guideIndex]));
 levelSelect.addEventListener('change', begin);
 function togglePause() {
   if (game.state === 'playing') game.pause();

@@ -11,6 +11,7 @@ const ASSETS = [
   './editor.css',
   './src/game.js',
   './src/cutscene.js',
+  './src/learning.js',
   './src/app.js',
   './src/editor.js',
   './src/pwa.js',

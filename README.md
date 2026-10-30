@@ -28,6 +28,38 @@ dismisses the title to the ready screen. Custom-level playtest links and the
 `#install` troubleshooting link bypass the title. The artwork is bundled for
 offline and direct-file play.
 
+### How to play and interactive tutorial
+
+The title screen includes two learning paths:
+
+- **How to play** opens an eight-topic walkthrough of movement and controls,
+  cooldown colors, Crumblers/Warped bricks, slime/Springs, every food and healing
+  item, both robots and all swords, spawn warnings, and objectives/story scenes.
+  Choose any topic directly or use Previous/Next. **Try it in the tutorial**
+  opens a related practice step. Back to title or Escape returns to the title.
+- **Tutorial** opens 16 interactive practice steps on the real game board:
+  aiming/stopping, redirecting, food, recharge, Crumblers, Warped restoration,
+  each of the three slime colors, Springs, mouse/sword combat, wheel interception,
+  healing, spawn warnings, pause/resume, and a combined food/defeat challenge.
+  An outlined brick suggests where to aim; keyboard labels identify it too.
+  Completion is earned by performing the mechanic, not just visiting the page.
+
+The tutorial selector can jump to **any step at any time**, without unlocking
+earlier lessons. Previous/Next, Retry step, and Exit tutorial remain available;
+the combat steps also let players try wood, bronze, silver, or gold swords.
+Completed-topic badges last for the current tutorial visit. Retrying resets the
+arena and current action feedback while keeping those badges. Practice has no
+time limit or story scenes, and a failed attempt can be retried or skipped.
+The final practice challenge uses real victory rules: collect one food and
+defeat one robot. Finish tutorial returns to the title.
+
+**Menu** in the game toolbar reopens the title, pausing a normal attempt.
+Leaving a tutorial discards its practice arena and restores the selected normal
+or custom level to a fresh ready state. Practice never modifies campaign levels
+or editor data. The guide and tutorial work offline and through direct-file
+launch. On short landscape screens and desktops, practice instructions sit beside
+the board; phones keep compact controls above it without scrolling away from play.
+
 - Click or tap the **exact spot on a colored brick** you want Koshi to approach.
 - Redirect him mid-flight by selecting another available brick. Koshi stops
   when his circular head first touches any brick, including recharging bricks.

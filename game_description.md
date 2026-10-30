@@ -16,6 +16,31 @@ The game is level-based, with multiple worlds split into individual levels. Most
 3. Simply survive until the time runs out
 4. Defeat the boss (no timer is used on bosses)
 
+### Learning Menus
+
+The title screen offers **How to play** and **Tutorial**.
+
+How to play is a browsable, eight-topic rules walkthrough. Players can select
+topics freely or move with Previous/Next. It describes movement and keyboard
+controls, all cooldown and special bricks, both robot enemies, every food,
+heart healing, all four swords, spawn warnings, current level goals, and story
+controls. Each topic links to a related tutorial step. Escape or Back to title
+closes the guide.
+
+The interactive tutorial uses the actual game board and mechanics in 16 isolated
+practice steps. It teaches aiming/stopping, redirection, food, recharge,
+Crumblers, Warped restoration, red/green/blue slime, Springs, mouse combat and
+swords, wheel interception, healing, spawn previews, pause/resume, and combined
+food/robot objectives. An outlined brick provides a suggested target, and action
+feedback marks a step complete only after the mechanic has been performed.
+
+Players can freely choose any step, use Previous/Next, retry, or exit at any
+time. Combat steps offer all sword types. Practice has no countdown or story
+scenes and does not change campaign/editor data. Completion badges remain for
+the current visit; retry refreshes the current action and arena. The final
+challenge requires one food and one robot defeat. Menu reopens the title from
+gameplay, pausing a normal attempt or discarding tutorial practice.
+
 ### Pre-level Story Cutscenes
 
 Any level may define an optional cutscene before gameplay. The top two-thirds

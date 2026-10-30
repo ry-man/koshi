@@ -15,10 +15,22 @@
     <link rel="stylesheet" href="./style.css">
     <script defer src="./src/game.js"></script>
     <script defer src="./src/cutscene.js"></script>
+    <script defer src="./src/learning.js"></script>
     <script defer src="./src/app.js"></script>
     <script defer src="./src/pwa.js"></script>
   </head>
   <body>
+    <dialog id="how-to-play" class="learning-guide" aria-labelledby="guide-heading">
+      <header class="learning-heading"><h2 id="guide-heading">How to play</h2><button id="guide-close" type="button">Back to title</button></header>
+      <label class="learning-picker" for="guide-topic">Choose a topic <select id="guide-topic"></select></label>
+      <article id="guide-content" tabindex="0" aria-labelledby="guide-chapter"></article>
+      <nav class="learning-navigation" aria-label="Guide navigation">
+        <button id="guide-prev" type="button">Previous</button>
+        <span id="guide-page"></span>
+        <button id="guide-next" type="button">Next</button>
+        <button id="guide-practice" type="button">Try it in the tutorial</button>
+      </nav>
+    </dialog>
     <dialog id="cutscene" aria-labelledby="cutscene-heading" aria-describedby="cutscene-transcript">
       <div class="cutscene-stage">
         <canvas id="cutscene-stage" aria-hidden="true"></canvas>
@@ -44,6 +56,8 @@
         <div class="title-actions">
           <button id="title-start" class="primary" type="button" autofocus>Start adventure <span aria-hidden="true">→</span></button>
           <button id="title-levels" class="title-secondary" type="button">Choose a level</button>
+          <button id="title-help" class="title-secondary" type="button" aria-haspopup="dialog">How to play</button>
+          <button id="title-tutorial" class="title-secondary" type="button">Tutorial</button>
         </div>
       </div>
     </dialog>
@@ -62,6 +76,15 @@
       </section>
       <section class="game-shell" aria-label="Koshi's Quest game">
         <p id="level-error" class="error" role="alert" hidden></p>
+        <section id="tutorial-panel" aria-label="Interactive tutorial" hidden>
+          <div class="tutorial-heading"><label for="tutorial-step">Tutorial <select id="tutorial-step"></select></label><span id="tutorial-progress"></span></div>
+          <p id="tutorial-instruction" aria-live="polite" aria-atomic="true"></p>
+          <div class="tutorial-actions">
+            <label id="tutorial-sword-label" hidden>Sword <select id="tutorial-sword"><option value="wood">Wood / 1 hit</option><option value="bronze">Bronze / 3 hits</option><option value="silver" selected>Silver / 10 hits</option><option value="gold">Gold / 15 seconds</option></select></label>
+            <span id="tutorial-result" role="status" aria-live="polite"></span>
+            <button id="tutorial-prev" type="button">Previous</button><button id="tutorial-retry" type="button">Retry step</button><button id="tutorial-next" type="button">Next</button><button id="tutorial-exit" type="button">Exit tutorial</button>
+          </div>
+        </section>
         <div class="hud">
           <div class="stat"><span class="stat-label">TIME LEFT</span><strong id="timer">◷ 60<span>s</span></strong></div>
           <div class="stat"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div>
@@ -90,7 +113,7 @@
           <div id="toast" role="status" aria-live="polite"></div>
         </div>
         </div>
-        <div class="game-toolbar"><span id="game-status">Your next adventure is one click away.</span><div><button id="pause" disabled>Ⅱ Pause</button><button id="restart">↻ Restart</button></div></div>
+        <div class="game-toolbar"><span id="game-status">Your next adventure is one click away.</span><div><button id="title-menu" type="button">Menu</button><button id="pause" disabled>Ⅱ Pause</button><button id="restart">↻ Restart</button></div></div>
       </section>
       <section class="field-guide" aria-label="How to play">
         <div class="guide-intro"><p class="eyebrow">THE FIELD GUIDE</p><h2>Small paws.<br>Smart moves.</h2><p>Click a brick, not a snack.<br>The journey is the trick.</p></div>
