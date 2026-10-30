@@ -17,6 +17,48 @@ function recenter(game) {
   game.cat.y = game.height / 2;
 }
 
+test('crumbly edges have deep chips with varied widths and depths', () => {
+  const shape = brickShape([{ x: 0, y: 0, w: 110, h: 22 }], true);
+  const top = [...shape.path.split('L1 0')[0].matchAll(/[ML]([\d.e+-]+) ([\d.e+-]+)/g)]
+    .map(([, x, y]) => [Number(x) * 110, Number(y) * 22]);
+  const depths = top.filter(([, y]) => y > 0).map(([, y]) => y);
+  assert.ok(Math.max(...depths) > 3);
+  assert.ok(new Set(depths.map(y => y.toFixed(3))).size >= 5);
+  const widths = top.slice(1).map(([x], i) => (x - top[i][0]).toFixed(3));
+  assert.ok(new Set(widths).size >= 5);
+});
+
+test('crumbly outlines chip only exposed boundaries and preserve merged holes in both layouts', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const game = setup({ warped: 100, crumbler: 100 }, options);
+    for (let count = 0; count <= 25; count++) {
+      const parts = game.brickParts().filter(part => part.id === 0);
+      const smooth = brickShape(parts), chipped = brickShape(parts, true);
+      assert.deepEqual(chipped, brickShape(parts, true));
+      assert.deepEqual([chipped.x, chipped.y, chipped.w, chipped.h], [smooth.x, smooth.y, smooth.w, smooth.h]);
+      assert.doesNotMatch(chipped.path + chipped.clipPath, /NaN|undefined|Infinity/);
+      assert.equal((chipped.path.match(/M/g) || []).length, count === 25 ? 2 : 1);
+      assert.ok(chipped.path.length > smooth.path.length);
+      assert.match(chipped.clipPath, /^polygon\(evenodd, /);
+      for (const [, x, y] of chipped.path.matchAll(/[ML]([\d.e+-]+) ([\d.e+-]+)/g)) {
+        assert.ok(Number(x) >= -1e-8 && Number(x) <= 1 + 1e-8);
+        assert.ok(Number(y) >= -1e-8 && Number(y) <= 1 + 1e-8);
+      }
+      const vertices = [...chipped.clipPath.matchAll(/([\d.e+-]+)% ([\d.e+-]+)%/g)].map(([, x, y]) => [Number(x), Number(y)]);
+      let inside = false;
+      const px = (game.width / 2 - chipped.x) / chipped.w * 100;
+      const py = (game.height / 2 - chipped.y) / chipped.h * 100;
+      for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+        const [ax, ay] = vertices[i], [bx, by] = vertices[j];
+        if ((ay > py) !== (by > py) && px < (bx - ax) * (py - ay) / (by - ay) + ax) inside = !inside;
+      }
+      assert.equal(inside, false, 'the gameplay area stays outside the clipped brick');
+      game.bricks[0].readyAt = 0;
+      aim(game, game.bricks[0]);
+    }
+  }
+});
+
 test('blocked selections preserve cooldowns, Crumbler uses, warp geometry, and current motion', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
     const game = setup({ crumbler: 3, warped: 15 }, options);

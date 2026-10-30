@@ -72,10 +72,18 @@ The bricks have the following classifications based on their cooldown time:
 | Fast                  | 3                       | Red   |
 
 ### Brick Attribute - Crumbler
-Some bricks are "Crumblers". These bricks can only be selected a certain number of times before they are permanently de-activated for the rest of the level. These crumbler bricks appear cracked and also have a numerical counter on them which indicates how many times the brick may be selected before it permanently de-activates. This number counts down by one each time it is selected.
+Some bricks are "Crumblers". These bricks can only be selected a certain number of times before they are permanently de-activated for the rest of the level. These crumbler bricks have chipped, non-uniform boundaries rather than a crack texture and also have a numerical counter on them which indicates how many times the brick may be selected before it permanently de-activates. This number counts down by one each time it is selected.
 
 ### Brick Attribute - Warped
 Some bricks are "Warped". These bricks, upon selecting, absorb an adjacent brick and form a larger brick. The specific brick selected is randomly chosen from the two adjacent bricks. Once the warped brick first absorbs an adjacent brick, it then kicks off a timer on the warped brick which counts down each second. Once this timer reaches zero, the warped brick returns to its original size and shape and all absorbed bricks return to their original state.
+
+### Brick Attribute - Slimed
+Some bricks have a layer of green oozy slime on the edge of the brick which Koshi touches. This sticky slime holds Koshi stationary and blocks steering for 1 full second of game time before he is released. A green ring and STUCK label indicate the hold; an expanding ring and FREE! label announce release. Koshi remains stationary until another valid brick is selected. Pause freezes the hold.
+
+### Brick Attributes - Springs
+Some bricks have a thin brown, metallic layer on the edge of the brick which Koshi touches. When Koshi lands on this brick, he bounces off immediately, reflecting his incoming direction about the contact surface without changing speed (including rounded corners). The metallic edge compresses and rebounds slightly, revealing tiny springs underneath.
+
+Slimed and Springs are mutually exclusive: choosing one in the custom-level editor replaces the other. Both can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape. Built-in levels do not use these attributes yet.
 
 ## Enemies
 Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.

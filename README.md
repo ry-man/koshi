@@ -85,7 +85,8 @@ or build tools are needed.
    Click/tap any boundary brick (or focus it and press Enter) to select it,
    then change **Selected brick type** in the brick inspector: slow/blue (15s),
    normal/green (8s), or fast/red (3s). Enable **Crumbler** and/or **Warped**
-   independently, and set the selection limit (default 5) or warp duration
+   independently, or choose **Slimed** or **Springs** for contact effects.
+   Set the selection limit (default 5) or warp duration
    (default 15 seconds). Changes apply immediately. Each brick
    can have its own type, independent of the preset. **Reset brick types to
    preset** clears all individual edits. Applying a different boundary preset
@@ -187,6 +188,10 @@ slot order when phone left/right edges become desktop top/bottom.
 Optional
 `crumbler` is an integer selection limit (1–100000); `warped` is a duration
 in seconds (0.1–3600). Set either to `null` to explicitly remove that attribute.
+Optional `slimed` and `springs` are booleans; `false` removes the attribute.
+They are mutually exclusive: importing both as `true` in the same override is
+an error, while enabling one in the editor replaces the other. A later
+overlapping override enabling one also removes the other.
 Omitted attributes leave earlier overlapping attribute edits unchanged. For example:
 
 ```json
@@ -216,7 +221,10 @@ merge during play.
   to add these attributes to custom levels.
 - Brick selections only activate when Koshi can actually move in the clicked
   direction. Blocked clicks leave cooldowns, Crumbler uses, and warps unchanged.
-- Crumblers show a repeating pattern of small cracks and a `C` counter. Only a successful selection consumes
+- Crumblers have chipped, uneven boundaries instead of a crack texture, plus a
+  `C` counter. Merged Crumblers keep one continuous chipped outer edge without
+  internal seams; editor previews use the same shape. These chips are visual
+  only and do not change collision geometry. Only a successful selection consumes
   one use. At zero, the entire brick (including any absorbed area) remains
   solid but permanently unselectable until the level restarts.
 - Warped bricks keep their cooldown color and normal solid border, with a
@@ -244,6 +252,26 @@ merge during play.
   it, exhausted bricks remain unselectable. The counter shows `W:X` for this state.
   Pause freezes cooldowns and warp timers. Restart restores
   every brick and replenishes Crumbler selections.
+
+### Slimed and Springs behavior
+
+- Both contact attributes are available in the custom-level brick inspector,
+  work with every cooldown color, and can combine with Crumbler and Warped.
+  Built-in levels are unchanged.
+- Slimed bricks have an oozing green edge. Touching one holds Koshi stationary
+  and blocks all steering for exactly one second of game time. A green ring
+  and `STUCK` label indicate the hold; an expanding ring, `FREE!` label, and
+  accessible message announce release. Release does not launch Koshi automatically.
+- Springs have a thin brown metallic edge. Contact reflects the incoming
+  velocity about the surface normal, including rounded corner contacts, without
+  changing speed. The edge compresses and rebounds, revealing tiny springs.
+  Koshi can still be redirected in flight after a bounce.
+- Contact effects do not consume selections or trigger cooldowns; they work
+  even on cooling-down or exhausted bricks. A merged group uses its owner's
+  contact attribute over its entire shape, including connecting gaps. Absorbed
+  bricks regain their own attributes on restoration.
+- Pause freezes slime locks, release feedback, and spring compression. Restart
+  clears all contact effects and animation state.
 
 ## GitHub Pages
 

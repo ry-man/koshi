@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, FOODS, SWORDS, COOLDOWNS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions } = globalThis.KoshiGame;
+const { Game, FOODS, SWORDS, COOLDOWNS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape } = globalThis.KoshiGame;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
@@ -171,8 +171,8 @@ function renderBrickInspector(bricks) {
   const chosen = bricks.filter(brick => selectedBricks.has(regionKey(regions.get(brick.id))));
   $('#brick-kind').querySelector('option[value=""]')?.remove();
   if (!chosen.length) {
-    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds']) $(selector).disabled = true;
-    $('#brick-crumbler').indeterminate = $('#brick-warped').indeterminate = false;
+    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs']) $(selector).disabled = true;
+    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs']) $(selector).indeterminate = false;
     $('#brick-selection').textContent = 'Select one or more boundary bricks to change their attributes.';
     return;
   }
@@ -190,6 +190,12 @@ function renderBrickInspector(bricks) {
   };
   flag('#brick-crumbler', '#brick-uses', chosen.map(brick => brick.crumbler), 5);
   flag('#brick-warped', '#brick-warp-seconds', chosen.map(brick => brick.warped), 15);
+  for (const attribute of ['slimed', 'springs']) {
+    const box = $(`#brick-${attribute}`), count = chosen.filter(brick => brick[attribute]).length;
+    box.disabled = false;
+    box.checked = count === chosen.length;
+    box.indeterminate = count > 0 && count < chosen.length;
+  }
   if (chosen.length === 1) {
     const [brick] = chosen;
     $('#brick-selection').textContent = `${displayedRegions.get(brick.id).edge} edge · brick ${brick.id + 1} · ${brick.kind} (${COOLDOWNS[brick.kind]}s)`;
@@ -215,10 +221,12 @@ function renderBoard() {
     element.className = 'editor-brick';
     element.classList.toggle('crumbler', Boolean(brick.crumbler));
     element.classList.toggle('warped', Boolean(brick.warped));
+    element.classList.toggle('slimed', Boolean(brick.slimed));
+    element.classList.toggle('springs', Boolean(brick.springs));
     element.textContent = [brick.crumbler ? `C:${brick.crumbler}` : '', brick.warped ? `W:${brick.warped}s` : ''].filter(Boolean).join(' ');
     element.dataset.id = brick.id;
     element.dataset.region = key;
-    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}`);
+    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? ', Slimed: sticks for 1 second' : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`);
     element.setAttribute('aria-pressed', String(selectedBricks.has(key)));
     // Pointer clicks are handled by the board gesture; detail 0 means keyboard activation.
     element.addEventListener('click', event => {
@@ -228,6 +236,20 @@ function renderBoard() {
       focusBrick(key);
     });
     element.style.cssText = `left:${brick.x / previewGame.width * 100}%;top:${brick.y / previewGame.height * 100}%;width:${brick.w / previewGame.width * 100}%;height:${brick.h / previewGame.height * 100}%;background-color:${{ normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81' }[brick.kind]}`;
+    if (brick.crumbler) element.style.clipPath = brickShape([brick], true).clipPath;
+    if (brick.slimed || brick.springs) {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.classList.add('brick-outline');
+      svg.setAttribute('viewBox', '0 0 1 1');
+      svg.setAttribute('preserveAspectRatio', 'none');
+      svg.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', brickShape([brick], Boolean(brick.crumbler)).path);
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
+      svg.append(path);
+      element.append(svg);
+    }
     return element;
   }));
   renderBrickInspector(previewGame.bricks);
@@ -413,12 +435,17 @@ function saveBrick(event) {
     const number = selector => $(selector).value === '' ? null : Number($(selector).value);
     // Only the changed control is applied, so mixed values in other controls are preserved.
     const entries = targets.map(({ brick, region }) => {
-      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null };
+      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null, slimed: Boolean(brick.slimed), springs: Boolean(brick.springs) };
       if (id === 'brick-kind' && $('#brick-kind').value !== MIXED) entry.kind = $('#brick-kind').value;
       if (id === 'brick-crumbler') entry.crumbler = $('#brick-crumbler').checked ? entry.crumbler ?? number('#brick-uses') ?? 5 : null;
       if (id === 'brick-uses' && entry.crumbler && number('#brick-uses') !== null) entry.crumbler = number('#brick-uses');
       if (id === 'brick-warped') entry.warped = $('#brick-warped').checked ? entry.warped ?? number('#brick-warp-seconds') ?? 15 : null;
       if (id === 'brick-warp-seconds' && entry.warped && number('#brick-warp-seconds') !== null) entry.warped = number('#brick-warp-seconds');
+      if (id === 'brick-slimed' || id === 'brick-springs') {
+        const attribute = id.slice(6);
+        entry[attribute] = $(`#${id}`).checked;
+        if (entry[attribute]) entry[attribute === 'slimed' ? 'springs' : 'slimed'] = false;
+      }
       return entry;
     });
     const keys = new Set(entries.map(regionKey));
@@ -430,7 +457,7 @@ function saveBrick(event) {
   // Re-render on success and failure so the inspector always reflects the saved level.
   renderBoard();
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds']) {
+for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs']) {
   $(selector).addEventListener('change', saveBrick);
 }
 $('#reset-brick-types').addEventListener('click', () => {

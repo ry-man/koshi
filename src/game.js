@@ -81,6 +81,12 @@ function validateCustomLevel(value) {
         if (override.crumbler !== null && !Number.isInteger(override.crumbler)) fail(`Brick override ${i + 1} selections must be a whole number.`);
       }
       if (entry.warped !== undefined) override.warped = entry.warped === null ? null : number(entry.warped, .1, 3600, `Brick override ${i + 1} warp duration`);
+      for (const attribute of ['slimed', 'springs']) {
+        if (entry[attribute] === undefined) continue;
+        if (typeof entry[attribute] !== 'boolean') fail(`Brick override ${i + 1} ${attribute} must be a boolean.`);
+        override[attribute] = entry[attribute];
+      }
+      if (override.slimed && override.springs) fail(`Brick override ${i + 1} cannot be both Slimed and Springs.`);
       return override;
     });
   }
@@ -118,7 +124,7 @@ function brickEditRegions(bricks) {
   return new Map(bricks.map(brick => [brick.id, brick.region]));
 }
 
-function brickShape(parts) {
+function brickShape(parts, crumbly = false) {
   const coordinates = axis => [...new Set(parts.flatMap(part =>
     [part[axis], part[axis] + part[axis === 'x' ? 'w' : 'h']].map(value => Math.round(value * 1e6) / 1e6)))].sort((a, b) => a - b);
   const xs = coordinates('x'), ys = coordinates('y');
@@ -141,22 +147,45 @@ function brickShape(parts) {
   const outgoing = new Map([...edges.values()].map(item => [item.a, item.b]));
   const point = key => {
     const [i, j] = key.split(',').map(Number);
-    return `${(xs[i] - x) / w} ${(ys[j] - y) / h}`;
+    return [xs[i] - x, ys[j] - y];
   };
   let path = '';
+  const polygon = [];
+  const normalized = ([px, py]) => `${px / w} ${py / h}`;
   while (outgoing.size) {
     const start = outgoing.keys().next().value;
     let current = start;
-    path += `M${point(start)}`;
+    const loop = [point(start)];
     do {
       const next = outgoing.get(current);
       outgoing.delete(current);
-      path += `L${point(next)}`;
+      if (crumbly) {
+        const [ax, ay] = point(current), [bx, by] = point(next);
+        const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
+        const cuts = Math.max(1, Math.floor(length / 9));
+        for (let i = 0; i < cuts; i++) {
+          const variation = (Math.round(ax * 3 + ay * 5 + bx + by * 7) + i * 17) % 23;
+          const depth = Math.min(1.7 + variation % 7 * .55, length / cuts * .38, Math.min(w, h) * .18);
+          const start = .04 + variation % 5 * .035;
+          const tip = .3 + variation % 6 * .045;
+          const end = .78 + variation % 4 * .05;
+          for (const [offset, inset] of [[start, 0], [tip, depth], [tip + .16, depth * (.2 + variation % 3 * .2)], [end, 0]]) {
+            const t = (i + offset) / cuts;
+            loop.push([ax + dx * t - dy / length * inset, ay + dy * t + dx / length * inset]);
+          }
+        }
+      }
+      loop.push(point(next));
       current = next;
     } while (current !== start);
-    path += 'Z';
+    path += `M${loop.map(normalized).join('L')}Z`;
+    // Double back along the bridge so even-odd clipping preserves holes in a full perimeter.
+    if (polygon.length) polygon.push(loop[0]);
+    polygon.push(...loop);
+    if (polygon.length) polygon.push(polygon[0]);
   }
-  return { x, y, w, h, path };
+  const clipPath = `polygon(evenodd, ${polygon.map(([px, py]) => `${px / w * 100}% ${py / h * 100}%`).join(', ')})`;
+  return { x, y, w, h, path, clipPath };
 }
 
 function makeBricks(portrait = false, scale = 1) {
@@ -227,6 +256,13 @@ function distanceToSegment(px, py, x, y, endX, endY) {
   return Math.hypot(px - x - t * dx, py - y - t * dy);
 }
 
+function brickNormal(x, y, brick) {
+  const dx = x - Math.max(brick.x, Math.min(brick.x + brick.w, x));
+  const dy = y - Math.max(brick.y, Math.min(brick.y + brick.h, y));
+  const distance = Math.hypot(dx, dy);
+  return distance ? { x: dx / distance, y: dy / distance } : null;
+}
+
 class Game {
   constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null } = {}) {
     if (customLevel) {
@@ -260,6 +296,8 @@ class Game {
     this.brickRevision = 0;
     this.cat = { x: this.width / 2, y: this.height / 2, radius: 21, vx: 0, vy: 0 };
     this.target = null;
+    this.stuckUntil = 0;
+    this.releasedAt = null;
     this.pickups = [];
     this.foodId = 0;
     this.robots = [];
@@ -296,6 +334,14 @@ class Game {
           brick.kind = entry.kind;
           if (entry.crumbler !== undefined) brick.crumbler = entry.crumbler;
           if (entry.warped !== undefined) brick.warped = entry.warped;
+          if (entry.slimed !== undefined) {
+            brick.slimed = entry.slimed;
+            if (entry.slimed) brick.springs = false;
+          }
+          if (entry.springs !== undefined) {
+            brick.springs = entry.springs;
+            if (entry.springs) brick.slimed = false;
+          }
         }
       }
     }
@@ -303,6 +349,9 @@ class Game {
       brick.usesLeft = brick.crumbler ?? null;
       brick.absorbedBy = null;
       brick.warpUntil = null;
+      brick.hitAt = null;
+      brick.hitNormal = null;
+      brick.hitPoint = null;
     }
     const regions = brickRegions(this.bricks, this.width, this.height);
     this.perimeter = ['top', 'right', 'bottom', 'left'].flatMap(edge => {
@@ -323,7 +372,7 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || !brick || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
+    if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
     const parts = this.brickParts();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
@@ -528,6 +577,10 @@ class Game {
 
   tick(dt) {
     this.elapsed = Math.min(this.level.duration, this.elapsed + dt);
+    if (this.stuckUntil && this.stuckUntil <= this.elapsed + 1e-9) {
+      this.releasedAt = this.stuckUntil;
+      this.stuckUntil = 0;
+    }
     this.restoreWarps();
     this.spawnCustomEvents();
     while (this.nextEvent < this.level.food.length && this.level.food[this.nextEvent][0] <= this.elapsed + 1e-9) {
@@ -542,11 +595,12 @@ class Game {
     const cat = this.cat;
     const dx = cat.vx * dt, dy = cat.vy * dt;
     let contact = 1;
-    let stopped = false;
+    let contacts = [];
     if (dx || dy) {
       for (const brick of this.brickParts()) {
         const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, brick);
-        if (t <= contact) { contact = t; stopped = true; }
+        if (t < contact - 1e-9) { contact = t; contacts = [brick]; }
+        else if (t <= contact + 1e-9 && t <= 1) contacts.push(brick);
       }
     }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
@@ -564,7 +618,30 @@ class Game {
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
     this.combat(dt, startX, startY);
-    if (stopped) { cat.vx = 0; cat.vy = 0; this.target = null; }
+    if (contacts.length) {
+      const solid = contacts.filter(part => !this.bricks[part.id].springs);
+      if (solid.length) {
+        cat.vx = 0; cat.vy = 0;
+        if (solid.some(part => this.bricks[part.id].slimed)) {
+          this.stuckUntil = this.elapsed - dt + dt * contact + 1;
+          this.releasedAt = null;
+        }
+      } else {
+        for (const part of contacts) {
+          const brick = this.bricks[part.id];
+          const normal = brickNormal(cat.x, cat.y, part);
+          if (!normal) continue;
+          const incoming = cat.vx * normal.x + cat.vy * normal.y;
+          if (incoming >= 0) continue;
+          cat.vx -= 2 * incoming * normal.x;
+          cat.vy -= 2 * incoming * normal.y;
+          brick.hitAt = this.elapsed;
+          brick.hitNormal = normal;
+          brick.hitPoint = { x: cat.x - normal.x * cat.radius, y: cat.y - normal.y * cat.radius };
+        }
+      }
+      this.target = null;
+    }
     this.pickups = this.pickups.filter(item => this.elapsed - item.time < .8);
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';

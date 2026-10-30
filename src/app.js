@@ -33,6 +33,7 @@ let trail = [];
 let buttons = [];
 let brickRevision = -1;
 let customLevel = null;
+let displayedStuck = false;
 
 if (location.hash.startsWith('#level=')) {
   try {
@@ -70,13 +71,17 @@ function makeBrickButtons() {
   buttons = game.bricks.filter(brick => brick.absorbedBy === null).map(brick => {
     const members = parts.filter(part => part.id === brick.id);
     const merged = members.length > 1;
-    const part = merged ? brickShape(members) : members[0];
+    const outlined = merged || brick.crumbler || brick.slimed || brick.springs;
+    const part = outlined ? brickShape(members, Boolean(brick.crumbler)) : members[0];
     const button = document.createElement('button');
     button.className = 'brick';
     button.classList.toggle('crumbler', Boolean(brick.crumbler));
     button.classList.toggle('warped', Boolean(brick.warped));
+    button.classList.toggle('slimed', Boolean(brick.slimed));
+    button.classList.toggle('springs', Boolean(brick.springs));
     button.dataset.id = brick.id;
     button.style.cssText = `left:${part.x / game.width * 100}%;top:${part.y / game.height * 100}%;width:${part.w / game.width * 100}%;height:${part.h / game.height * 100}%;--brick-color:${colors[brick.kind]}`;
+    if (brick.crumbler) button.style.clipPath = part.clipPath;
     if (merged) {
       button.classList.add('brick-merged');
       for (const member of members) {
@@ -86,6 +91,8 @@ function makeBrickButtons() {
         surface.style.cssText = `left:${(member.x - part.x) / part.w * 100}%;top:${(member.y - part.y) / part.h * 100}%;width:${member.w / part.w * 100}%;height:${member.h / part.h * 100}%;--pattern-x:calc(${-member.x}px * var(--board-scale-x));--pattern-y:calc(${-member.y}px * var(--board-scale-y));`;
         button.append(surface);
       }
+    }
+    if (outlined) {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
       svg.classList.add('brick-outline');
@@ -95,6 +102,11 @@ function makeBrickButtons() {
       const path = document.createElementNS(ns, 'path');
       path.setAttribute('d', part.path);
       path.setAttribute('vector-effect', 'non-scaling-stroke');
+      if (brick.springs) {
+        const coils = path.cloneNode();
+        coils.classList.add('spring-coils');
+        svg.append(coils);
+      }
       svg.append(path);
       button.append(svg);
     }
@@ -118,7 +130,8 @@ function makeBrickButtons() {
       const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
       // Include clicks on the button border despite fractional CSS pixel rounding.
       if (!game.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
-        toast.textContent = brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
+        toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? 'Koshi is stuck in slime for a moment!'
+          : brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
           : brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
           : "Koshi can't move toward that spot. Pick another!";
         toastUntil = performance.now() + 1800;
@@ -141,6 +154,15 @@ function showDialog(kicker, title, text, label, icon) {
 }
 
 function syncUI() {
+  const stuck = game.stuckUntil > game.elapsed + 1e-9;
+  if (stuck !== displayedStuck) {
+    displayedStuck = stuck;
+    if (game.state === 'playing') {
+      toast.textContent = stuck ? 'Sticky slime! Koshi is stuck for 1 second.' : 'Free of the slime! Pick a brick to move.';
+      toastUntil = performance.now() + 1800;
+      status.textContent = toast.textContent;
+    }
+  }
   const { duration: DURATION, goal: GOAL } = game.level;
   const fraction = Math.min(1, game.score / GOAL);
   timer.innerHTML = `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>`;
@@ -168,9 +190,16 @@ function syncUI() {
   for (const { brick, button, meter, counter } of buttons) {
     const remaining = Math.max(0, brick.readyAt - game.elapsed);
     const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
-    button.setAttribute('aria-disabled', String(remaining > 1e-9 || brick.usesLeft === 0));
+    button.setAttribute('aria-disabled', String(stuck || remaining > 1e-9 || brick.usesLeft === 0));
+    if (brick.springs) {
+      const age = brick.hitAt === null ? 1 : game.elapsed - brick.hitAt;
+      const compression = age < .32 ? Math.sin(Math.PI * age / .32) : 0;
+      button.style.setProperty('--spring-x', `${-(brick.hitNormal?.x ?? 0) * compression * 400 / Math.max(1, button.clientWidth)}%`);
+      button.style.setProperty('--spring-y', `${-(brick.hitNormal?.y ?? 0) * compression * 400 / Math.max(1, button.clientHeight)}%`);
+      button.style.setProperty('--spring-reveal', String(compression));
+    }
     button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? ', Slimed: sticks for 1 second' : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
@@ -183,7 +212,7 @@ function syncUI() {
   displayedState = game.state;
   if (game.state === 'playing') {
     overlay.hidden = true;
-    status.textContent = 'Click a brick to move. Change course anytime.';
+    status.textContent = stuck ? 'Sticky slime! Koshi is stuck for 1 second.' : 'Click a brick to move. Change course anytime.';
   } else if (game.state === 'paused') {
     showDialog('TAKE A BREATHER', 'A little catnap.', 'The clock and cooldowns are paused. Your snacks will be right here when you return.', 'Keep exploring →', '☾');
     status.textContent = 'Paused. No snacks lost on our watch.';
@@ -352,7 +381,35 @@ function render(now) {
     ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
+  for (const brick of game.bricks) {
+    if (!brick.springs || brick.absorbedBy !== null || !brick.hitPoint || !brick.hitNormal || brick.hitAt === null) continue;
+    const age = game.elapsed - brick.hitAt;
+    if (age >= .32) continue;
+    const compression = Math.sin(Math.PI * age / .32);
+    const normal = brick.hitNormal, origin = brick.hitPoint;
+    ctx.save(); ctx.globalAlpha = compression;
+    for (const offset of [-9, 0, 9]) {
+      const points = Array.from({ length: 7 }, (_, i) => {
+        const across = offset + (i === 0 || i === 6 ? 0 : i % 2 ? 2 : -2);
+        const depth = i / 6 * (2 + compression * 5);
+        return [origin.x - normal.y * across - normal.x * depth, origin.y + normal.x * across - normal.y * depth];
+      });
+      line(points, '#e0cba6', 1.2);
+    }
+    ctx.restore();
+  }
   drawCat(game.cat.x, game.cat.y, game.elapsed);
+  const stuck = game.stuckUntil > game.elapsed + 1e-9;
+  const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
+  if (stuck || releaseAge < .65) {
+    ctx.save();
+    ctx.strokeStyle = stuck ? '#7ddd43' : `rgba(211,255,158,${1 - releaseAge / .65})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(game.cat.x, game.cat.y, game.cat.radius + 5 + (stuck ? 0 : releaseAge * 28), 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#d3ff9e'; ctx.textAlign = 'center'; ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(stuck ? 'STUCK' : 'FREE!', game.cat.x, game.cat.y - game.cat.radius - 14);
+    ctx.restore();
+  }
   if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);
   ctx = boardCtx;
 }
