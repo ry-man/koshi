@@ -24,6 +24,7 @@ const progressLabel = document.querySelector('#progress-label');
 const status = document.querySelector('#game-status');
 const toast = document.querySelector('#toast');
 const levelSelect = document.querySelector('#level-select');
+const titleScreen = document.querySelector('#title-screen');
 const weaponStatus = document.querySelector('#weapon-status');
 const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81' };
 let lastTime = null;
@@ -254,6 +255,24 @@ play.addEventListener('click', () => {
   }
 });
 restart.addEventListener('click', begin);
+document.querySelector('#title-start').addEventListener('click', () => {
+  titleScreen.close();
+  begin();
+  board.scrollIntoView({ block: 'center' });
+});
+document.querySelector('#title-levels').addEventListener('click', () => {
+  titleScreen.close();
+  levelSelect.focus();
+  levelSelect.scrollIntoView({ block: 'center' });
+});
+function dismissTitle() {
+  titleScreen.close();
+  play.focus({ preventScroll: true });
+}
+titleScreen.addEventListener('cancel', event => {
+  event.preventDefault();
+  dismissTitle();
+});
 levelSelect.addEventListener('change', begin);
 function togglePause() {
   if (game.state === 'playing') game.pause();
@@ -263,6 +282,11 @@ function togglePause() {
 }
 pause.addEventListener('click', togglePause);
 document.addEventListener('keydown', event => {
+  if (titleScreen.open && event.code === 'Escape') {
+    event.preventDefault();
+    dismissTitle();
+    return;
+  }
   if (document.querySelector('dialog[open]')) return;
   if (event.code === 'Escape' || (event.code === 'Space' && !['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName))) {
     event.preventDefault();
@@ -474,6 +498,7 @@ function frame(timestamp) {
 game = createGame();
 makeBrickButtons();
 syncUI();
+if (!location.hash.startsWith('#level=') && location.hash !== '#install') titleScreen.showModal();
 new ResizeObserver(resize).observe(board);
 requestAnimationFrame(frame);
 })();

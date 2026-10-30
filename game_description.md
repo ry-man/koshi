@@ -3,6 +3,9 @@ This document describes the gameplay of a game called Koshi's Quest. The protago
 
 ## Gameplay
 
+### Title Screen
+The game opens on a title screen with original artwork of a heroic, sword-wielding Koshi facing a menacing Robo Mouse and Robo Wheel, with green, blue, and red bricks in the background. Start adventure begins Level 1-1; Choose a level opens the level selector without starting the clock. Escape dismisses the title to the ready screen. Custom-level playtest and install-help links bypass the title.
+
 ### Overview
 Koshi is controlled by clicking locations on one of any of the "bricks" on the screen. Koshi then immediately begins traveling directly towards the specific location clicked on the brick. Bricks have a cooldown phase before Koshi can be triggered to move towards any point of the same brick once again. Koshi stops when he touches any brick. The player is able to redirect Koshi while he is still in movement by simply clicking another available brick before he stops due to touching a brick.
 

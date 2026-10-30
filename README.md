@@ -21,6 +21,13 @@ blocks the npm script. Both direct `file://` access and HTTP hosting are support
 
 ## Controls and rules
 
+The title screen features original artwork of a sword-wielding Koshi facing
+Robo Mouse and Robo Wheel among green, blue, and red bricks. **Start adventure**
+starts Level 1–1; **Choose a level** opens the existing level selector. Escape
+dismisses the title to the ready screen. Custom-level playtest links and the
+`#install` troubleshooting link bypass the title. The artwork is bundled for
+offline and direct-file play.
+
 - Click or tap the **exact spot on a colored brick** you want Koshi to approach.
 - Redirect him mid-flight by selecting another available brick. Koshi stops
   when his circular head first touches any brick, including recharging bricks.

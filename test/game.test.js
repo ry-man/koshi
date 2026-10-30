@@ -29,6 +29,21 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
 function playing() { const game = new Game(() => .5); game.start(); return game; }
 function aim(game, brick) { return game.steer(brick.id, brick.x + brick.w / 2, brick.y + brick.h / 2); }
 
+test('title screen provides accessible artwork and explicit game entry without external assets', () => {
+  const root = path.resolve(__dirname, '..');
+  const html = readFileSync(path.join(root, 'index.html'), 'utf8');
+  const artwork = readFileSync(path.join(root, 'icons', 'title-scene.svg'), 'utf8');
+  assert.match(html, /<dialog id="title-screen"[^>]+aria-labelledby="title-heading"[^>]+aria-describedby="title-tagline"/);
+  assert.match(html, /id="title-start"[^>]+autofocus/);
+  assert.match(html, /id="title-levels"/);
+  assert.match(html, /src="\.\/icons\/title-scene\.svg"[^>]+alt="[^"]+Koshi[^"]+Robo Mouse[^"]+Robo Wheel/);
+  assert.match(artwork, /<title>.+<\/title>/);
+  assert.match(artwork, /<desc>.+<\/desc>/);
+  for (const color of ['#83bca1', '#7eacdb', '#df8c81']) assert.ok(artwork.includes(color));
+  assert.doesNotMatch(artwork, /<(?:script|image)\b|\bhref=/);
+  assert.ok(readFileSync(path.join(root, 'sw.js'), 'utf8').includes("'./icons/title-scene.svg'"));
+});
+
 test('level begins with three hearts, no enemies, and correct boundary brick mix', () => {
   const game = new Game();
   assert.equal(game.state, 'ready');

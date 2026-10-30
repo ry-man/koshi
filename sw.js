@@ -17,6 +17,7 @@ const ASSETS = [
   './fonts/dm-sans-latin.woff2',
   './fonts/space-grotesk-latin.woff2',
   './icons/koshi.svg',
+  './icons/title-scene.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
