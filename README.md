@@ -107,6 +107,58 @@ It is a separate page, works by double-clicking the file, and is included in
 the GitHub Pages deployment at `/koshi/editor.html`. No server-side storage
 or build tools are needed.
 
+### Optional story cutscenes
+
+Each level can have an optional pre-level cutscene. The five campaign levels
+include short story scenes following Koshi from the garden to the Clockwork
+Pantry. Scenes replay when restarting or directly selecting a level. Levels
+without a scene start immediately as before.
+
+The upper two-thirds of the viewport show a garden or workshop stage, with
+characters using the same drawings as gameplay. Speakers step forward and
+animate while talking. The lower third holds an animated, 32-by-32 pixel
+portrait on the left and retro monospace dialogue on the right. Koshi, Robo
+Mouse, and Robo Wheel each have their own portrait and stage character.
+Dialogue reveals at **30 characters per second**. **Reveal text** shows the
+rest of a line; **Continue** advances; **Begin level** finishes the last line.
+The focused button also accepts Enter or Space. **Skip scene** or Escape skips
+directly to gameplay. No level time, cooldowns, movement, or spawn events advance
+during a scene. Switching away suspends the scene animation and typewriter.
+Reduced-motion mode shows each complete line immediately and disables animation.
+Screen readers receive complete dialogue lines rather than individual letters.
+
+In the editor, enable **Optional pre-level cutscene**, choose the world
+background, and add dialogue lines with a speaker and on-stage cast.
+Use **Apply cutscene** before saving, exporting, or playtesting.
+Unchecking the option and applying removes the scene. The full JSON format
+supports precise actor positions and repeated actors:
+
+```json
+"cutscene": {
+  "theme": "garden",
+  "lines": [
+    {
+      "speaker": "koshi",
+      "text": "Those snacks belong to the garden!",
+      "actors": [
+        { "character": "koshi", "x": 0.3, "y": 0.65 },
+        { "character": "mouse", "x": 0.7, "y": 0.65 }
+      ]
+    }
+  ]
+}
+```
+
+Add this optional property to a level object. Themes are `garden` or `workshop`;
+character IDs are `koshi`, `mouse`, and `wheel`. Each of 1–100 lines has
+1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
+Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
+axis. Per-line positions animate between dialogue beats. Old level JSON without
+`cutscene` remains compatible. Scenes are included in drafts, imports, exports,
+playtest links, direct-file play, and the offline app.
+
+### Level settings and placements
+
 1. Set the level name, time limit, food goal, optional heart cost (blank disables
    food-triggered hearts), and boundary brick set. Choose **Apply settings**.
    Click/tap any boundary brick (or focus it and press Enter) to select it,

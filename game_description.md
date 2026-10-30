@@ -16,6 +16,31 @@ The game is level-based, with multiple worlds split into individual levels. Most
 3. Simply survive until the time runs out
 4. Defeat the boss (no timer is used on bosses)
 
+### Pre-level Story Cutscenes
+
+Any level may define an optional cutscene before gameplay. The top two-thirds
+of the screen show the cast interacting against a background matching the
+level's world: a garden path for Levels 1-1 through 1-3 and the Clockwork Pantry
+workshop for Levels 1-4 and 1-5. The bottom third is a retro RPG dialogue box,
+with the speaking character's animated pixel-art head on the left and typed
+monospace dialogue on the right. Koshi, Robo Mouse, and Robo Wheel each have a
+distinct pixel portrait; stage characters reuse their actual gameplay drawings.
+
+Dialogue appears at 30 characters per second. Players may reveal the current
+line, continue to the next, begin the level after the last line, or skip the
+scene with Skip scene or Escape. Enter and Space activate the focused control.
+The level stays ready with its timer at zero and no spawns until the scene
+finishes or is skipped. Restart and level selection replay the scene; a level
+without one begins immediately. Switching away suspends cutscene animation,
+and reduced-motion preferences disable animation and show whole dialogue lines.
+
+All five campaign levels include sample story dialogue: the robots claim the
+garden's snacks, Koshi follows the shipment through a crumbling garden gate,
+and then confronts the slime security and warped vault walls of their pantry.
+The level editor supports optional scenes with either background, ordered
+dialogue lines, a speaker, and an on-stage cast. Saved JSON can additionally
+set each actor's normalized position per line.
+
 ### Koshi
 Koshi is a circular cat head who is grey with dark grey stripes, a white stripe on his nose, and two pointy ears. He is smiling and has 4 large whiskers poking out from either side of his face.
 

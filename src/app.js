@@ -35,6 +35,13 @@ let buttons = [];
 let brickRevision = -1;
 let customLevel = null;
 let displayedStuck = false;
+const cutscene = new globalThis.KoshiCutscenePlayer((context, character, time, speaking) => {
+  const previous = ctx;
+  ctx = context;
+  if (character === 'koshi') drawCat(0, 0, time);
+  else drawRobot({ type: character, x: 0, y: 0, distance: time * 25, resting: speaking && Math.floor(time * 4) % 2 === 0 });
+  ctx = previous;
+}, startLevel);
 
 if (location.hash.startsWith('#level=')) {
   try {
@@ -276,11 +283,18 @@ function begin() {
   game = createGame();
   makeBrickButtons();
   displayedState = null;
-  game.start();
   trail = [];
   toast.textContent = '';
   lastTime = null;
   resize();
+  syncUI();
+  if (game.level.cutscene) cutscene.open(game.level.cutscene, game.level.id);
+  else startLevel();
+}
+
+function startLevel() {
+  game.start();
+  lastTime = null;
   syncUI();
   pause.focus({ preventScroll: true });
 }
@@ -336,6 +350,7 @@ document.addEventListener('keydown', event => {
   }
 });
 function autoPause() {
+  if (cutscene.active) cutscene.paused = true;
   if (game.state === 'playing') { game.pause(); syncUI(); }
   lastTime = null;
 }
@@ -536,7 +551,9 @@ function resize() {
 }
 
 function frame(timestamp) {
-  if (lastTime !== null) game.update((timestamp - lastTime) / 1000);
+  const seconds = lastTime === null ? 0 : (timestamp - lastTime) / 1000;
+  if (cutscene.active) cutscene.update(seconds);
+  else game.update(seconds);
   lastTime = timestamp;
   syncUI();
   render(timestamp / 1000);

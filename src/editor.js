@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime } = globalThis.KoshiGame;
+const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, CHARACTERS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime } = globalThis.KoshiGame;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
@@ -559,9 +559,81 @@ function populateSettings() {
   $('#timeline').max = level.duration;
   $('#event-time').max = level.duration;
 }
+function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character: 'koshi', x: .28, y: .65 }, { character: 'mouse', x: .67, y: .65 }, { character: 'wheel', x: .82, y: .7 }] }) {
+  const row = document.createElement('div');
+  row.className = 'scene-line';
+  const speakerLabel = document.createElement('label');
+  speakerLabel.textContent = 'Speaker';
+  const speaker = document.createElement('select');
+  speaker.className = 'scene-speaker';
+  for (const [value, name] of Object.entries(CHARACTERS)) {
+    const option = document.createElement('option');
+    option.value = value; option.textContent = name; speaker.append(option);
+  }
+  speaker.value = line.speaker; speakerLabel.append(speaker);
+  const textLabel = document.createElement('label');
+  textLabel.textContent = 'Dialogue (up to 240 characters)';
+  const text = document.createElement('textarea');
+  text.className = 'scene-text'; text.rows = 3; text.value = line.text;
+  textLabel.append(text);
+  const cast = document.createElement('div'); cast.className = 'scene-cast';
+  for (const [character, name] of Object.entries(CHARACTERS)) {
+    const label = document.createElement('label'), checkbox = document.createElement('input');
+    checkbox.type = 'checkbox'; checkbox.value = character;
+    checkbox.checked = line.actors.some(actor => actor.character === character);
+    label.append(checkbox, `${name} on stage`); cast.append(label);
+  }
+  const updateSpeaker = () => {
+    for (const checkbox of cast.querySelectorAll('input')) {
+      checkbox.disabled = checkbox.value === speaker.value;
+      if (checkbox.disabled) checkbox.checked = true;
+    }
+  };
+  speaker.addEventListener('change', updateSpeaker); updateSpeaker();
+  const remove = document.createElement('button');
+  remove.type = 'button'; remove.textContent = 'Remove line';
+  remove.addEventListener('click', () => row.remove());
+  row.sceneActors = line.actors.map(actor => ({ ...actor }));
+  row.append(speakerLabel, textLabel, cast, remove);
+  $('#scene-lines').append(row);
+}
+function populateCutscene() {
+  $('#scene-enabled').checked = Boolean(level.cutscene);
+  $('#scene-fields').disabled = !level.cutscene;
+  $('#scene-theme').value = level.cutscene?.theme ?? 'garden';
+  $('#scene-lines').replaceChildren();
+  if (level.cutscene) level.cutscene.lines.forEach(addSceneLine);
+  else addSceneLine();
+}
+$('#scene-enabled').addEventListener('change', () => { $('#scene-fields').disabled = !$('#scene-enabled').checked; });
+$('#scene-add-line').addEventListener('click', () => {
+  if ($('#scene-lines').children.length >= 100) { message('Cutscenes support at most 100 dialogue lines.', true); return; }
+  addSceneLine();
+});
+$('#cutscene-form').addEventListener('submit', event => {
+  event.preventDefault();
+  attempt(() => {
+    const candidate = { ...level };
+    if ($('#scene-enabled').checked) {
+      candidate.cutscene = {
+        theme: $('#scene-theme').value,
+        lines: [...$('#scene-lines').children].map(row => ({
+          speaker: row.querySelector('.scene-speaker').value,
+          text: row.querySelector('.scene-text').value,
+          actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
+            const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
+            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82 }[checkbox.value], y: .65 }];
+          }),
+        })),
+      };
+    } else delete candidate.cutscene;
+    level = validateCustomLevel(candidate);
+    markChanged(); populateCutscene(); message('Cutscene applied. Playtest to watch it before the level starts.');
+  });
+});
 function replaceLevel(value) {
   const candidate = validateCustomLevel(value);
-  level = candidate; placing = true; markChanged(); populateSettings(); setSelection([], []);
+  level = candidate; placing = true; markChanged(); populateSettings(); populateCutscene(); setSelection([], []);
 }
 $('#timeline').addEventListener('input', () => {
   $('#event-time').value = Math.min(Number($('#timeline').value), Number($('#event-time').max));
@@ -627,5 +699,5 @@ if (location.hash.startsWith('#level=')) {
     committed = JSON.stringify(level); message('Playtest snapshot restored. Continue editing or import a different level.');
   });
 }
-populateSettings(); updatePlaytest(); populateEventForm(); render();
+populateSettings(); populateCutscene(); updatePlaytest(); populateEventForm(); render();
 })();

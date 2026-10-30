@@ -32,6 +32,18 @@
           <button type="submit">Apply settings</button>
         </form>
       </section>
+      <section class="editor-panel" aria-label="Pre-level cutscene">
+        <form id="cutscene-form">
+          <label class="inline-label"><input id="scene-enabled" type="checkbox"> Optional pre-level cutscene</label>
+          <p class="editor-help">The game clock stays stopped during the scene. Each line has a speaker, dialogue, and on-stage cast. Apply the scene before playtesting or exporting.</p>
+          <fieldset id="scene-fields" disabled>
+            <label>World background <select id="scene-theme"><option value="garden">Garden path</option><option value="workshop">Clockwork Pantry workshop</option></select></label>
+            <div id="scene-lines"></div>
+            <button id="scene-add-line" type="button">Add dialogue line</button>
+          </fieldset>
+          <button type="submit">Apply cutscene</button>
+        </form>
+      </section>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
           <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>

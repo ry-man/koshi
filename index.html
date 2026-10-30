@@ -14,10 +14,27 @@
     <meta name="apple-mobile-web-app-title" content="Koshi">
     <link rel="stylesheet" href="./style.css">
     <script defer src="./src/game.js"></script>
+    <script defer src="./src/cutscene.js"></script>
     <script defer src="./src/app.js"></script>
     <script defer src="./src/pwa.js"></script>
   </head>
   <body>
+    <dialog id="cutscene" aria-labelledby="cutscene-heading" aria-describedby="cutscene-transcript">
+      <div class="cutscene-stage">
+        <canvas id="cutscene-stage" aria-hidden="true"></canvas>
+        <h2 id="cutscene-heading"></h2>
+        <button id="cutscene-skip" type="button">Skip scene</button>
+      </div>
+      <section class="cutscene-dialogue" aria-label="Dialogue">
+        <canvas id="cutscene-portrait" width="32" height="32" aria-hidden="true"></canvas>
+        <div class="cutscene-words">
+          <strong id="cutscene-speaker"></strong>
+          <div class="cutscene-text-scroll"><p id="cutscene-text" aria-hidden="true"></p></div>
+          <p id="cutscene-transcript" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="cutscene-controls"><span id="cutscene-page"></span><button id="cutscene-next" type="button">Continue</button></div>
+        </div>
+      </section>
+    </dialog>
     <dialog id="title-screen" class="title-screen" aria-labelledby="title-heading" aria-describedby="title-tagline">
       <div class="title-content">
         <p class="eyebrow">SMALL PAWS. MIGHTY COURAGE.</p>

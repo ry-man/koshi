@@ -29,16 +29,99 @@ const SWORDS = {
   silver: { name: 'Silver Sword', color: '#d5e0ec', uses: 10 },
   gold: { name: 'Gold Sword', color: '#f3d16b', seconds: 15 },
 };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel' };
+const SCENE_THEMES = ['garden', 'workshop'];
+
+function validateCutscene(value) {
+  const fail = message => { throw new TypeError(`Cutscene: ${message}`); };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('expected an object.');
+  if (!SCENE_THEMES.includes(value.theme)) fail('theme must be garden or workshop.');
+  if (!Array.isArray(value.lines) || !value.lines.length || value.lines.length > 100) fail('provide 1–100 dialogue lines.');
+  return {
+    theme: value.theme,
+    lines: value.lines.map((line, i) => {
+      if (!line || typeof line.speaker !== 'string' || !Object.hasOwn(CHARACTERS, line.speaker)) fail(`line ${i + 1} has an unknown speaker.`);
+      if (typeof line.text !== 'string' || !line.text.trim() || Array.from(line.text).length > 240) fail(`line ${i + 1} needs 1–240 characters of dialogue.`);
+      if (!Array.isArray(line.actors) || !line.actors.length || line.actors.length > 6) fail(`line ${i + 1} needs 1–6 actors.`);
+      const actors = line.actors.map(actor => {
+        if (!actor || typeof actor.character !== 'string' || !Object.hasOwn(CHARACTERS, actor.character)) fail(`line ${i + 1} has an unknown actor.`);
+        for (const axis of ['x', 'y']) {
+          if (typeof actor[axis] !== 'number' || !Number.isFinite(actor[axis]) || actor[axis] < .1 || actor[axis] > .9) fail(`actor ${axis} must be between 0.1 and 0.9.`);
+        }
+        return { character: actor.character, x: actor.x, y: actor.y };
+      });
+      if (!actors.some(actor => actor.character === line.speaker)) fail(`line ${i + 1} must include the speaking character on stage.`);
+      return { speaker: line.speaker, text: line.text.trim(), actors };
+    }),
+  };
+}
+
+class Cutscene {
+  constructor(value, reducedMotion = false) {
+    this.scene = validateCutscene(value);
+    this.reducedMotion = reducedMotion;
+    this.index = 0;
+    this.elapsed = 0;
+    this.revealed = false;
+    this.finished = false;
+  }
+  get line() { return this.scene.lines[this.index]; }
+  get characters() { return Array.from(this.line.text); }
+  get visibleCount() { return this.reducedMotion || this.revealed ? this.characters.length : Math.min(this.characters.length, Math.floor(this.elapsed * 30)); }
+  get text() { return this.characters.slice(0, this.visibleCount).join(''); }
+  get typing() { return !this.finished && this.visibleCount < this.characters.length; }
+  update(seconds) {
+    if (!this.finished && Number.isFinite(seconds) && seconds > 0) this.elapsed += seconds;
+  }
+  advance() {
+    if (this.finished) return;
+    if (this.typing) this.revealed = true;
+    else if (this.index + 1 < this.scene.lines.length) { this.index++; this.elapsed = 0; this.revealed = false; }
+    else this.finished = true;
+  }
+  skip() { this.finished = true; }
+}
+
+const storyActors = [
+  { character: 'koshi', x: .28, y: .65 },
+  { character: 'mouse', x: .67, y: .65 },
+  { character: 'wheel', x: .82, y: .7 },
+];
+const story = (theme, dialogue) => ({
+  theme, lines: dialogue.map(([speaker, text]) => ({
+    speaker, text, actors: storyActors.map(actor => ({
+      ...actor, y: actor.y + (actor.character === speaker ? .05 : 0),
+    })),
+  })),
+});
 const LEVELS = [
-  { id: '1-1', duration: 60, goal: 20, heartCost: Infinity, food: SCHEDULE, enemies: [], weapons: [] },
+  {
+    id: '1-1', duration: 60, goal: 20, heartCost: Infinity, food: SCHEDULE, enemies: [], weapons: [],
+    cutscene: story('garden', [
+      ['koshi', 'A sunny garden, a quiet path... and not a snack in sight. Something is very wrong.'],
+      ['mouse', 'By order of the Clockwork Pantry, all snacks belong to us! Wheels, roll out!'],
+      ['wheel', 'BEEP. SNACK DELIVERY IN PROGRESS. NO CATS ALLOWED.'],
+      ['koshi', 'Then my adventure starts with breakfast. Those bricks should help me cross the garden!'],
+    ]),
+  },
   {
     id: '1-2', duration: 120, goal: 20, heartCost: 10,
+    cutscene: story('garden', [
+      ['mouse', 'You ate our shipment! Patrol units, guard the garden gate!'],
+      ['koshi', 'Your shipment? Those strawberries grew here. I am taking the path to the pantry.'],
+      ['wheel', 'WARNING: SWORDS DETECTED. KEEP AWAY FROM THE CAT.'],
+    ]),
     food: [[5,'S','S',10],[10,'S','S',10],[15,'S','S',10],[20,'L3','S',10],[25,'L3','S',10],[30,'L3','S',10],[35,'C3','S',10],[40,'C4','S',10],[50,'C5','S',10],[60,'R5','P',15],[80,'R5','P',15],[100,'R5','P',15]],
     enemies: [[10,'mouse',3],[20,'wheel',1],[30,'mouse',3],[40,'wheel',1],[50,'wheel',1],[60,'mouse',3],[70,'mouse',3],[80,'wheel',1],[90,'wheel',1],[100,'mouse',3]],
     weapons: [[5,'wood'],[15,'bronze'],[30,'silver'],[50,'gold'],[70,'silver'],[80,'gold']],
   },
   {
     id: '1-3', name: 'Crumb patrol', duration: 120, goal: 20, killGoal: 4, heartCost: 10, brickSet: 3,
+    cutscene: story('garden', [
+      ['mouse', 'This old garden wall will crumble before you catch our patrol!'],
+      ['koshi', 'Then I will choose my steps carefully. And that spring looks useful.'],
+      ['wheel', 'GATE LOCK: FOUR PATROL UNITS. FOOD ALONE WILL NOT OPEN IT.'],
+    ]),
     food: [[3,'L3','S',15],[15,'C4','S',20],[30,'R5','P',25],[50,'L3','C',25],[75,'R5','P',30],[100,'C4','P',20]],
     enemies: [[10,'mouse',2],[25,'mouse',2],[45,'wheel',1],[65,'mouse',2],[90,'wheel',1]],
     weapons: [[2,'bronze'],[20,'silver'],[50,'bronze'],[80,'silver']],
@@ -51,6 +134,11 @@ const LEVELS = [
   },
   {
     id: '1-4', name: 'Slime circuit', duration: 150, goal: 25, killGoal: 8, heartCost: 10, brickSet: 3,
+    cutscene: story('workshop', [
+      ['wheel', 'WELCOME TO THE PANTRY WORKSHOP. PLEASE ENJOY OUR STICKY SECURITY SYSTEM.'],
+      ['mouse', 'Blue slime is my finest work. Plenty of time for a little hand polish!'],
+      ['koshi', 'Blue holds longest, red lets go quickly. Eight guards between me and those stolen snacks.'],
+    ]),
     food: [[3,'C4','S',20],[18,'L3','P',20],[35,'R5','P',25],[55,'C4','C',25],[80,'R5','P',30],[110,'L3','C',30],[135,'C4','P',15]],
     enemies: [[10,'mouse',3],[25,'wheel',1],[40,'mouse',3],[60,'wheel',2],[85,'mouse',3],[110,'wheel',2],[130,'mouse',2]],
     weapons: [[2,'silver'],[30,'bronze'],[55,'gold'],[85,'silver'],[115,'silver']],
@@ -65,6 +153,11 @@ const LEVELS = [
   },
   {
     id: '1-5', name: 'Warped showdown', duration: 180, goal: 30, killGoal: 12, heartCost: 10, brickSet: 3,
+    cutscene: story('workshop', [
+      ['mouse', 'The pantry vault! These warped walls will swallow your escape routes!'],
+      ['wheel', 'TWELVE GUARDS ONLINE. CRUMBLING WALLS ARMED. SNACKS SECURED.'],
+      ['koshi', 'Walls can change. Plans can too. I am bringing every last snack back to the garden.'],
+    ]),
     food: [[3,'L3','P',20],[20,'C4','P',25],[40,'R5','P',25],[60,'L3','C',30],[85,'C5','P',30],[115,'R5','C',30],[145,'C4','P',30],[165,'L3','C',15]],
     enemies: [[10,'mouse',3],[25,'wheel',2],[40,'mouse',3],[60,'wheel',2],[80,'mouse',4],[105,'wheel',2],[130,'mouse',4],[155,'wheel',2]],
     weapons: [[2,'silver'],[30,'silver'],[55,'gold'],[80,'silver'],[105,'gold'],[135,'silver'],[155,'gold']],
@@ -112,6 +205,7 @@ function validateCustomLevel(value) {
     return result;
   });
   const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
+  if (value.cutscene !== undefined) result.cutscene = validateCutscene(value.cutscene);
   if (value.brickTypes !== undefined) {
     if (!Array.isArray(value.brickTypes) || value.brickTypes.length > 2000) fail('Brick types must be an array of at most 2000 edge overrides.');
     result.brickTypes = value.brickTypes.map((entry, i) => {
@@ -808,7 +902,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {
