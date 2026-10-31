@@ -16,6 +16,14 @@ The game is level-based, with multiple worlds split into individual levels. Most
 3. Simply survive until the time runs out
 4. Defeat the boss (no timer is used on bosses)
 
+Playable levels choose survival OR a combination of food and/or enemy targets.
+Survival wins at the exact time limit if Koshi is still alive on the board.
+Score levels win as soon as all selected targets are reached; failing to reach
+them before the time limit loses. The pre-level briefing states the objective.
+Required food and enemy counters show "/ target" and are highlighted in gold.
+Survival levels instead highlight the timer countdown in gold. The editor allows
+these choices; zero disables a score target. Boss objectives are not implemented.
+
 ### Learning Menus
 
 The title screen offers **How to play** and **Tutorial**.
@@ -236,6 +244,23 @@ Whenever Koshi loses a heart to an enemy or spikes, he becomes invulnerable to b
 
 Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.
 
+Live enemies cannot overlap or pass through each other. Roaming enemies turn away
+on contact, while charging Rams reflect and lose speed, as they do against bricks.
+Wheels never leave their boundary path: they queue behind other wheels and nudge
+other enemies inward. Collisions do not reset Mouse resting periods or Ram attack
+timers, and a targeting Ram keeps its locked aim even if nudged. Bombs and defeated
+enemies do not block live enemies.
+
+Enemy shields appear as colored rings and add hits before destruction. Blue shields
+become green, green become red, and red disappear; an unshielded enemy dies on its
+next hit. Each accepted hit grants the same one-second protection as Koshi and a
+blinking red color changes, without blurred hit effects or changes to the enemy's normal shape or movement rules.
+Sword hits consume one use per accepted hit; protected contacts do not consume uses.
+Boost attacks also respect this protection. Defeating an enemy awards its original
+required hit count: unshielded 1, red 2, green 3, blue 4. Points are awarded only on
+destruction and count toward the enemy-score objective. Shields are selectable for
+enemy placements and enemy-spawning bricks in the editor.
+
 ### Robo Mouse
 Appearance: Robotic mouse head with grated texture over its eyeballs.
 Movement: Mouse moves in random, curving patterns and periodically stops in place to lick its hands
@@ -247,6 +272,18 @@ Appearance: Robotic wheel with "Mr. Yuck" like face on it.
 Movement: Rolls along the boundary of the game board
 Attack: Does not fire projectiles nor directy chase Koshi. Only damages Koshi if they collide.
 Defeat: Wheel is defeated by any weapon.
+
+### Robo Ram
+Appearance: Sleek, metallic grey robotic head with large light-grey curling horns, tiny nostrils, and a red eye-and-mouth display.
+Movement: Wanders slowly, then pauses with brilliant sparkling eyes while aiming at Koshi's current position. It smoothly lines up the top of its head, then charges very quickly along that locked direction, reflecting off bricks and losing speed on each bounce, before returning to its wandering pattern.
+Attack: The charge can collide with Koshi and cause damage.
+Defeat: Any weapon defeats the ram. Its horns swing inward as its eyes fade, its head implodes, and a puff of smoke quickly dissipates.
+
+### Robo Bucket
+Appearance: Smiling faded-yellow bucket robot with a grey handle and waving grey arms, round eyes, and a red nose.
+Movement: Wanders slowly and randomly shoots a blue bomb from its mouth about once every four seconds on average. Bombs fly in straight lines, bounce off bricks with reflected angles, and lose a little speed. Their color gradually changes from blue to red as the three-second fuse runs down.
+Attack: A bomb is harmless while traveling. After a three-second fuse, it creates a growing red circle of flame that damages Koshi briefly.
+Defeat: Any weapon defeats the bucket. It frowns, its arms fall away, and it melts away with a puff of smoke behind it. Its bombs vanish in tiny explosions.
 
 ## Weapons
 

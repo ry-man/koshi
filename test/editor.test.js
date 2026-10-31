@@ -1,9 +1,181 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, validateCustomLevel, snapWheel, FOODS, SWORDS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
+
+test('enemy shields round-trip in placements and spawners and initialize their full score value', () => {
+  for (const shield of [null, 'red', 'green', 'blue']) {
+    const source = { ...blank(), events: [{ ...event('enemy', 'ram'), shield }],
+      brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'enemy', type: 'bucket', shield } }] };
+    const normalized = validateCustomLevel(JSON.parse(JSON.stringify(source)));
+    assert.deepEqual(normalized.events, source.events);
+    assert.deepEqual(normalized.brickTypes, source.brickTypes);
+    const game = new Game(() => .5, { customLevel: normalized });
+    const enemy = game.createCustomSpawn(normalized.events[0])[0];
+    assert.equal(enemy.shield, shield);
+    assert.equal(enemy.defeatPoints, shield === 'blue' ? 4 : shield === 'green' ? 3 : shield === 'red' ? 2 : 1);
+    const brick = game.bricks.find(brick => brick.spawner);
+    game.spawnFromBrick(brick);
+    assert.equal(game.robots[0].shield, shield);
+    assert.equal(game.robots[0].defeatPoints, enemy.defeatPoints);
+  }
+  for (const shield of ['yellow', false, 3, {}]) {
+    assert.throws(() => validateCustomLevel({ ...blank(), events: [{ ...event('enemy', 'mouse'), shield }] }), /shield/);
+  }
+  assert.throws(() => validateCustomLevel({ ...blank(), events: [{ ...event(), shield: 'red' }] }), /shield/);
+});
+
+test('win conditions validate and round-trip without changing older level JSON', () => {
+  for (const patch of [{ goal: 20 }, { goal: 0, killGoal: 30 }, { goal: 20, killGoal: 30 },
+    { goal: 0, survive: true }, { goal: 0, killGoal: 0, survive: true }]) {
+    const source = { ...blank(), ...patch };
+    assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(source))), source);
+  }
+  for (const patch of [{ goal: 0 }, { goal: 0, killGoal: 0 }, { killGoal: -1 },
+    { killGoal: 1.5 }, { killGoal: '30' }, { killGoal: Infinity }, { killGoal: 100001 },
+    { survive: 'true' }, { survive: true }, { goal: 0, killGoal: 1, survive: true }]) {
+    assert.throws(() => validateCustomLevel({ ...blank(), ...patch }), TypeError);
+  }
+  assert.deepEqual(validateCustomLevel(blank()), blank());
+});
+
+test('food-only, enemy-only, and combined objectives win only when all required scores are met', () => {
+  for (const targets of [{ goal: 2 }, { goal: 0, killGoal: 2 }, { goal: 2, killGoal: 2 }]) {
+    const game = new Game(() => .5, { customLevel: { ...blank(), ...targets } });
+    game.start(); game.update(.01);
+    assert.equal(game.state, 'playing');
+    game.score = targets.goal;
+    if (targets.killGoal) {
+      game.update(.01);
+      assert.equal(game.state, 'playing', 'food cannot satisfy an enemy objective');
+      game.enemies = targets.killGoal;
+      if (targets.goal) {
+        game.score = 0; game.update(.01);
+        assert.equal(game.state, 'playing', 'enemy defeats cannot satisfy a food objective');
+        game.score = targets.goal;
+      }
+    }
+    game.update(.01);
+    assert.equal(game.state, 'won');
+    game.reset(); game.start(); game.update(30);
+    assert.equal(game.state, 'lost', 'unmet scores lose at the time limit');
+  }
+});
+
+test('survival wins exactly at timeout, freezes on pause, resets, and never overrides death', () => {
+  const create = () => new Game(() => .5, { customLevel: { ...blank(), duration: 1, goal: 0, survive: true } });
+  const game = create(); game.start(); game.update(.5);
+  assert.equal(game.state, 'playing');
+  game.score = 100; game.enemies = 100;
+  game.pause(); game.update(10);
+  assert.equal(game.elapsed, .5);
+  game.resume(); game.update(.49);
+  assert.equal(game.state, 'playing');
+  game.update(.01);
+  assert.equal(game.state, 'won');
+  assert.equal(game.elapsed, 1);
+  game.reset();
+  assert.equal(game.elapsed, 0);
+  assert.equal(game.state, 'ready');
+  for (const lose of [g => { g.hearts = 0; }, g => { g.cat.x = -100; }]) {
+    const dying = create(); dying.start(); dying.elapsed = 1 - 1 / 120;
+    lose(dying); dying.update(1 / 120);
+    assert.equal(dying.state, 'lost', 'death at the deadline takes priority over survival');
+  }
+});
+
+test('briefings clearly state each available win condition', () => {
+  assert.equal(levelObjective({ duration: 60, goal: 20 }), 'Collect 20 food before time runs out (60 seconds)');
+  assert.equal(levelObjective({ duration: 60, goal: 0, killGoal: 30 }), 'Earn 30 enemy points before time runs out (60 seconds)');
+  assert.equal(levelObjective({ duration: 60, goal: 20, killGoal: 30 }), 'Collect 20 food and earn 30 enemy points before time runs out (60 seconds)');
+  assert.equal(levelObjective({ duration: 60, goal: 0, survive: true }), 'Survive for 60 seconds until the timer reaches zero');
+});
+
+test('HUD marks only required score targets or the survival timer and tracks objective progress', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = source.indexOf('  const { duration: DURATION, goal: GOAL');
+  const nodes = new Map();
+  const node = selector => {
+    if (!nodes.has(selector)) {
+      const classes = new Set();
+      nodes.set(selector, { textContent: '', innerHTML: '', style: {}, attributes: {},
+        classList: { toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); }, contains: name => classes.has(name) },
+        setAttribute(name, value) { this.attributes[name] = value; } });
+    }
+    return nodes.get(selector);
+  };
+  const game = { level: {}, score: 10, enemies: 15, elapsed: 30, hearts: 3 };
+  const context = vm.createContext({ game, levelObjective, document: { querySelector: node },
+    timer: node('#timer'), foodCount: node('#food-count'), hearts: node('#hearts'),
+    progress: node('#progress'), progressLabel: node('#progress-label') });
+  const hud = source.slice(start, source.indexOf('  const weaponCount', start));
+  for (const [patch, targets, progress] of [
+    [{ goal: 20 }, [false, true, false], '50%'],
+    [{ goal: 0, killGoal: 30 }, [false, false, true], '50%'],
+    [{ goal: 20, killGoal: 60 }, [false, true, true], '25%'],
+    [{ goal: 0, survive: true }, [true, false, false], '50%'],
+  ]) {
+    game.level = { id: 'HUD preview', duration: 60, ...patch };
+    vm.runInContext(`{${hud}}`, context);
+    ['#timer', '#food-count', '#enemy-count'].forEach((id, i) => assert.equal(node(id).classList.contains('win-target'), targets[i]));
+    assert.equal(node('#progress').style.width, progress);
+    assert.equal(node('#food-count').innerHTML.includes(`/ ${patch.goal}`), targets[1]);
+    assert.equal(node('#enemy-count').textContent.includes(`/ ${patch.killGoal}`), targets[2]);
+    assert.equal(node('.objective strong').textContent, levelObjective(game.level));
+  }
+  game.level = { id: 'Heart progress', duration: 60, goal: 100, heartCost: 10 };
+  for (const [score, nextHeart, earned] of [[0, 10, 0], [4, 10, 4], [10, 20, 0], [24, 30, 4]]) {
+    game.score = score; game.nextHeart = nextHeart;
+    vm.runInContext(`{${hud}}`, context);
+    assert.equal(node('#heart-cost').hidden, false);
+    assert.equal(node('#heart-cost-label').textContent, `Next heart: ${earned} / 10 food`);
+    assert.equal(node('#heart-cost-fill').style.width, `${earned * 10}%`);
+    assert.equal(node('#heart-cost-meter').attributes['aria-valuenow'], earned);
+    assert.equal(node('#heart-cost-meter').attributes['aria-valuemax'], 10);
+  }
+  for (const heartCost of [null, Infinity]) {
+    game.level.heartCost = heartCost;
+    vm.runInContext(`{${hud}}`, context);
+    assert.equal(node('#heart-cost').hidden, true);
+  }
+});
+
+test('editor settings select exclusive survival or score targets and preserve imported targets', () => {
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', disabled: false, listeners: {},
+      addEventListener(type, listener) { this.listeners[type] = listener; } });
+    return nodes.get(selector);
+  };
+  const messages = [];
+  const context = vm.createContext({ $, level: blank(), validateDraft: validateCustomLevel,
+    attempt: action => action(), markChanged() {}, render() {}, message: text => messages.push(text) });
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);
+  context.populateSettings();
+  const apply = () => $('#settings-form').listeners.submit({ preventDefault() {} });
+  $('#win-condition').value = 'survive';
+  $('#win-condition').listeners.change();
+  assert.equal($('#goal').disabled, true);
+  assert.equal($('#kill-goal').disabled, true);
+  apply();
+  assert.equal(context.level.survive, true); assert.equal(context.level.goal, 0); assert.equal(context.level.killGoal, 0);
+  $('#win-condition').value = 'scores'; $('#win-condition').listeners.change();
+  assert.equal($('#goal').disabled, false);
+  $('#kill-goal').value = '30';
+  apply();
+  assert.equal(context.level.survive, false); assert.equal(context.level.goal, 0); assert.equal(context.level.killGoal, 30);
+  context.level = { ...blank(), killGoal: 10 };
+  context.populateSettings();
+  assert.equal($('#goal').value, 50); assert.equal($('#kill-goal').value, 10);
+  assert.equal($('#win-condition').value, 'scores');
+  assert.equal(messages.length, 2);
+});
 
 test('desktop rotates phone bricks clockwise with stable IDs, edit slots, attributes, and adjacency', () => {
   const desktop = new Game(Math.random, { customLevel: blank() });
@@ -155,7 +327,7 @@ test('custom events are stable-sorted, spawn once at exact times, and work at ti
 
 test('normalized placements project to the same relative safe-area positions in both orientations', () => {
   for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .6 }]) {
-    const level = { ...blank(), events: [event('food', 'F', 0), event('weapon', 'gold', 0), event('enemy', 'mouse', 0)] };
+    const level = { ...blank(), events: [event('food', 'F', 0), event('weapon', 'gold', 0), event('enemy', 'mouse', 0), event('enemy', 'ram', 0), event('enemy', 'bucket', 0)] };
     const game = new Game(() => .5, { ...options, customLevel: level });
     game.start();
     const b = game.bounds();

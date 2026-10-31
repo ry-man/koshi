@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, SWORDS } = require('../src/game.js');
+const { Game, LEVELS, SWORDS, SHIELDS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -153,11 +153,16 @@ test('wood, bronze, and silver break at precisely their defeat limits', () => {
 
 test('enemy deaths are harmless snapshots, freeze on pause, expire, and clear on restart', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
-    for (const type of ['mouse', 'wheel']) {
+    for (const type of ['mouse', 'wheel', 'ram', 'bucket']) {
       const game = arena(options);
       game.cat.x = game.bounds().left; game.cat.y = game.bounds().top;
       game.weapon = { type: 'wood', uses: 1, expires: Infinity };
       const enemy = { ...mouse(game), type, distance: 0 };
+      if (type === 'ram') game.initializeRam(enemy);
+      if (type === 'bucket') {
+        game.initializeBucket(enemy);
+        enemy.bombs.push({ x: game.cat.x + 100, y: game.cat.y, state: 'flying', fuse: 1, blastAge: 0, blastRadius: 0 });
+      }
       game.robots.push(enemy);
       game.combat(0, game.cat.x, game.cat.y);
       assert.equal(game.robots.length, 0);
@@ -167,6 +172,10 @@ test('enemy deaths are harmless snapshots, freeze on pause, expire, and clear on
       assert.notEqual(death, enemy);
       assert.equal(death.type, type);
       assert.equal(death.deathProgress, 0);
+      if (type === 'bucket') {
+        assert.equal(death.bombs.length, 1);
+        assert.notEqual(death.bombs[0], enemy.bombs[0]);
+      }
       const { x, y } = death;
       game.update(.35);
       assert.ok(death.deathProgress > 0 && death.deathProgress < 1);
@@ -178,7 +187,7 @@ test('enemy deaths are harmless snapshots, freeze on pause, expire, and clear on
       for (const seconds of [10, NaN, Infinity, -1, 0]) game.update(seconds);
       assert.equal(death.deathProgress, progress);
       game.resume();
-      game.update(type === 'mouse' ? .75 : .35);
+      game.update(type === 'mouse' ? .75 : type === 'ram' || type === 'bucket' ? .6 : .35);
       assert.equal(game.enemyDeaths.length, 0);
       game.enemyDeaths.push({ ...death, deathProgress: 0 });
       game.reset();
@@ -246,14 +255,20 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
       if (name === 'createRadialGradient') return (...args) => { operations.push([name, ...args]); return gradient; };
       return (...args) => operations.push([name, ...args, target.fillStyle, target.globalAlpha]);
     },
-    set(target, name, value) { target[name] = value; return true; },
+    set(target, name, value) {
+      if (name === 'filter') operations.push(['filter', value]);
+      target[name] = value; return true;
+    },
   });
-  const context = vm.createContext({ ctx });
+  const context = vm.createContext({ ctx, SHIELDS });
   vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
     + source.slice(source.indexOf('function drawRobot('), source.indexOf('function resize(')), context);
   const draw = (type, progress = null) => {
     operations.length = 0;
-    const enemy = { type, x: 100, y: 100, distance: 0, deathProgress: progress };
+    const enemy = {
+      type, x: 100, y: 100, distance: 0, age: 0, bombs: [{ x: 120, y: 100 }],
+      state: type === 'ram' ? 'targeting' : undefined, stateTime: .5, facingAngle: 0, deathProgress: progress,
+    };
     if (progress === null) context.drawRobot(enemy);
     else context.drawEnemyDeath(enemy);
     assert.equal(ctx.globalAlpha, 1);
@@ -261,6 +276,18 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
     return operations.slice();
   };
   const alive = draw('mouse');
+  operations.length = 0;
+  context.drawRobot({ type: 'mouse', x: 100, y: 100, shield: 'blue', radius: 19 }, null, .25);
+  assert.ok(operations.some(op => op[0] === 'arc' && op[3] === 28), 'shield ring surrounds the unchanged enemy');
+  for (const type of ['mouse', 'wheel', 'ram', 'bucket']) {
+    for (const [damageProgress, color] of [[0, '#dc626b'], [.25, '#f2a0a5']]) {
+      operations.length = 0;
+      context.drawRobot({ type, x: 100, y: 100, shield: 'blue', radius: 19, age: 0, distance: 0 }, null, damageProgress);
+      assert.ok(operations.some(op => op[0] === 'fill' && op.at(-2) === color), `${type} blinks red`);
+      assert.ok(!operations.some(op => op[0] === 'filter'), 'damage never applies a canvas filter');
+    }
+  }
+  assert.equal(stack.length, 0);
   assert.ok(alive.some(op => op[0] === 'fillRect' && op.at(-2) === '#d46665'));
   const mouseDeath = draw('mouse', .4);
   assert.ok(mouseDeath.some(op => op[0] === 'translate' && op[1] === -12 && Math.abs(op[2] - 16) < 1e-9));
@@ -269,6 +296,47 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
   assert.ok(mouseDeath.some(op => op[0] === 'fill' && op.at(-2) === '#a8b2b9' && op.at(-1) < 1));
   const smoke = draw('mouse', .9);
   assert.ok(smoke.some(op => op[0] === 'fillRect' && op.at(-1) === 0));
+  const ramAlive = draw('ram');
+  assert.ok(ramAlive.some(op => op[0] === 'bezierCurveTo'));
+  assert.ok(ramAlive.some(op => op[0] === 'ellipse' && op[1] === -2.5 && op[2] === 4), 'the ram has nostrils above its mouth');
+  const ramTelegraph = draw('ram');
+  assert.ok(ramTelegraph.some(op => op[0] === 'fill' && String(op.at(-2)).startsWith('rgba(255,45,48')));
+  const ramDeath = draw('ram', .5);
+  assert.ok(ramDeath.some(op => op[0] === 'rotate' && Math.abs(op[1]) > 0));
+  assert.ok(ramDeath.some(op => op[0] === 'fill' && op.at(-2) === '#d1dce4' && op.at(-1) < 1));
+  const bucketAlive = draw('bucket');
+  assert.ok(bucketAlive.some(op => op[0] === 'ellipse' && op.at(-2) === '#db4847'));
+  assert.ok(bucketAlive.some(op => op[0] === 'quadraticCurveTo' && op[1] === 0 && op[2] === 19 && op[3] === 8 && op[4] === 13),
+    'the living bucket smiles with the center of its mouth below the corners');
+  const bucketDefeated = draw('bucket', 0);
+  assert.ok(bucketDefeated.some(op => op[0] === 'quadraticCurveTo' && op[1] === 0 && op[2] === 11 && op[3] === 8 && op[4] === 15),
+    'the bucket frowns immediately upon defeat');
+  const bucketArmsFall = draw('bucket', .2);
+  assert.ok(bucketArmsFall.some(op => op[0] === 'translate' && Math.abs(op[1]) > 16 && op[2] > -8),
+    'the bucket arms fall away from the body');
+  const bucketFrown = draw('bucket', .4);
+  assert.ok(bucketFrown.some(op => op[0] === 'quadraticCurveTo' && op[1] === 0 && op[2] === 11 && op[3] === 8 && op[4] === 15),
+    'the bucket frowns before melting');
+  const bucketDeath = draw('bucket', .5);
+  assert.ok(bucketDeath.some(op => op[0] === 'arc' && op.at(-2) === '#ff7040'));
+  const bucketMelting = draw('bucket', .8);
+  assert.ok(bucketMelting.some(op => op[0] === 'scale' && op[1] === 1 && op[2] < .5),
+    'the bucket melts away vertically');
+  assert.ok(bucketMelting.some(op => op[0] === 'quadraticCurveTo' && op[1] === 0 && op[2] === 11 && op[3] === 8 && op[4] === 15),
+    'the frown remains as the bucket melts');
+  const smokeIndex = bucketArmsFall.findIndex(op => op[0] === 'fill' && op.at(-2) === '#9aa5a9');
+  const bucketBody = bucketArmsFall.findIndex(op => op[0] === 'fill' && op.at(-2) === '#c9bd76');
+  assert.ok(smokeIndex >= 0 && bucketBody > smokeIndex, 'smoke appears behind the bucket death animation');
+  for (const [fuse, color] of [[3, 'rgb(57,139,214)'], [1.5, 'rgb(145,98,134)'], [0, 'rgb(232,56,54)']]) {
+    operations.length = 0;
+    context.drawBomb({ x: 100, y: 100, radius: 8, state: 'flying', fuse });
+    assert.ok(operations.some(op => op[0] === 'fill' && op.at(-2) === color), `bomb color matches ${fuse} seconds remaining`);
+    assert.equal(ctx.globalAlpha, 1);
+    assert.equal(stack.length, 0);
+  }
+  operations.length = 0;
+  context.drawRobot({ type: 'ram', x: 100, y: 100, angle: 0, facingAngle: -Math.PI / 2, state: 'charging' });
+  assert.ok(operations.some(op => op[0] === 'rotate' && Math.abs(op[1] + Math.PI / 2) < 1e-9));
   const implosion = draw('wheel', .2);
   assert.ok(implosion.some(op => op[0] === 'scale' && op[1] > 0 && op[1] < 1));
   assert.ok(!implosion.some(op => op[0] === 'createRadialGradient'));
@@ -298,6 +366,81 @@ test('gold has unlimited defeats for 15 seconds and pause freezes its timer', ()
   assert.equal(game.weapon.type, 'gold');
   game.update(.1);
   assert.equal(game.weapon, null);
+});
+
+test('each shield tier takes its full hit count, shares Koshi protection timing, and awards points only on defeat', () => {
+  for (const type of ['mouse', 'wheel', 'ram', 'bucket']) {
+    for (const shield of ['red', 'green', 'blue']) {
+      const game = arena();
+      const enemy = game.createCustomSpawn({ kind: 'enemy', type, shield, x: .5, y: .5 })[0];
+      game.robots = [enemy];
+      game.weapon = { type: 'silver', uses: 10, expires: Infinity };
+      const initialPoints = SHIELDS[shield].hits;
+      for (let hit = 1; hit <= initialPoints; hit++) {
+        enemy.x = game.cat.x; enemy.y = game.cat.y;
+        game.combat(0, game.cat.x, game.cat.y);
+        assert.equal(game.weapon.uses, 10 - hit);
+        if (hit === initialPoints) break;
+        assert.equal(game.enemies, 0);
+        assert.equal(game.enemyDeaths.length, 0);
+        assert.equal(enemy.shield, hit === initialPoints - 1 ? null : hit === initialPoints - 2 ? 'red' : 'green');
+        assert.equal(game.enemyDamageProgress(enemy), 0);
+        game.takeDamage();
+        assert.equal(enemy.invulnerableUntil, game.invulnerableUntil);
+        const deadline = enemy.invulnerableUntil;
+        game.elapsed = deadline - .00001;
+        game.combat(0, game.cat.x, game.cat.y);
+        assert.equal(game.weapon.uses, 10 - hit, 'protected contacts do not consume sword uses');
+        assert.equal(enemy.invulnerableUntil, deadline, 'protected contacts do not extend the timer');
+        game.pause();
+        const progress = game.enemyDamageProgress(enemy);
+        game.update(3);
+        assert.equal(game.enemyDamageProgress(enemy), progress);
+        game.resume(); game.elapsed = deadline;
+        assert.equal(game.enemyDamageProgress(enemy), null);
+      }
+      assert.equal(game.robots.length, 0);
+      assert.equal(game.enemyDeaths.length, 1);
+      assert.equal(game.enemies, initialPoints);
+      game.reset();
+      assert.equal(game.enemies, 0);
+      assert.equal(game.enemyDeaths.length, 0);
+    }
+  }
+});
+
+test('shield hits consume wood, boosts respect protection without using swords, and weighted scores meet goals', () => {
+  const game = arena();
+  const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'bucket', shield: 'blue', x: .5, y: .5 })[0];
+  game.robots = [enemy];
+  game.weapon = { type: 'wood', uses: 1, expires: Infinity };
+  game.combat(0, game.cat.x, game.cat.y);
+  assert.equal(game.weapon, null);
+  assert.equal(enemy.shield, 'green');
+  game.weapon = { type: 'silver', uses: 10, expires: Infinity };
+  game.boosted = true;
+  game.combat(0, game.cat.x, game.cat.y);
+  assert.equal(enemy.shield, 'green');
+  for (let i = 0; i < 3; i++) {
+    game.elapsed = enemy.invulnerableUntil;
+    game.combat(0, game.cat.x, game.cat.y);
+  }
+  assert.equal(game.weapon.uses, 10);
+  assert.equal(game.enemies, 4);
+  const goalGame = new Game(() => .5, { customLevel: {
+    version: 1, id: 'Shield goal', duration: 10, goal: 0, killGoal: 2, heartCost: null, brickSet: 1,
+    events: [{ time: 0, kind: 'enemy', type: 'mouse', shield: 'red', x: .5, y: .5 }],
+  } });
+  goalGame.start();
+  goalGame.weapon = { type: 'silver', uses: 10, expires: Infinity };
+  goalGame.update(.01);
+  assert.equal(goalGame.state, 'playing');
+  const target = goalGame.robots[0];
+  goalGame.elapsed = target.invulnerableUntil;
+  target.x = goalGame.cat.x; target.y = goalGame.cat.y;
+  goalGame.update(.001);
+  assert.equal(goalGame.enemies, 2);
+  assert.equal(goalGame.state, 'won');
 });
 
 test('weapons cannot be swapped, and uncollected swords persist', () => {
@@ -403,6 +546,198 @@ test('mouse pauses to lick hands and wheels remain on the inner perimeter in bot
     }
     assert.ok(wheel.distance > distance);
   }
+});
+
+test('Robo Rams wander, lock onto Koshi, telegraph, and charge toward the saved position', () => {
+  const game = arena();
+  const ram = game.createCustomSpawn({ kind: 'enemy', type: 'ram', x: .5, y: .5 })[0];
+  assert.equal(ram.state, 'wander');
+  ram.x = game.width / 2; ram.y = game.height / 2;
+  ram.wanderDuration = .1; ram.turnTime = 10;
+  game.cat.x = game.bounds().right; game.cat.y = game.bounds().bottom;
+  const previousFacingAngle = ram.facingAngle;
+  game.updateRam(ram, .1, []);
+  assert.equal(ram.state, 'targeting');
+  assert.equal(ram.targetX, game.cat.x);
+  assert.equal(ram.targetY, game.cat.y);
+  const targetAngle = Math.atan2(ram.targetY - ram.y, ram.targetX - ram.x);
+  assert.ok(Math.abs(ram.angle - targetAngle) < 1e-9);
+  const wrappedDifference = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+  assert.ok(Math.abs(wrappedDifference(ram.facingAngle, previousFacingAngle)) <= .45 + 1e-9,
+    'the head turns at a capped rate');
+  game.cat.x = game.bounds().left;
+  game.updateRam(ram, 1.05, []);
+  assert.equal(ram.state, 'charging');
+  assert.ok(Math.abs(ram.angle - targetAngle) < 1e-9, 'the charge keeps its original target');
+  assert.ok(Math.abs(wrappedDifference(ram.facingAngle, ram.angle - Math.PI / 2)) < .1,
+    'the top of the head lines up with the charge');
+  assert.equal(ram.speed, 520);
+  game.updateRam(ram, 1.5, []);
+  assert.equal(ram.state, 'wander', 'charges end and return to wandering');
+});
+
+test('Robo Rams reflect from bricks and lose speed on each bounce', () => {
+  const game = arena();
+  const ram = { ...mouse(game, 326, 300), type: 'ram', state: 'charging', stateTime: 0, angle: 0, speed: 200 };
+  game.bricks.push({ id: game.bricks.length, x: 350, y: 250, w: 20, h: 100 });
+  game.cat.x = 800; game.cat.y = 500;
+  game.robots.push(ram);
+  game.combat(.1, game.cat.x, game.cat.y);
+  assert.ok(Math.abs(ram.speed - 156) < 1e-9);
+  assert.ok(Math.cos(ram.angle) < -.999);
+  assert.ok(Math.abs(ram.x - 319.3) < .02);
+});
+
+test('all enemy types separate, including coincident spawns and wheels at corners', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    for (const typeA of ['mouse', 'wheel', 'ram', 'bucket']) {
+      for (const typeB of ['mouse', 'wheel', 'ram', 'bucket']) {
+        const game = arena(options);
+        const a = game.createCustomSpawn({ kind: 'enemy', type: typeA, x: 0, y: 0 })[0];
+        const b = game.createCustomSpawn({ kind: 'enemy', type: typeB, x: 0, y: 0 })[0];
+        game.robots = [a, b];
+        game.resolveEnemyCollisions(new Map(game.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y }])));
+        assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= a.radius + b.radius - 1e-6,
+          `${typeA}/${typeB} separate at a corner`);
+        const bounds = game.bounds();
+        for (const enemy of game.robots) {
+          assert.ok(enemy.x >= bounds.left - 1e-9 && enemy.x <= bounds.right + 1e-9);
+          assert.ok(enemy.y >= bounds.top - 1e-9 && enemy.y <= bounds.bottom + 1e-9);
+          if (enemy.type === 'wheel') {
+            assert.ok(enemy.x === bounds.left || enemy.x === bounds.right || enemy.y === bounds.top || enemy.y === bounds.bottom);
+            const position = { x: enemy.x, y: enemy.y };
+            game.placeWheel(enemy);
+            assert.deepEqual({ x: enemy.x, y: enemy.y }, position, 'wheel distance matches its boundary position');
+          }
+        }
+      }
+    }
+  }
+});
+
+test('moving enemies turn away and fast Rams cannot pass through other enemies', () => {
+  for (const type of ['mouse', 'ram', 'bucket']) {
+    const game = arena();
+    game.cat.x = 800; game.cat.y = 500;
+    const moving = game.createCustomSpawn({ kind: 'enemy', type, x: .5, y: .5 })[0];
+    Object.assign(moving, { x: 300, y: 300, phase: 0, age: 0 });
+    if (type === 'bucket') moving.shotTimer = 100;
+    if (type === 'ram') Object.assign(moving, { state: 'charging', stateTime: 0, angle: 0, speed: 520, facingAngle: -Math.PI / 2 });
+    const resting = mouse(game, 339, 300);
+    game.robots = [moving, resting];
+    game.combat(1 / 120, game.cat.x, game.cat.y);
+    // Slower wanderers reach contact over several fixed updates.
+    for (let i = 0; i < 8; i++) game.combat(1 / 120, game.cat.x, game.cat.y);
+    assert.ok(Math.hypot(moving.x - resting.x, moving.y - resting.y) >= 38 - 1e-6);
+    assert.ok(Math.cos(type === 'ram' ? moving.angle : moving.phase) < 0, `${type} turns away`);
+    assert.equal(resting.resting, true);
+    if (type === 'ram') {
+      assert.equal(moving.state, 'charging');
+      assert.ok(Math.abs(moving.speed - 520 * .78) < 1e-9, 'one contact loses speed only once');
+    }
+  }
+  const game = arena();
+  game.cat.x = 800; game.cat.y = 500;
+  const ram = game.createCustomSpawn({ kind: 'enemy', type: 'ram', x: .5, y: .5 })[0];
+  Object.assign(ram, { x: 200, y: 300, state: 'charging', stateTime: 0, angle: 0, speed: 520 });
+  const resting = mouse(game, 250, 300);
+  game.robots = [ram, resting];
+  game.combat(.2, game.cat.x, game.cat.y);
+  assert.ok(ram.x <= resting.x - 38 + 1e-6, 'swept collision catches a Ram even if it would cross completely');
+  assert.ok(Math.cos(ram.angle) < 0);
+});
+
+test('wheel collisions preserve the boundary route and targeting Rams keep their aim and timing', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const game = arena(options), bounds = game.bounds(), w = bounds.right - bounds.left;
+    game.cat.x = game.width / 2; game.cat.y = game.height / 2;
+    const wheels = [w - 20, w + 20].map(distance => {
+      const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'wheel', x: 0, y: 0 })[0];
+      enemy.distance = distance; game.placeWheel(enemy);
+      return enemy;
+    });
+    const ram = game.createCustomSpawn({ kind: 'enemy', type: 'ram', x: .5, y: .5 })[0];
+    Object.assign(ram, { x: bounds.right - 5, y: bounds.top + 20, state: 'targeting', stateTime: 0,
+      angle: 2, targetX: game.cat.x, targetY: game.cat.y });
+    game.robots = [...wheels, ram];
+    for (let i = 0; i < 60; i++) {
+      game.combat(1 / 120, game.cat.x, game.cat.y);
+      for (const wheel of wheels) {
+        assert.ok(wheel.x === bounds.left || wheel.x === bounds.right || wheel.y === bounds.top || wheel.y === bounds.bottom);
+      }
+      for (let a = 0; a < game.robots.length; a++) for (let b = a + 1; b < game.robots.length; b++) {
+        assert.ok(Math.hypot(game.robots[a].x - game.robots[b].x, game.robots[a].y - game.robots[b].y) >= 38 - 1e-6);
+      }
+    }
+    assert.equal(ram.state, 'targeting');
+    assert.equal(ram.angle, 2);
+    assert.ok(Math.abs(ram.stateTime - .5) < 1e-9);
+    assert.equal(ram.targetX, game.cat.x); assert.equal(ram.targetY, game.cat.y);
+    assert.ok(wheels[1].distance > w + 20, 'the front wheel continues its patrol');
+  }
+});
+
+test('crowded enemy spawns settle without overlap and collisions freeze on pause', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    for (const [x, y] of [[0, 0], [.5, 0], [.5, .5], [1, 1]]) {
+      const game = arena(options);
+      game.cat.x = game.width / 2; game.cat.y = game.height * .8;
+      game.robots = Array.from({ length: 40 }, (_, i) =>
+        game.createCustomSpawn({ kind: 'enemy', type: ['mouse', 'wheel', 'ram', 'bucket'][i % 4], x, y })[0]);
+      game.combat(1 / 120, game.cat.x, game.cat.y);
+      for (let i = 0; i < game.robots.length; i++) for (let j = i + 1; j < game.robots.length; j++) {
+        assert.ok(Math.hypot(game.robots[i].x - game.robots[j].x, game.robots[i].y - game.robots[j].y) >= 38 - 1e-6);
+      }
+      game.pause();
+      const snapshot = structuredClone(game.robots);
+      game.update(1);
+      assert.deepEqual(game.robots, snapshot);
+    }
+  }
+});
+
+test('Robo Buckets fire on randomized intervals and bombs bounce while their fuse counts down', () => {
+  const game = arena();
+  const bucket = game.createCustomSpawn({ kind: 'enemy', type: 'bucket', x: .5, y: .5 })[0];
+  bucket.x = 280; bucket.y = 300; bucket.phase = 0; bucket.shotTimer = .01;
+  game.cat.x = 800; game.cat.y = 500;
+  game.bricks.push({ id: game.bricks.length, x: 350, y: 250, w: 20, h: 100 });
+  game.robots.push(bucket);
+  game.combat(.02, game.cat.x, game.cat.y);
+  assert.equal(bucket.bombs.length, 1);
+  assert.equal(bucket.bombs[0].state, 'flying');
+  assert.equal(bucket.bombs[0].radius, 8);
+  const bomb = bucket.bombs[0];
+  bomb.x = 326; bomb.y = 300; bomb.vx = 200; bomb.vy = 0;
+  bomb.fuse = 2.5;
+  bucket.shotTimer = 100;
+  game.combat(.1, game.cat.x, game.cat.y);
+  assert.ok(bomb.vx < 0, 'the bomb reflects from the brick');
+  assert.ok(Math.abs(bomb.vx + 176) < 1e-8, 'a bounce loses some speed');
+  assert.ok(Math.abs(bomb.fuse - 2.4) < 1e-8);
+});
+
+test('Robo Bucket bombs are harmless before detonation and flame circles damage on contact', () => {
+  const game = arena();
+  const bucket = { ...mouse(game, game.cat.x + 180, game.cat.y + 120), type: 'bucket', phase: 0, shotTimer: 100 };
+  game.initializeBucket(bucket);
+  const bomb = {
+    x: game.cat.x, y: game.cat.y, vx: 0, vy: 0, radius: 6,
+    fuse: 3, state: 'flying', blastAge: 0, blastRadius: 0, touching: false,
+  };
+  bucket.bombs = [bomb];
+  game.robots.push(bucket);
+  game.combat(2.99, game.cat.x, game.cat.y);
+  assert.equal(game.hearts, 3);
+  assert.equal(bomb.state, 'flying');
+  game.combat(.02, game.cat.x, game.cat.y);
+  assert.equal(game.hearts, 3, 'a newly detonated bomb starts with a harmless animation frame');
+  game.combat(.01, game.cat.x, game.cat.y);
+  assert.equal(game.hearts, 2);
+  assert.equal(bomb.state, 'exploding');
+  assert.ok(bomb.blastRadius > 0);
+  game.combat(.1, game.cat.x, game.cat.y);
+  assert.equal(game.hearts, 2, 'one continuous flame contact does not repeatedly damage');
 });
 
 test('new pickups and enemies spawn clear of all bricks, and reset clears combat state', () => {

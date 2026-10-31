@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 8);
-  assert.equal(LESSONS.length, 20);
+  assert.equal(LESSONS.length, 22);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   const tutorial = new Tutorial();
   assert.throws(() => tutorial.select(-1), RangeError);
@@ -46,7 +46,7 @@ test('guide illustrates every brick, enemy, heart, and weapon without a story se
   for (const picture of [
     'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped', 'brick:warped-crumbler',
     'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'brick:conveyor', 'heart',
-    'enemy:mouse', 'enemy:wheel', ...Object.keys(SWORDS).map(type => `weapon:${type}`),
+    'enemy:mouse', 'enemy:wheel', 'enemy:ram', 'enemy:bucket', ...Object.keys(SWORDS).map(type => `weapon:${type}`),
   ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
   assert.equal(new Set(pictures).size, pictures.length);
   for (const chapter of GUIDE) {
@@ -108,8 +108,8 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     assert.equal(springs.observe(), true);
   });
 
-  test(`sword pickups and both enemy intercepts complete without damage on ${layout}`, () => {
-    for (const id of ['mouse', 'wheel', 'objectives']) {
+  test(`sword pickups and enemy intercepts complete without damage on ${layout}`, () => {
+    for (const id of ['mouse', 'wheel', 'ram', 'bucket', 'objectives']) {
       for (const sword of Object.keys(SWORDS)) {
         const tutorial = new Tutorial(); tutorial.sword = sword; tutorial.select(indexOf(id), options);
         aim(tutorial); wait(tutorial, .9);

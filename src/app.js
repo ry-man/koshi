@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, levelObjective, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots } = globalThis.KoshiSaves;
@@ -65,7 +65,7 @@ if (location.hash.startsWith('#level=')) {
     levelSelect.append(option);
     levelSelect.value = 'custom';
     document.querySelector('#editor-link').href = `./editor.html${location.hash}`;
-    document.querySelector('#dialog-text').textContent = `Collect ${customLevel.goal} food in ${customLevel.duration} seconds. This is your custom level from the editor.`;
+    document.querySelector('#dialog-text').textContent = `${levelObjective(customLevel)}. This is your custom level from the editor.`;
   } catch (error) {
     console.error('Custom level could not be loaded:', error);
     const message = document.querySelector('#level-error');
@@ -435,21 +435,40 @@ function syncUI() {
       status.textContent = stuck ? '' : toast.textContent;
     }
   }
-  const { duration: DURATION, goal: GOAL, killGoal = 0 } = game.level;
-  const fraction = Math.min(1, game.score / GOAL, killGoal ? game.enemies / killGoal : 1);
+  const { duration: DURATION, goal: GOAL, killGoal = 0, survive = false } = game.level;
+  const foodTarget = !survive && GOAL > 0 && Number.isFinite(GOAL);
+  const enemyTarget = !survive && killGoal > 0 && Number.isFinite(killGoal);
+  const fraction = survive ? Math.min(1, game.elapsed / DURATION)
+    : Math.min(1, GOAL > 0 ? game.score / GOAL : 1, killGoal > 0 ? game.enemies / killGoal : 1);
   timer.innerHTML = Number.isFinite(DURATION) ? `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '◷ ∞';
-  foodCount.innerHTML = `🍗 ${game.score}${Number.isFinite(GOAL) ? ` <span>/ ${GOAL}</span>` : ''}`;
+  foodCount.innerHTML = `🍗 ${game.score}${foodTarget ? ` <span>/ ${GOAL}</span>` : ''}`;
+  timer.classList.toggle('win-target', survive);
+  foodCount.classList.toggle('win-target', foodTarget);
+  foodCount.setAttribute('aria-label', foodTarget ? `${game.score} of ${GOAL} food collected` : `${game.score} food collected`);
   hearts.textContent = '♥ '.repeat(game.hearts).trim() + ' ♡'.repeat(3 - game.hearts);
   hearts.setAttribute('aria-label', `${game.hearts} of 3 hearts`);
+  const heartCost = game.level.heartCost;
+  const heartSpawning = Number.isFinite(heartCost) && heartCost > 0;
+  document.querySelector('#heart-cost').hidden = !heartSpawning;
+  if (heartSpawning) {
+    const earned = Math.max(0, Math.min(heartCost, game.score - (game.nextHeart - heartCost)));
+    document.querySelector('#heart-cost-label').textContent = `Next heart: ${earned} / ${heartCost} food`;
+    const meter = document.querySelector('#heart-cost-meter');
+    meter.setAttribute('aria-valuemax', heartCost);
+    meter.setAttribute('aria-valuenow', earned);
+    meter.setAttribute('aria-valuetext', `${earned} of ${heartCost} food toward the next healing heart`);
+    document.querySelector('#heart-cost-fill').style.width = `${earned / heartCost * 100}%`;
+  }
   progress.style.width = `${fraction * 100}%`;
   progressLabel.textContent = `${Math.round(fraction * 100)}% complete`;
   document.querySelector('#level-number').textContent = game.level.id;
   document.querySelector('.level-badge strong').textContent = game.level.id;
   document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.level.name?.toUpperCase() ?? (game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS');
-  document.querySelector('.objective strong').textContent = `Collect ${GOAL} food${killGoal ? ` and defeat ${killGoal} robots` : ''} before time runs out`;
+  document.querySelector('.objective strong').textContent = levelObjective(game.level);
   const enemyCount = document.querySelector('#enemy-count');
-  enemyCount.textContent = `👾 ${game.enemies}${killGoal ? ` / ${killGoal}` : ''}`;
-  enemyCount.setAttribute('aria-label', killGoal ? `${game.enemies} of ${killGoal} robots defeated` : `${game.enemies} robots defeated`);
+  enemyCount.textContent = `👾 ${game.enemies}${enemyTarget ? ` / ${killGoal}` : ''}`;
+  enemyCount.classList.toggle('win-target', enemyTarget);
+  enemyCount.setAttribute('aria-label', enemyTarget ? `${game.enemies} of ${killGoal} enemy points earned` : `${game.enemies} enemy points earned`);
   const weaponCount = game.weapon
     ? Number.isFinite(game.weapon.uses) ? game.weapon.uses : Math.ceil(Math.max(0, game.weapon.expires - game.elapsed))
     : null;
@@ -523,8 +542,8 @@ function syncUI() {
   displayedState = game.state;
   if (game.state === 'ready') {
     const description = game.customLevel
-      ? `Collect ${GOAL} food in ${DURATION} seconds. This is your custom level from the editor.`
-      : `Click a brick to send Koshi toward it. Collect ${GOAL} food${killGoal ? ` and defeat ${killGoal} robots` : ''} in ${DURATION} seconds!`;
+      ? `${levelObjective(game.level)}. This is your custom level from the editor.`
+      : `Click a brick to send Koshi toward it. ${levelObjective(game.level)}!`;
     showDialog('READY, LITTLE HERO?', 'Follow your appetite.', description, "Let's play →", '🐾');
     status.textContent = 'Your next adventure is one click away.';
   } else if (game.state === 'playing') {
@@ -541,7 +560,9 @@ function syncUI() {
     }
     const hasNext = !game.customLevel && game.levelIndex + 1 < LEVELS.length;
     saveVictory();
-    showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', `You gathered ${game.score} food and defeated ${game.enemies} robots with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
+    showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', survive
+      ? `You survived all ${DURATION} seconds! You gathered ${game.score} food and earned ${game.enemies} enemy points.`
+      : `You gathered ${game.score} food and earned ${game.enemies} enemy points with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
     status.textContent = hasNext ? `Level complete! Level ${LEVELS[game.levelIndex + 1].id} is next.` : 'Level complete! Replay or choose a level.';
     toast.textContent = 'Level complete!';
   } else if (game.state === 'lost') {
@@ -550,7 +571,9 @@ function syncUI() {
       return;
     }
     const reason = game.hearts <= 0 ? 'Koshi ran out of hearts.' : game.elapsed >= DURATION ? 'Time ran out.' : 'Koshi slipped off the edge.';
-    showDialog('ANOTHER TRY, ANOTHER ADVENTURE', 'Still hungry for more?', `${reason} You collected ${game.score} of ${GOAL} food.${killGoal ? ` You defeated ${game.enemies} of ${killGoal} robots. Pick up a sword before taking on robots!` : ' Try redirecting mid-flight to catch a whole line of snacks!'}`, 'Try again →', '🐾');
+    const result = survive ? ` You survived ${Math.floor(game.elapsed)} of ${DURATION} seconds.`
+      : `${foodTarget ? ` You collected ${game.score} of ${GOAL} food.` : ''}${enemyTarget ? ` You earned ${game.enemies} of ${killGoal} enemy points. Pick up a sword before taking on robots!` : ''}`;
+    showDialog('ANOTHER TRY, ANOTHER ADVENTURE', 'Still hungry for more?', `${reason}${result}`, 'Try again →', '🐾');
     status.textContent = `${reason} Give it another go.`;
     toast.textContent = 'Try again!';
   }
@@ -648,7 +671,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-instruction').textContent = tutorial.lesson.instruction;
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
-  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'objectives'].includes(tutorial.lesson.id);
+  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'ram', 'bucket', 'objectives'].includes(tutorial.lesson.id);
   makeBrickButtons();
   displayedState = null;
   displayedStuck = false;
@@ -955,8 +978,9 @@ function render(now) {
     ctx.fillText('♥', heart.x, heart.y + 10);
   }
   for (const item of game.weapons) drawSword(item.x, item.y, SWORDS[item.type].color);
-  for (const enemy of game.robots) drawRobot(enemy);
+  for (const enemy of game.robots) drawRobot(enemy, null, game.enemyDamageProgress(enemy));
   for (const enemy of game.enemyDeaths) drawEnemyDeath(enemy);
+  for (const enemy of game.robots) for (const bomb of enemy.bombs ?? []) drawBomb(bomb);
   for (const pickup of game.pickups) {
     const age = game.elapsed - pickup.time;
     ctx.fillStyle = `rgba(211,239,139,${1 - age / .8})`;
@@ -1087,9 +1111,32 @@ function drawSword(x, y, color) {
   ctx.restore();
 }
 
-function drawRobot(enemy, deathProgress = null) {
+function drawRobot(enemy, deathProgress = null, damageProgress = null) {
+  ctx.save();
+  const damageColor = damageProgress === null ? null : Math.floor(damageProgress * 4) % 2 === 0 ? '#dc626b' : '#f2a0a5';
+  drawRobotBody(enemy, deathProgress, damageColor);
+  if (enemy.shield && deathProgress === null) {
+    ctx.strokeStyle = SHIELDS[enemy.shield].color;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha *= .8;
+    ctx.beginPath(); ctx.arc(enemy.x, enemy.y, (enemy.radius ?? 19) + 9, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   ctx.save(); ctx.translate(enemy.x, enemy.y);
-  ctx.fillStyle = '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
+  ctx.fillStyle = damageColor ?? '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
+  if (enemy.type === 'bucket') {
+    drawRoboBucket(enemy, deathProgress, damageColor);
+    ctx.restore();
+    return;
+  }
+  if (enemy.type === 'ram') {
+    drawRoboRam(enemy, deathProgress, damageColor);
+    ctx.restore();
+    return;
+  }
   if (enemy.type === 'mouse') {
     for (const x of [-15, 15]) {
       ctx.save();
@@ -1107,7 +1154,7 @@ function drawRobot(enemy, deathProgress = null) {
     for (let i = 0; i < 10; i++) {
       ctx.rotate(Math.PI / 5); line([[20, 0], [24, 0]], '#596975', 4);
     }
-    ctx.restore(); ctx.fillStyle = '#b2ca75'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.restore(); ctx.fillStyle = damageColor ?? '#b2ca75'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
   }
   line([[-12,-8],[-4,-4]], '#27353d', 3); line([[12,-8],[4,-4]], '#27353d', 3);
   for (const x of [-8, 8]) {
@@ -1119,6 +1166,192 @@ function drawRobot(enemy, deathProgress = null) {
     ctx.fillStyle = '#c9d4db'; ctx.beginPath(); ctx.arc(0, 17, 5, 0, Math.PI * 2); ctx.fill();
     line([[0,10],[3,15]], '#e6a1a1', 3);
   }
+  ctx.restore();
+}
+
+function drawRoboBucket(enemy, deathProgress, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  const armFall = deathProgress === null ? 0 : Math.min(1, progress / .3);
+  const armAlpha = deathProgress === null ? 1 : Math.max(0, 1 - Math.max(0, progress - .3) / .2);
+  const melt = deathProgress === null ? 0 : Math.min(1, Math.max(0, (progress - .5) / .5));
+  ctx.save();
+  ctx.save();
+  ctx.globalAlpha *= 1 - melt;
+  ctx.strokeStyle = '#737d80'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-15, -12); ctx.bezierCurveTo(-31, -42, 31, -42, 15, -12); ctx.stroke();
+  ctx.restore();
+  const wave = deathProgress === null ? Math.sin(enemy.age * 5) * .16 : 0;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.globalAlpha *= armAlpha;
+    ctx.translate(side * (16 + armFall * 13), -8 + armFall * 20);
+    ctx.rotate(side * (wave + armFall * 1.1)); ctx.scale(side, 1);
+    ctx.strokeStyle = '#858d90'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(5, -12); ctx.lineTo(4, -25); ctx.stroke();
+    ctx.strokeStyle = '#aeb4b6'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(5, -11); ctx.lineTo(4, -23); ctx.stroke();
+    ctx.fillStyle = damageColor ?? '#bfc4c5'; ctx.strokeStyle = '#626b6d'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(1, -25); ctx.lineTo(0, -34); ctx.quadraticCurveTo(1, -37, 3, -34);
+    ctx.lineTo(4, -29); ctx.lineTo(4, -38); ctx.quadraticCurveTo(6, -40, 7, -37);
+    ctx.lineTo(8, -29); ctx.lineTo(9, -36); ctx.quadraticCurveTo(11, -38, 12, -35);
+    ctx.lineTo(12, -28); ctx.lineTo(14, -32); ctx.quadraticCurveTo(16, -33, 16, -30);
+    ctx.lineTo(14, -23); ctx.quadraticCurveTo(12, -20, 8, -21);
+    ctx.lineTo(5, -23); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#e0e2e2'; ctx.lineWidth = 1;
+    for (const x of [3, 7, 11]) {
+      ctx.beginPath(); ctx.moveTo(x, -35); ctx.lineTo(x, -30); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.globalAlpha *= 1 - melt;
+  ctx.scale(1, Math.max(.04, 1 - melt * .96));
+  ctx.fillStyle = damageColor ?? '#c9bd76'; ctx.strokeStyle = '#60675f'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-19, -10); ctx.lineTo(19, -10); ctx.lineTo(16, 17);
+  ctx.quadraticCurveTo(0, 22, -16, 17); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = damageColor ? '#ffd3d5' : '#e0d59a';
+  ctx.beginPath(); ctx.ellipse(0, -10, 19, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#50565a';
+  for (const x of [-7, 7]) {
+    ctx.beginPath(); ctx.arc(x, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2eee0'; ctx.beginPath(); ctx.arc(x - 1, -1.5, 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#50565a';
+  }
+  ctx.fillStyle = '#db4847'; ctx.strokeStyle = '#843533'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(0, 7, 4, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#514b42'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (deathProgress === null) {
+    ctx.moveTo(-8, 13); ctx.quadraticCurveTo(0, 19, 8, 13);
+  } else {
+    ctx.moveTo(-8, 15); ctx.quadraticCurveTo(0, 11, 8, 15);
+  }
+  ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawBomb(bomb) {
+  ctx.save(); ctx.translate(bomb.x, bomb.y);
+  if (bomb.state === 'flying') {
+    const urgency = Math.max(0, Math.min(1, 1 - bomb.fuse / 3));
+    ctx.fillStyle = `rgb(${Math.round(57 + 175 * urgency)},${Math.round(139 - 83 * urgency)},${Math.round(214 - 160 * urgency)})`;
+    ctx.strokeStyle = '#173d66'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, bomb.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#a9dbff'; ctx.beginPath(); ctx.arc(-2.5, -2.5, 2.4, 0, Math.PI * 2); ctx.fill();
+    line([[-1, -7], [2, -11]], '#d5d9c2', 1.8);
+  } else {
+    const radius = bomb.blastRadius;
+    ctx.globalAlpha *= Math.max(0, 1 - bomb.blastAge / .9);
+    ctx.fillStyle = '#b92d2b'; ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f05232'; ctx.beginPath(); ctx.arc(0, 0, radius * .78, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffae48'; ctx.beginPath(); ctx.arc(0, 0, radius * .42, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff08a';
+    for (let i = 0; i < 6; i++) {
+      const angle = i * Math.PI / 3 + bomb.blastAge * 3;
+      ctx.beginPath();
+      ctx.arc(Math.cos(angle) * radius * .65, Math.sin(angle) * radius * .65, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawTinyBombExplosion(bomb, progress) {
+  if (progress <= 0 || progress >= 1) return;
+  ctx.save(); ctx.translate(bomb.x, bomb.y);
+  ctx.globalAlpha *= 1 - progress;
+  ctx.fillStyle = '#ff7040'; ctx.beginPath(); ctx.arc(0, 0, 2 + progress * 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffd36a';
+  for (let i = 0; i < 5; i++) {
+    const angle = i * Math.PI * 2 / 5;
+    ctx.beginPath(); ctx.arc(Math.cos(angle) * progress * 12, Math.sin(angle) * progress * 12,
+      1.5 * (1 - progress), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawBucketDeathSmoke(enemy, progress) {
+  const alpha = Math.max(0, 1 - progress / .8) * .65;
+  const puff = Math.min(1, progress / .35);
+  if (alpha <= 0) return;
+  ctx.save(); ctx.translate(enemy.x, enemy.y);
+  ctx.globalAlpha *= alpha;
+  ctx.fillStyle = '#9aa5a9';
+  for (const [x, y, scale] of [[-12, 14, 1], [0, 10, 1.25], [12, 14, 1]]) {
+    ctx.beginPath();
+    ctx.arc(x + (x < 0 ? -1 : 1) * puff * 5, y - puff * 11,
+      (5 + puff * 5) * scale, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawRoboRam(enemy, deathProgress, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  ctx.rotate(enemy.facingAngle ?? (enemy.state === 'charging' ? (enemy.angle ?? 0) - Math.PI / 2 : 0));
+  const hornSwing = Math.min(1, progress * 1.7) * 1.15;
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(side * 12, -9); ctx.scale(side, 1); ctx.rotate(-side * hornSwing);
+    ctx.globalAlpha *= Math.max(0, 1 - progress);
+    ctx.fillStyle = damageColor ? '#ffd3d5' : '#d6dadd'; ctx.strokeStyle = '#59636a'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(1, -8); ctx.bezierCurveTo(3, -23, 18, -30, 25, -19);
+    ctx.bezierCurveTo(30, -10, 25, -2, 18, -3); ctx.bezierCurveTo(12, -4, 14, -11, 19, -11);
+    ctx.lineTo(22, -13); ctx.bezierCurveTo(17, -19, 9, -15, 8, -7); ctx.lineTo(7, 0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    line([[3, -8], [6, -17], [12, -22]], '#f1f2f2', 1.5);
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.globalAlpha *= Math.max(0, 1 - progress);
+  ctx.scale(Math.max(.01, 1 - progress), Math.max(.01, 1 - progress));
+  ctx.fillStyle = damageColor ?? '#aeb9c0'; ctx.strokeStyle = '#394852'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-15, -12); ctx.quadraticCurveTo(-14, -18, -8, -20); ctx.lineTo(8, -20);
+  ctx.quadraticCurveTo(14, -18, 15, -12); ctx.lineTo(13, 9);
+  ctx.quadraticCurveTo(10, 17, 0, 18); ctx.quadraticCurveTo(-10, 17, -13, 9);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = damageColor ? '#ffd3d5' : '#dce3e6';
+  ctx.beginPath(); ctx.moveTo(-9, -17); ctx.lineTo(0, -19); ctx.lineTo(9, -17);
+  ctx.lineTo(6, -15); ctx.lineTo(-6, -15); ctx.closePath(); ctx.fill();
+  line([[-11, -11], [-12, 6]], '#e4e9eb', 1.5);
+  line([[11, -11], [12, 6]], '#7d8c94', 1.5);
+  for (const x of [-7, 7]) {
+    const aiming = enemy.state === 'targeting' && deathProgress === null;
+    const sparkle = aiming ? .65 + .35 * Math.sin(enemy.stateTime * 16) : 0;
+    if (aiming) {
+      ctx.fillStyle = `rgba(255,45,48,${.35 + sparkle * .25})`;
+      ctx.beginPath(); ctx.arc(x, -5, 8 + sparkle * 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = aiming ? '#ff3538' : '#e64649';
+    if (enemy.state === 'targeting' && deathProgress === null) {
+      ctx.shadowColor = '#ff252b'; ctx.shadowBlur = 18 + sparkle * 12;
+    }
+    ctx.beginPath(); ctx.ellipse(x, -5, 3.8, 4.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff6e8';
+    ctx.beginPath(); ctx.arc(x - 1, -6.5, 1.3, 0, Math.PI * 2); ctx.fill();
+    if (aiming) {
+      ctx.save(); ctx.translate(x + 4, -11); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = `rgba(255,255,235,${.7 + sparkle * .3})`;
+      ctx.beginPath(); ctx.moveTo(0, -5 - sparkle * 2); ctx.lineTo(1, -1); ctx.lineTo(5 + sparkle * 2, 0);
+      ctx.lineTo(1, 1); ctx.lineTo(0, 5 + sparkle * 2); ctx.lineTo(-1, 1); ctx.lineTo(-5 - sparkle * 2, 0);
+      ctx.lineTo(-1, -1); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  }
+  ctx.fillStyle = '#c7353b';
+  ctx.beginPath(); ctx.moveTo(-7, 7); ctx.lineTo(7, 7); ctx.lineTo(5, 13);
+  ctx.lineTo(2, 10); ctx.lineTo(0, 13); ctx.lineTo(-2, 10); ctx.lineTo(-5, 13); ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#303d45';
+  for (const x of [-2.5, 2.5]) {
+    ctx.beginPath(); ctx.ellipse(x, 4, 1.1, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  line([[-12, 1], [-10, 5]], '#aeb5b8', 1.5);
+  line([[12, 1], [10, 5]], '#aeb5b8', 1.5);
   ctx.restore();
 }
 
@@ -1140,6 +1373,28 @@ function drawEnemyDeath(enemy) {
           6 + smoke * 12, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+  } else if (enemy.type === 'bucket') {
+    drawBucketDeathSmoke(enemy, progress);
+    drawRobot(enemy, progress);
+    for (const [index, bomb] of (enemy.bombs ?? []).entries()) {
+      drawTinyBombExplosion(bomb, Math.max(0, Math.min(1, (progress - .18 - index * .08) / .48)));
+    }
+  } else if (enemy.type === 'ram') {
+    drawRobot(enemy, progress);
+    if (progress > .18) {
+      const smoke = Math.min(1, (progress - .18) / .82);
+      ctx.save(); ctx.translate(enemy.x, enemy.y);
+      ctx.globalAlpha = Math.sin(Math.PI * smoke) * .75;
+      for (let i = 0; i < 7; i++) {
+        const angle = i * Math.PI * 2 / 7;
+        ctx.fillStyle = i % 2 ? '#a8b2b9' : '#d1dce4';
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * smoke * 24, Math.sin(angle) * smoke * 16 - smoke * 12,
+          4 + smoke * 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
   } else {
     ctx.translate(enemy.x, enemy.y);

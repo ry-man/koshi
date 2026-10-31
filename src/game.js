@@ -226,18 +226,30 @@ function portalPairIssues(bricks) {
   });
 }
 
+const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
+
 function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
   const fail = message => { throw new TypeError(message); };
   const number = (v, min, max, name) => {
     if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) fail(`${name} must be a number from ${min} to ${max}.`);
     return v;
   };
+  const shield = (item, result, name) => {
+    if (item.shield === undefined) return;
+    if (item.kind !== 'enemy' || (item.shield !== null && !Object.hasOwn(SHIELDS, item.shield))) fail(`${name} has an invalid enemy shield.`);
+    result.shield = item.shield;
+  };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Level must be a JSON object.');
   if (value.version !== 1) fail('Unsupported level version. Expected version 1.');
   if (typeof value.id !== 'string' || !value.id.trim() || value.id.length > 60) fail('Level name must contain 1–60 characters.');
   const duration = number(value.duration, 1, 3600, 'Duration');
-  const goal = number(value.goal, 1, 100000, 'Food goal');
+  const goal = number(value.goal, 0, 100000, 'Food goal');
   if (!Number.isInteger(goal)) fail('Food goal must be a whole number.');
+  const killGoal = value.killGoal === undefined ? 0 : number(value.killGoal, 0, 100000, 'Enemy goal');
+  if (!Number.isInteger(killGoal)) fail('Enemy goal must be a whole number.');
+  if (value.survive !== undefined && typeof value.survive !== 'boolean') fail('Survive must be a boolean.');
+  if (value.survive && (goal || killGoal)) fail('Survival cannot be combined with food or enemy goals.');
+  if (!value.survive && !goal && !killGoal) fail('Food goal or enemy goal must be positive unless survival is selected.');
   const heartCost = value.heartCost === null ? null : number(value.heartCost, 1, 100000, 'Heart cost');
   if (heartCost !== null && !Number.isInteger(heartCost)) fail('Heart cost must be a whole number or null.');
   if (![1, 3].includes(value.brickSet)) fail('Brick set must be 1 or 3 (slow and fast bricks each).');
@@ -248,14 +260,17 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true }, weapon: SWORDS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, weapon: SWORDS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
     const result = { time, kind: event.kind, type: event.type, x, y };
+    shield(event, result, name);
     if (event.kind === 'food') result.lifetime = number(event.lifetime, .1, 3600, `${name} food lifetime`);
     return result;
   });
   const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
+  if (value.killGoal !== undefined) result.killGoal = killGoal;
+  if (value.survive !== undefined) result.survive = value.survive;
   if (value.cutscene !== undefined) result.cutscene = validateCutscene(value.cutscene);
   if (value.brickTypes !== undefined) {
     if (!Array.isArray(value.brickTypes) || value.brickTypes.length > 2000) fail('Brick types must be an array of at most 2000 edge overrides.');
@@ -298,9 +313,10 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true }, heart: { heart: true } };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, heart: { heart: true } };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
+          shield(spawn, override.spawner, `Brick override ${i + 1}`);
           if (spawn.kind === 'food') override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn food lifetime`);
         }
       }
@@ -804,6 +820,19 @@ function brickNormal(x, y, brick) {
   return distance ? { x: dx / distance, y: dy / distance } : null;
 }
 
+function levelObjective(level) {
+  if (level.survive) return `Survive for ${level.duration} seconds until the timer reaches zero`;
+  const targets = [];
+  if (level.goal > 0) targets.push(`Collect ${level.goal} food`);
+  if (level.killGoal > 0) targets.push(`${targets.length ? 'earn' : 'Earn'} ${level.killGoal} enemy points`);
+  return `${targets.join(' and ')} before time runs out (${level.duration} seconds)`;
+}
+
+function rotateToward(angle, target, maximum) {
+  const difference = Math.atan2(Math.sin(target - angle), Math.cos(target - angle));
+  return angle + Math.max(-maximum, Math.min(maximum, difference));
+}
+
 class Game {
   constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null, editorPreview = false } = {}) {
     if (customLevel) {
@@ -960,7 +989,7 @@ class Game {
   spawnFromBrick(brick) {
     const spawn = brick.spawner;
     brick.spawned = true;
-    if (spawn.kind === 'enemy') this.robots.push(...this.createEnemies([this.elapsed, spawn.type, 1]));
+    if (spawn.kind === 'enemy') this.robots.push(...this.createEnemies([this.elapsed, spawn.type, 1, spawn.shield]));
     else if (spawn.kind === 'heart') this.healing.push(this.randomPoint());
     else if (spawn.kind === 'weapon') this.weapons.push({ ...this.randomPoint(), type: spawn.type });
     else this.food.push({ ...this.randomPoint(), id: this.foodId++, type: spawn.type,
@@ -1150,6 +1179,9 @@ class Game {
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
     if (event.kind === 'weapon') return [{ ...point, type: event.type }];
     const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
+    this.initializeShield(enemy, event.shield);
+    if (event.type === 'ram') this.initializeRam(enemy);
+    if (event.type === 'bucket') this.initializeBucket(enemy);
     if (event.type === 'wheel') {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
       if (event.y === 0) enemy.distance = event.x * w;
@@ -1165,24 +1197,313 @@ class Game {
     this.robots.push(...this.takeSpawn(event, entry => this.createEnemies(entry)));
   }
 
-  createEnemies([, type, count]) {
+  createEnemies([, type, count, shield]) {
     const items = [];
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
     for (let i = 0; i < count; i++) {
       const enemy = { ...this.randomPoint(), type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: this.random() * 2 * (w + h) };
+      this.initializeShield(enemy, shield);
+      if (type === 'ram') this.initializeRam(enemy);
+      if (type === 'bucket') this.initializeBucket(enemy);
       if (type === 'wheel') this.placeWheel(enemy);
       items.push(enemy);
     }
     return items;
   }
 
+  initializeShield(enemy, shield) {
+    enemy.shield = shield ?? null;
+    enemy.defeatPoints = shield ? SHIELDS[shield].hits : 1;
+    enemy.invulnerableUntil = 0;
+  }
+
+  enemyDamageProgress(enemy) {
+    return enemy.invulnerableUntil > this.elapsed + 1e-9
+      ? 1 - (enemy.invulnerableUntil - this.elapsed) / DAMAGE_DURATION : null;
+  }
+
+  initializeRam(enemy) {
+    enemy.state = 'wander';
+    enemy.stateTime = 0;
+    enemy.wanderDuration = 2.5 + this.random() * 1.5;
+    enemy.turnTime = .6 + this.random() * 1.4;
+    enemy.angle = this.random() * Math.PI * 2;
+    enemy.facingAngle = enemy.angle - Math.PI / 2;
+    enemy.speed = 520;
+  }
+
+  nextBucketShot() {
+    return Math.max(.25, -4 * Math.log(1 - Math.min(this.random(), 1 - Number.EPSILON)));
+  }
+
+  initializeBucket(enemy) {
+    enemy.bombs = [];
+    enemy.shotTimer = this.nextBucketShot();
+  }
+
+  fireBucketBomb(enemy) {
+    const angle = this.random() * Math.PI * 2;
+    enemy.bombs.push({
+      x: enemy.x, y: enemy.y + 13, vx: Math.cos(angle) * 150, vy: Math.sin(angle) * 150,
+      radius: 8, fuse: 3, state: 'flying', blastAge: 0, blastRadius: 0, touching: false,
+    });
+  }
+
+  updateBucket(enemy, seconds, parts) {
+    enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * seconds;
+    enemy.x += Math.cos(enemy.phase) * 32 * seconds;
+    enemy.y += Math.sin(enemy.phase) * 32 * seconds;
+    const bounds = this.bounds();
+    if (enemy.x < bounds.left || enemy.x > bounds.right) {
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.phase = Math.PI - enemy.phase;
+    }
+    if (enemy.y < bounds.top || enemy.y > bounds.bottom) {
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+      enemy.phase = -enemy.phase;
+    }
+    enemy.shotTimer -= seconds;
+    if (enemy.shotTimer <= 1e-9) {
+      this.fireBucketBomb(enemy);
+      enemy.shotTimer += this.nextBucketShot();
+    }
+    enemy.bombs = enemy.bombs.filter(bomb => {
+      if (bomb.state === 'flying') {
+        let remaining = seconds, bounces = 0;
+        while (remaining > 1e-9 && bounces < 4) {
+          const dx = bomb.vx * remaining, dy = bomb.vy * remaining;
+          let contact = Infinity, obstacle = null;
+          for (const part of parts) {
+            const time = brickContact(bomb.x, bomb.y, dx, dy, bomb.radius, part);
+            if (time < contact) { contact = time; obstacle = part; }
+          }
+          if (!obstacle || contact > 1) {
+            bomb.x += dx; bomb.y += dy;
+            break;
+          }
+          bomb.x += dx * contact; bomb.y += dy * contact;
+          const normal = brickNormal(bomb.x, bomb.y, obstacle);
+          if (!normal) break;
+          bomb.x += normal.x * .01; bomb.y += normal.y * .01;
+          const incoming = bomb.vx * normal.x + bomb.vy * normal.y;
+          bomb.vx = (bomb.vx - 2 * incoming * normal.x) * .88;
+          bomb.vy = (bomb.vy - 2 * incoming * normal.y) * .88;
+          remaining *= 1 - contact;
+          bounces++;
+        }
+        bomb.fuse -= seconds;
+        if (bomb.fuse <= 1e-9) {
+          bomb.state = 'exploding';
+          bomb.blastAge = 0;
+          bomb.blastRadius = 0;
+        }
+      } else {
+        bomb.blastAge += seconds;
+        bomb.blastRadius = 58 * Math.min(1, bomb.blastAge / .45);
+        const touching = Math.hypot(this.cat.x - bomb.x, this.cat.y - bomb.y) <= this.cat.radius + bomb.blastRadius;
+        if (touching && !bomb.touching) this.takeDamage();
+        bomb.touching = touching;
+        if (bomb.blastAge >= .9) return false;
+      }
+      return true;
+    });
+  }
+
   placeWheel(enemy) {
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
-    const d = enemy.distance % (2 * (w + h));
+    const perimeter = 2 * (w + h);
+    const d = ((enemy.distance % perimeter) + perimeter) % perimeter;
     if (d < w) { enemy.x = b.left + d; enemy.y = b.top; }
     else if (d < w + h) { enemy.x = b.right; enemy.y = b.top + d - w; }
     else if (d < 2 * w + h) { enemy.x = b.right - (d - w - h); enemy.y = b.bottom; }
     else { enemy.x = b.left; enemy.y = b.bottom - (d - 2 * w - h); }
+  }
+
+  moveRam(enemy, seconds, parts) {
+    let remaining = seconds, bounces = 0;
+    while (remaining > 1e-9 && bounces < 4) {
+      const dx = Math.cos(enemy.angle) * enemy.speed * remaining;
+      const dy = Math.sin(enemy.angle) * enemy.speed * remaining;
+      let contact = Infinity, obstacle = null;
+      for (const part of parts) {
+        const time = brickContact(enemy.x, enemy.y, dx, dy, enemy.radius, part);
+        if (time < contact) { contact = time; obstacle = part; }
+      }
+      if (!obstacle || contact > 1) {
+        enemy.x += dx; enemy.y += dy;
+        break;
+      }
+      enemy.x += dx * contact;
+      enemy.y += dy * contact;
+      const normal = brickNormal(enemy.x, enemy.y, obstacle);
+      if (!normal) break;
+      enemy.x += normal.x * .01;
+      enemy.y += normal.y * .01;
+      const vx = Math.cos(enemy.angle), vy = Math.sin(enemy.angle);
+      const incoming = vx * normal.x + vy * normal.y;
+      enemy.angle = Math.atan2(vy - 2 * incoming * normal.y, vx - 2 * incoming * normal.x);
+      enemy.speed *= .78;
+      remaining *= 1 - contact;
+      bounces++;
+    }
+  }
+
+  updateRam(enemy, seconds, parts) {
+    if (enemy.state === 'targeting') {
+      enemy.stateTime += seconds;
+      enemy.facingAngle = rotateToward(enemy.facingAngle, enemy.angle - Math.PI / 2, 4.5 * seconds);
+      if (enemy.stateTime >= 1.05) {
+        enemy.state = 'charging';
+        enemy.stateTime = 0;
+        enemy.speed = 520;
+      }
+      return;
+    }
+    if (enemy.state === 'charging') {
+      const chargeTime = Math.min(seconds, Math.max(0, 1.5 - enemy.stateTime));
+      this.moveRam(enemy, chargeTime, parts);
+      enemy.facingAngle = rotateToward(enemy.facingAngle, enemy.angle - Math.PI / 2, 4.5 * seconds);
+      enemy.stateTime += seconds;
+      if (enemy.stateTime >= 1.5) {
+        enemy.state = 'wander';
+        enemy.stateTime = 0;
+        enemy.wanderDuration = 2.5 + this.random() * 1.5;
+        enemy.turnTime = .6 + this.random() * 1.4;
+      }
+      return;
+    }
+    enemy.stateTime += seconds;
+    enemy.turnTime -= seconds;
+    if (enemy.turnTime <= 0) {
+      enemy.angle += (this.random() - .5) * Math.PI;
+      enemy.turnTime = .7 + this.random() * 1.3;
+    }
+    enemy.angle += Math.sin(enemy.age * 1.7 + enemy.phase) * .2 * seconds;
+    const bounds = this.bounds(), speed = 42;
+    enemy.x += Math.cos(enemy.angle) * speed * seconds;
+    enemy.y += Math.sin(enemy.angle) * speed * seconds;
+    if (enemy.x < bounds.left || enemy.x > bounds.right) {
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.angle = Math.PI - enemy.angle;
+    }
+    if (enemy.y < bounds.top || enemy.y > bounds.bottom) {
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+      enemy.angle = -enemy.angle;
+    }
+    if (enemy.stateTime >= enemy.wanderDuration) {
+      enemy.state = 'targeting';
+      enemy.stateTime = 0;
+      enemy.targetX = this.cat.x;
+      enemy.targetY = this.cat.y;
+      enemy.angle = Math.atan2(enemy.targetY - enemy.y, enemy.targetX - enemy.x);
+    }
+    enemy.facingAngle = rotateToward(enemy.facingAngle, enemy.angle - Math.PI / 2, 4.5 * seconds);
+  }
+
+  turnEnemyFromContact(enemy, nx, ny) {
+    if (enemy.type === 'wheel' || (enemy.type === 'mouse' && enemy.resting)
+      || (enemy.type === 'ram' && enemy.state === 'targeting')) return;
+    const angle = enemy.type === 'ram' ? enemy.angle : enemy.phase;
+    const vx = Math.cos(angle), vy = Math.sin(angle);
+    const incoming = vx * nx + vy * ny;
+    if (incoming >= -1e-9) return;
+    const reflected = Math.atan2(vy - 2 * incoming * ny, vx - 2 * incoming * nx);
+    if (enemy.type === 'ram') {
+      enemy.angle = reflected;
+      if (enemy.state === 'charging') enemy.speed *= .78;
+    } else enemy.phase = reflected;
+  }
+
+  separateEnemyPair(a, b, nx, ny, overlap) {
+    const bounds = this.bounds();
+    const clamp = enemy => {
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+    };
+    if (a.type === 'wheel' && b.type === 'wheel') {
+      const perimeter = 2 * (bounds.right - bounds.left + bounds.bottom - bounds.top);
+      const ahead = ((b.distance - a.distance) % perimeter + perimeter) % perimeter;
+      const behind = ahead > 0 && ahead < perimeter / 2 ? a : b;
+      const distance = behind.distance;
+      let low = 0, high = (a.radius + b.radius) * 2;
+      for (let i = 0; i < 40; i++) {
+        const offset = (low + high) / 2;
+        behind.distance = distance - offset;
+        this.placeWheel(behind);
+        if (Math.hypot(a.x - b.x, a.y - b.y) < a.radius + b.radius + 1e-7) low = offset;
+        else high = offset;
+      }
+      behind.distance = distance - high;
+      this.placeWheel(behind);
+      return;
+    }
+    if (a.type === 'wheel' || b.type === 'wheel') {
+      const wheel = a.type === 'wheel' ? a : b, other = wheel === a ? b : a;
+      const radius = a.radius + b.radius + 1e-7;
+      // Nudge inward, rather than trapping a roaming enemy between wheels at a corner.
+      other.x = Math.max(bounds.left + radius, Math.min(bounds.right - radius, other.x));
+      other.y = Math.max(bounds.top + radius, Math.min(bounds.bottom - radius, other.y));
+    } else {
+      a.x += nx * overlap / 2; a.y += ny * overlap / 2;
+      b.x -= nx * overlap / 2; b.y -= ny * overlap / 2;
+      clamp(a); clamp(b);
+      const remaining = a.radius + b.radius - Math.hypot(a.x - b.x, a.y - b.y);
+      if (remaining > 0) {
+        a.x += nx * remaining; a.y += ny * remaining; clamp(a);
+        const residual = a.radius + b.radius - Math.hypot(a.x - b.x, a.y - b.y);
+        if (residual > 0) { b.x -= nx * residual; b.y -= ny * residual; clamp(b); }
+      }
+    }
+  }
+
+  resolveEnemyCollisions(previous) {
+    const reacted = new Set();
+    const react = (a, b, nx, ny, key) => {
+      if (reacted.has(key)) return;
+      reacted.add(key);
+      this.turnEnemyFromContact(a, nx, ny);
+      this.turnEnemyFromContact(b, -nx, -ny);
+    };
+    for (let i = 0; i < this.robots.length; i++) {
+      for (let j = i + 1; j < this.robots.length; j++) {
+        const a = this.robots[i], b = this.robots[j], oldA = previous.get(a), oldB = previous.get(b);
+        const x = oldA.x - oldB.x, y = oldA.y - oldB.y, radius = a.radius + b.radius;
+        const dx = a.x - b.x - x, dy = a.y - b.y - y;
+        const length = dx * dx + dy * dy, incoming = x * dx + y * dy;
+        const gap = x * x + y * y - radius * radius;
+        const discriminant = incoming * incoming - length * gap;
+        if (gap < -1e-7 || length < 1e-12 || incoming >= 0 || discriminant < 0) continue;
+        const contact = (-incoming - Math.sqrt(discriminant)) / length;
+        if (contact < -1e-9 || contact > 1) continue;
+        const time = Math.max(0, contact);
+        const nx = (x + dx * time) / radius, ny = (y + dy * time) / radius;
+        react(a, b, nx, ny, i * this.robots.length + j);
+        for (const [enemy, old] of [[a, oldA], [b, oldB]]) {
+          if (enemy.type === 'wheel') continue;
+          enemy.x = old.x + (enemy.x - old.x) * time;
+          enemy.y = old.y + (enemy.y - old.y) * time;
+        }
+      }
+    }
+    // Repeat separation so nudges also settle chains and coincident spawns.
+    for (let pass = 0; pass < Math.max(64, this.robots.length * 32); pass++) {
+      let overlaps = false;
+      for (let i = 0; i < this.robots.length; i++) {
+        for (let j = i + 1; j < this.robots.length; j++) {
+          const a = this.robots[i], b = this.robots[j];
+          const x = a.x - b.x, y = a.y - b.y, distance = Math.hypot(x, y);
+          const overlap = a.radius + b.radius - distance;
+          if (overlap <= 1e-7) continue;
+          overlaps = true;
+          const angle = (i + j * this.robots.length) * 2.399963229728653;
+          const nx = distance > 1e-9 ? x / distance : Math.cos(angle);
+          const ny = distance > 1e-9 ? y / distance : Math.sin(angle);
+          react(a, b, nx, ny, i * this.robots.length + j);
+          this.separateEnemyPair(a, b, nx, ny, overlap + 1e-7);
+        }
+      }
+      if (!overlaps) break;
+    }
   }
 
   combat(dt, startX, startY) {
@@ -1193,13 +1514,17 @@ class Game {
       this.weapon = { type: item.type, uses: sword.uses, expires: sword.seconds ? this.elapsed + sword.seconds : Infinity };
       return false;
     });
-    const bounds = this.bounds();
-    this.robots = this.robots.filter(enemy => {
-      const oldX = enemy.x, oldY = enemy.y;
+    const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket'].includes(enemy.type)) ? this.brickParts() : [];
+    const previous = new Map(this.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y }]));
+    for (const enemy of this.robots) {
       enemy.age += dt;
       if (enemy.type === 'wheel') {
         enemy.distance += 95 * dt;
         this.placeWheel(enemy);
+      } else if (enemy.type === 'ram') {
+        this.updateRam(enemy, dt, parts);
+      } else if (enemy.type === 'bucket') {
+        this.updateBucket(enemy, dt, parts);
       } else {
         enemy.resting = enemy.age % 6 >= 4.5;
         if (!enemy.resting) {
@@ -1212,15 +1537,27 @@ class Game {
           enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
         }
       }
-      const distance = distanceToSegment(0, 0, startX - oldX, startY - oldY, this.cat.x - enemy.x, this.cat.y - enemy.y);
+    }
+    this.resolveEnemyCollisions(previous);
+    this.robots = this.robots.filter(enemy => {
+      const old = previous.get(enemy);
+      const distance = distanceToSegment(0, 0, startX - old.x, startY - old.y, this.cat.x - enemy.x, this.cat.y - enemy.y);
       if ((this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
-        this.enemies++;
-        this.enemyDeaths.push({ ...enemy, deathProgress: 0 });
-        if (!this.boosted && Number.isFinite(this.weapon.uses) && --this.weapon.uses === 0) this.weapon = null;
-        return false;
+        if (this.enemyDamageProgress(enemy) === null) {
+          if (!this.boosted && Number.isFinite(this.weapon.uses) && --this.weapon.uses === 0) this.weapon = null;
+          if (enemy.shield) {
+            enemy.shield = SHIELDS[enemy.shield].next;
+            enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
+          } else {
+            this.enemies += enemy.defeatPoints ?? 1;
+            this.enemyDeaths.push({ ...enemy, bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
+            return false;
+          }
+        }
+        enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
+        return true;
       }
-      const touching = distance <= this.cat.radius + enemy.radius;
-      if (touching && !enemy.touching) this.takeDamage();
+      if (distance <= this.cat.radius + enemy.radius && !enemy.touching) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
     });
@@ -1234,7 +1571,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'mouse' ? 1.1 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'mouse' ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -1397,17 +1734,17 @@ class Game {
     this.pickups = this.pickups.filter(item => this.elapsed - item.time < .8);
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';
-    } else if (this.score >= this.level.goal && this.enemies >= (this.level.killGoal ?? 0)) {
+    } else if (!this.level.survive && this.score >= this.level.goal && this.enemies >= (this.level.killGoal ?? 0)) {
       this.state = 'won';
     } else if (this.elapsed >= this.level.duration - 1e-9) {
       this.elapsed = this.level.duration;
-      this.state = 'lost';
+      this.state = this.level.survive ? 'won' : 'lost';
     }
   }
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, COOLDOWNS, SLIMES, SHIELDS, FOODS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

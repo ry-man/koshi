@@ -262,7 +262,7 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     for (const spawn of [
       ...Object.keys(FOODS).map(type => ({ kind: 'food', type, lifetime: 10 })),
       ...Object.keys(SWORDS).map(type => ({ kind: 'weapon', type })),
-      { kind: 'enemy', type: 'mouse' }, { kind: 'enemy', type: 'wheel' }, { kind: 'heart', type: 'heart' },
+      { kind: 'enemy', type: 'mouse' }, { kind: 'enemy', type: 'wheel' }, { kind: 'enemy', type: 'ram' }, { kind: 'enemy', type: 'bucket' }, { kind: 'heart', type: 'heart' },
     ]) {
       const game = arena(options), brick = edgeBrick(game, 'right');
       brick.spawner = spawn;

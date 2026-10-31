@@ -116,15 +116,38 @@ the board; phones keep compact controls above it without scrolling away from pla
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
 - From Level 1–2 onward, Robo Mice wander in curves and periodically stop to lick their
-  hands; Robo Wheels roll around the inside boundary. Neither fires or chases
-  Koshi. Unarmed contact costs one heart per enemy contact; remaining overlapped
-  does not repeatedly drain hearts. Separation and another collision can hurt again.
+  hands; Robo Wheels roll around the inside boundary. Robo Rams wander, pause
+  with glowing eyes as they aim at Koshi, then charge straight ahead. Their
+  charges ricochet off bricks and slow down with each bounce. Unarmed contact
+  costs one heart per enemy contact; remaining overlapped does not repeatedly
+  drain hearts. Separation and another collision can hurt again.
+- Robo Buckets slowly wander and wave their arms, firing blue bombs at random
+  intervals averaging four seconds. Bombs bounce off bricks and are harmless
+  until their three-second fuse expires. Their color gradually shifts from blue
+  to red as detonation approaches; the growing red flame circle then
+  damages Koshi for a brief time.
+- Enemies collide instead of passing through one another. Roaming enemies
+  turn away, and charging Rams ricochet and lose speed. Wheels stay on their
+  boundary route, queue behind other wheels, and nudge roaming enemies inward.
+  Mouse resting periods and Ram targeting/charge timers continue during collisions;
+  targeting Rams retain their locked aim. Bombs and harmless wrecks do not block enemies.
+- Enemy shields add hits: **blue → green → red → none → defeated**.
+  Accepted hits use the same one-second protection timer as Koshi, with a blinking
+  red color changes and unchanged enemy shapes, without blurred hit effects. Each accepted sword hit uses one attack;
+  protected hits use none. Boost attacks respect shield protection without spending swords.
+  Destroyed enemies award their original required hit count: unshielded **1**,
+  red **2**, green **3**, blue **4** enemy points. Partial hits award no points.
+  In the editor, choose a shield for enemy placements or enemy-spawning bricks.
+  JSON stores optional `shield: "red"`, `"green"`, `"blue"`, or `null` on those items.
 - Taking damage grants **one second of invulnerability** against both robots and
   spikes. Koshi wears an upset face and blinks between red shades for exactly
   that same second; normal colors return when he can take damage again.
   Further contacts do not extend the timer. Pause freezes both protection and
   animation; restart clears them. Spikes still stop him while protected.
 - Every **10 food points** from Level 1–2 onward spawns a heart in the playable area.
+  A **Next heart** food counter and pink progress meter beneath Koshi's health
+  show progress toward the next spawn and reset at each threshold. Custom levels
+  use their configured heart cost; the meter is hidden when heart spawning is disabled.
   A **pink, sparkling cloud** marks its exact location for **one second** before
   the heart appears. The cloud cannot be collected and freezes while paused.
   Touch the heart to restore one heart, capped at three. No hearts spawn in Level 1–1.
@@ -134,9 +157,10 @@ the board; phones keep compact controls above it without scrolling away from pla
   Koshi holds only one weapon. Other swords stay on the board until he can
   collect them; dropped swords and hearts do not expire. Pause freezes sword time.
 - Defeated Robo Mice drop their ears, lose their eye color, and fade into a puff
-  of smoke. Robo Wheels implode into a mini fireball. Defeats count immediately
-  and the wrecks cannot hurt Koshi. Pause freezes these animations; restart
-  clears them.
+  of smoke. Robo Wheels implode into a mini fireball. Robo Rams fold their horns,
+  implode, and fade into smoke. Robo Buckets frown, flatten, and pop their bombs
+  in tiny explosions. Defeats count immediately and the wrecks cannot hurt Koshi.
+  Pause freezes these animations; restart clears them.
 - **Pause**, **Escape**, or **Space** pauses/resumes play. Switching tabs or
   leaving the window pauses automatically; resume explicitly when you return.
 - **Tab** through the bricks and press **Enter** or **Space** to aim at a
@@ -258,8 +282,13 @@ playtest links, direct-file play, and the offline app.
 
 ### Level settings and placements
 
-1. Set the level name, time limit, food goal, optional heart cost (blank disables
+1. Set the level name, time limit, win condition, optional heart cost (blank disables
    food-triggered hearts), and boundary brick set. Choose **Apply settings**.
+   Choose **Survive until time runs out**, or set food and/or enemy targets.
+   A target of **0** disables that score requirement; at least one score target
+   must be positive. Both positive targets must be met to win.
+   The pre-level briefing states the objective. Required food and enemy counters
+   show **/ target** in gold; survival levels highlight the countdown in gold.
    Click/tap any boundary brick (or focus it and press Enter) to select it,
    then change **Selected brick type** in the brick inspector: slow/blue (15s),
    normal/green (8s), or fast/red (3s). Enable **Crumbler** and/or **Warped**
@@ -333,7 +362,9 @@ accessible and off bricks on phones and desktops.
 
 Robo Wheels must start on this area's perimeter (at least one coordinate is
 0 or 1). The editor snaps them to the nearest edge; they then roll normally.
-Mice begin at the specified point and wander; swords remain until collected.
+Robo Rams, Buckets, and Mice can start anywhere in the safe area; Mice wander
+while Rams charge after a short aim. Buckets wander and shoot bombs. Swords
+remain until collected.
 Food lifetime begins at the scheduled appearance time. Simultaneous events
 spawn in their original list order. Normal pickup/combat rules still apply,
 including automatic collection of objects placed over Koshi's starting point.
@@ -356,14 +387,18 @@ including automatic collection of objects placed over Koshi's starting point.
 ```
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
-`wheel`; weapon types are `wood`, `bronze`, `silver`, `gold`. `brickSet` is 1
+`wheel`, `ram`, `bucket`; weapon types are `wood`, `bronze`, `silver`, `gold`. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
-Duration is 1–3600 seconds, food goal/heart cost are positive integers up to
+Duration is 1–3600 seconds, food/enemy goals are whole numbers from 0 to 100000,
+heart costs are positive integers up to
 100000, and a level supports up to 2000 events. Appearance times must be
 nonnegative and strictly before the time limit; food lifetimes are
 0.1–3600 seconds. JSON files imported through the file picker have a 1 MB limit.
-Only timed food-collection objectives and boundary-brick layouts are supported,
-matching the game's current playable level types.
+`goal` is the food target and optional `killGoal` is the enemy-defeat target.
+For score objectives, at least one must be positive; both must be reached when
+both are positive. For survival, set `survive: true`, `goal: 0`, and `killGoal: 0`
+(or omit `killGoal`). Survival cannot be combined with score objectives.
+Older JSON without the new fields retains its original food-only objective.
 
 Individual brick edits are an optional `brickTypes` array, preserved in drafts,
 JSON exports/imports, and playtest snapshots. Older levels without it use their
@@ -386,7 +421,8 @@ Optional `portal` is `"red"`, `"orange"`, `"yellow"`, `"green"`, `"blue"`, or
 bricks after applying all overrides. Optional `boost` is a boolean.
 Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
-`wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse` or `wheel`;
+`wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`, or
+`bucket`;
 `heart` uses type `heart`. These three surfaces are mutually exclusive with
 one another and with Slimed/Springs/Spikes/Conveyor.
 Optional `toggle` is `1` (red), `2` (green), or `4` (blue), or `null` to remove it; it combines
@@ -681,5 +717,5 @@ Level 1–2 uses the exact food, enemy, and weapon timelines from the descriptio
 Movement speeds, automatic sword reach, persistent healing pickups, and
 one-hit-per-continuous-contact damage are implementation choices where the
 description does not specify those details. Levels 1–3 through 1–5 add combined
-food and robot-defeat objectives. Bosses and survival-only objectives are not
-playable yet.
+food and robot-defeat objectives. Custom levels also support enemy-only and
+survival objectives. Bosses are not playable yet.

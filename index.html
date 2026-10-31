@@ -120,8 +120,14 @@
           <div class="stat"><span class="stat-label">TIME LEFT</span><strong id="timer">◷ 60<span>s</span></strong></div>
           <div class="stat" id="weapon-status" role="status" aria-label="Weapon: no sword equipped"><span class="stat-label">WEAPON</span><strong class="weapon-value"><svg id="weapon-icon" viewBox="-24 -28 48 56" aria-hidden="true" hidden><g transform="rotate(28)"><path d="M0 -23 L6 -14 L4 10 L-4 10 L-6 -14 Z" fill="currentColor"/><path d="M-10 10 H10" stroke="currentColor" stroke-width="4"/><path d="M0 12 V22" stroke="#8a6953" stroke-width="5"/></g></svg><span id="weapon-remaining">—</span></strong></div>
           <div class="stat"><span class="stat-label">FOOD</span><strong id="food-count">🍗 0 <span>/ 20</span></strong></div>
-          <div class="stat"><span class="stat-label">ENEMIES</span><strong id="enemy-count">👾 0</strong></div>
-          <div class="stat lives"><span class="stat-label">KOSHI'S HEALTH</span><strong id="hearts" aria-label="3 of 3 hearts">♥ ♥ ♥</strong></div>
+          <div class="stat"><span class="stat-label">ENEMY SCORE</span><strong id="enemy-count">👾 0</strong></div>
+          <div class="stat lives">
+            <span class="stat-label">KOSHI'S HEALTH</span><strong id="hearts" aria-label="3 of 3 hearts">♥ ♥ ♥</strong>
+            <div id="heart-cost" class="heart-cost" hidden>
+              <span id="heart-cost-label"></span>
+              <div id="heart-cost-meter" class="heart-cost-meter" role="progressbar" aria-label="Food toward the next healing heart" aria-valuemin="0"><div id="heart-cost-fill"></div></div>
+            </div>
+          </div>
         </div>
         <div class="objective"><span><span class="live-dot"></span> THE MISSION</span><strong>Collect 20 food before time runs out</strong><span id="progress-label">0% complete</span></div>
         <div class="progress-track"><div id="progress"></div></div>

@@ -96,8 +96,12 @@ h1 em { font-style: normal; color: var(--accent); }
 .stat-label { display: block; color: var(--muted); font-size: 9px; margin-bottom: 8px; }
 .stat strong { font-size: 24px; font-weight: 500; white-space: nowrap; }
 .stat strong span { color: var(--muted); font: 14px 'DM Sans', sans-serif; }
+.stat strong.win-target, .stat strong.win-target span { color: #ffd36a; }
 .stat.lives { border: 0; padding: 0; min-width: 0; }
 .lives strong { color: var(--fast); letter-spacing: 4px; }
+.heart-cost { max-width: 150px; margin: 6px auto 0; color: #efb6c4; font-size: 10px; }
+.heart-cost-meter { height: 4px; margin-top: 4px; background: #ffffff15; border-radius: 3px; overflow: hidden; }
+#heart-cost-fill { height: 100%; background: #efb6c4; }
 .objective { display: flex; align-items: center; gap: 18px; padding: 12px 26px; background: #ffffff04; font-size: 11px; }
 .objective > span:first-child { color: var(--accent); font-size: 9px; letter-spacing: 1px; white-space: nowrap; }
 .objective strong { font-family: 'DM Sans', sans-serif; font-weight: 500; }

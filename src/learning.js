@@ -66,10 +66,12 @@ const GUIDE = [
     sections: [
       ['Robo Mouse', 'Mice wander in curved paths and periodically stop to lick their hands. They do not chase or shoot.', 'enemy:mouse'],
       ['Robo Wheel', 'Wheels roll along the inner perimeter. Intercept them near a wall while armed.', 'enemy:wheel'],
+      ['Robo Ram', 'Sleek metal robots with pale curling horns, tiny nostrils, and a red eye-and-mouth display wander slowly, then pause as their eyes sparkle and aim at Koshi. They line up and charge quickly in a straight line. Dodge the rush or catch it with a sword. A ram ricochets off bricks and loses some speed with each bounce.', 'enemy:ram'],
+      ['Robo Bucket', 'Buckets wander slowly with waving arms and randomly shoot blue bombs from their mouths. Bombs bounce off bricks and explode after three seconds; only their growing red flame circles can hurt Koshi. Defeat a bucket to squish it flat and pop its bombs.', 'enemy:bucket'],
       ['Damage & defeats', 'Unarmed contact costs one heart. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
       ...Object.entries(SWORDS).map(([type, sword]) => [
         sword.name,
-        type === 'gold' ? `${sword.seconds} seconds of unlimited defeats from pickup; pause freezes the timer.` : `Defeats ${sword.uses} robot${sword.uses === 1 ? '' : 's'} before breaking. Works on both enemy types.`,
+        type === 'gold' ? `${sword.seconds} seconds of unlimited defeats from pickup; pause freezes the timer.` : `Defeats ${sword.uses} robot${sword.uses === 1 ? '' : 's'} before breaking. Works on every enemy type.`,
         `weapon:${type}`,
       ]),
       ['One sword at a time', 'You cannot swap while equipped. Uncollected swords remain on the board until you can pick them up.'],
@@ -89,11 +91,13 @@ const GUIDE = [
     title: 'Objectives',
     sections: [
       ['Win before time runs out', 'Levels 1-1 and 1-2 require 20 food. Levels 1-3 through 1-5 require BOTH food and robot defeats. The HUD shows each target; progress follows the less-complete objective.'],
+      ['Custom win conditions', 'Choose food and/or enemy targets, or survive until the timer reaches zero. The briefing states what you must do. Required score counters show / target in gold; survival highlights the countdown in gold.'],
+      ['Enemy shields & score', 'Blue shields take 4 hits, green 3, red 2, and unshielded enemies 1. Hits downgrade blue to green to red to none. After a hit, enemies blink between red shades and are protected for the same one second as Koshi. Destroying an enemy awards its original hit count in enemy points; partial hits earn nothing.'],
       ...LEVELS.map(level => [
         `Level ${level.id}`,
         `${level.duration} seconds. Collect ${level.goal} food${level.killGoal ? ` AND defeat ${level.killGoal} robots` : ''}.`,
       ]),
-      ['Losing & retrying', 'Running out of time, losing all hearts, or leaving the board ends an attempt. Restart restores bricks, hearts, objects, and timers. Survival-only and boss objectives are not implemented yet.'],
+      ['Losing & retrying', 'Running out of time without meeting score targets, losing all hearts, or leaving the board ends an attempt. Reaching the time limit alive wins a survival level. Restart restores bricks, hearts, objects, and timers. Boss objectives are not implemented yet.'],
       ['Make your own', 'The level editor creates portable levels with timed food, robots, weapons, and brick attributes. Playtest links work without a server.'],
     ],
   },
@@ -113,6 +117,8 @@ const LESSONS = [
   { id: 'springs', title: 'Springs', instruction: 'Aim at the outlined brown Spring. Koshi bounces instead of stopping. Try redirecting him during the bounce.' },
   { id: 'mouse', title: 'Swords & Robo Mouse', instruction: 'Choose a sword below, then aim at the outlined brick. Pick up the sword before reaching the mouse; attacks are automatic. Try each sword with Retry.' },
   { id: 'wheel', title: 'Robo Wheel', instruction: 'Aim at the outlined brick to collect a sword and intercept a wheel at the inner perimeter. Unlike a mouse, it keeps rolling along the wall.' },
+  { id: 'ram', title: 'Robo Ram', instruction: 'Collect the sword, then watch the ram pause as its eyes sparkle and it aims at Koshi. It lines up before a fast straight charge. Avoid the rush or intercept it while armed; bricks make it ricochet and slow down.' },
+  { id: 'bucket', title: 'Robo Bucket', instruction: 'Collect a sword and intercept the bucket. Its blue bombs bounce harmlessly for three seconds before their expanding red flames can hurt you.' },
   { id: 'healing', title: 'Heal with food', instruction: 'You have two hearts and 9 food. Collect the strawberry to reach 10, then head back along your route to collect the healing heart.' },
   { id: 'warnings', title: 'Spawn warnings', instruction: 'Wait for the skull, swirl, and star at 2 seconds. They reveal objects at 3 seconds. Then aim at the outlined brick to collect the snack.' },
   { id: 'pause', title: 'Pause & resume', instruction: 'Press Pause (or Escape), then Resume. The clock, movement, previews, and all brick timers freeze while paused.' },
@@ -178,7 +184,7 @@ class Tutorial {
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'objectives'].includes(id)) {
+    if (['mouse', 'wheel', 'ram', 'bucket', 'objectives'].includes(id)) {
       addSword();
       if (id === 'wheel') {
         const bounds = game.bounds();
@@ -186,6 +192,13 @@ class Tutorial {
         // Start upstream so the moving wheel meets the launch path near arrival.
         enemy.distance -= 95 * (bounds.right - start.x) / engine.SPEED;
         game.placeWheel(enemy);
+        game.robots.push(enemy);
+      } else if (id === 'ram') {
+        const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'ram', x: .72, y: .5 })[0];
+        game.robots.push(enemy);
+      } else if (id === 'bucket') {
+        const enemy = { ...along(.8), type: 'bucket', radius: 19, phase: 0, age: 0, touching: false };
+        game.initializeBucket(enemy);
         game.robots.push(enemy);
       } else {
         game.robots.push({ ...along(.8), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
@@ -237,6 +250,8 @@ class Tutorial {
       springs: this.target.hitAt !== null,
       mouse: game.enemies >= 1,
       wheel: game.enemies >= 1,
+      ram: game.enemies >= 1,
+      bucket: game.enemies >= 1,
       healing: game.hearts === 3 && game.score >= 10,
       warnings: this.previewSeen && game.score > 0,
       pause: this.paused && game.state === 'playing',

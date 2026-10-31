@@ -28,11 +28,14 @@
         <form id="settings-form" class="settings-grid">
           <label>Name <input id="level-name" maxlength="60" required value="My level"></label>
           <label>Duration (seconds) <input id="duration" type="number" min="1" max="3600" step="any" value="60" required></label>
-          <label>Food goal <input id="goal" type="number" min="1" max="100000" step="1" value="20" required></label>
+          <label>Win condition <select id="win-condition"><option value="scores">Food and/or enemy targets</option><option value="survive">Survive until time runs out</option></select></label>
+          <label>Food goal (0 disables) <input id="goal" type="number" min="0" max="100000" step="1" value="20" required></label>
+          <label>Enemy score goal (0 disables) <input id="kill-goal" type="number" min="0" max="100000" step="1" value="0" required></label>
           <label>Heart cost <input id="heart-cost" type="number" min="1" max="100000" step="1" placeholder="None (disabled)"></label>
           <label>Boundary bricks <select id="brick-set"><option value="1">1 slow + 1 fast</option><option value="3">3 slow + 3 fast</option></select></label>
           <button type="submit">Apply settings</button>
         </form>
+        <p class="editor-help">Choose survival OR at least one positive score target. When both score targets are set, both must be met before time runs out. Apply settings before playtesting or exporting.</p>
       </section>
       <details class="editor-panel" aria-label="Pre-level cutscene">
         <summary>Optional story cutscene</summary>
@@ -63,7 +66,7 @@
             <input id="timeline" type="range" min="0" max="60" step="0.1" value="0">
             <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
           </div>
-          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food disappears at its expiry; swords and enemy spawn markers persist. Wheels snap to the nearest playable edge. Positions adapt between layouts.</p>
+          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food disappears at its expiry; swords and enemy spawn markers persist. Wheels snap to the nearest playable edge. Other enemies can be placed anywhere. Positions adapt between layouts.</p>
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
           <details id="brick-panel" class="brick-inspector" aria-label="Brick inspector">
@@ -98,6 +101,7 @@
             <label>Activations until enabled<select id="brick-toggle-clicks" disabled><option value="1">1 · Red switch</option><option value="2">2 · Green switch</option><option value="4">4 · Blue switch</option></select></label>
             <label>Spawning item<select id="brick-spawn-item" disabled></select></label>
             <label>Spawned food lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
+            <label>Spawned enemy shield<select id="brick-spawn-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <details class="inspector-help"><summary>Mechanics &amp; reset</summary>
               <p class="editor-help">Changes apply immediately to selected bricks. Contact surfaces replace one another; modifiers can combine with any surface. Crumbler counts selections; Warped absorbs neighbors temporarily. Slime holds Koshi; Springs reflect him; Spikes hurt; Conveyor carries; Boost launches from rest at double speed.</p>
               <p class="editor-help">Set portals one brick at a time or in groups. Each used color must have exactly two bricks before playtest or export. Warnings do not prevent editing or saving drafts. Recoloring or removing an endpoint does not change its partner.</p>
@@ -112,6 +116,7 @@
           <form id="event-form">
             <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option></select></label>
             <label>Object <select id="event-type"></select></label>
+            <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <div class="input-pair">
               <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
               <label id="lifetime-label">Lifetime (seconds) <input id="event-lifetime" type="number" min="0.1" max="3600" step="any" value="5" required></label>
