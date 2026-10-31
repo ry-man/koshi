@@ -83,7 +83,10 @@ test('title screen provides accessible artwork and explicit game entry without e
     assert.ok(controls.includes(`id="${id}"`), `${id} belongs to the control row`);
   }
   assert.ok(!controls.includes('id="level-select"'), 'level selection is not on the game screen');
-  assert.match(html, /<dialog id="title-screen"[\s\S]*?<select id="level-select"[\s\S]*?<\/dialog>/);
+  const title = html.slice(html.indexOf('<dialog id="title-screen"'), html.indexOf('</dialog>', html.indexOf('<dialog id="title-screen"')));
+  assert.ok(!title.includes('id="level-select"'));
+  assert.match(html, /<dialog id="level-picker"[^>]+aria-labelledby="level-picker-heading"[\s\S]*?<select id="level-select"[\s\S]*?<\/dialog>/);
+  assert.match(html, /id="title-levels"[^>]+aria-haspopup="dialog"/);
   assert.match(html, /class="pause-bars"><rect[^>]+\/><rect[^>]+\/>/);
   assert.ok(!controls.includes('id="weapon-status"'), 'weapon belongs to the stat row');
   assert.match(html, /<div class="hud">[\s\S]*?id="weapon-status"/);
@@ -96,6 +99,58 @@ test('title screen provides accessible artwork and explicit game entry without e
   for (const color of ['#83bca1', '#7eacdb', '#df8c81']) assert.ok(artwork.includes(color));
   assert.doesNotMatch(artwork, /<(?:script|image)\b|\bhref=/);
   assert.ok(readFileSync(path.join(root, 'sw.js'), 'utf8').includes("'./icons/title-scene.svg'"));
+});
+
+test('level popup commits only on Play and cancellation restores selection and menu focus', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      open: false, listeners: {},
+      addEventListener(name, listener) { this.listeners[name] = listener; },
+      showModal() { this.open = true; },
+      close() { this.open = false; },
+      focus() { this.focused = true; },
+    });
+    return elements.get(id);
+  };
+  const titleScreen = element('#title-screen');
+  titleScreen.open = true;
+  const levelSelect = element('#level-select');
+  levelSelect.value = '3';
+  let starts = 0;
+  const context = vm.createContext({
+    document: { querySelector: element }, titleScreen, levelSelect,
+    begin() { starts++; },
+  });
+  vm.runInContext(source.slice(source.indexOf("document.querySelector('#title-levels').addEventListener"),
+    source.indexOf('function dismissTitle()')), context);
+  const picker = element('#level-picker');
+  const open = () => element('#title-levels').listeners.click();
+  open();
+  assert.equal(picker.open, true);
+  assert.equal(titleScreen.open, false);
+  assert.equal(levelSelect.focused, true);
+  for (const cancel of [
+    () => element('#level-picker-close').listeners.click(),
+    () => picker.listeners.cancel({ preventDefault() {} }),
+    () => picker.listeners.keydown({ key: 'Escape', preventDefault() {}, stopPropagation() {} }),
+  ]) {
+    levelSelect.value = '18';
+    cancel();
+    assert.equal(picker.open, false);
+    assert.equal(titleScreen.open, true);
+    assert.equal(levelSelect.value, '3');
+    assert.equal(element('#title-levels').focused, true);
+    assert.equal(starts, 0);
+    open();
+  }
+  levelSelect.value = 'custom';
+  element('#level-picker-play').listeners.click();
+  assert.equal(levelSelect.value, 'custom');
+  assert.equal(picker.open, false);
+  assert.equal(titleScreen.open, false);
+  assert.equal(starts, 1);
 });
 
 test('level begins with three hearts, no enemies, and correct boundary brick mix', () => {
@@ -114,14 +169,14 @@ test('level begins with three hearts, no enemies, and correct boundary brick mix
 test('steering targets exact click, redirects in flight, and enforces each cooldown', () => {
   for (const kind of Object.keys(COOLDOWNS)) {
     const game = playing();
-    const brick = game.bricks.find(b => b.kind === kind);
+    const brick = game.bricks.find(b => b.kind === kind && b.absorbedBy === null);
     const x = brick.x + 3, y = brick.y + 7;
     assert.equal(game.steer(brick.id, x, y), true);
     assert.deepEqual(game.target, { x, y });
     assert.ok(Math.abs(Math.hypot(game.cat.vx, game.cat.vy) - SPEED) < 1e-8);
     assert.equal(brick.readyAt, COOLDOWNS[kind]);
     assert.equal(aim(game, brick), false);
-    assert.equal(aim(game, game.bricks.find(b => b.id !== brick.id)), true);
+    assert.equal(aim(game, game.bricks.find(b => b.id !== brick.id && b.absorbedBy === null)), true);
     game.update(COOLDOWNS[kind] + .01);
     game.cat.x = game.width / 2;
     game.cat.y = game.height / 2;

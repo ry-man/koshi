@@ -205,9 +205,8 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 #toast { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); color: var(--accent); font-size: 12px; pointer-events: none; text-align: center; }
 .error { color: var(--fast); }
 .loadout { flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); min-height: 36px; }
-.menu-level-select { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; font-size: 12px; }
-@media (max-height: 500px) and (orientation: landscape) { .menu-level-select { grid-column: 2; margin: 0; } }
-.menu-level-select select { max-width: 100%; background: var(--bg); color: var(--text); border: 1px solid #ffffff26; border-radius: 5px; font: inherit; padding: 5px; min-height: 44px; }
+.level-picker-select { display: grid; gap: 8px; margin: 20px 0; font-size: 14px; }
+.level-picker-select select { width: 100%; min-width: 0; background: var(--bg); color: var(--text); border: 1px solid #ffffff26; border-radius: 5px; font: inherit; padding: 8px; min-height: 44px; }
 .loadout .brand { flex: 1; min-width: 0; }
 #weapon-status { color: var(--accent); text-align: center; }
 .level-status { min-width: 0; text-align: center; }

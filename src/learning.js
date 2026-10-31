@@ -44,8 +44,8 @@ const GUIDE = [
         `slime:${color}`,
       ]),
       ['Springs', 'A wooden platform with grain and a dark outline covers only the arena-facing edge. It reflects Koshi immediately instead of stopping him. Little springs underneath are hidden at rest and appear only while the platform compresses and rebounds on contact. Redirect him mid-bounce to take control.', 'brick:springs'],
-      ['Spikes', 'Many white triangular spikes protrude toward the arena. Touching them costs one heart and stops Koshi. Resting against them does not cause more damage; leaving and touching them again does. Swords do not protect against spikes. Levels 1-3 through 1-5 introduce them.', 'brick:spikes'],
-      ['Conveyor', 'A thin grey, finely toothed belt rotates around the brick. Landing on the arena-facing edge carries Koshi in the arrow direction until the belt ends or another brick blocks him. Warped conveyors carry him around connected corners without stopping. Select another brick to steer away while riding. The editor offers clockwise and counterclockwise belts; Levels 1-3 through 1-5 include them.', 'brick:conveyor'],
+      ['Spikes', 'Many white triangular spikes protrude toward the arena. Touching them costs one heart and stops Koshi. Resting against them does not cause more damage; leaving and touching them again does. Swords do not protect against spikes. Level 1-8 introduces them.', 'brick:spikes'],
+      ['Conveyor', 'A thin grey, finely toothed belt rotates around the brick. Landing on the arena-facing edge carries Koshi in the arrow direction until the belt ends or another brick blocks him. Warped conveyors carry him around connected corners without stopping. Select another brick to steer away while riding. The editor offers clockwise and counterclockwise belts; Level 1-11 introduces them.', 'brick:conveyor'],
       ['Portal pairs', 'Misty colored smoke marks paired portals: red, orange, yellow, green, blue, or purple. Touch one to emerge at the other brick center, heading straight into the arena perpendicular to its surface. A short lockout prevents immediate return loops. If its partner is absorbed or toggle-disabled, the entrance acts as a solid landing. Cooling and exhausted portals still transport. Portal is separate from the neighbor-absorbing Warped attribute.', 'special:portal'],
       ['Toggle switches', 'The switch resembles a colored pill with a white sliding button and a countdown inside. Red starts at 1, green at 2, blue at 4. Every successful brick activation counts, including the Toggle itself. Initially disabled; at zero it enables. The next successful activation disables it and resets its countdown. Clicking a disabled or cooling brick does not count. Disabled toggles remain solid, cannot be selected, and their contact surfaces are inactive.', 'special:toggle'],
       ['Spawning bricks', 'An item-colored icon with a thin dark outline and dark rainbow glow indicates a food, sword, robot, or heart. Sword colors distinguish brown wood, green patinated bronze, silver, and gold. Touch the brick to spawn exactly one of that item at a random safe location; clicking alone does nothing. Wheels spawn on the inner perimeter. The icon turns dark grey without a glow when used; restart restores it. Food lifetime is configured in the editor.', 'special:spawner'],
@@ -58,7 +58,7 @@ const GUIDE = [
     sections: [
       ...Object.entries(FOODS).map(([type, food]) => [`${food.icon} ${food.name} / +${food.value}`, `Adds ${food.value} food point${food.value === 1 ? '' : 's'} when touched. Food may appear alone, in lines, in circles, or scattered around the arena.`, `food:${type}`]),
       ['Food expires', 'The small bar above food shows its remaining lifetime. Expired snacks disappear; pause freezes their lifetime.'],
-      ['Hearts', 'Koshi starts with three hearts. From campaign Level 1-2 onward, every 10 food points creates a pink, sparkling cloud, followed one second later by a healing heart at the same spot. Touch the heart to restore one heart, capped at three. Hearts remain until collected. Custom levels can change or disable this threshold.', 'heart'],
+      ['Hearts', 'Koshi starts with three hearts. From campaign Level 1-4 onward, filling the Next heart food meter creates a pink cloud, then a healing heart one second later. The level sets its heart cost so all available food generates at most five hearts. Touch a heart to restore one, capped at three. Custom levels can change or disable this cost.', 'heart'],
     ],
   },
   {
@@ -90,7 +90,7 @@ const GUIDE = [
   {
     title: 'Objectives',
     sections: [
-      ['Win before time runs out', 'Levels 1-1 and 1-2 require 20 food. Levels 1-3 through 1-5 require BOTH food and robot defeats. The HUD shows each target; progress follows the less-complete objective.'],
+      ['Campaign win conditions', 'The 19 campaign levels introduce one concept each. Some require food points, some enemy points, some BOTH, and others survival until time runs out. The briefing and gold HUD counters show the targets; combined progress follows the less-complete objective.'],
       ['Custom win conditions', 'Choose food and/or enemy targets, or survive until the timer reaches zero. The briefing states what you must do. Required score counters show / target in gold; survival highlights the countdown in gold.'],
       ['Enemy shields & score', 'Blue shields take 4 hits, green 3, red 2, and unshielded enemies 1. Hits downgrade blue to green to red to none. After a hit, enemies blink between red shades and are protected for the same one second as Koshi. Destroying an enemy awards its original hit count in enemy points; partial hits earn nothing.'],
       ...LEVELS.map(level => [

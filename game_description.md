@@ -4,7 +4,7 @@ This document describes the gameplay of a game called Koshi's Quest. The protago
 ## Gameplay
 
 ### Title Screen
-The game opens on a title screen with original artwork of a heroic, sword-wielding Koshi facing a menacing Robo Mouse and Robo Wheel, with green, blue, and red bricks in the background. Start adventure begins Level 1-1; Choose a level opens the level selector without starting the clock. Escape dismisses the title to the ready screen. Custom-level playtest and install-help links bypass the title.
+The game opens on a title screen with original artwork of a heroic, sword-wielding Koshi facing a menacing Robo Mouse and Robo Wheel, with green, blue, and red bricks in the background. Start adventure begins Level 1-1; Choose a level opens a popup with a level selector and Play level button without starting the clock. The main menu has no level dropdown. Back to menu or Escape cancels the popup without changing the current level. Escape dismisses the title to the ready screen. Custom-level playtest and install-help links bypass the title.
 
 ### Overview
 Koshi is controlled by clicking locations on one of any of the "bricks" on the screen. Koshi then immediately begins traveling directly towards the specific location clicked on the brick. Bricks have a cooldown phase before Koshi can be triggered to move towards any point of the same brick once again. Koshi stops when he touches any brick. The player is able to redirect Koshi while he is still in movement by simply clicking another available brick before he stops due to touching a brick.
@@ -56,12 +56,12 @@ gameplay, pausing a normal attempt or discarding tutorial practice.
 
 Any level may define an optional cutscene before gameplay. The top two-thirds
 of the screen show the cast interacting against a background matching the
-level's world: a garden path for Levels 1-1 through 1-3 and the Clockwork Pantry
-workshop for Levels 1-4 and 1-5. The bottom third is a retro RPG dialogue box,
+level's world: a garden path for Levels 1-1 through 1-10 and the Clockwork Pantry
+workshop for Levels 1-11 through 1-19. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
 dialogue in the locally bundled Pixelify Sans pixel font on the right.
 Speaker names, scene headings, and controls use the same blocky retro font.
-Koshi, Robo Mouse, Robo Wheel, and Tom the Duck each have a distinct pixel
+Koshi, Robo Mouse, Robo Wheel, Robo Ram, Robo Bucket, and Tom the Duck each have a distinct pixel
 portrait. Gameplay characters reuse their actual drawings; Tom has a dedicated
 full-body robot-duck drawing based on the supplied sketch.
 
@@ -76,16 +76,17 @@ and reduced-motion preferences disable animation and show whole dialogue lines.
 Tom the Duck is the main antagonist: a robot duck with a tall metal body,
 radio antenna, narrow horizontal visor, long bill, plated wings, and webbed
 metal feet. His antenna lights and bill animate while he speaks. He appears
-in every campaign cutscene, commands the Robo Mouse and Robo Wheel patrols,
-and hoards the garden's snacks in his Clockwork Pantry. Koshi follows the
-shipment through a crumbling garden gate and confronts Tom's slime security
-and warped vault walls. Tom is currently a story character, not a combat
-enemy or playable boss; existing enemy schedules and goals stay unchanged.
+in every campaign cutscene, commands the robot patrols,
+and hoards the world's food in his Clockwork Pantry. Koshi rescues farms,
+kitchens, and bakeries on his way to freeing the world, enthusiastically
+eating every kind of food. Each scene teaches exactly that level's new
+concept; robot cast members must be introduced by that point and present
+in the corresponding level. Tom is a story antagonist, not a combat enemy or boss.
 The level editor supports optional scenes with either background, ordered
 dialogue lines, a speaker, and an on-stage cast. Saved JSON can additionally
 set each actor's normalized position per line. Tom is available as a speaker
 and cast member using the character ID `tom`, alongside `koshi`, `mouse`,
-and `wheel`. Older custom scenes remain supported.
+`wheel`, `ram`, and `bucket`. Older custom scenes remain supported.
 
 ### Koshi
 Koshi is a circular cat head who is grey with dark grey stripes, a white stripe on his nose, and two pointy ears. He is smiling and has 4 large whiskers poking out from either side of his face.
@@ -174,9 +175,9 @@ Many triangular white spikes protrude from the arena-facing edge. Touching their
 
 ### Brick Attributes - Conveyor
 
-A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); arrows show the direction on the arena-facing edge. Landing on that edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors occupy phone-layout left 50–62.5% in Level 1-3 (clockwise), right 50–62.5% in Level 1-4 (counterclockwise), and left 37.5–50% in Level 1-5 (clockwise). Desktop rotates their directions with the bricks.
+A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); arrows show the direction on the arena-facing edge. Landing on that edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors first appear in Level 1-11. Desktop rotates their directions with the bricks.
 
-Slimed, Springs, Spikes, Conveyor, Portal, Spawning, and Boost are mutually exclusive: choosing one in the custom-level editor replaces the others. All seven can combine with any cooldown color, Toggle, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion, but not while Toggle-disabled; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Built-in Levels 1-3 through 1-5 introduce the original four surfaces. Spikes occupy phone-layout bottom 20–40% in Level 1-3, top 40–60% in Level 1-4, and top 40–60% plus right 50–62.5% in Level 1-5; desktop rotates these slots with their bricks. Existing campaign layouts stay unchanged. Restart clears spike contacts and restores health.
+Slimed, Springs, Spikes, Conveyor, Portal, Spawning, and Boost are mutually exclusive: choosing one in the custom-level editor replaces the others. All seven can combine with any cooldown color, Toggle, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion, but not while Toggle-disabled; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Slime starts in Level 1-6, Spikes in 1-8, Springs in 1-10, and Conveyors in 1-11. Restart clears spike contacts and restores health.
 
 ### Brick Attributes - Portal, Toggle, Spawning, and Boost
 
@@ -301,147 +302,44 @@ Swords randomly appear and do not ever disappear unless Koshi picks them up. Whe
 ## Death
 Koshi dies if he either runs out of hearts or if he runs off of the edge of the screen.
 
-### World 1
+### World 1: The food rescue
 
-#### Level 1-1
-This level has the following:
+The old five levels are replaced by 19 lessons. The complete level names,
+concept order, durations, and victory targets are listed in the
+[campaign table](./README.md#how-to-play-and-interactive-tutorial).
+Food-only, enemy-only, combined, and survival missions all use the same engine rules.
 
-1. Level time length: 60 seconds
-2. Level objective: Gather 20 food
-3. Level setup: Bricks along just boundary of screen. Most bricks are Normal speed but one each of Slow and Fast are included.
+Each level introduces one concept in this order: normal red/blue/green bricks,
+Robo Mouse, swords, hearts and heart cost, Crumblers, slime, enemy shields,
+Spikes, Robo Wheels, Springs, Conveyors, Warped bricks, Robo Rams, Boost,
+Spawners, Robo Buckets, Cinder, Toggles, Portals. Returning mechanics are
+chosen for useful combinations rather than including every earlier brick style.
+Each layout has at most six distinct styles and always retains ordinary steering
+bricks. The 26 boundary segments form 21 starting blocks: 17 standard, three
+double (14.3%), and one triple (4.8%). Desktop and portrait use the same groups.
 
-The food will appear at the following times ("Appear Time") in the following methods using the abbreviations defined above and only stay on screen for the following time in seconds ("Life Time"):
-| Appear Time  | Method | Food | Life Time |
-|--------------|--------|------|-----------|
-| 2            | S      |S     | 5         |
-| 4            | S      |S     | 5         |
-| 6            | S      |S     | 5         |
-| 10           | L3     |S     | 5         |
-| 15           | L3     |S     | 5         |
-| 20           | L3     |S     | 5         |
-| 25           | C3     |S     | 5         |
-| 30           | C4     |S     | 5         |
-| 35           | C5     |S     | 5         |
-| 35           | R5     |P     | 3         |
-| 45           | R5     |P     | 3         |
-| 55           | R5     |P     | 3         |
+All seven foods appear in each mission. Food patterns use three-item lines,
+circles, and scattered groups, plus a single hamburger. Level 1-1 has appearances
+at 3, 11, 19, 27, 35, 43, and 51 seconds; later levels distribute their seven
+appearances from 3 seconds through nine seconds before the time limit.
+The total scheduled food value is 70 points. Level 1-15 also has two single-use
+hamburger-spawning bricks, bringing its possible food value to 84.
+Hearts are disabled before 1-4. Thereafter the heart cost is
+`ceil(total possible food points / 5)`: 14 normally, 17 in 1-15.
+Even collecting all scheduled and brick-spawned food generates at most five hearts.
 
+Swords first appear in 1-3, before its first enemies: wood at 3 seconds,
+bronze at 8, silver at 24, and gold at 52. Later levels supply silver at
+3 and 30 seconds, gold at 60 where time permits, and a final silver at
+90 seconds or five seconds before the time limit, whichever is earlier.
+Shielded enemies start in 1-7. No more than 20% of a level's scheduled
+robots have shields; red is most common across the campaign, green rarer,
+and blue rarest. Defeat targets count enemy points, not raw robot counts.
 
-#### Level 1-1
-This level has the following:
-
-1. Level time length: 60 seconds
-2. Level objective: Gather 20 food
-3. Level setup: Bricks along just boundary of screen. Most bricks are Normal speed but one each of Slow and Fast are included.
-4. Heart Cost: Infinity (no hearts)
-
-The food will appear at the following times ("Appear Time") in the following methods using the abbreviations defined above and only stay on screen for the following time in seconds ("Life Time"):
-| Appear Time  | Method | Food | Life Time |
-|--------------|--------|------|-----------|
-| 2            | S      |S     | 5         |
-| 4            | S      |S     | 5         |
-| 6            | S      |S     | 5         |
-| 10           | L3     |S     | 5         |
-| 15           | L3     |S     | 5         |
-| 20           | L3     |S     | 5         |
-| 25           | C3     |S     | 5         |
-| 30           | C4     |S     | 5         |
-| 35           | C5     |S     | 5         |
-| 35           | R5     |P     | 3         |
-| 45           | R5     |P     | 3         |
-| 55           | R5     |P     | 3         |
-
-
-#### Level 1-2
-This level has the following:
-
-1. Level time length: 120 seconds
-2. Level objective: Gather 20 food
-3. Level setup: Bricks along just boundary of screen. Most bricks are Normal speed but three each of Slow and Fast are included.
-4. Heart cost: 10
-
-The food will appear at the following times ("Appear Time") in the following methods using the abbreviations defined above and only stay on screen for the following time in seconds ("Life Time"):
-| Appear Time  | Method | Food | Life Time |
-|--------------|--------|------|-----------|
-| 5            | S      |S     | 10        |
-| 10           | S      |S     | 10        |
-| 15           | S      |S     | 10        |
-| 20           | L3     |S     | 10        |
-| 25           | L3     |S     | 10        |
-| 30           | L3     |S     | 10        |
-| 35           | C3     |S     | 10        |
-| 40           | C4     |S     | 10        |
-| 50           | C5     |S     | 10        |
-| 60           | R5     |P     | 15        |
-| 80           | R5     |P     | 15        |
-| 100          | R5     |P     | 15        |
-
-Enemies will appear at the following times
-| Appear Time | Enemy               | Count |
-|-------------|---------------------|-------|
-| 10          | Robo Mouse          | 3     |
-| 20          | Robo Wheel          | 1     |
-| 30          | Robo Mouse          | 3     |
-| 40          | Robo Wheel          | 1     |
-| 50          | Robo Wheel          | 1     |
-| 60          | Robo Mouse          | 3     |
-| 70          | Robo Mouse          | 3     |
-| 80          | Robo Wheel          | 1     |
-| 90          | Robo Wheel          | 1     |
-| 100         | Robo Mouse          | 3     |
-
-Weapons will appear at the following times:
-| Appear Time | Weapon              |
-|-------------|---------------------|
-| 5           | Wood Sword          |
-| 15          | Bronze Sword        |
-| 30          | Silver Sword        |
-| 50          | Gold Sword          |
-| 70          | Silver Sword        |
-| 80          | Gold Sword          |
-
-#### Levels 1-3 through 1-5
-
-These levels require both objectives before the timer expires. The enemy HUD
-shows the defeat target, and progress tracks the less-complete objective.
-All have a heart cost of 10 and retain ordinary unlimited-use steering bricks.
-Brick segments below use portrait coordinates; desktop rotates them clockwise
-with the rest of the board.
-
-| Level | Name | Time | Food goal | Robot defeats | Brick setup |
-|-------|------|------|-----------|---------------|-------------|
-| 1-3 | Crumb patrol | 120s | 20 | 4 | Five-use fast Crumblers at top 20–40% and bottom 60–80%; red slime at left 25–37.5%; Springs at right 62.5–75%; Spikes at bottom 20–40%; clockwise Conveyor at left 50–62.5%. |
-| 1-4 | Slime circuit | 150s | 25 | 8 | Fast Warped (12s) at top 80–100%; four-use fast Crumbler at bottom 0–20%; blue slime at left 12.5–25%, red at left 50–62.5%, green at right 25–37.5%; Springs at right 75–87.5%; Spikes at top 40–60%; counterclockwise Conveyor at right 50–62.5%. |
-| 1-5 | Warped showdown | 180s | 30 | 12 | Four-use fast Warped Crumbler (15s) at top 80–100%; fast Warped (10s) at bottom 0–20%; three-use Crumblers at top 20–40% and bottom 60–80%; blue slime at left 12.5–25%, green at right 25–37.5%, red at left 62.5–75%; Springs at right 75–87.5% and bottom 40–60%; Spikes at top 40–60% and right 50–62.5%; clockwise Conveyor at left 37.5–50%. |
-
-The base cooldown mix is three slow and three fast bricks, with remaining bricks
-normal, before the overrides above. Green and red slime in 1-5, and red slime
-in 1-4, have fast cooldowns; other slime and Springs have normal cooldowns.
-
-Food timelines use `(time, method, food, lifetime)` in seconds:
-
-- **1-3:** `(3,L3,S,15)`, `(15,C4,S,20)`, `(30,R5,P,25)`,
-  `(50,L3,C,25)`, `(75,R5,P,30)`, `(100,C4,P,20)`.
-- **1-4:** `(3,C4,S,20)`, `(18,L3,P,20)`, `(35,R5,P,25)`,
-  `(55,C4,C,25)`, `(80,R5,P,30)`, `(110,L3,C,30)`, `(135,C4,P,15)`.
-- **1-5:** `(3,L3,P,20)`, `(20,C4,P,25)`, `(40,R5,P,25)`,
-  `(60,L3,C,30)`, `(85,C5,P,30)`, `(115,R5,C,30)`,
-  `(145,C4,P,30)`, `(165,L3,C,15)`.
-
-Robot timelines use `(time, type, count)`:
-
-- **1-3:** `(10,mouse,2)`, `(25,mouse,2)`, `(45,wheel,1)`,
-  `(65,mouse,2)`, `(90,wheel,1)`.
-- **1-4:** `(10,mouse,3)`, `(25,wheel,1)`, `(40,mouse,3)`,
-  `(60,wheel,2)`, `(85,mouse,3)`, `(110,wheel,2)`, `(130,mouse,2)`.
-- **1-5:** `(10,mouse,3)`, `(25,wheel,2)`, `(40,mouse,3)`,
-  `(60,wheel,2)`, `(80,mouse,4)`, `(105,wheel,2)`,
-  `(130,mouse,4)`, `(155,wheel,2)`.
-
-Sword timelines use `(time, type)`; uncollected swords persist:
-
-- **1-3:** `(2,bronze)`, `(20,silver)`, `(50,bronze)`, `(80,silver)`.
-- **1-4:** `(2,silver)`, `(30,bronze)`, `(55,gold)`, `(85,silver)`,
-  `(115,silver)`.
-- **1-5:** `(2,silver)`, `(30,silver)`, `(55,gold)`, `(80,silver)`,
-  `(105,gold)`, `(135,silver)`, `(155,gold)`.
+All levels begin with story cutscenes about Koshi saving the world and its meals
+from Tom's robots. The first scene introduces Tom the Duck without showing any
+combat robot. Each later scene uses only enemy types actually in that level,
+never future enemies. The final mission pairs purple Portals with Boost and
+Toggle routes to break Tom's last blockade and reclaim a feast for the world.
+Campaign progress uses a new save key; old five-level saves remain untouched
+and cannot skip these new lessons.

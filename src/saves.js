@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const SAVE_KEY = 'koshi-campaign-saves-v1';
+const SAVE_KEY = 'koshi-campaign-saves-v2';
 const SLOT_COUNT = 3;
 
 function ownerName(value) {

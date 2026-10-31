@@ -19,10 +19,9 @@ const FOODS = {
   H: { icon: '🍔', value: 7, name: 'Hamburger' },
 };
 const SCHEDULE = [
-  [2, 'S', 'S', 5], [4, 'S', 'S', 5], [6, 'S', 'S', 5],
-  [10, 'L3', 'S', 5], [15, 'L3', 'S', 5], [20, 'L3', 'S', 5],
-  [25, 'C3', 'S', 5], [30, 'C4', 'S', 5], [35, 'C5', 'S', 5],
-  [35, 'R5', 'P', 3], [45, 'R5', 'P', 3], [55, 'R5', 'P', 3],
+  [3, 'L3', 'S', 18], [11, 'L3', 'P', 18], [19, 'C3', 'B', 20],
+  [27, 'L3', 'C', 20], [35, 'C3', 'L', 20], [43, 'R3', 'F', 17],
+  [51, 'S', 'H', 9],
 ];
 const SWORDS = {
   wood: { name: 'Wood Sword', color: '#b88b60', uses: 1 },
@@ -60,7 +59,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
 function validateCutscene(value) {
@@ -113,111 +112,228 @@ class Cutscene {
   skip() { this.finished = true; }
 }
 
-const storyActors = [
-  { character: 'koshi', x: .2, y: .65 },
-  { character: 'tom', x: .55, y: .62 },
-  { character: 'mouse', x: .72, y: .65 },
-  { character: 'wheel', x: .86, y: .7 },
-];
-const story = (theme, dialogue) => ({
+const story = (theme, dialogue, enemies) => ({
   theme, lines: dialogue.map(([speaker, text]) => ({
-    speaker, text, actors: storyActors.map(actor => ({
-      ...actor, y: actor.y + (actor.character === speaker ? .05 : 0),
+    speaker, text, actors: ['koshi', 'tom', ...enemies].map((character, index, cast) => ({
+      character, x: .16 + index * .68 / (cast.length - 1), y: character === speaker ? .7 : .65,
     })),
   })),
 });
+const campaignRegions = brickEditRegions(makeBricks());
+const campaignBrick = (id, attributes) => ({ ...campaignRegions.get(id), kind: 'normal', ...attributes });
 const LEVELS = [
   {
-    id: '1-1', duration: 60, goal: 20, heartCost: Infinity, food: SCHEDULE, enemies: [], weapons: [],
-    cutscene: story('garden', [
-      ['koshi', 'A sunny garden, a quiet path... and not a snack in sight. Something is very wrong.'],
-      ['tom', 'Attention, garden! I am Tom the Duck. My robot patrol will collect every snack for my Clockwork Pantry.'],
-      ['mouse', 'Yes, Commander Tom! Wheels, roll out!'],
-      ['wheel', 'BEEP. SNACK DELIVERY IN PROGRESS. NO CATS ALLOWED.'],
-      ['koshi', 'Then my adventure starts with breakfast. Those bricks should help me cross the garden!'],
-    ]),
-  },
-  {
-    id: '1-2', duration: 120, goal: 20, heartCost: 10,
-    cutscene: story('garden', [
-      ['tom', 'A cat raiding my deliveries? Antenna command: seal the garden gate. Those snacks are mine!'],
-      ['mouse', 'You ate our shipment! Patrol units, guard the garden gate!'],
-      ['koshi', 'Not yours, Tom. Those strawberries grew here. I am taking the path to your pantry.'],
-      ['wheel', 'WARNING: SWORDS DETECTED. KEEP AWAY FROM THE CAT.'],
-    ]),
-    food: [[5,'S','S',10],[10,'S','S',10],[15,'S','S',10],[20,'L3','S',10],[25,'L3','S',10],[30,'L3','S',10],[35,'C3','S',10],[40,'C4','S',10],[50,'C5','S',10],[60,'R5','P',15],[80,'R5','P',15],[100,'R5','P',15]],
-    enemies: [[10,'mouse',3],[20,'wheel',1],[30,'mouse',3],[40,'wheel',1],[50,'wheel',1],[60,'mouse',3],[70,'mouse',3],[80,'wheel',1],[90,'wheel',1],[100,'mouse',3]],
-    weapons: [[5,'wood'],[15,'bronze'],[30,'silver'],[50,'gold'],[70,'silver'],[80,'gold']],
-  },
-  {
-    id: '1-3', name: 'Crumb patrol', duration: 120, goal: 20, killGoal: 4, heartCost: 10, brickSet: 3,
-    cutscene: story('garden', [
-      ['tom', 'My crumb patrol will stop you. Try crossing my crumbling walls and white spikes, little cat!'],
-      ['mouse', 'This old garden wall will crumble before you catch our patrol!'],
-      ['koshi', 'Then I will choose my steps carefully. And that spring looks useful.'],
-      ['wheel', 'GATE LOCK: FOUR PATROL UNITS. FOOD ALONE WILL NOT OPEN IT.'],
-    ]),
-    food: [[3,'L3','S',15],[15,'C4','S',20],[30,'R5','P',25],[50,'L3','C',25],[75,'R5','P',30],[100,'C4','P',20]],
-    enemies: [[10,'mouse',2],[25,'mouse',2],[45,'wheel',1],[65,'mouse',2],[90,'wheel',1]],
-    weapons: [[2,'bronze'],[20,'silver'],[50,'bronze'],[80,'silver']],
-    brickTypes: [
-      { edge: 'top', start: .2, end: .4, kind: 'fast', crumbler: 5 },
-      { edge: 'bottom', start: .6, end: .8, kind: 'fast', crumbler: 5 },
-      { edge: 'left', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'red' },
-      { edge: 'right', start: .625, end: .75, kind: 'normal', springs: true },
-      { edge: 'bottom', start: .2, end: .4, kind: 'normal', spikes: true },
-      { edge: 'left', start: .5, end: .625, kind: 'normal', conveyor: true },
+    name: 'Breakfast rebellion', concept: 'normal bricks', duration: 60, goal: 20, food: SCHEDULE,
+    enemies: [], weapons: [], bricks: [],
+    dialogue: [
+      ['tom', 'I am Tom the Duck! My robots will seize the world and lock every meal in my Clockwork Pantry.'],
+      ['koshi', 'Not while I have whiskers! I will save the world, starting with strawberries, pretzels, and a very large breakfast.'],
+      ['tom', 'Click a brick to travel? Blue recharges in 15 seconds, green in 8, red in 3. You cannot outrun my plans!'],
+      ['koshi', 'I can aim at any spot on a ready brick and redirect in flight. I stop when I touch a brick. Collect 20 food points? Delicious.'],
     ],
   },
   {
-    id: '1-4', name: 'Slime circuit', duration: 150, goal: 25, killGoal: 8, heartCost: 10, brickSet: 3,
-    cutscene: story('workshop', [
-      ['tom', 'Welcome to my workshop, Koshi. I built every robot here. My sticky security will keep you out of the vault.'],
-      ['wheel', 'WELCOME TO THE PANTRY WORKSHOP. PLEASE ENJOY OUR STICKY SECURITY SYSTEM.'],
-      ['mouse', 'Blue slime is my finest work. Plenty of time for a little hand polish!'],
-      ['koshi', 'Blue holds longest, red lets go quickly. Eight guards between me and those stolen snacks.'],
-    ]),
-    food: [[3,'C4','S',20],[18,'L3','P',20],[35,'R5','P',25],[55,'C4','C',25],[80,'R5','P',30],[110,'L3','C',30],[135,'C4','P',15]],
-    enemies: [[10,'mouse',3],[25,'wheel',1],[40,'mouse',3],[60,'wheel',2],[85,'mouse',3],[110,'wheel',2],[130,'mouse',2]],
-    weapons: [[2,'silver'],[30,'bronze'],[55,'gold'],[85,'silver'],[115,'silver']],
-    brickTypes: [
-      { edge: 'top', start: .8, end: 1, kind: 'fast', warped: 12 },
-      { edge: 'bottom', start: 0, end: .2, kind: 'fast', crumbler: 4 },
-      { edge: 'left', start: .125, end: .25, kind: 'normal', slimed: true, slimeColor: 'blue' },
-      { edge: 'left', start: .5, end: .625, kind: 'fast', slimed: true, slimeColor: 'red' },
-      { edge: 'right', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'green' },
-      { edge: 'right', start: .75, end: .875, kind: 'normal', springs: true },
-      { edge: 'top', start: .4, end: .6, kind: 'normal', spikes: true },
-      { edge: 'right', start: .5, end: .625, kind: 'normal', conveyor: true, conveyorDirection: 'counterclockwise' },
+    name: 'Mouse at the market', concept: 'robo mouse', duration: 45, survive: true,
+    enemies: [[8,'mouse',1],[22,'mouse',1],[35,'mouse',1]], weapons: [], bricks: [],
+    dialogue: [
+      ['tom', 'My Robo Mouse patrol has occupied the market. Hold out until the evacuation bell rings!'],
+      ['mouse', 'We wander in curves and sometimes stop to lick our hands. Touch us without protection and lose a heart!'],
+      ['koshi', 'I will dodge your patrol for 45 seconds so everyone can escape. A banana and cheese detour sounds good, too.'],
     ],
   },
   {
-    id: '1-5', name: 'Warped showdown', duration: 180, goal: 30, killGoal: 12, heartCost: 10, brickSet: 3,
-    cutscene: story('workshop', [
-      ['tom', 'You have reached my vault, but I still command it! Warped walls, swallow his paths. Patrol, protect my stolen feast!'],
-      ['mouse', 'The pantry vault! These warped walls will swallow your escape routes!'],
-      ['wheel', 'TWELVE GUARDS ONLINE. CRUMBLING WALLS ARMED. SNACKS SECURED.'],
-      ['koshi', 'Your antenna cannot order me around, Tom. Walls can change. Plans can too. I am bringing every snack back to the garden.'],
-    ]),
-    food: [[3,'L3','P',20],[20,'C4','P',25],[40,'R5','P',25],[60,'L3','C',30],[85,'C5','P',30],[115,'R5','C',30],[145,'C4','P',30],[165,'L3','C',15]],
-    enemies: [[10,'mouse',3],[25,'wheel',2],[40,'mouse',3],[60,'wheel',2],[80,'mouse',4],[105,'wheel',2],[130,'mouse',4],[155,'wheel',2]],
-    weapons: [[2,'silver'],[30,'silver'],[55,'gold'],[80,'silver'],[105,'gold'],[135,'silver'],[155,'gold']],
-    brickTypes: [
-      { edge: 'top', start: .8, end: 1, kind: 'fast', crumbler: 4, warped: 15 },
-      { edge: 'bottom', start: 0, end: .2, kind: 'fast', warped: 10 },
-      { edge: 'top', start: .2, end: .4, kind: 'normal', crumbler: 3 },
-      { edge: 'bottom', start: .6, end: .8, kind: 'normal', crumbler: 3 },
-      { edge: 'left', start: .125, end: .25, kind: 'normal', slimed: true, slimeColor: 'blue' },
-      { edge: 'right', start: .25, end: .375, kind: 'fast', slimed: true, slimeColor: 'green' },
-      { edge: 'left', start: .625, end: .75, kind: 'fast', slimed: true, slimeColor: 'red' },
-      { edge: 'right', start: .75, end: .875, kind: 'normal', springs: true },
-      { edge: 'bottom', start: .4, end: .6, kind: 'normal', springs: true },
-      { edge: 'top', start: .4, end: .6, kind: 'normal', spikes: true },
-      { edge: 'right', start: .5, end: .625, kind: 'normal', spikes: true },
-      { edge: 'left', start: .375, end: .5, kind: 'normal', conveyor: true },
+    name: 'Cutlery uprising', concept: 'swords', duration: 90, killGoal: 5,
+    enemies: [[10,'mouse',2],[28,'mouse',2],[48,'mouse',2],[68,'mouse',2]], bricks: [],
+    weapons: [[3,'wood'],[8,'bronze'],[24,'silver'],[52,'gold']],
+    dialogue: [
+      ['tom', 'The market is closed! My mice guard the road to the farms.'],
+      ['mouse', 'Swords! Wood has 1 attack, bronze 3, silver 10; gold lasts 15 seconds. Stay out of the cat\'s reach!'],
+      ['koshi', 'Pick up a sword and I strike nearby robots automatically. I carry one at a time. Five enemy points will reopen the road, then lunch!'],
     ],
   },
-];
+  {
+    name: 'A hearty harvest', concept: 'hearts and heart cost', duration: 100, goal: 30, killGoal: 4,
+    enemies: [[12,'mouse',2],[35,'mouse',2],[62,'mouse',2]], bricks: [],
+    dialogue: [
+      ['tom', 'I have stolen the farms\' harvest. My patrol will wear down your three hearts.'],
+      ['koshi', 'Food now earns healing hearts! The Next heart meter shows the food cost; each full meter creates a heart after a pink cloud.'],
+      ['mouse', 'He still has to collect it! Each heart restores one, up to three.'],
+      ['koshi', 'I will gather 30 food points and earn 4 enemy points to free the farms. Chicken, fish, burgers: I love every course!'],
+    ],
+  },
+  {
+    name: 'Cracker causeway', concept: 'crumblers', duration: 100, goal: 35,
+    enemies: [[15,'mouse',2],[45,'mouse',2],[75,'mouse',2]],
+    bricks: [[4,{ crumbler: 5 }],[9,{ crumbler: 5 }],[16,{ crumbler: 5 }]],
+    dialogue: [
+      ['tom', 'The old causeway is made of Crumblers. Every time you select one, its remaining uses fall!'],
+      ['mouse', 'At zero uses, you cannot aim at it again. It still stops you, though.'],
+      ['koshi', 'Five uses per crumbly brick: I will save them for useful routes and use plain bricks too. Recover 35 food points, not just cracker crumbs!'],
+    ],
+  },
+  {
+    name: 'Sticky jam depot', concept: 'slime', duration: 100, goal: 30, killGoal: 5,
+    enemies: [[12,'mouse',2],[38,'mouse',2],[68,'mouse',2]],
+    bricks: [[4,{ slimed: true, slimeColor: 'green' }],[16,{ slimed: true, slimeColor: 'green' }],[9,{ crumbler: 5 }]],
+    dialogue: [
+      ['tom', 'My jam depot has slime-coated bricks. Land on one and you are stuck before you can steer again!'],
+      ['mouse', 'Green slime holds for 3 seconds. Blue holds for 5, red for 1. Our green batch should spoil your lunch!'],
+      ['koshi', 'I will plan around the sticky pauses, save the jam, and earn 5 enemy points plus 30 food points. Even sticky toast deserves freedom.'],
+    ],
+  },
+  {
+    name: 'Tin-foil picnic', concept: 'enemy shields', duration: 110, killGoal: 8,
+    enemies: [[10,'mouse',3],[28,'mouse',1,'red'],[45,'mouse',3],[64,'mouse',1,'red'],[82,'mouse',2]],
+    bricks: [[16,{ slimed: true, slimeColor: 'red' }],[9,{ crumbler: 5 }]],
+    dialogue: [
+      ['tom', 'A few elite robots now wear shields. Red needs 2 hits, green 3, blue 4; stronger shields are rarer.'],
+      ['mouse', 'Each hit weakens the shield. We blink with one second of protection between accepted hits!'],
+      ['koshi', 'Only a defeat earns points: 1 without a shield, or the original shield\'s hit count. Eight enemy points will rescue this picnic!'],
+    ],
+  },
+  {
+    name: 'Skewered supper', concept: 'spikes', duration: 60, survive: true,
+    enemies: [[10,'mouse',2],[30,'mouse',2],[48,'mouse',1,'red']],
+    bricks: [[4,{ spikes: true }],[9,{ spikes: true }],[16,{ slimed: true, slimeColor: 'red' }]],
+    dialogue: [
+      ['tom', 'White spikes guard the supper station. Touching them costs a heart and stops you, even with a sword!'],
+      ['koshi', 'Then I will redirect before landing on spikes. One second of damage protection is not a reason to linger.'],
+      ['mouse', 'The rescue train leaves in 60 seconds. Stay alive until then, if you can!'],
+      ['koshi', 'I will keep the train safe, and collect a few snacks for the passengers.'],
+    ],
+  },
+  {
+    name: 'Meals on wheels', concept: 'robo wheels', duration: 110, goal: 35, killGoal: 7,
+    enemies: [[12,'wheel',1],[25,'mouse',2],[43,'wheel',2],[62,'mouse',2],[82,'wheel',1,'red']],
+    bricks: [[16,{ spikes: true }],[9,{ crumbler: 5 }]],
+    dialogue: [
+      ['tom', 'Robo Wheels, patrol the inside boundary! Stop Koshi from reaching the city kitchens.'],
+      ['wheel', 'WE ROLL AROUND THE EDGES. INTERCEPT WITH A SWORD OR STEER CLEAR OF OUR ROUTE.'],
+      ['koshi', 'Seven enemy points and 35 food points will free the kitchens. Your delivery route ends here; mine ends with fish and pretzels!'],
+    ],
+  },
+  {
+    name: 'Pancake trampoline', concept: 'springs', duration: 110, goal: 40,
+    enemies: [[14,'mouse',2],[35,'wheel',2],[62,'mouse',2],[85,'wheel',1,'red']],
+    bricks: [[4,{ springs: true }],[9,{ springs: true }],[16,{ spikes: true }]],
+    dialogue: [
+      ['tom', 'Spring platforms protect my pancake store. Land on one and it bounces you away automatically!'],
+      ['wheel', 'BOUNCE TRAJECTORY ACTIVE. REDIRECT IN FLIGHT TO AVOID THE SPIKES.'],
+      ['koshi', 'That is a shortcut, not a setback! I will bounce toward 40 food points and return pancakes to the hungry city.'],
+    ],
+  },
+  {
+    name: 'Sushi assembly line', concept: 'conveyers', duration: 120, goal: 35, killGoal: 8,
+    enemies: [[12,'mouse',2],[30,'wheel',2],[50,'mouse',1,'red'],[72,'wheel',2],[95,'mouse',2]],
+    bricks: [[19,{ conveyor: true }],[10,{ conveyor: true, conveyorDirection: 'counterclockwise' }],[4,{ springs: true }]],
+    dialogue: [
+      ['tom', 'Conveyor belts carry supplies into my workshop. Land on the inner edge and the belt carries you along its arrows.'],
+      ['wheel', 'THE BELT STOPS AT ITS END. YOU MAY STEER AWAY WHILE RIDING.'],
+      ['koshi', 'A moving sushi buffet! I will use the belts and springs to recover 35 food points and earn 8 enemy points.'],
+    ],
+  },
+  {
+    name: 'The folding pantry', concept: 'warped bricks', duration: 120, killGoal: 10,
+    enemies: [[12,'mouse',3],[32,'wheel',2],[52,'mouse',1,'green'],[74,'mouse',3],[97,'wheel',1,'red']],
+    bricks: [[4,{ warped: 12 }],[19,{ warped: 12, conveyor: true }],[16,{ springs: true }]],
+    dialogue: [
+      ['tom', 'Warped bricks absorb a neighboring brick each time you select them. My pantry walls will change beneath your plans!'],
+      ['wheel', 'THE GROWING GROUP USES ITS OWNER\'S STYLE. IT RESTORES AFTER ITS WARP TIMER EXPIRES.'],
+      ['koshi', 'I can grow a conveyor route, then redirect before it shrinks. Ten enemy points will unlock the pantry; save me some cheese!'],
+    ],
+  },
+  {
+    name: 'Ram through the granary', concept: 'robo rams', duration: 120, goal: 40, killGoal: 9,
+    enemies: [[12,'ram',1],[28,'mouse',3],[46,'wheel',2],[65,'ram',1],[83,'mouse',1,'red'],[100,'wheel',2]],
+    bricks: [[4,{ warped: 12 }],[19,{ conveyor: true }],[16,{ springs: true }]],
+    dialogue: [
+      ['tom', 'Robo Rams, defend the granary! Aim those glowing eyes at the cat.'],
+      ['ram', 'I wander, pause to aim, then charge straight ahead. My charge bounces off bricks and slows with each bounce!'],
+      ['koshi', 'Move after the aim locks, then counter with a sword. Nine enemy points and 40 food points will save the grain, and tomorrow\'s pretzels!'],
+    ],
+  },
+  {
+    name: 'Fast-food rescue', concept: 'boost', duration: 120, killGoal: 12,
+    enemies: [[12,'ram',1],[28,'mouse',3],[45,'wheel',2],[62,'mouse',1,'green'],[80,'ram',2],[98,'wheel',2]],
+    bricks: [[4,{ boost: true }],[9,{ boost: true }],[19,{ conveyor: true }],[16,{ springs: true }]],
+    dialogue: [
+      ['tom', 'Boost bricks store launch power. Surely you will overshoot the burger depot!'],
+      ['ram', 'Launch while resting on a Boost brick and you travel at double speed, defeating robots on contact without using a sword.'],
+      ['koshi', 'Shielded robots still need spaced hits. Redirecting ends my boost, so I will choose my line carefully. Twelve enemy points, then burgers for everyone!'],
+    ],
+  },
+  {
+    name: 'Snack dispensary', concept: 'spawners', duration: 120, goal: 45, killGoal: 10,
+    enemies: [[12,'mouse',3],[30,'wheel',2],[50,'ram',1],[70,'mouse',1,'red'],[92,'wheel',2]],
+    bricks: [[4,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[9,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }],[19,{ boost: true }]],
+    dialogue: [
+      ['tom', 'These Spawning bricks hide supplies. Touch one to release its item at a random spot, only once per attempt!'],
+      ['ram', 'The symbol shows what is inside: food, swords, hearts, or even robots. Watch where the item appears.'],
+      ['koshi', 'These hold burgers and a silver sword! I will visit each dispenser and recover 45 food points plus 10 enemy points for the relief kitchens.'],
+    ],
+  },
+  {
+    name: 'Buckets at the bakery', concept: 'robo buckets', duration: 75, survive: true,
+    enemies: [[12,'bucket',1],[27,'mouse',2],[43,'wheel',1],[56,'ram',1],[65,'bucket',1]],
+    bricks: [[4,{ boost: true }],[9,{ springs: true }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }]],
+    dialogue: [
+      ['tom', 'Robo Buckets, bombard the bakery! Keep the rescue ovens cold.'],
+      ['bucket', 'I wander slowly and throw bouncing bombs. Blue turns red over a three-second fuse; the blast hurts, the flying bomb does not!'],
+      ['koshi', 'I will leave room for the explosion and protect the bakers for 75 seconds. Fresh bread belongs to the world, not your army!'],
+    ],
+  },
+  {
+    name: 'Cinder soup factory', concept: 'cinder', duration: 130, goal: 45, killGoal: 12,
+    enemies: [[12,'bucket',1],[28,'mouse',3],[45,'wheel',2],[63,'ram',1],[80,'mouse',1,'green'],[98,'bucket',1],[115,'wheel',2]],
+    bricks: [[4,{ kind: 'cinder' }],[9,{ kind: 'cinder' }],[16,{ boost: true }],[19,{ springs: true }]],
+    dialogue: [
+      ['tom', 'Cinder bricks darken the soup factory walls. You cannot select them to steer, and they never recharge.'],
+      ['bucket', 'They still stop you! Choose a colored brick to leave, and do not wait there for a button to wake up.'],
+      ['koshi', 'I will use boosts and springs around the dead routes. Forty-five food points and 12 enemy points will return hot meals to the world.'],
+    ],
+  },
+  {
+    name: 'Switchboard supper', concept: 'toggles', duration: 130, killGoal: 14,
+    enemies: [[12,'mouse',3],[28,'wheel',2],[44,'ram',2],[61,'bucket',1],[78,'mouse',1,'blue'],[96,'wheel',1,'red'],[114,'mouse',3]],
+    bricks: [[4,{ toggle: 2 }],[9,{ toggle: 2 }],[16,{ boost: true }],[19,{ conveyor: true }]],
+    dialogue: [
+      ['tom', 'Toggle bricks start disabled. Every successful selection of another ready brick counts down their switch!'],
+      ['bucket', 'At zero, they become usable. The next successful selection disables them and starts their count again. These switches need two clicks!'],
+      ['koshi', 'I will time my routes around the switches, earn 14 enemy points, and shut down your world-hunger machine. Supper is almost served!'],
+    ],
+  },
+  {
+    name: 'A feast for the world', concept: 'portals', duration: 140, goal: 50, killGoal: 15,
+    enemies: [[12,'mouse',6],[28,'wheel',4],[44,'ram',3],[60,'bucket',2],[77,'mouse',1,'blue'],[93,'wheel',1,'green'],[108,'mouse',2,'red'],[123,'bucket',2]],
+    bricks: [[4,{ portal: 'purple' }],[9,{ portal: 'purple' }],[16,{ boost: true }],[19,{ toggle: 2 }]],
+    dialogue: [
+      ['tom', 'My last defense: paired Portals! Touch one and you appear at the matching color on the other side.'],
+      ['bucket', 'Koshi emerges moving straight into the arena at his current speed. Portal trips do not count as selections or spend brick uses.'],
+      ['koshi', 'Purple to purple, then steer onward! Fifty food points and 15 enemy points will break your final blockade.'],
+      ['tom', 'My robots cannot hold every kitchen against a cat who refuses to give up...'],
+      ['koshi', 'Then this is our route to victory. Strawberries, pretzels, bananas, cheese, chicken, fish, burgers: a feast for the whole world, not just me!'],
+    ],
+  },
+].map((entry, index) => {
+  const food = entry.food ?? Object.keys(FOODS).map((type, i) => [
+    3 + Math.floor(i * (entry.duration - 12) / 6),
+    ['L3', 'L3', 'C3', 'L3', 'C3', 'R3', 'S'][i], type, Math.min(25, entry.duration - (3 + Math.floor(i * (entry.duration - 12) / 6))),
+  ]);
+  const brickTypes = entry.bricks.map(([id, attributes]) => campaignBrick(id, attributes));
+  const members = index % 2 ? [[4,6],[3,1],[20,22],[11,13,15]] : [[0,2],[7,5],[12,14],[19,21,23]];
+  const brickGroups = members.map(members => ({ owner: index === 0 && members[0] === 0 ? 2 : members[0], members }));
+  const foodPoints = food.reduce((sum, [, method, type]) => sum + (method === 'S' ? 1 : Number(method.slice(1))) * FOODS[type].value, 0)
+    + brickTypes.reduce((sum, brick) => sum + (brick.spawner?.kind === 'food' ? FOODS[brick.spawner.type].value : 0), 0);
+  const cast = [...new Set(entry.enemies.map(([, type]) => type))];
+  return {
+    id: `1-${index + 1}`, name: entry.name, concept: entry.concept, duration: entry.duration,
+    goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
+    heartCost: index < 3 ? Infinity : Math.ceil(foodPoints / 5),
+    brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies,
+    weapons: entry.weapons ?? [[3,'silver'],[30,'silver'],[60,'gold'],[Math.min(90, entry.duration - 5),'silver']].filter(([time]) => time < entry.duration),
+    cutscene: story(index < 10 ? 'garden' : 'workshop', entry.dialogue, cast),
+  };
+});
 
 function portalPairIssues(bricks) {
   return Object.keys(PORTALS).flatMap(color => {
@@ -888,7 +1004,7 @@ class Game {
     this.nextCustom = 0;
     this.pendingSpawns = new Map();
     this.nextHeart = this.level.heartCost;
-    if (this.levelIndex === 1 || this.level.brickSet === 3) {
+    if (this.level.brickSet === 3) {
       for (const brick of this.bricks) brick.kind = 'normal';
       for (let i = 0; i < 3; i++) {
         this.bricks[Math.floor(i * this.bricks.length / 3)].kind = 'slow';

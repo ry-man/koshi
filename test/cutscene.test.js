@@ -82,6 +82,31 @@ test('optional cutscenes survive custom-level round trips independently of sourc
   assert.equal(Object.hasOwn(validateCustomLevel(source), 'cutscene'), false);
 });
 
+test('every story character has a distinct animated portrait with finite drawing coordinates', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const context = vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('function drawPortrait('), source.indexOf('class CutscenePlayer')), context);
+  const drawings = [];
+  for (const character of Object.keys(CHARACTERS)) {
+    const draw = speaking => {
+      const operations = [];
+      const ctx = new Proxy({}, {
+        get: (_, name) => (...args) => {
+          assert.ok(args.every(value => typeof value !== 'number' || Number.isFinite(value)));
+          operations.push([name, ...args]);
+        },
+        set: (_, name, value) => { operations.push([name, value]); return true; },
+      });
+      context.drawPortrait(ctx, character, speaking, 0);
+      return JSON.stringify(operations);
+    };
+    const still = draw(false);
+    assert.notEqual(draw(true), still, character);
+    drawings.push(still);
+  }
+  assert.equal(new Set(drawings).size, Object.keys(CHARACTERS).length);
+});
+
 test('cutscene validation rejects malformed dialogue, actors, themes, and oversized input', () => {
   const invalid = [null, [], {}, { ...scene(), theme: 'unknown' }, { ...scene(), lines: [] }, { ...scene(), lines: Array(101).fill(scene().lines[0]) }];
   for (const patch of [

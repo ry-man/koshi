@@ -27,6 +27,12 @@ const progressLabel = document.querySelector('#progress-label');
 const status = document.querySelector('#game-status');
 const toast = document.querySelector('#toast');
 const levelSelect = document.querySelector('#level-select');
+for (const [index, level] of LEVELS.entries()) {
+  const option = document.createElement('option');
+  option.value = String(index);
+  option.textContent = `${level.id} · ${level.name}`;
+  levelSelect.append(option);
+}
 const titleScreen = document.querySelector('#title-screen');
 const saveDialog = document.querySelector('#save-slots');
 const saves = new SaveSlots(LEVELS.map(level => level.id));
@@ -52,7 +58,7 @@ const cutscene = new globalThis.KoshiCutscenePlayer((context, character, time, s
   const previous = ctx;
   ctx = context;
   if (character === 'koshi') drawCat(0, 0, time);
-  else drawRobot({ type: character, x: 0, y: 0, distance: time * 25, resting: speaking && Math.floor(time * 4) % 2 === 0 });
+  else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, resting: speaking && Math.floor(time * 4) % 2 === 0 });
   ctx = previous;
 }, startLevel);
 
@@ -620,8 +626,27 @@ document.querySelector('#title-start').addEventListener('click', () => {
   board.scrollIntoView({ block: 'center' });
 });
 document.querySelector('#title-levels').addEventListener('click', () => {
+  levelBeforePicker = levelSelect.value;
+  titleScreen.close();
+  levelPicker.showModal();
   levelSelect.focus();
-  levelSelect.scrollIntoView({ block: 'center' });
+});
+const levelPicker = document.querySelector('#level-picker');
+let levelBeforePicker = levelSelect.value;
+function closeLevelPicker() {
+  levelSelect.value = levelBeforePicker;
+  levelPicker.close();
+  titleScreen.showModal();
+  document.querySelector('#title-levels').focus({ preventScroll: true });
+}
+document.querySelector('#level-picker-close').addEventListener('click', closeLevelPicker);
+levelPicker.addEventListener('cancel', event => { event.preventDefault(); closeLevelPicker(); });
+levelPicker.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeLevelPicker(); }
+});
+document.querySelector('#level-picker-play').addEventListener('click', () => {
+  levelPicker.close();
+  begin();
 });
 function dismissTitle() {
   titleScreen.close();
@@ -840,10 +865,6 @@ document.querySelector('#guide-topic').addEventListener('change', event => showG
 document.querySelector('#guide-prev').addEventListener('click', () => showGuideChapter(guideIndex - 1));
 document.querySelector('#guide-next').addEventListener('click', () => showGuideChapter(guideIndex + 1));
 document.querySelector('#guide-practice').addEventListener('click', () => startTutorial([0, 3, 4, 6, 2, 10, 13, 15][guideIndex]));
-levelSelect.addEventListener('change', () => {
-  titleScreen.close();
-  begin();
-});
 function togglePause() {
   if (game.state === 'playing') game.pause();
   else if (game.state === 'paused') game.resume();

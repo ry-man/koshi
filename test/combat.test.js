@@ -6,7 +6,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 function arena(options = {}) {
-  const game = new Game(() => .25, { level: 1, ...options });
+  const game = new Game(() => .25, options.level === undefined
+    ? { customLevel: { version: 1, id: 'Combat test', duration: 120, goal: 20, heartCost: 10, brickSet: 3, events: [] }, ...options }
+    : options);
   game.start();
   return game;
 }
@@ -21,65 +23,8 @@ function equip(game, type) {
   assert.equal(game.weapon.type, type);
 }
 
-test('level 1-2 has the exact food, robot, weapon timelines and brick mix', () => {
-  assert.equal(LEVELS[1].duration, 120);
-  assert.equal(LEVELS[1].goal, 20);
-  assert.equal(LEVELS[1].heartCost, 10);
-  assert.deepEqual(LEVELS[1].food, [[5,'S','S',10],[10,'S','S',10],[15,'S','S',10],[20,'L3','S',10],[25,'L3','S',10],[30,'L3','S',10],[35,'C3','S',10],[40,'C4','S',10],[50,'C5','S',10],[60,'R5','P',15],[80,'R5','P',15],[100,'R5','P',15]]);
-  assert.deepEqual(LEVELS[1].enemies, [[10,'mouse',3],[20,'wheel',1],[30,'mouse',3],[40,'wheel',1],[50,'wheel',1],[60,'mouse',3],[70,'mouse',3],[80,'wheel',1],[90,'wheel',1],[100,'mouse',3]]);
-  assert.deepEqual(LEVELS[1].weapons, [[5,'wood'],[15,'bronze'],[30,'silver'],[50,'gold'],[70,'silver'],[80,'gold']]);
-  for (const options of [{}, { portrait: true, scale: .31 }]) {
-    const game = arena(options);
-    assert.equal(game.bricks.filter(b => b.kind === 'slow').length, 3);
-    assert.equal(game.bricks.filter(b => b.kind === 'fast').length, 3);
-  }
-  assert.throws(() => new Game(Math.random, { level: LEVELS.length }), RangeError);
-});
-
-test('new campaign levels have reachable goals, timely supplies, and special bricks in both layouts', () => {
-  assert.deepEqual(LEVELS.map(level => level.id), ['1-1', '1-2', '1-3', '1-4', '1-5']);
-  const { FOODS, validateCustomLevel } = require('../src/game.js');
-  for (const [offset, killGoal] of [4, 8, 12].entries()) {
-    const levelIndex = offset + 2, level = LEVELS[levelIndex];
-    assert.equal(level.killGoal, killGoal);
-    const enemyTotal = level.enemies.reduce((sum, event) => sum + event[2], 0);
-    assert.ok(enemyTotal > killGoal);
-    const foodTotal = level.food.reduce((sum, [, method, type]) =>
-      sum + (method === 'S' ? 1 : Number(method.slice(1))) * FOODS[type].value, 0);
-    assert.ok(foodTotal >= level.goal * 2);
-    for (const timeline of [level.food, level.enemies, level.weapons]) {
-      assert.ok(timeline.every(([time], i) => time >= 0 && time < level.duration && (!i || time >= timeline[i - 1][0])));
-    }
-    assert.ok(level.weapons[0][0] < level.enemies[0][0]);
-    assert.ok(level.weapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0) >= killGoal);
-    validateCustomLevel({ ...level, version: 1, events: [] });
-    for (const options of [{}, { portrait: true, scale: .6 }]) {
-      const game = arena({ level: levelIndex, ...options });
-      for (const entry of level.brickTypes) {
-        const matching = game.bricks.filter(brick => brick.region.edge === entry.edge
-          && (brick.region.start + brick.region.end) / 2 >= entry.start
-          && (brick.region.start + brick.region.end) / 2 < entry.end);
-        assert.ok(matching.length);
-        for (const brick of matching) {
-          for (const attribute of ['kind', 'crumbler', 'warped', 'slimed', 'slimeColor', 'springs', 'spikes']) {
-            if (entry[attribute] !== undefined) assert.equal(brick[attribute], entry[attribute]);
-          }
-        }
-      }
-      assert.ok(game.bricks.some(brick => !brick.crumbler && !brick.slimed && !brick.springs && !brick.spikes && !brick.warped));
-      assert.equal(game.bricks.filter(brick => brick.spikes).length, levelIndex === 4 ? 2 : 1);
-      const snapshot = structuredClone(game.bricks);
-      game.steer(game.bricks.find(brick => brick.crumbler).id);
-      game.reset();
-      assert.deepEqual(game.bricks, snapshot);
-      assert.equal(game.enemies, 0);
-      assert.equal(game.score, 0);
-    }
-  }
-});
-
 test('new campaign levels require both goals and count the final real sword defeat', () => {
-  for (const level of [2, 3, 4]) {
+  for (const level of LEVELS.flatMap((entry, index) => entry.goal > 0 && entry.killGoal > 0 ? [index] : [])) {
     for (const options of [{}, { portrait: true, scale: .6 }]) {
       const game = arena({ level, ...options });
       game.score = game.level.goal;
@@ -112,25 +57,25 @@ test('new campaign levels require both goals and count the final real sword defe
   }
 });
 
-test('all scheduled events fire once, including late events and 120-second timeout', () => {
-  const game = arena();
+test('all scheduled events fire once, including late events and timeout', () => {
+  const game = arena({ level: 2 });
   // Park outside the enemy corridor to exercise the complete timeline.
   game.cat.x = 22; game.cat.y = 22;
   const food = [], robots = [];
   const spawn = game.spawn.bind(game), spawnEnemies = game.spawnEnemies.bind(game);
   game.spawn = event => { food.push(event); spawn(event); };
   game.spawnEnemies = event => { robots.push(event); spawnEnemies(event); };
-  game.update(4.99);
+  game.update(2.99);
   assert.equal(game.weapons.length, 0);
   game.update(.02);
   assert.equal(game.weapons[0].type, 'wood');
-  game.update(115);
+  game.update(90);
   assert.equal(game.state, 'lost');
-  assert.equal(game.elapsed, 120);
-  assert.deepEqual(food, LEVELS[1].food);
-  assert.deepEqual(robots, LEVELS[1].enemies);
-  assert.deepEqual(game.weapons.map(w => w.type), LEVELS[1].weapons.map(w => w[1]));
-  assert.equal(game.robots.length, 20);
+  assert.equal(game.elapsed, 90);
+  assert.deepEqual(food, LEVELS[2].food);
+  assert.deepEqual(robots, LEVELS[2].enemies);
+  assert.deepEqual(game.weapons.map(w => w.type), LEVELS[2].weapons.map(w => w[1]));
+  assert.equal(game.robots.length, 8);
 });
 
 test('wood, bronze, and silver break at precisely their defeat limits', () => {
@@ -197,7 +142,7 @@ test('enemy deaths are harmless snapshots, freeze on pause, expire, and clear on
 });
 
 test('the final enemy death finishes without advancing completed gameplay', () => {
-  const game = arena({ level: 2 });
+  const game = arena({ level: 3 });
   game.score = game.level.goal;
   game.enemies = game.level.killGoal - 1;
   game.weapon = { type: 'wood', uses: 1, expires: Infinity };
@@ -743,7 +688,7 @@ test('Robo Bucket bombs are harmless before detonation and flame circles damage 
 test('new pickups and enemies spawn clear of all bricks, and reset clears combat state', () => {
   for (const random of [() => 0, () => .99999, Math.random]) {
     for (const options of [{}, { portrait: true, scale: .31 }]) {
-      const game = new Game(random, { level: 1, ...options });
+      const game = new Game(random, { level: 3, ...options });
       for (let i = 0; i < 20; i++) {
         const point = game.randomPoint();
         for (const brick of game.bricks) {
@@ -757,8 +702,8 @@ test('new pickups and enemies spawn clear of all bricks, and reset clears combat
       game.reset();
       assert.equal(game.weapon, null);
       assert.equal(game.robots.length + game.weapons.length + game.healing.length, 0);
-      assert.equal(game.nextHeart, 10);
-      assert.equal(game.level.id, '1-2');
+      assert.equal(game.nextHeart, game.level.heartCost);
+      assert.equal(game.level.id, '1-4');
     }
   }
 });

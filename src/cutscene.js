@@ -84,6 +84,25 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#263640', 2, 20, 17, talking ? 8 : 6);
     box('#b9a887', 3, 21, 14, talking ? 6 : 4);
     box('#263640', 3, 23, 12, 1); box('#526773', 21, 25, 2, 4);
+  } else if (character === 'ram') {
+    for (const x of [1, 23]) {
+      box('#060e16', x, 2, 8, 15); box('#d6dadd', x + 1, 3, 6, 12);
+      box('#59636a', x + 2, 5, 4, 6); box('#15232d', x + 3, 7, 3, 3);
+    }
+    box('#394852', 7, 5, 18, 25); box('#aeb9c0', 9, 6, 14, 22);
+    box('#dce3e6', 12, 6, 8, 3);
+    for (const x of [10, 18]) box('#e64649', x, 13, 4, blink ? 1 : 5);
+    box('#303d45', 13, 20, 2, 2); box('#303d45', 17, 20, 2, 2);
+    box('#c7353b', 12, 24, 8, talking ? 4 : 2);
+  } else if (character === 'bucket') {
+    box('#737d80', 7, 1, 18, 3); box('#737d80', 5, 3, 3, 10); box('#737d80', 24, 3, 3, 10);
+    box('#60675f', 4, 11, 24, 5); box('#60675f', 6, 16, 20, 14);
+    box('#c9bd76', 7, 15, 18, 13); box('#e0d59a', 5, 12, 22, 3);
+    for (const x of [9, 19]) {
+      box('#50565a', x, 18, 4, blink ? 1 : 4);
+      if (!blink) box('#f2eee0', x, 18, 1, 1);
+    }
+    box('#db4847', 14, 23, 4, 2); box('#514b42', 11, 26, 10, talking ? 3 : 1);
   } else {
     if (character === 'mouse') {
       for (const x of [2, 22]) {

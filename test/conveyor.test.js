@@ -59,8 +59,8 @@ test('conveyors validate, round-trip both directions, default clockwise, and rep
   land(game, brick);
   game.update(.05);
   assert.equal(Math.hypot(game.cat.vx, game.cat.vy), CONVEYOR_SPEED);
-  for (const level of LEVELS.slice(2)) assert.ok(level.brickTypes.some(entry => entry.conveyor));
-  for (const level of LEVELS.slice(0, 2)) assert.ok(!level.brickTypes?.some(entry => entry.conveyor));
+  assert.ok(LEVELS[10].brickTypes.some(entry => entry.conveyor));
+  for (const level of LEVELS.slice(0, 10)) assert.ok(!level.brickTypes.some(entry => entry.conveyor));
 });
 
 test('both belt directions carry at exactly belt speed on all four edges and layouts, then stop at the end', () => {

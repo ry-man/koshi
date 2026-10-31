@@ -58,7 +58,7 @@
         <div class="title-actions">
           <button id="title-start" class="primary" type="button" autofocus>Start adventure <span aria-hidden="true">→</span></button>
           <button id="title-saves" class="title-secondary" type="button" aria-haspopup="dialog">Save slots</button>
-          <button id="title-levels" class="title-secondary" type="button">Choose a level</button>
+          <button id="title-levels" class="title-secondary" type="button" aria-haspopup="dialog">Choose a level</button>
           <button id="title-help" class="title-secondary" type="button" aria-haspopup="dialog">How to play</button>
           <button id="title-tutorial" class="title-secondary" type="button">Tutorial</button>
           <button class="title-secondary" id="install-button" type="button" aria-haspopup="dialog">📲 Install app</button>
@@ -66,9 +66,16 @@
         <p id="save-profile">Guest play - progress is not saved.</p>
         <p id="save-title-error" class="error" role="alert" hidden></p>
         <button id="save-title-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
-        <label class="menu-level-select" for="level-select">Level
-          <select id="level-select"><option value="0">1–1 · First steps</option><option value="1">1–2 · Robo trouble</option><option value="2">1–3 · Crumb patrol</option><option value="3">1–4 · Slime circuit</option><option value="4">1–5 · Warped showdown</option></select>
-        </label>
+      </div>
+    </dialog>
+    <dialog id="level-picker" class="install-dialog" aria-labelledby="level-picker-heading">
+      <h2 id="level-picker-heading">Choose a level</h2>
+      <label class="level-picker-select" for="level-select">Level
+        <select id="level-select"></select>
+      </label>
+      <div class="save-actions">
+        <button id="level-picker-play" class="primary" type="button">Play level</button>
+        <button id="level-picker-close" class="title-secondary" type="button">Back to menu</button>
       </div>
     </dialog>
     <dialog id="save-slots" class="install-dialog" aria-labelledby="save-heading" aria-describedby="save-help">
@@ -92,7 +99,7 @@
       <section class="intro">
         <div><p class="eyebrow">WORLD 01 / THE BEGINNING</p><h1>A quest starts with <em>a snack.</em></h1>
           <p>Meet Koshi. Professional napper. Reluctant world-saver.</p></div>
-        <div class="level-badge"><span>FIRST STEPS</span><strong>1–1</strong></div>
+        <div class="level-badge"><span>BREAKFAST REBELLION</span><strong>1–1</strong></div>
       </section>
       <section class="game-shell" aria-label="Koshi's Quest game">
         <p id="level-error" class="error" role="alert" hidden></p>
@@ -143,7 +150,7 @@
               <h2 id="dialog-title">Follow your appetite.</h2>
               <p id="dialog-text">Click a brick to send Koshi toward it. Redirect him mid-flight to scoop up snacks. Get 20 food in 60 seconds!</p>
               <button class="primary" id="play">Let's play <span>→</span></button>
-              <p class="dialog-note" id="dialog-note">Start with snacks, then face the robots in Level 1–2.</p>
+              <p class="dialog-note" id="dialog-note">Each level teaches a new skill on your quest to save the world's food.</p>
             </div>
           </div>
           <div id="toast" role="status" aria-live="polite"></div>

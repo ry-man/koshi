@@ -974,7 +974,7 @@ $('#cutscene-form').addEventListener('submit', event => {
           text: row.querySelector('.scene-text').value,
           actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
             const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5 }[checkbox.value], y: .65 }];
+            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9 }[checkbox.value], y: .65 }];
           }),
         })),
       };

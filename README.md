@@ -34,7 +34,7 @@ offline and direct-file play.
 Open **Save slots** from the title screen or in-game **Menu**. There are **three
 slots**, each with an owner name (1-32 characters). **Create & play** starts a
 new campaign. **Continue** starts the first unfinished level with fresh hearts,
-timer, and inventory. After finishing all five levels, the slot shows
+timer, and inventory. After finishing all 19 levels, the slot shows
 **Campaign complete** and offers **Replay final level**.
 
 Campaign wins autosave to the selected slot immediately. Replaying an earlier
@@ -44,6 +44,10 @@ completed level separately. Failed attempts and restarting do not erase wins.
 requires confirmation and erases only that slot. **Play as guest** disables
 saving for the current session. Custom levels and tutorials never change
 campaign saves.
+
+The replacement campaign uses a separate save key, `koshi-campaign-saves-v2`.
+Old five-level saves remain untouched but do not mark the new lessons complete.
+Create a new slot to save progress through this campaign.
 
 Saves use browser local storage, including offline play. Select a slot again
 after reopening the game. Saves are specific to this browser and site; they
@@ -99,12 +103,10 @@ the board; phones keep compact controls above it without scrolling away from pla
   the refill. Warped groups refill sequentially along their connected perimeter,
   switching between horizontal and vertical at corners rather than sweeping
   across their bounding rectangle. Exhausted Crumblers stay static with no cooldown refill.
-- Collect **20 food points** to win immediately: within **60 seconds** in
-  Level 1–1 or **120 seconds** in Level 1–2.
-  Levels 1–3 through 1–5 require **both** their food and robot-defeat goals
-  before time expires; food alone no longer clears these levels.
-  Strawberries give 1 point, pretzels give 2. Food patterns, appearance times,
-  and lifetimes match the description exactly, including both events at 35s.
+- Each level introduces one new concept. Win conditions alternate between
+  food points, enemy points, both targets, and survival until the timer reaches
+  zero. The briefing and highlighted HUD counters show the required objectives.
+  Food ranges from strawberries (1 point) to hamburgers (7 points).
 - Each scheduled appearance has a **one-second preview at its exact spawn
   location**: a cloudy purple skull for each enemy, an expanding golden spiral
   for each sword, and a bright growing/fading star for each food item.
@@ -115,13 +117,13 @@ the board; phones keep compact controls above it without scrolling away from pla
   within the first second have shortened previews; time-zero spawns remain instant.
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
-- From Level 1–2 onward, Robo Mice wander in curves and periodically stop to lick their
-  hands; Robo Wheels roll around the inside boundary. Robo Rams wander, pause
+- Robo Mice arrive in Level 1–2, wandering in curves and periodically stopping to lick their
+  hands. Robo Wheels arrive in 1–9 and roll around the inside boundary. Robo Rams arrive in 1–13, wander, pause
   with glowing eyes as they aim at Koshi, then charge straight ahead. Their
   charges ricochet off bricks and slow down with each bounce. Unarmed contact
   costs one heart per enemy contact; remaining overlapped does not repeatedly
   drain hearts. Separation and another collision can hurt again.
-- Robo Buckets slowly wander and wave their arms, firing blue bombs at random
+- Robo Buckets arrive in 1–16, slowly wander and wave their arms, firing blue bombs at random
   intervals averaging four seconds. Bombs bounce off bricks and are harmless
   until their three-second fuse expires. Their color gradually shifts from blue
   to red as detonation approaches; the growing red flame circle then
@@ -144,14 +146,16 @@ the board; phones keep compact controls above it without scrolling away from pla
   that same second; normal colors return when he can take damage again.
   Further contacts do not extend the timer. Pause freezes both protection and
   animation; restart clears them. Spikes still stop him while protected.
-- Every **10 food points** from Level 1–2 onward spawns a heart in the playable area.
+- From Level 1–4 onward, collecting the level's **heart cost** in food points spawns a heart in the playable area.
   A **Next heart** food counter and pink progress meter beneath Koshi's health
   show progress toward the next spawn and reset at each threshold. Custom levels
   use their configured heart cost; the meter is hidden when heart spawning is disabled.
   A **pink, sparkling cloud** marks its exact location for **one second** before
   the heart appears. The cloud cannot be collected and freezes while paused.
-  Touch the heart to restore one heart, capped at three. No hearts spawn in Level 1–1.
-- Collect a sword to automatically strike robots within its reach.
+  Touch the heart to restore one heart, capped at three. No hearts spawn in Levels 1–1 through 1–3.
+  Campaign costs are `ceil(all available food points / 5)`, including food-spawning
+  bricks, so even collecting every food creates no more than five hearts.
+- From Level 1–3, collect a sword to automatically strike robots within its reach.
   **Wood** defeats 1 enemy, **bronze** 3, **silver** 10; **gold** lasts
   15 seconds from pickup and has unlimited defeats during that time.
   Koshi holds only one weapon. Other swords stay on the board until he can
@@ -166,19 +170,38 @@ the board; phones keep compact controls above it without scrolling away from pla
 - **Tab** through the bricks and press **Enter** or **Space** to aim at a
   brick's center. Mouse/touch controls allow precise off-center aiming.
 - **Restart** starts a fresh attempt of the selected level.
-  **Next level** advances through Level 1–5. The level selector can also start any
-  level directly; changing it begins a fresh attempt.
+  **Next level** advances through Level 1–19. The level selector can also start any
+  level directly; choose it in the popup and press **Play level** to begin a fresh attempt.
 
-| Level | Name | Time | Food required | Robots required | Special bricks |
-|-------|------|------|---------------|-----------------|----------------|
-| 1–3 | Crumb patrol | 120s | 20 | 4 | Five-use Crumblers, red slime, Springs, Spikes, Conveyor |
-| 1–4 | Slime circuit | 150s | 25 | 8 | Four-use Crumbler, 12s Warped, all three slime colors, Springs, Spikes, reverse Conveyor |
-| 1–5 | Warped showdown | 180s | 30 | 12 | Three-use Crumblers, four-use Warped Crumbler (15s), 10s Warped, all slime colors, Springs, Spikes, Conveyor |
+| Level | Name | New concept | Time | Win condition |
+|-------|------|-------------|------|---------------|
+| 1–1 | Breakfast rebellion | Normal red/blue/green bricks | 60s | 20 food |
+| 1–2 | Mouse at the market | Robo Mouse | 45s | Survive |
+| 1–3 | Cutlery uprising | Swords | 90s | 5 enemy points |
+| 1–4 | A hearty harvest | Hearts and heart cost | 100s | 30 food + 4 enemy points |
+| 1–5 | Cracker causeway | Crumblers | 100s | 35 food |
+| 1–6 | Sticky jam depot | Slime | 100s | 30 food + 5 enemy points |
+| 1–7 | Tin-foil picnic | Enemy shields | 110s | 8 enemy points |
+| 1–8 | Skewered supper | Spikes | 60s | Survive |
+| 1–9 | Meals on wheels | Robo Wheels | 110s | 35 food + 7 enemy points |
+| 1–10 | Pancake trampoline | Springs | 110s | 40 food |
+| 1–11 | Sushi assembly line | Conveyors | 120s | 35 food + 8 enemy points |
+| 1–12 | The folding pantry | Warped bricks | 120s | 10 enemy points |
+| 1–13 | Ram through the granary | Robo Rams | 120s | 40 food + 9 enemy points |
+| 1–14 | Fast-food rescue | Boost | 120s | 12 enemy points |
+| 1–15 | Snack dispensary | Spawners | 120s | 45 food + 10 enemy points |
+| 1–16 | Buckets at the bakery | Robo Buckets | 75s | Survive |
+| 1–17 | Cinder soup factory | Cinder | 130s | 45 food + 12 enemy points |
+| 1–18 | Switchboard supper | Toggles | 130s | 14 enemy points |
+| 1–19 | A feast for the world | Portals | 140s | 50 food + 15 enemy points |
 
-These levels supply swords before the first robots, additional weapons and enemy
-waves throughout, and food for healing. Ordinary, unlimited-use steering bricks
-remain available. The enemy counter shows defeats against the required total,
-and mission progress follows the less-complete of the two goals.
+Only previously introduced mechanics return. Levels use at most six distinct
+brick styles, repeating useful combinations such as Warped conveyors or
+Boost with Springs. Of 21 starting blocks, 17 are standard, three are double
+(14.3%), and one is triple (4.8%). At most 20% of a level's scheduled robots
+have shields; across the campaign, red shields outnumber green, which outnumber blue.
+Ordinary steering bricks remain available. Swords precede the first robots
+from 1–3 onward. Combined-goal progress follows the less-complete target.
 
 On phones held upright, the board uses portrait game coordinates with compact
 stats and controls. The board fits the available play area in both
@@ -186,10 +209,12 @@ regular play and tutorials, with 20px of space above and below and no fixed
 5:8 display ratio.
 The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart buttons
 share one row above the stats. Time, weapon, food, enemies, and health are centered
-in equally spaced columns. Choose a level using the dropdown inside **Menu**;
-extra mission copy and footer
+in equally spaced columns. **Menu → Choose a level** opens a popup with a level
+selector and **Play level** button. **Back to menu** or Escape cancels without
+changing the current level; no dropdown appears on the main menu itself.
+Extra mission copy and footer
 are hidden on phones so the page cannot scroll away from play. Landscape phones
-also use the viewport-fitted layout. Both layouts always have **26 boundary bricks**. Phones have
+also use the viewport-fitted layout. Both layouts use **26 boundary segments**, combined into **21 starting blocks** in the campaign. Phones have
 **five on top/bottom and eight on each side**. Desktop bricks are rotated
 **90 degrees clockwise** relative to the phone: **eight on top/bottom and
 five on each side**. Phone top maps to desktop right, right to bottom,
@@ -199,11 +224,9 @@ some bricks are narrower than 44px on small phones to keep the count fixed.
 Toolbar buttons retain at least 44px touch targets.
 The **WEAPON** display shows a sword icon in its weapon color and the remaining
 attack count, or seconds with an **s** for the gold sword. A dash means no weapon.
-Level 1–1 has one slow and one fast brick, and Level 1–2
-has three of each. Levels 1–3 through 1–5 start with that same mix before
-applying their special-brick overrides. Food patterns stay
-inside the playable area, and the level schedule, scoring, and cooldowns are
-unchanged. Instructions are available through **Menu → How to play**.
+Level 1–1 has one slow and one fast segment; later levels start with three of
+each before special-brick overrides and grouping. Food patterns stay
+inside the playable area. Instructions are available through **Menu → How to play**.
 Desktop play keeps the original landscape board. A restart picks the layout
 for the current screen; resizing during an attempt preserves its game state.
 
@@ -221,11 +244,14 @@ or build tools are needed.
 
 ### Optional story cutscenes
 
-Each level can have an optional pre-level cutscene. The five campaign levels
+Each level can have an optional pre-level cutscene. All 19 campaign levels
 include short story scenes following Koshi from the garden to the Clockwork
 Pantry, controlled by **Tom the Duck**, the main antagonist. Tom is a robot
-duck who commands the mouse and wheel patrols and hoards the garden's food.
-He appears and speaks in all five campaign scenes.
+duck who commands the robots and hoards the world's food.
+He is introduced in the first scene and speaks in every campaign scene.
+Koshi fights to save the world while celebrating every kind of food. Each scene
+teaches its level's new mechanic through that story. Robot actors appear only
+once introduced, and only in levels containing that enemy.
 Scenes replay when restarting or directly selecting a level. Levels
 without a scene start immediately as before.
 
@@ -234,7 +260,7 @@ characters using the same drawings as gameplay. Speakers step forward and
 animate while talking. The lower third holds an animated, 32-by-32 pixel
 portrait on the left and blocky Pixelify Sans dialogue on the right. The same
 pixel font styles speaker names, scene headings, and controls. Koshi, Robo
-Mouse, Robo Wheel, and Tom the Duck each have their own portrait and stage
+Mouse, Robo Wheel, Robo Ram, Robo Bucket, and Tom the Duck each have their own portrait and stage
 character. Tom's design follows the supplied sketch: a tall metal body, radio
 antenna, slit visor, long duck bill, plated wings, and webbed metal feet.
 His antenna lights and bill animate while speaking. Tom is a cutscene character,
@@ -272,7 +298,7 @@ supports precise actor positions and repeated actors:
 ```
 
 Add this optional property to a level object. Themes are `garden` or `workshop`;
-character IDs are `koshi`, `mouse`, `wheel`, and `tom`. Tom is available as both
+character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
@@ -498,7 +524,8 @@ merge during play.
 
 - All four contact attributes are available in the custom-level brick inspector,
   work with every cooldown color, and can combine with Crumbler and Warped.
-  Levels 1–3 through 1–5 also use these attributes.
+  The campaign introduces slime in 1–6, Spikes in 1–8, Springs in 1–10,
+  and Conveyors in 1–11.
 - Slimed bricks have bold, dark-outlined icing with rounded, uneven drips only along
   their center-facing contact edge, including the inner rim of warped groups.
   The editor uses the same graphic and lets slime color be chosen independently
@@ -523,9 +550,7 @@ merge during play.
   Their visible tips and sides stop Koshi and cost **one heart per contact**,
   even while armed. Resting against them does not repeatedly hurt; leaving and
   returning can hurt again, and losing the last heart ends the attempt.
-  Level 1–3 has spikes at phone bottom 20–40%, Level 1–4 at top 40–60%,
-  and Level 1–5 at top 40–60% and right 50–62.5%. Desktop rotates these slots
-  with their bricks. The opening two levels remain unchanged.
+  Spikes first appear in Level 1–8; desktop rotates their positions with the bricks.
 - Conveyors have a thin grey, finely toothed belt rotating around the entire brick
   perimeter. Direction arrows mark the arena-facing edge. Landing on that edge
   carries Koshi at 85 game units per second in the belt's direction, until the
@@ -536,9 +561,8 @@ merge during play.
   item collection and enemy contact still work while riding. Merged conveyors
   carry continuously across absorbed bricks, gaps, and corners. Restoration
   stops a ride if the supporting surface is no longer part of the conveyor.
-  Campaign phone slots are left 50–62.5% in Level 1–3 (clockwise),
-  right 50–62.5% in Level 1–4 (counterclockwise), and left 37.5–50% in
-  Level 1–5 (clockwise). Desktop rotates directions with the bricks.
+  Level 1–11 introduces both belt directions; Level 1–12 combines a conveyor
+  with Warped growth. Desktop rotates directions with the bricks.
 - Contact effects do not consume selections or trigger cooldowns; they work
   even on cooling-down or exhausted bricks. A merged group uses its owner's
   contact attribute over its entire shape, including connecting gaps. Absorbed
