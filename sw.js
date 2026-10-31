@@ -14,6 +14,7 @@ const ASSETS = [
   './src/cutscene.js',
   './src/learning.js',
   './src/saves.js',
+  './src/transitions.js',
   './src/app.js',
   './src/editor.js',
   './src/pwa.js',

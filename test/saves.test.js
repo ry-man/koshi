@@ -218,9 +218,9 @@ test('unrecoverable pending wins can be discarded only with confirmation', () =>
 
 test('autosaving and profile binding are wired to victory and level start', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  const victory = source.slice(source.indexOf("} else if (game.state === 'won')"), source.indexOf("} else if (game.state === 'lost')"));
-  assert.match(victory, /saveVictory\(\)/);
-  assert.ok(victory.indexOf('if (tutorial)') < victory.indexOf('saveVictory()'));
+  const ending = source.slice(source.indexOf("if (['won', 'lost'].includes(game.state)"), source.indexOf('  if (displayedState === game.state) return;'));
+  assert.match(ending, /if \(game\.state === 'won' && !tutorial\) saveVictory\(\)/);
+  assert.ok(ending.indexOf('saveVictory()') < ending.indexOf('ending.elapsed < ending.duration'), 'save before waiting for celebration');
   const begin = source.slice(source.indexOf('function begin('), source.indexOf('function startLevel('));
   assert.match(begin, /runSave = activeSave && !game\.customLevel/);
   const context = vm.createContext({});

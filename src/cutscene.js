@@ -125,7 +125,8 @@ function drawPortrait(ctx, character, speaking, time) {
 }
 
 class CutscenePlayer {
-  constructor(drawCharacter, onFinish) {
+  constructor(drawCharacter, onFinish, transition = action => action()) {
+    this.transition = transition;
     this.dialog = document.querySelector('#cutscene');
     this.stage = document.querySelector('#cutscene-stage');
     this.portrait = document.querySelector('#cutscene-portrait');
@@ -171,10 +172,12 @@ class CutscenePlayer {
   }
   finish() {
     if (!this.active) return;
-    this.playback.skip();
-    this.playback = null;
-    this.dialog.close();
-    this.onFinish();
+    this.transition(() => {
+      this.playback.skip();
+      this.playback = null;
+      this.dialog.close();
+      this.onFinish();
+    });
   }
   update(seconds) {
     if (!this.active) return;

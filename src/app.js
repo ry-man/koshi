@@ -34,6 +34,7 @@ for (const [index, level] of LEVELS.entries()) {
   levelSelect.append(option);
 }
 const titleScreen = document.querySelector('#title-screen');
+const phaseTransition = new globalThis.KoshiPhaseTransition();
 const saveDialog = document.querySelector('#save-slots');
 const saves = new SaveSlots(LEVELS.map(level => level.id));
 let activeSave = null;
@@ -45,6 +46,8 @@ const weaponRemaining = document.querySelector('#weapon-remaining');
 const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99' };
 let lastTime = null;
 let displayedState = null;
+let ending = null;
+const endingMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let toastUntil = 0;
 let trail = [];
 let buttons = [];
@@ -60,7 +63,7 @@ const cutscene = new globalThis.KoshiCutscenePlayer((context, character, time, s
   if (character === 'koshi') drawCat(0, 0, time);
   else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
   ctx = previous;
-}, startLevel);
+}, startLevel, action => phaseTransition.run(action));
 
 if (location.hash.startsWith('#level=')) {
   try {
@@ -130,9 +133,6 @@ function updateSaveProfile() {
     ? `Save slot ${activeSave.index + 1}: ${activeSave.slot.owner}. ${saveProgress(activeSave.slot)}`
     : 'Guest play - progress is not saved.';
   document.querySelector('#save-profile').textContent = text;
-  document.querySelector('#save-status').textContent = game?.customLevel || tutorial
-    ? 'Practice play - campaign progress is not changed.'
-    : text;
 }
 
 function flushSaves() {
@@ -157,8 +157,6 @@ function continueSave(index, id) {
   const slots = saves.load(), slot = saves.slot(slots, index, id);
   activeSave = { index, slot };
   levelSelect.value = String(saves.nextLevel(slot));
-  saveDialog.close();
-  titleScreen.close();
   begin();
   board.scrollIntoView({ block: 'center' });
 }
@@ -545,6 +543,15 @@ function syncUI() {
     button.classList.toggle('tutorial-target', Boolean(tutorial && tutorial.target.id === brick.id));
     button.style.setProperty('--cooldown-fill', `${brick.kind === 'cinder' ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
   }
+  if (ending?.game !== game || ending?.state !== game.state) ending = null;
+  if (['won', 'lost'].includes(game.state) && !ending) {
+    ending = { game, state: game.state, elapsed: 0, duration: game.state === 'won' ? 2.4 : 1.8 };
+    if (game.state === 'won' && !tutorial) saveVictory();
+    overlay.hidden = true;
+    toast.textContent = '';
+    status.textContent = game.state === 'won' ? 'Level complete! Koshi is celebrating.' : 'Koshi needs another try.';
+  }
+  if (ending && !endingMotion.matches && ending.elapsed < ending.duration) return;
   if (displayedState === game.state) return;
   displayedState = game.state;
   if (game.state === 'ready') {
@@ -566,7 +573,6 @@ function syncUI() {
       return;
     }
     const hasNext = !game.customLevel && game.levelIndex + 1 < LEVELS.length;
-    saveVictory();
     showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', survive
       ? `You survived all ${DURATION} seconds! You gathered ${game.score} food and earned ${game.enemies} enemy points.`
       : `You gathered ${game.score} food and earned ${game.enemies} enemy points with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
@@ -588,18 +594,21 @@ function syncUI() {
 
 function begin() {
   if (tutorial) { selectTutorial(tutorial.index); return; }
-  game = createGame();
-  runSave = activeSave && !game.customLevel ? { index: activeSave.index, id: activeSave.slot.id } : null;
-  updateSaveProfile();
-  makeBrickButtons();
-  displayedState = null;
-  trail = [];
-  toast.textContent = '';
-  lastTime = null;
-  resize();
-  syncUI();
-  if (game.level.cutscene) cutscene.open(game.level.cutscene, game.level.id);
-  else startLevel();
+  phaseTransition.run(() => {
+    for (const dialog of [titleScreen, saveDialog, levelPicker]) if (dialog.open) dialog.close();
+    game = createGame();
+    runSave = activeSave && !game.customLevel ? { index: activeSave.index, id: activeSave.slot.id } : null;
+    updateSaveProfile();
+    makeBrickButtons();
+    displayedState = null;
+    trail = [];
+    toast.textContent = '';
+    lastTime = null;
+    resize();
+    syncUI();
+    if (game.level.cutscene) cutscene.open(game.level.cutscene, game.level.id);
+    else startLevel();
+  });
 }
 
 function startLevel() {
@@ -622,7 +631,6 @@ play.addEventListener('click', () => {
 });
 restart.addEventListener('click', begin);
 document.querySelector('#title-start').addEventListener('click', () => {
-  titleScreen.close();
   begin();
   board.scrollIntoView({ block: 'center' });
 });
@@ -646,35 +654,39 @@ levelPicker.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeLevelPicker(); }
 });
 document.querySelector('#level-picker-play').addEventListener('click', () => {
-  levelPicker.close();
   begin();
 });
 function dismissTitle() {
-  titleScreen.close();
-  play.focus({ preventScroll: true });
+  phaseTransition.run(() => {
+    titleScreen.close();
+    play.focus({ preventScroll: true });
+  });
 }
 titleScreen.addEventListener('cancel', event => {
   event.preventDefault();
   dismissTitle();
 });
 function showTitle() {
-  if (tutorial) {
-    tutorial = null;
-    runSave = null;
-    document.body.classList.remove('tutorial-active');
-    document.querySelector('#tutorial-panel').hidden = true;
-    game = createGame();
-    makeBrickButtons();
-    displayedState = null;
-    displayedStuck = false;
-    toast.textContent = '';
-    trail = [];
-    resize();
-    syncUI();
-  } else autoPause();
-  if (!titleScreen.open) titleScreen.showModal();
-  updateSaveProfile();
-  document.querySelector('#title-tutorial').focus({ preventScroll: true });
+  autoPause();
+  phaseTransition.run(() => {
+    if (tutorial) {
+      tutorial = null;
+      runSave = null;
+      document.body.classList.remove('tutorial-active');
+      document.querySelector('#tutorial-panel').hidden = true;
+      game = createGame();
+      makeBrickButtons();
+      displayedState = null;
+      displayedStuck = false;
+      toast.textContent = '';
+      trail = [];
+      resize();
+      syncUI();
+    }
+    if (!titleScreen.open) titleScreen.showModal();
+    updateSaveProfile();
+    document.querySelector('#title-tutorial').focus({ preventScroll: true });
+  });
 }
 document.querySelector('#title-menu').addEventListener('click', showTitle);
 document.querySelector('#tutorial-exit').addEventListener('click', showTitle);
@@ -709,16 +721,18 @@ function selectTutorial(index) {
 }
 
 function startTutorial(index = 0) {
-  if (titleScreen.open) titleScreen.close();
-  if (guide.open) guide.close();
-  tutorial = new Tutorial();
-  runSave = null;
-  updateSaveProfile();
-  document.body.classList.add('tutorial-active');
-  document.querySelector('#tutorial-panel').hidden = false;
-  document.querySelector('#tutorial-sword').value = tutorial.sword;
-  selectTutorial(index);
-  document.querySelector('#tutorial-step').focus({ preventScroll: true });
+  phaseTransition.run(() => {
+    if (titleScreen.open) titleScreen.close();
+    if (guide.open) guide.close();
+    tutorial = new Tutorial();
+    runSave = null;
+    updateSaveProfile();
+    document.body.classList.add('tutorial-active');
+    document.querySelector('#tutorial-panel').hidden = false;
+    document.querySelector('#tutorial-sword').value = tutorial.sword;
+    selectTutorial(index);
+    document.querySelector('#tutorial-step').focus({ preventScroll: true });
+  });
 }
 for (const [index, lesson] of LESSONS.entries()) {
   const option = document.createElement('option');
@@ -874,6 +888,7 @@ function togglePause() {
 }
 pause.addEventListener('click', togglePause);
 document.addEventListener('keydown', event => {
+  if (phaseTransition.busy) { event.preventDefault(); return; }
   if (titleScreen.open && event.code === 'Escape') {
     event.preventDefault();
     dismissTitle();
@@ -923,14 +938,14 @@ function line(points, color, width = 2) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.stroke();
 }
 
-function drawCat(x, y, now, damageProgress = null, boostReady = false) {
+function drawCat(x, y, now, damageProgress = null, boostReady = false, expression = null) {
   ctx.save();
   ctx.translate(x, y);
   const hurt = damageProgress !== null;
   const darkRed = hurt && Math.floor(damageProgress * 4) % 2 === 0;
   const fur = hurt ? darkRed ? '#dc626b' : '#f2a0a5' : '#abb5bd';
   const stripes = hurt ? '#923c49' : '#596571';
-  if (game.weapon) {
+  if (game.weapon && !expression) {
     ctx.strokeStyle = SWORDS[game.weapon.type].color;
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.stroke();
@@ -961,7 +976,14 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false) {
     ctx.fillStyle = ember; ctx.shadowColor = '#ec4824'; ctx.shadowBlur = 12;
   }
   for (const eye of [-9, 9]) {
-    ctx.beginPath(); ctx.ellipse(eye, -3, boostReady ? 3.2 : 2.3, blink ? .7 : boostReady ? 4.2 : 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    if (expression === 'lost') {
+      line([[eye - 4, -7], [eye + 4, 1]], '#26323a', 3);
+      line([[eye + 4, -7], [eye - 4, 1]], '#26323a', 3);
+    } else if (expression === 'won') {
+      ctx.beginPath(); ctx.arc(eye, -1, 3.5, Math.PI, Math.PI * 2); ctx.strokeStyle = '#26323a'; ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.ellipse(eye, -3, boostReady ? 3.2 : 2.3, blink ? .7 : boostReady ? 4.2 : 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    }
   }
   ctx.restore();
   if (hurt) {
@@ -972,7 +994,11 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false) {
   ctx.beginPath(); ctx.moveTo(-4, 5); ctx.lineTo(4, 5); ctx.lineTo(0, 9); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#34414a'; ctx.lineWidth = 1.7;
   ctx.beginPath();
-  if (boostReady) {
+  if (expression === 'won') {
+    ctx.moveTo(-8, 10); ctx.quadraticCurveTo(0, 15, 8, 10);
+    ctx.quadraticCurveTo(0, 28 + Math.sin(now * 10) * 2, -8, 10);
+    ctx.fillStyle = '#632d38'; ctx.fill();
+  } else if (boostReady) {
     ctx.save();
     ctx.fillStyle = '#6b1714'; ctx.strokeStyle = ember;
     ctx.shadowColor = '#ec4824'; ctx.shadowBlur = 14; ctx.lineWidth = 2;
@@ -980,7 +1006,7 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false) {
     ctx.fillStyle = ember;
     ctx.beginPath(); ctx.ellipse(0, 17, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-  } else if (hurt) {
+  } else if (hurt || expression === 'lost') {
     ctx.moveTo(-8, 16); ctx.quadraticCurveTo(0, 7, 8, 16);
   } else {
     ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11); ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11);
@@ -989,6 +1015,35 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false) {
   for (const sign of [-1, 1]) {
     for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], hurt ? '#ffd3d5' : '#d7dfdc', 1.2);
   }
+  ctx.restore();
+}
+
+function updateEnding(seconds) {
+  if (!ending || ending.game !== game || document.hidden || document.querySelector('dialog[open]')) return;
+  ending.elapsed = Math.min(ending.duration, ending.elapsed + Math.max(0, Math.min(seconds, .1)));
+}
+
+function endingPose(sequence, width, height) {
+  const progress = Math.min(1, sequence.elapsed / sequence.duration);
+  const startX = Math.max(40, Math.min(width - 40, sequence.game.cat.x));
+  const startY = Math.max(40, Math.min(height - 40, sequence.game.cat.y));
+  if (sequence.state === 'won') {
+    const approach = Math.max(0, (progress - .4) / .6);
+    const eased = approach * approach * (3 - 2 * approach);
+    const bounce = Math.sin(progress * Math.PI * 8) * (1 - progress);
+    return {
+      x: startX + (width / 2 - startX) * eased + bounce * 14,
+      y: startY + (height / 2 - startY) * eased - Math.abs(bounce) * 22,
+      scale: 1 + eased * 2.2, rotation: bounce * .12,
+    };
+  }
+  return { x: startX, y: startY - Math.sin(progress * Math.PI) * 28, scale: 1, rotation: progress * Math.PI * 4 };
+}
+
+function drawEnding() {
+  const pose = endingPose(ending, game.width, game.height);
+  ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(pose.rotation); ctx.scale(pose.scale, pose.scale);
+  drawCat(0, 0, ending.elapsed, null, false, ending.state);
   ctx.restore();
 }
 
@@ -1047,6 +1102,11 @@ function render(now) {
   }
   ctx = actorCtx;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  if (ending?.game === game && ending.state === game.state && !endingMotion.matches) {
+    drawEnding();
+    ctx = boardCtx;
+    return;
+  }
   if (game.target) {
     ctx.beginPath();
     ctx.arc(game.target.x, game.target.y, 6, 0, Math.PI * 2);
@@ -1516,8 +1576,11 @@ function resize() {
 
 function frame(timestamp) {
   const seconds = lastTime === null ? 0 : (timestamp - lastTime) / 1000;
-  if (cutscene.active) cutscene.update(seconds);
-  else game.update(seconds);
+  if (!phaseTransition.busy) {
+    if (cutscene.active) cutscene.update(seconds);
+    else game.update(seconds);
+    updateEnding(seconds);
+  }
   lastTime = timestamp;
   syncUI();
   render(timestamp / 1000);

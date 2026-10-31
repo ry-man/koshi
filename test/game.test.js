@@ -9,7 +9,7 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 7);
+  assert.equal(scripts.length, 8);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
@@ -19,8 +19,9 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   assert.match(scripts[2][1], /src="\.\/src\/cutscene\.js"/);
   assert.match(scripts[3][1], /src="\.\/src\/learning\.js"/);
   assert.match(scripts[4][1], /src="\.\/src\/saves\.js"/);
-  assert.match(scripts[5][1], /src="\.\/src\/app\.js"/);
-  assert.match(scripts[6][1], /src="\.\/src\/pwa\.js"/);
+  assert.match(scripts[5][1], /src="\.\/src\/transitions\.js"/);
+  assert.match(scripts[6][1], /src="\.\/src\/app\.js"/);
+  assert.match(scripts[7][1], /src="\.\/src\/pwa\.js"/);
   const context = vm.createContext({});
   vm.runInContext(readFileSync(path.join(root, 'src', 'game.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'learning.js'), 'utf8'), context);
@@ -81,7 +82,7 @@ test('aiming draws a subtle transparent dotted line and an exact red outlined ta
   const game = playing();
   game.target = { x: 927.25, y: 274.75 };
   const context = vm.createContext({
-    game, boardCtx: makeContext('board'), actorCtx: makeContext('actors'), ctx: null, trail: [],
+    game, boardCtx: makeContext('board'), actorCtx: makeContext('actors'), ctx: null, trail: [], ending: null,
     drawCat() {}, line(points, color, width) { lines.push({ points, color, width }); },
   });
   vm.runInContext(app.slice(app.indexOf('function render(now)'), app.indexOf('\nfunction drawSpawnCue')), context);
@@ -158,7 +159,7 @@ test('level popup commits only on Play and cancellation restores selection and m
   let starts = 0;
   const context = vm.createContext({
     document: { querySelector: element }, titleScreen, levelSelect,
-    begin() { starts++; },
+    begin() { starts++; element('#level-picker').close(); },
   });
   vm.runInContext(source.slice(source.indexOf("document.querySelector('#title-levels').addEventListener"),
     source.indexOf('function dismissTitle()')), context);

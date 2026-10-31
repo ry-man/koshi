@@ -28,6 +28,11 @@ existing level selector. Escape
 dismisses the title to the ready screen. Custom-level playtest links and the
 `#install` troubleshooting link bypass the title. The artwork is bundled for
 offline and direct-file play.
+Moving between the main menu, story scenes, and gameplay uses a horizontal
+black sawtooth wipe: cover the old phase, change screens while fully black,
+then sweep onward to reveal the new phase. Tutorial entry/exit uses the same
+transition. Input and gameplay clocks are frozen during the 2.1-second wipe.
+Reduced-motion mode changes screens immediately.
 
 ### Campaign saves
 
@@ -117,6 +122,11 @@ the board; phones keep compact controls above it without scrolling away from pla
   within the first second have shortened previews; time-zero spawns remain instant.
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
+  Results now follow a brief ending animation: wins show Koshi cheering and
+  bouncing before growing toward the board center; every loss shows X-shaped
+  eyes, a frown, and two spins. Gameplay is frozen throughout and wins save
+  immediately. Hidden pages and open menus freeze the sequence; restarting or
+  switching levels cancels it. Reduced-motion mode shows results immediately.
 - Robo Mice arrive in Level 1–2, patrolling curves at **75 board units/second**
   (about 15% faster than before) and periodically stopping to open their mouths
   and bare two large front teeth. Robo Wheels arrive in 1–9 and roll around the inside boundary. Robo Rams arrive in 1–13, wander, pause
@@ -242,7 +252,9 @@ The game uses an in-page history entry, not a system-gesture override, so this
 needs device testing and cannot guarantee interception on every Android/browser
 version. Normal browser tabs keep their usual Back navigation.
 The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart buttons
-share one row above the stats. Time, weapon, food, enemies, and health are centered
+share one row above the stats. The level is centered in the space between the
+logo and toolbar. Save-status text stays in the menu, not on the gameplay HUD;
+save errors and retry controls remain visible. Time, weapon, food, enemies, and health are centered
 in equally spaced columns. **Menu → Choose a level** opens a popup with a level
 selector and **Play level** button. **Back to menu** or Escape cancels without
 changing the current level; no dropdown appears on the main menu itself.
