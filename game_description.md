@@ -268,6 +268,9 @@ become green, green become red, and red disappear; an unshielded enemy dies on i
 next hit. Each accepted hit grants the same one-second protection as Koshi and a
 blinking red color changes, without blurred hit effects or changes to the enemy's normal shape or movement rules.
 Sword hits consume one use per accepted hit; protected contacts do not consume uses.
+During that one-second window, the attacked enemy cannot damage Koshi through
+contact or its bombs, even after his last sword use is spent. Other enemies and
+spikes can still hurt him.
 Boost attacks also respect this protection. Defeating an enemy awards its original
 required hit count: unshielded 1, red 2, green 3, blue 4. Points are awarded only on
 destruction and count toward the enemy-score objective. Shields are selectable for
@@ -353,7 +356,9 @@ silvers respectively, leaving room for shield hits that have not yet earned poin
 Food-only and survival levels provide just one bronze, 14 seconds after their
 first enemies, except 1-10, which provides a silver at 28 seconds.
 Level 1-17 provides five silvers at 24/48/65/82/105 seconds for 25 attacks.
-Swords are separated by at least 16 seconds.
+Main sword supplies are separated by at least 16 seconds. Enemy-goal levels after
+1-10 without Boost bricks add two spare bronze swords at one-third and two-thirds
+of the time limit (40/80 seconds in 1-11, 1-12, and 1-13), preserving their silver schedules.
 The Boost introduction in 1-14 is the exception: no weapons are supplied;
 its 12-enemy-point target must be met using Boost launches, with an extended
 140-second limit.

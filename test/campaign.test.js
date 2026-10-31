@@ -141,7 +141,8 @@ test('goals are attainable, schedules ordered, shields escalate, and all food ge
       if (!shieldedCount || !level.killGoal) {
         assert.ok(level.weapons.length <= (index === 2 ? 4 : level.killGoal ? 2 : 1), `${level.id}: introductory sword supply`);
       }
-      assert.ok(level.weapons.every(([time], i) => !i || time - level.weapons[i - 1][0] >= 16), `${level.id}: space out swords`);
+      const mainWeapons = index >= 10 && level.killGoal > 0 ? level.weapons.filter(([, type]) => type !== 'bronze') : level.weapons;
+      assert.ok(mainWeapons.every(([time], i) => !i || time - mainWeapons[i - 1][0] >= 16), `${level.id}: space out main swords`);
       assert.ok(level.weapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0) >= level.killGoal);
     }
     const game = new Game(() => .5, { level: index });
@@ -162,7 +163,8 @@ test('shielded enemy objectives have spare attack capacity and timely replacemen
     if (!level.killGoal || level.concept === 'boost' || !level.enemies.some(([, , , shield]) => shield)) continue;
     const unfinished = Math.max(...level.enemies.map(([, , , shield]) => (SHIELDS[shield]?.hits ?? 1) - 1));
     const minimum = level.killGoal + Math.max(5, Math.ceil(level.killGoal / 2)) + unfinished;
-    const attacks = level.weapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0);
+    const mainWeapons = level.weapons.filter(([, type]) => type !== 'bronze');
+    const attacks = mainWeapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0);
     assert.ok(attacks >= minimum, `${level.id}: target plus spare sword and unfinished shield damage`);
     assert.ok(attacks < minimum + SWORDS.silver.uses * (level.id === '1-17' ? 2 : 1), `${level.id}: bounded reserve including the Cinder extra sword`);
     assert.ok(level.weapons.at(-1)[0] <= level.duration - 25, `${level.id}: time to use the reserve`);
@@ -170,8 +172,35 @@ test('shielded enemy objectives have spare attack capacity and timely replacemen
       .reduce((sum, [, type]) => sum + SWORDS[type].uses, 0);
     assert.ok(earlyAttacks >= level.killGoal, `${level.id}: enough attacks before the final third`);
   }
-  assert.deepEqual(LEVELS[10].weapons, [[24, 'silver'], [60, 'silver'], [95, 'silver']]);
-  assert.deepEqual(LEVELS[11].weapons, [[24, 'silver'], [48, 'silver'], [71, 'silver'], [95, 'silver']]);
+  assert.deepEqual(LEVELS[10].weapons.filter(([, type]) => type === 'silver'), [[24, 'silver'], [60, 'silver'], [95, 'silver']]);
+  assert.deepEqual(LEVELS[11].weapons.filter(([, type]) => type === 'silver'), [[24, 'silver'], [48, 'silver'], [71, 'silver'], [95, 'silver']]);
+});
+
+test('enemy-goal levels after level 10 without boost bricks supply a pair of spare bronze swords', () => {
+  const qualifying = [];
+  for (const [index, level] of LEVELS.entries()) {
+    const eligible = index >= 10 && level.killGoal > 0 && !level.brickTypes.some(brick => brick.boost);
+    if (!eligible) {
+      if (index >= 10) assert.equal(level.weapons.filter(([, type]) => type === 'bronze').length, level.survive ? 1 : 0);
+      continue;
+    }
+    qualifying.push(level.id);
+    assert.deepEqual(level.weapons.filter(([, type]) => type === 'bronze'), [[40, 'bronze'], [80, 'bronze']]);
+    for (const options of [{}, { portrait: true, scale: .31 }]) {
+      const game = new Game(() => .5, { level: index, ...options });
+      game.start();
+      game.cat.x = 22; game.cat.y = 22;
+      game.update(80);
+      const bronze = game.weapons.filter(item => item.type === 'bronze');
+      assert.equal(bronze.length, 2, `${level.id}: both pickups spawn`);
+      const bounds = game.bounds();
+      for (const sword of bronze) {
+        assert.ok(sword.x >= bounds.left && sword.x <= bounds.right);
+        assert.ok(sword.y >= bounds.top && sword.y <= bounds.bottom);
+      }
+    }
+  }
+  assert.deepEqual(qualifying, ['1-11', '1-12', '1-13']);
 });
 
 test('targeted difficulty relief improves Springs and Cinder weapon supply and gives Boost more time', () => {

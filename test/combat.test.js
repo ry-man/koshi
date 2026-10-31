@@ -354,6 +354,67 @@ test('each shield tier takes its full hit count, shares Koshi protection timing,
   }
 });
 
+test('a last sword attack makes shielded enemies harmless for exactly their protection window', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    for (const type of ['mouse', 'wheel', 'ram', 'bucket']) {
+      for (const shield of ['red', 'green', 'blue']) {
+        const game = arena(options);
+        const enemy = game.createCustomSpawn({ kind: 'enemy', type, shield, x: .5, y: .5 })[0];
+        game.robots = [enemy];
+        game.cat.x = enemy.x + game.cat.radius + enemy.radius + 9;
+        game.cat.y = enemy.y;
+        game.weapon = { type: 'bronze', uses: 1, expires: Infinity };
+        game.combat(0, game.cat.x, game.cat.y);
+        assert.equal(game.weapon, null);
+        assert.equal(enemy.shield, SHIELDS[shield].next);
+        assert.equal(enemy.touching, false, 'last attack lands before body contact');
+        const deadline = enemy.invulnerableUntil;
+        game.elapsed = deadline - .00001;
+        game.cat.x = enemy.x; game.cat.y = enemy.y;
+        game.combat(0, game.cat.x, game.cat.y);
+        assert.equal(game.hearts, 3, `${type}: approaching after the sword breaks is safe`);
+        assert.equal(game.invulnerableUntil, 0, 'only the attacked enemy is harmless');
+        assert.equal(enemy.invulnerableUntil, deadline, 'contact does not refresh protection');
+        game.pause();
+        game.update(5);
+        assert.equal(game.elapsed, deadline - .00001);
+        game.resume();
+        game.elapsed = deadline;
+        game.combat(0, game.cat.x, game.cat.y);
+        assert.equal(game.hearts, 3, 'continuous contact does not cause delayed damage');
+        game.cat.x = enemy.x + 100;
+        game.combat(0, game.cat.x, game.cat.y);
+        game.cat.x = enemy.x;
+        game.combat(0, game.cat.x, game.cat.y);
+        assert.equal(game.hearts, 2, 'new contact at the deadline can hurt again');
+      }
+    }
+  }
+});
+
+test('recently attacked buckets cannot hurt Koshi with their bombs, but other enemies still can', () => {
+  const game = arena();
+  const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'bucket', shield: 'blue', x: .5, y: .5 })[0];
+  game.robots = [enemy];
+  game.weapon = { type: 'wood', uses: 1, expires: Infinity };
+  game.combat(0, game.cat.x, game.cat.y);
+  const deadline = enemy.invulnerableUntil;
+  const blast = () => ({ x: game.cat.x, y: game.cat.y, state: 'exploding', blastAge: .1, touching: false });
+  enemy.bombs.push(blast());
+  game.elapsed = deadline - .00001;
+  game.combat(0, game.cat.x, game.cat.y);
+  assert.equal(game.hearts, 3);
+  const other = mouse(game);
+  game.robots.push(other);
+  game.combat(0, game.cat.x, game.cat.y);
+  assert.equal(game.hearts, 2, 'protection is enemy-specific');
+  game.robots = [enemy];
+  game.elapsed = game.invulnerableUntil;
+  enemy.bombs.push(blast());
+  game.combat(0, game.cat.x, game.cat.y);
+  assert.equal(game.hearts, 1, 'a new blast after protection expires hurts');
+});
+
 test('shield hits consume wood, boosts respect protection without using swords, and weighted scores meet goals', () => {
   const game = arena();
   const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'bucket', shield: 'blue', x: .5, y: .5 })[0];

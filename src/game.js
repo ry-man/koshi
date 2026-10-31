@@ -369,15 +369,20 @@ const LEVELS = [
   const bufferedWeapons = shieldedObjective ? Array.from({ length: swordCount }, (_, i) => [
     Math.round(entry.enemies[0][0] + 12 + i * (entry.duration - 25 - entry.enemies[0][0] - 12) / (swordCount - 1)), 'silver',
   ]) : null;
+  const weapons = entry.weapons ?? bufferedWeapons ?? (entry.survive || !entry.killGoal
+    ? [[entry.enemies[0][0] + 14, 'bronze']]
+    : [[entry.enemies[0][0] + 12, 'silver'], [Math.floor(entry.duration * .6), 'silver'],
+      ...(entry.killGoal > 10 ? [[entry.duration - 22, 'silver']] : [])]);
+  if (index >= 10 && entry.killGoal > 0 && !brickTypes.some(brick => brick.boost)) {
+    weapons.push([Math.floor(entry.duration / 3), 'bronze'], [Math.floor(entry.duration * 2 / 3), 'bronze']);
+    weapons.sort((a, b) => a[0] - b[0]);
+  }
   return {
     id: `1-${index + 1}`, name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
     heartCost: index < 3 ? Infinity : Math.ceil(foodPoints / 5),
     brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies,
-    weapons: entry.weapons ?? bufferedWeapons ?? (entry.survive || !entry.killGoal
-      ? [[entry.enemies[0][0] + 14, 'bronze']]
-      : [[entry.enemies[0][0] + 12, 'silver'], [Math.floor(entry.duration * .6), 'silver'],
-        ...(entry.killGoal > 10 ? [[entry.duration - 22, 'silver']] : [])]),
+    weapons,
     cutscene: story(index < 10 ? 'garden' : 'workshop', entry.dialogue, cast),
   };
 });
@@ -1543,7 +1548,7 @@ class Game {
         bomb.blastAge += seconds;
         bomb.blastRadius = 58 * Math.min(1, bomb.blastAge / .45);
         const touching = Math.hypot(this.cat.x - bomb.x, this.cat.y - bomb.y) <= this.cat.radius + bomb.blastRadius;
-        if (touching && !bomb.touching) this.takeDamage();
+        if (touching && !bomb.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
         bomb.touching = touching;
         if (bomb.blastAge >= .9) return false;
       }
@@ -1809,7 +1814,7 @@ class Game {
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
       }
-      if (distance <= this.cat.radius + enemy.radius && !enemy.touching) this.takeDamage();
+      if (distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
     });

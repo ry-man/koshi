@@ -153,6 +153,8 @@ the board; phones keep compact controls above it without scrolling away from pla
   Accepted hits use the same one-second protection timer as Koshi, with a blinking
   red color changes and unchanged enemy shapes, without blurred hit effects. Each accepted sword hit uses one attack;
   protected hits use none. Boost attacks respect shield protection without spending swords.
+  Recently hit enemies cannot hurt Koshi through contact or their bombs during that
+  same second, even if his last sword attack was used up. Other enemies and spikes remain dangerous.
   Destroyed enemies award their original required hit count: unshielded **1**,
   red **2**, green **3**, blue **4** enemy points. Partial hits award no points.
   In the editor, choose a shield for enemy placements or enemy-spawning bricks.
@@ -237,6 +239,9 @@ Replacement swords are spaced throughout the level, starting 12 seconds after
 the first robots and ending 25 seconds before timeout. Level 1–11 supplies
 three silvers at 24/60/95 seconds (15 attacks for 8 points); Level 1–12 supplies
 four at 24/48/71/95 seconds (20 attacks for 10 points).
+Enemy-goal levels after 1–10 with no Boost bricks also supply two spare bronze
+swords at one-third and two-thirds of the time limit: 40/80 seconds in 1–11,
+1–12, and 1–13, without changing their silver schedules.
 **Level 1–14 (Boost introduction) supplies no weapons**: players must use
 Boost launches to defeat robots and meet its 12-enemy-point goal, with a
 140-second limit (20 seconds of extra practice time).
