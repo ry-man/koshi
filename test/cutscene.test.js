@@ -14,13 +14,63 @@ const scene = () => ({
 });
 const level = () => ({ version: 1, id: 'Story test', duration: 30, goal: 20, heartCost: null, brickSet: 1, events: [], cutscene: scene() });
 
-test('all campaign scenes validate and every gameplay character speaks', () => {
+test('all campaign scenes validate and every story character speaks', () => {
   const speakers = new Set();
   for (const level of LEVELS) {
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
   assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).sort());
+});
+
+test('Tom commands the campaign in every scene and round-trips as a custom speaker and actor', () => {
+  assert.equal(CHARACTERS.tom, 'Tom the Duck');
+  for (const campaign of LEVELS) {
+    assert.ok(campaign.cutscene.lines.some(line => line.speaker === 'tom'));
+    for (const line of campaign.cutscene.lines) {
+      assert.ok(line.actors.some(actor => actor.character === 'tom'));
+      assert.equal(new Set(line.actors.map(actor => actor.x)).size, line.actors.length);
+    }
+    assert.ok(campaign.enemies.every(([, type]) => type !== 'tom'), 'Tom is a story antagonist, not a new combat enemy');
+  }
+  const source = { ...level(), cutscene: {
+    theme: 'workshop', lines: [{ speaker: 'tom', text: 'My robots guard this pantry!', actors: [
+      { character: 'tom', x: .5, y: .6 }, { character: 'koshi', x: .25, y: .65 },
+    ] }],
+  } };
+  assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(source))), source);
+  assert.throws(() => validateCutscene({ ...source.cutscene, lines: [{
+    ...source.cutscene.lines[0], actors: [{ character: 'koshi', x: .25, y: .65 }],
+  }] }), /speaking character/);
+});
+
+test('Tom has a distinct full-body drawing and pixel portrait with animated bill and antenna', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const drawing = source.slice(source.indexOf('function drawTom('), source.indexOf('class CutscenePlayer'));
+  const operations = [];
+  const gradient = { addColorStop(...args) { operations.push(['gradient', ...args]); } };
+  const ctx = new Proxy({}, {
+    get(target, name) {
+      if (name === 'createLinearGradient') return () => gradient;
+      return (...args) => operations.push([name, ...args]);
+    },
+    set(target, name, value) { operations.push([name, value]); return true; },
+  });
+  const context = vm.createContext({});
+  vm.runInContext(drawing, context);
+  const draw = (speaking, portrait = false) => {
+    operations.length = 0;
+    if (portrait) context.drawPortrait(ctx, 'tom', speaking, 0);
+    else context.drawTom(ctx, 0, speaking);
+    return JSON.stringify(operations);
+  };
+  const still = draw(false), talking = draw(true);
+  assert.notEqual(still, talking);
+  assert.match(still, /#95d1c0/);
+  assert.match(talking, /#ea7070/);
+  assert.match(still, /gradient/);
+  assert.notEqual(draw(false, true), draw(true, true));
+  assert.match(source, /if \(actor\.character === 'tom'\) drawTom\(ctx, time, speaking\)/);
 });
 
 test('optional cutscenes survive custom-level round trips independently of source data', () => {

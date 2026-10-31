@@ -30,7 +30,7 @@ const SWORDS = {
   silver: { name: 'Silver Sword', color: '#d5e0ec', uses: 10 },
   gold: { name: 'Gold Sword', color: '#f3d16b', seconds: 15 },
 };
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
 function validateCutscene(value) {
@@ -84,9 +84,10 @@ class Cutscene {
 }
 
 const storyActors = [
-  { character: 'koshi', x: .28, y: .65 },
-  { character: 'mouse', x: .67, y: .65 },
-  { character: 'wheel', x: .82, y: .7 },
+  { character: 'koshi', x: .2, y: .65 },
+  { character: 'tom', x: .55, y: .62 },
+  { character: 'mouse', x: .72, y: .65 },
+  { character: 'wheel', x: .86, y: .7 },
 ];
 const story = (theme, dialogue) => ({
   theme, lines: dialogue.map(([speaker, text]) => ({
@@ -100,7 +101,8 @@ const LEVELS = [
     id: '1-1', duration: 60, goal: 20, heartCost: Infinity, food: SCHEDULE, enemies: [], weapons: [],
     cutscene: story('garden', [
       ['koshi', 'A sunny garden, a quiet path... and not a snack in sight. Something is very wrong.'],
-      ['mouse', 'By order of the Clockwork Pantry, all snacks belong to us! Wheels, roll out!'],
+      ['tom', 'Attention, garden! I am Tom the Duck. My robot patrol will collect every snack for my Clockwork Pantry.'],
+      ['mouse', 'Yes, Commander Tom! Wheels, roll out!'],
       ['wheel', 'BEEP. SNACK DELIVERY IN PROGRESS. NO CATS ALLOWED.'],
       ['koshi', 'Then my adventure starts with breakfast. Those bricks should help me cross the garden!'],
     ]),
@@ -108,8 +110,9 @@ const LEVELS = [
   {
     id: '1-2', duration: 120, goal: 20, heartCost: 10,
     cutscene: story('garden', [
+      ['tom', 'A cat raiding my deliveries? Antenna command: seal the garden gate. Those snacks are mine!'],
       ['mouse', 'You ate our shipment! Patrol units, guard the garden gate!'],
-      ['koshi', 'Your shipment? Those strawberries grew here. I am taking the path to the pantry.'],
+      ['koshi', 'Not yours, Tom. Those strawberries grew here. I am taking the path to your pantry.'],
       ['wheel', 'WARNING: SWORDS DETECTED. KEEP AWAY FROM THE CAT.'],
     ]),
     food: [[5,'S','S',10],[10,'S','S',10],[15,'S','S',10],[20,'L3','S',10],[25,'L3','S',10],[30,'L3','S',10],[35,'C3','S',10],[40,'C4','S',10],[50,'C5','S',10],[60,'R5','P',15],[80,'R5','P',15],[100,'R5','P',15]],
@@ -119,6 +122,7 @@ const LEVELS = [
   {
     id: '1-3', name: 'Crumb patrol', duration: 120, goal: 20, killGoal: 4, heartCost: 10, brickSet: 3,
     cutscene: story('garden', [
+      ['tom', 'My crumb patrol will stop you. Try crossing my crumbling walls and white spikes, little cat!'],
       ['mouse', 'This old garden wall will crumble before you catch our patrol!'],
       ['koshi', 'Then I will choose my steps carefully. And that spring looks useful.'],
       ['wheel', 'GATE LOCK: FOUR PATROL UNITS. FOOD ALONE WILL NOT OPEN IT.'],
@@ -132,11 +136,13 @@ const LEVELS = [
       { edge: 'left', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'red' },
       { edge: 'right', start: .625, end: .75, kind: 'normal', springs: true },
       { edge: 'bottom', start: .2, end: .4, kind: 'normal', spikes: true },
+      { edge: 'left', start: .5, end: .625, kind: 'normal', conveyor: true },
     ],
   },
   {
     id: '1-4', name: 'Slime circuit', duration: 150, goal: 25, killGoal: 8, heartCost: 10, brickSet: 3,
     cutscene: story('workshop', [
+      ['tom', 'Welcome to my workshop, Koshi. I built every robot here. My sticky security will keep you out of the vault.'],
       ['wheel', 'WELCOME TO THE PANTRY WORKSHOP. PLEASE ENJOY OUR STICKY SECURITY SYSTEM.'],
       ['mouse', 'Blue slime is my finest work. Plenty of time for a little hand polish!'],
       ['koshi', 'Blue holds longest, red lets go quickly. Eight guards between me and those stolen snacks.'],
@@ -152,14 +158,16 @@ const LEVELS = [
       { edge: 'right', start: .25, end: .375, kind: 'normal', slimed: true, slimeColor: 'green' },
       { edge: 'right', start: .75, end: .875, kind: 'normal', springs: true },
       { edge: 'top', start: .4, end: .6, kind: 'normal', spikes: true },
+      { edge: 'right', start: .5, end: .625, kind: 'normal', conveyor: true, conveyorDirection: 'counterclockwise' },
     ],
   },
   {
     id: '1-5', name: 'Warped showdown', duration: 180, goal: 30, killGoal: 12, heartCost: 10, brickSet: 3,
     cutscene: story('workshop', [
+      ['tom', 'You have reached my vault, but I still command it! Warped walls, swallow his paths. Patrol, protect my stolen feast!'],
       ['mouse', 'The pantry vault! These warped walls will swallow your escape routes!'],
       ['wheel', 'TWELVE GUARDS ONLINE. CRUMBLING WALLS ARMED. SNACKS SECURED.'],
-      ['koshi', 'Walls can change. Plans can too. I am bringing every last snack back to the garden.'],
+      ['koshi', 'Your antenna cannot order me around, Tom. Walls can change. Plans can too. I am bringing every snack back to the garden.'],
     ]),
     food: [[3,'L3','P',20],[20,'C4','P',25],[40,'R5','P',25],[60,'L3','C',30],[85,'C5','P',30],[115,'R5','C',30],[145,'C4','P',30],[165,'L3','C',15]],
     enemies: [[10,'mouse',3],[25,'wheel',2],[40,'mouse',3],[60,'wheel',2],[80,'mouse',4],[105,'wheel',2],[130,'mouse',4],[155,'wheel',2]],
@@ -176,6 +184,7 @@ const LEVELS = [
       { edge: 'bottom', start: .4, end: .6, kind: 'normal', springs: true },
       { edge: 'top', start: .4, end: .6, kind: 'normal', spikes: true },
       { edge: 'right', start: .5, end: .625, kind: 'normal', spikes: true },
+      { edge: 'left', start: .375, end: .5, kind: 'normal', conveyor: true },
     ],
   },
 ];
@@ -228,13 +237,18 @@ function validateCustomLevel(value) {
         if (typeof entry.slimeColor !== 'string' || !Object.hasOwn(SLIMES, entry.slimeColor)) fail(`Brick override ${i + 1} has an unknown slime color.`);
         override.slimeColor = entry.slimeColor;
       }
-      for (const attribute of ['slimed', 'springs', 'spikes']) {
+      if (entry.conveyorDirection !== undefined) {
+        if (!['clockwise', 'counterclockwise'].includes(entry.conveyorDirection)) fail(`Brick override ${i + 1} has an unknown conveyor direction.`);
+        override.conveyorDirection = entry.conveyorDirection;
+      }
+      for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor']) {
         if (entry[attribute] === undefined) continue;
         if (typeof entry[attribute] !== 'boolean') fail(`Brick override ${i + 1} ${attribute} must be a boolean.`);
         override[attribute] = entry[attribute];
       }
       if (override.slimed && override.springs) fail(`Brick override ${i + 1} cannot be both Slimed and Springs.`);
       if (override.spikes && (override.slimed || override.springs)) fail(`Brick override ${i + 1} cannot combine Spikes with Slimed or Springs.`);
+      if (override.conveyor && (override.slimed || override.springs || override.spikes)) fail(`Brick override ${i + 1} cannot combine Conveyor with another surface.`);
       return override;
     });
   }
@@ -463,6 +477,100 @@ function brickSpikes(parts, width, height) {
   return { path, triangles };
 }
 
+const CONVEYOR_SPEED = 85;
+
+function conveyorSurface(parts, width, height) {
+  const shape = brickInnerEdges(parts, width, height);
+  const rim = [];
+  // Keep corner steps between arena-facing edges, but never connect through the outer rim.
+  for (const loop of shape.path.split('M').slice(1)) {
+    const vertices = loop.replace('Z', '').split('L').map(pair => pair.split(' ').map(Number))
+      .map(([x, y]) => [x * shape.w, y * shape.h]);
+    const contour = vertices.slice(0, -1).map(([ax, ay], i) => {
+      const [bx, by] = vertices[i + 1], dx = bx - ax, dy = by - ay;
+      const length = Math.hypot(dx, dy);
+      const inner = shape.edges.some(edge => Math.abs(edge.ax - ax) < 1e-6 && Math.abs(edge.ay - ay) < 1e-6);
+      const outer = parts.some(part => {
+        if (!part.region) return false;
+        const x = shape.x + (ax + bx) / 2, y = shape.y + (ay + by) / 2;
+        return { top: dy === 0 && dx > 0 && Math.abs(y - part.y) < 1e-6,
+          bottom: dy === 0 && dx < 0 && Math.abs(y - part.y - part.h) < 1e-6,
+          left: dx === 0 && dy < 0 && Math.abs(x - part.x) < 1e-6,
+          right: dx === 0 && dy > 0 && Math.abs(x - part.x - part.w) < 1e-6 }[brickRegions([part], width, height).get(part.id).edge];
+      });
+      return { ax, ay, dx, dy, length, thickness: Math.max(...parts.map(part => Math.min(part.w, part.h))), inner, outer };
+    });
+    for (let i = 0; i < contour.length; i++) {
+      const edge = contour[i];
+      if (edge.inner) { rim.push(edge); continue; }
+      if (edge.outer) continue;
+      const reachesInner = sign => {
+        for (let step = 1; step < contour.length; step++) {
+          const next = contour[(i + sign * step + contour.length) % contour.length];
+          if (next.outer) return false;
+          if (next.inner) return true;
+        }
+        return false;
+      };
+      if (reachesInner(-1) && reachesInner(1)) rim.push(edge);
+    }
+  }
+  const edges = [];
+  const joins = (a, b) => Math.abs(a.ax + a.dx - b.ax) < 1e-6 && Math.abs(a.ay + a.dy - b.ay) < 1e-6
+    && a.dx / a.length === b.dx / b.length && a.dy / a.length === b.dy / b.length;
+  const extend = (a, b) => {
+    a.dx += b.dx; a.dy += b.dy; a.length += b.length;
+    a.thickness = Math.max(a.thickness, b.thickness);
+  };
+  // Union outlines retain collinear vertices at absorbed brick/gap boundaries.
+  for (const edge of rim) {
+    if (edges.length && joins(edges.at(-1), edge)) extend(edges.at(-1), edge);
+    else edges.push({ ...edge });
+  }
+  if (edges.length > 1 && joins(edges.at(-1), edges[0])) {
+    const last = edges.pop();
+    extend(last, edges[0]);
+    edges[0] = last;
+  }
+  return { ...shape, edges };
+}
+
+function brickConveyor(parts, width, height, travel = 0, direction = 'clockwise') {
+  const shape = conveyorSurface(parts, width, height);
+  const { w, h, edges } = shape;
+  const sign = direction === 'counterclockwise' ? -1 : 1;
+  const point = (x, y) => `${x / w} ${y / h}`;
+  let teeth = '', arrows = '';
+  for (const loop of shape.path.split('M').slice(1)) {
+    const vertices = loop.replace('Z', '').split('L').map(pair => pair.split(' ').map(Number))
+      .map(([x, y]) => [x * w, y * h]);
+    const segments = vertices.slice(0, -1).map(([x, y], i) => {
+      const [bx, by] = vertices[i + 1];
+      return { x, y, dx: bx - x, dy: by - y, length: Math.hypot(bx - x, by - y) };
+    });
+    const perimeter = segments.reduce((sum, edge) => sum + edge.length, 0);
+    const count = Math.max(1, Math.round(perimeter / 7)), pitch = perimeter / count;
+    for (let i = 0; i < count; i++) {
+      let distance = ((i * pitch + sign * travel) % perimeter + perimeter) % perimeter;
+      const edge = segments.find(edge => {
+        if (distance < edge.length) return true;
+        distance -= edge.length;
+        return false;
+      }) ?? segments.at(-1);
+      const { x, y, dx, dy, length } = edge;
+      const at = (along, inset) => point(x + dx / length * (distance + along) - dy / length * inset,
+        y + dy / length * (distance + along) + dx / length * inset);
+      teeth += `M${at(-1.5, -2)}L${at(1.5, -2)}L${at(1.5, 3)}L${at(-1.5, 3)}Z`;
+    }
+  }
+  for (const { ax, ay, dx, dy, length } of edges) {
+    const at = (along, inset) => point(ax + dx * .5 + dx / length * along - dy / length * inset,
+      ay + dy * .5 + dy / length * along + dx / length * inset);
+    arrows += `M${at(sign * 5, 9)}L${at(-sign * 3, 5)}L${at(-sign * 3, 13)}Z`;
+  }
+  return { belt: shape.path, teeth, arrows };
+}
+
 function brickRecharge(parts, bricks, perimeter, width, height) {
   const regions = brickRegions(bricks, width, height);
   const ids = new Set(parts.filter(part => part.sourceId !== undefined).map(part => part.sourceId));
@@ -638,6 +746,7 @@ class Game {
     this.weapons = [];
     this.healing = [];
     this.spikeTouching = new Set();
+    this.conveyorRide = null;
     this.weapon = null;
     this.nextEnemy = 0;
     this.nextWeapon = 0;
@@ -671,11 +780,12 @@ class Game {
           if (entry.crumbler !== undefined) brick.crumbler = entry.crumbler;
           if (entry.warped !== undefined) brick.warped = entry.warped;
           if (entry.slimeColor !== undefined) brick.slimeColor = entry.slimeColor;
-          for (const attribute of ['slimed', 'springs', 'spikes']) {
+          if (entry.conveyorDirection !== undefined) brick.conveyorDirection = entry.conveyorDirection;
+          for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor']) {
             if (entry[attribute] === undefined) continue;
             brick[attribute] = entry[attribute];
             if (entry[attribute]) {
-              for (const other of ['slimed', 'springs', 'spikes']) if (other !== attribute) brick[other] = false;
+              for (const other of ['slimed', 'springs', 'spikes', 'conveyor']) if (other !== attribute) brick[other] = false;
             }
           }
         }
@@ -738,6 +848,7 @@ class Game {
     if (brick.warped) this.absorbNeighbor(brick);
     this.cat.vx = vx;
     this.cat.vy = vy;
+    this.conveyorRide = null;
     this.target = { x, y };
     return true;
   }
@@ -761,6 +872,32 @@ class Game {
     return this.bricks.filter(brick => brick.spikes && brick.absorbedBy === null).flatMap(brick =>
       brickSpikes(parts.filter(part => part.id === brick.id), this.width, this.height).triangles
         .map(triangle => ({ id: brick.id, triangle })));
+  }
+
+  conveyorEdge(id, parts) {
+    const brick = this.bricks[id];
+    if (!brick?.conveyor || brick.absorbedBy !== null) return null;
+    const members = parts.filter(part => part.id === id);
+    const radius = this.cat.radius;
+    // Offset the union before tracing it so concave corners and unequal brick thicknesses stay clear.
+    const shape = conveyorSurface(members.map(part => ({ ...part, x: part.x - radius, y: part.y - radius,
+      w: part.w + radius * 2, h: part.h + radius * 2 })), this.width, this.height);
+    const sign = brick.conveyorDirection === 'counterclockwise' ? -1 : 1;
+    const connected = (a, b) => Math.abs(a.ax + a.dx - b.ax) < 1e-5 && Math.abs(a.ay + a.dy - b.ay) < 1e-5;
+    for (const edge of shape.edges) {
+      const tx = edge.dx / edge.length, ty = edge.dy / edge.length;
+      const start = shape.edges.some(other => other !== edge && connected(other, edge)) ? 0 : radius;
+      const end = shape.edges.some(other => other !== edge && connected(edge, other)) ? edge.length : edge.length - radius;
+      const ax = shape.x + edge.ax + tx * start, ay = shape.y + edge.ay + ty * start;
+      const length = end - start;
+      const along = (this.cat.x - ax) * tx + (this.cat.y - ay) * ty;
+      const outside = (this.cat.x - ax) * ty - (this.cat.y - ay) * tx;
+      if (Math.abs(outside) < 1e-5 && along >= -1e-6 && along <= length + 1e-6
+        && (sign > 0 ? length - along : along) > 1e-6) {
+        return { ax, ay, tx, ty, length, along };
+      }
+    }
+    return null;
   }
 
   absorbNeighbor(brick) {
@@ -968,7 +1105,14 @@ class Game {
     if (this.state !== 'playing' || !Number.isFinite(seconds) || seconds <= 0) return;
     let remaining = Math.min(seconds, this.level.duration - this.elapsed);
     while (remaining > 1e-9 && this.state === 'playing') {
-      const dt = Math.min(remaining, 1 / 120);
+      let dt = Math.min(remaining, 1 / 120);
+      if (this.conveyorRide) {
+        const edge = this.conveyorEdge(this.conveyorRide.id, this.brickParts());
+        if (edge) {
+          const sign = this.bricks[this.conveyorRide.id].conveyorDirection === 'counterclockwise' ? -1 : 1;
+          dt = Math.min(dt, Math.max(0, sign > 0 ? edge.length - edge.along : edge.along) / CONVEYOR_SPEED);
+        }
+      }
       this.tick(dt);
       remaining -= dt;
     }
@@ -999,8 +1143,23 @@ class Game {
     }
     this.food = this.food.filter(item => item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
-    const dx = cat.vx * dt, dy = cat.vy * dt;
     const parts = this.brickParts();
+    const ride = this.conveyorRide;
+    let rideEnd = false;
+    if (ride) {
+      const edge = this.conveyorEdge(ride.id, parts);
+      if (!edge) {
+        this.conveyorRide = null;
+        cat.vx = 0; cat.vy = 0;
+      } else {
+        const sign = this.bricks[ride.id].conveyorDirection === 'counterclockwise' ? -1 : 1;
+        const remaining = Math.max(0, sign > 0 ? edge.length - edge.along : edge.along);
+        const speed = Math.min(CONVEYOR_SPEED, remaining / dt);
+        cat.vx = edge.tx * sign * speed; cat.vy = edge.ty * sign * speed;
+        rideEnd = remaining <= CONVEYOR_SPEED * dt + 1e-9;
+      }
+    }
+    const dx = cat.vx * dt, dy = cat.vy * dt;
     const spikes = dx || dy || this.spikeTouching.size ? this.spikeParts(parts) : [];
     for (const id of this.spikeTouching) {
       const touching = parts.some(part => part.id === id &&
@@ -1014,6 +1173,10 @@ class Game {
     let contacts = [];
     if (dx || dy) {
       for (const brick of parts) {
+        if (this.conveyorRide?.id === brick.id) {
+          // The center follows the union's radius-expanded rim, including corner clearance.
+          continue;
+        }
         const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, brick);
         if (t < contact - 1e-9) { contact = t; contacts = [brick]; }
         else if (t <= contact + 1e-9 && t <= 1) contacts.push(brick);
@@ -1044,8 +1207,9 @@ class Game {
     for (const id of spikeIds) this.spikeTouching.add(id);
     this.combat(dt, startX, startY);
     if (contacts.length) {
+      this.conveyorRide = null;
       const solid = contacts.filter(part => !this.bricks[part.id].springs);
-      if (solid.length) {
+      if (solid.length || ride) {
         cat.vx = 0; cat.vy = 0;
         const slimes = solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed)
           .sort((a, b) => SLIMES[b.slimeColor ?? 'green'].duration - SLIMES[a.slimeColor ?? 'green'].duration);
@@ -1053,6 +1217,9 @@ class Game {
           this.stuckColor = slimes[0].slimeColor ?? 'green';
           this.stuckUntil = this.elapsed - dt + dt * contact + SLIMES[this.stuckColor].duration;
           this.releasedAt = null;
+        } else if (!ride && !spikeIds.size) {
+          const conveyor = solid.find(part => this.conveyorEdge(part.id, parts));
+          if (conveyor && contacts.every(part => part.id === conveyor.id)) this.conveyorRide = { id: conveyor.id };
         }
       } else {
         for (const part of contacts) {
@@ -1070,6 +1237,10 @@ class Game {
       }
       this.target = null;
     }
+    if (rideEnd && !this.conveyorEdge(ride.id, parts)) {
+      this.conveyorRide = null;
+      cat.vx = 0; cat.vy = 0;
+    }
     this.pickups = this.pickups.filter(item => this.elapsed - item.time < .8);
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';
@@ -1083,7 +1254,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

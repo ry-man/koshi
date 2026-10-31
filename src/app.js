@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, validateCustomLevel, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, CONVEYOR_SPEED, validateCustomLevel, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 
 let game;
@@ -209,6 +209,25 @@ function makeBrickButtons() {
       spikes.append(path);
       container.append(spikes);
     }
+    let conveyor = null;
+    if (brick.conveyor) {
+      const ns = 'http://www.w3.org/2000/svg';
+      conveyor = document.createElementNS(ns, 'svg');
+      conveyor.setAttribute('class', 'brick-conveyor');
+      conveyor.setAttribute('viewBox', '0 0 1 1');
+      conveyor.setAttribute('preserveAspectRatio', 'none');
+      conveyor.setAttribute('aria-hidden', 'true');
+      conveyor.style.cssText = `left:${part.x / game.width * 100}%;top:${part.y / game.height * 100}%;width:${part.w / game.width * 100}%;height:${part.h / game.height * 100}%;`;
+      const geometry = brickConveyor(members, game.width, game.height, 0, brick.conveyorDirection);
+      for (const detail of ['belt', 'teeth', 'arrows']) {
+        const path = document.createElementNS(ns, 'path');
+        path.setAttribute('class', `conveyor-${detail}`);
+        path.setAttribute('d', geometry[detail]);
+        path.setAttribute('vector-effect', 'non-scaling-stroke');
+        conveyor.append(path);
+      }
+      container.append(conveyor);
+    }
     if (brick.crumbler) {
       // Keep labels outside the decaying clip path, including on merged bricks.
       const label = document.createElement('span');
@@ -218,7 +237,7 @@ function makeBrickButtons() {
       label.append(counter);
       container.append(label);
     }
-    return { brick, button, counter, members, spring, usesLeft: null };
+    return { brick, button, counter, members, spring, conveyor, usesLeft: null };
   });
 }
 
@@ -295,8 +314,12 @@ function syncUI() {
         }
       }
     }
+    if (item.conveyor) {
+      const geometry = brickConveyor(members, game.width, game.height, game.elapsed * CONVEYOR_SPEED, brick.conveyorDirection);
+      item.conveyor.querySelector('.conveyor-teeth').setAttribute('d', geometry.teeth);
+    }
     button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
@@ -510,6 +533,13 @@ function guidePicture(picture, title) {
     if (crumbler) surface(shape.cracks, null, '#080e14');
     if (kind === 'slime') surface(brickSlime([brick], 600, 960), SLIMES[type].color, '#102619');
     if (type === 'spikes') surface(brickSpikes([brick], 600, 960).path, '#fff', '#aab9c5', 1);
+    if (type === 'conveyor') {
+      const conveyor = brickConveyor([brick], 600, 960);
+      surface(conveyor.belt, null, '#303840', 6);
+      surface(conveyor.belt, null, '#8e969d', 3);
+      surface(conveyor.teeth, '#adb4ba', '#303840', .8);
+      surface(conveyor.arrows, '#303840');
+    }
     if (type === 'springs') {
       const spring = brickSpring([brick], 600, 960);
       surface(spring.platform, '#a77a52', '#302015');

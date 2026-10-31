@@ -33,7 +33,7 @@ offline and direct-file play.
 The title screen includes two learning paths:
 
 - **How to play** opens an eight-topic walkthrough of movement and controls,
-  cooldown colors, Crumblers/Warped bricks, slime/Springs/Spikes, every food and healing
+  cooldown colors, Crumblers/Warped bricks, slime/Springs/Spikes/Conveyors, every food and healing
   item, both robots and all swords, spawn warnings, and objectives.
   Labeled pictures show every cooldown brick, Crumbler/Warped combination,
   slime color, spring and spike surface, food, healing heart, robot, and sword.
@@ -115,9 +115,9 @@ the board; phones keep compact controls above it without scrolling away from pla
 
 | Level | Name | Time | Food required | Robots required | Special bricks |
 |-------|------|------|---------------|-----------------|----------------|
-| 1–3 | Crumb patrol | 120s | 20 | 4 | Five-use Crumblers, red slime, Springs, Spikes |
-| 1–4 | Slime circuit | 150s | 25 | 8 | Four-use Crumbler, 12s Warped, all three slime colors, Springs, Spikes |
-| 1–5 | Warped showdown | 180s | 30 | 12 | Three-use Crumblers, four-use Warped Crumbler (15s), 10s Warped, all slime colors, Springs, Spikes |
+| 1–3 | Crumb patrol | 120s | 20 | 4 | Five-use Crumblers, red slime, Springs, Spikes, Conveyor |
+| 1–4 | Slime circuit | 150s | 25 | 8 | Four-use Crumbler, 12s Warped, all three slime colors, Springs, Spikes, reverse Conveyor |
+| 1–5 | Warped showdown | 180s | 30 | 12 | Three-use Crumblers, four-use Warped Crumbler (15s), 10s Warped, all slime colors, Springs, Spikes, Conveyor |
 
 These levels supply swords before the first robots, additional weapons and enemy
 waves throughout, and food for healing. Ordinary, unlimited-use steering bricks
@@ -160,7 +160,10 @@ or build tools are needed.
 
 Each level can have an optional pre-level cutscene. The five campaign levels
 include short story scenes following Koshi from the garden to the Clockwork
-Pantry. Scenes replay when restarting or directly selecting a level. Levels
+Pantry, controlled by **Tom the Duck**, the main antagonist. Tom is a robot
+duck who commands the mouse and wheel patrols and hoards the garden's food.
+He appears and speaks in all five campaign scenes.
+Scenes replay when restarting or directly selecting a level. Levels
 without a scene start immediately as before.
 
 The upper two-thirds of the viewport show a garden or workshop stage, with
@@ -168,7 +171,11 @@ characters using the same drawings as gameplay. Speakers step forward and
 animate while talking. The lower third holds an animated, 32-by-32 pixel
 portrait on the left and blocky Pixelify Sans dialogue on the right. The same
 pixel font styles speaker names, scene headings, and controls. Koshi, Robo
-Mouse, and Robo Wheel each have their own portrait and stage character.
+Mouse, Robo Wheel, and Tom the Duck each have their own portrait and stage
+character. Tom's design follows the supplied sketch: a tall metal body, radio
+antenna, slit visor, long duck bill, plated wings, and webbed metal feet.
+His antenna lights and bill animate while speaking. Tom is a cutscene character,
+not a new combat enemy or boss.
 Dialogue reveals at **30 characters per second**. **Reveal text** shows the
 rest of a line; **Continue** advances; **Begin level** finishes the last line.
 The focused button also accepts Enter or Space. **Skip scene** or Escape skips
@@ -200,7 +207,8 @@ supports precise actor positions and repeated actors:
 ```
 
 Add this optional property to a level object. Themes are `garden` or `workshop`;
-character IDs are `koshi`, `mouse`, and `wheel`. Each of 1–100 lines has
+character IDs are `koshi`, `mouse`, `wheel`, and `tom`. Tom is available as both
+a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
 axis. Per-line positions animate between dialogue beats. Old level JSON without
@@ -214,7 +222,8 @@ playtest links, direct-file play, and the offline app.
    Click/tap any boundary brick (or focus it and press Enter) to select it,
    then change **Selected brick type** in the brick inspector: slow/blue (15s),
    normal/green (8s), or fast/red (3s). Enable **Crumbler** and/or **Warped**
-   independently, or choose **Slimed**, **Springs**, or **Spikes** for contact effects.
+   independently, or choose **Slimed**, **Springs**, **Spikes**, or **Conveyor** for contact effects.
+   Conveyors have a clockwise/counterclockwise direction selector.
    Set the selection limit (default 5) or warp duration
    (default 15 seconds). Changes apply immediately. Each brick
    can have its own type, independent of the preset. **Reset brick types to
@@ -317,10 +326,12 @@ slot order when phone left/right edges become desktop top/bottom.
 Optional
 `crumbler` is an integer selection limit (1–100000); `warped` is a duration
 in seconds (0.1–3600). Set either to `null` to explicitly remove that attribute.
-Optional `slimed`, `springs`, and `spikes` are booleans; `false` removes the attribute.
+Optional `slimed`, `springs`, `spikes`, and `conveyor` are booleans; `false` removes the attribute.
 They are mutually exclusive: importing more than one as `true` in the same
 override is an error, while enabling one in the editor replaces the others.
 A later overlapping override enabling one also removes the others.
+Optional `conveyorDirection` is `"clockwise"` (the default) or `"counterclockwise"`,
+independent of cooldown color and preserved when switching surfaces.
 Omitted attributes leave earlier overlapping attribute edits unchanged. For example:
 
 ```json
@@ -388,9 +399,9 @@ merge during play.
   Pause freezes cooldowns and warp timers. Restart restores
   every brick and replenishes Crumbler selections.
 
-### Slimed, Springs, and Spikes behavior
+### Slimed, Springs, Spikes, and Conveyor behavior
 
-- All three contact attributes are available in the custom-level brick inspector,
+- All four contact attributes are available in the custom-level brick inspector,
   work with every cooldown color, and can combine with Crumbler and Warped.
   Levels 1–3 through 1–5 also use these attributes.
 - Slimed bricks have bold, dark-outlined icing with rounded, uneven drips only along
@@ -420,11 +431,25 @@ merge during play.
   Level 1–3 has spikes at phone bottom 20–40%, Level 1–4 at top 40–60%,
   and Level 1–5 at top 40–60% and right 50–62.5%. Desktop rotates these slots
   with their bricks. The opening two levels remain unchanged.
+- Conveyors have a thin grey, finely toothed belt rotating around the entire brick
+  perimeter. Direction arrows mark the arena-facing edge. Landing on that edge
+  carries Koshi at 85 game units per second in the belt's direction, until the
+  belt ends or another brick blocks him. He stops rather than launching
+  off the end. Warped conveyors carry him around connected corners with clearance
+  for his body, including stepped corners on phone layouts.
+  Steering to another brick cancels the ride;
+  item collection and enemy contact still work while riding. Merged conveyors
+  carry continuously across absorbed bricks, gaps, and corners. Restoration
+  stops a ride if the supporting surface is no longer part of the conveyor.
+  Campaign phone slots are left 50–62.5% in Level 1–3 (clockwise),
+  right 50–62.5% in Level 1–4 (counterclockwise), and left 37.5–50% in
+  Level 1–5 (clockwise). Desktop rotates directions with the bricks.
 - Contact effects do not consume selections or trigger cooldowns; they work
   even on cooling-down or exhausted bricks. A merged group uses its owner's
   contact attribute over its entire shape, including connecting gaps. Absorbed
   bricks regain their own attributes on restoration.
-- Pause freezes slime locks, release feedback, and spring compression. Restart
+- Pause freezes slime locks, release feedback, spring compression, belt rotation,
+  and conveyor rides. Restart
   clears all contact effects, spike-contact tracking, and animation state.
 
 ## GitHub Pages

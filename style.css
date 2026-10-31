@@ -116,6 +116,10 @@ canvas { display: block; width: 100%; height: 100%; }
 .brick-cracks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: none; stroke: #080e14; stroke-width: calc(1px + var(--crumbler-wear) * 1.8px); stroke-linejoin: bevel; filter: drop-shadow(1px 1px 0 #ffffff60); }
 .brick-slime { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: var(--slime-color, #399d24); stroke: #102619; stroke-width: 1.5px; stroke-linejoin: round; filter: drop-shadow(0 1px 1px #102619); }
 .brick-spikes { position: absolute; overflow: visible; pointer-events: none; fill: #fff; stroke: #aab9c5; stroke-width: 1px; stroke-linejoin: round; filter: drop-shadow(0 1px 1px #0008); }
+.brick-conveyor { position: absolute; overflow: visible; pointer-events: none; }
+.conveyor-belt { fill: none; stroke: #626b74; stroke-width: 5px; stroke-linejoin: round; }
+.conveyor-teeth { fill: #adb4ba; stroke: #303840; stroke-width: .8px; }
+.conveyor-arrows { fill: #303840; stroke: #d8dde1; stroke-width: .7px; }
 .brick-spring { position: absolute; overflow: visible; pointer-events: none; stroke-linejoin: round; }
 .spring-platform { fill: #a77a52; stroke: #302015; stroke-width: 1.5px; filter: drop-shadow(0 1px 1px #302015); }
 .spring-grain { fill: none; stroke: #684128; stroke-width: .8px; stroke-linecap: round; }

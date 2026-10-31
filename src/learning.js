@@ -34,7 +34,7 @@ const GUIDE = [
     ],
   },
   {
-    title: 'Slime, Springs & Spikes',
+    title: 'Brick surfaces',
     sections: [
       ...Object.entries(SLIMES).map(([color, { duration }]) => [
         `${color[0].toUpperCase() + color.slice(1)} slime / ${duration} second${duration === 1 ? '' : 's'}`,
@@ -43,7 +43,8 @@ const GUIDE = [
       ]),
       ['Springs', 'A wooden platform with grain and a dark outline covers only the arena-facing edge. It reflects Koshi immediately instead of stopping him. Little springs underneath are hidden at rest and appear only while the platform compresses and rebounds on contact. Redirect him mid-bounce to take control.', 'brick:springs'],
       ['Spikes', 'Many white triangular spikes protrude toward the arena. Touching them costs one heart and stops Koshi. Resting against them does not cause more damage; leaving and touching them again does. Swords do not protect against spikes. Levels 1-3 through 1-5 introduce them.', 'brick:spikes'],
-      ['Contact is not a selection', 'Slime, Springs, and Spikes work even on cooling or exhausted bricks. Contact does not consume cooldowns or C uses. They replace one another, but can combine with Crumbler and Warped attributes.'],
+      ['Conveyor', 'A thin grey, finely toothed belt rotates around the brick. Landing on the arena-facing edge carries Koshi in the arrow direction until the belt ends or another brick blocks him. Warped conveyors carry him around connected corners without stopping. Select another brick to steer away while riding. The editor offers clockwise and counterclockwise belts; Levels 1-3 through 1-5 include them.', 'brick:conveyor'],
+      ['Contact is not a selection', 'Slime, Springs, Spikes, and Conveyor work even on cooling or exhausted bricks. Contact does not consume cooldowns or C uses. They replace one another, but can combine with Crumbler and Warped attributes.'],
     ],
   },
   {

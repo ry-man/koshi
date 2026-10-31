@@ -53,8 +53,9 @@ workshop for Levels 1-4 and 1-5. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
 dialogue in the locally bundled Pixelify Sans pixel font on the right.
 Speaker names, scene headings, and controls use the same blocky retro font.
-Koshi, Robo Mouse, and Robo Wheel each have a
-distinct pixel portrait; stage characters reuse their actual gameplay drawings.
+Koshi, Robo Mouse, Robo Wheel, and Tom the Duck each have a distinct pixel
+portrait. Gameplay characters reuse their actual drawings; Tom has a dedicated
+full-body robot-duck drawing based on the supplied sketch.
 
 Dialogue appears at 30 characters per second. Players may reveal the current
 line, continue to the next, begin the level after the last line, or skip the
@@ -64,12 +65,19 @@ finishes or is skipped. Restart and level selection replay the scene; a level
 without one begins immediately. Switching away suspends cutscene animation,
 and reduced-motion preferences disable animation and show whole dialogue lines.
 
-All five campaign levels include sample story dialogue: the robots claim the
-garden's snacks, Koshi follows the shipment through a crumbling garden gate,
-and then confronts the slime security and warped vault walls of their pantry.
+Tom the Duck is the main antagonist: a robot duck with a tall metal body,
+radio antenna, narrow horizontal visor, long bill, plated wings, and webbed
+metal feet. His antenna lights and bill animate while he speaks. He appears
+in every campaign cutscene, commands the Robo Mouse and Robo Wheel patrols,
+and hoards the garden's snacks in his Clockwork Pantry. Koshi follows the
+shipment through a crumbling garden gate and confronts Tom's slime security
+and warped vault walls. Tom is currently a story character, not a combat
+enemy or playable boss; existing enemy schedules and goals stay unchanged.
 The level editor supports optional scenes with either background, ordered
 dialogue lines, a speaker, and an on-stage cast. Saved JSON can additionally
-set each actor's normalized position per line.
+set each actor's normalized position per line. Tom is available as a speaker
+and cast member using the character ID `tom`, alongside `koshi`, `mouse`,
+and `wheel`. Older custom scenes remain supported.
 
 ### Koshi
 Koshi is a circular cat head who is grey with dark grey stripes, a white stripe on his nose, and two pointy ears. He is smiling and has 4 large whiskers poking out from either side of his face.
@@ -156,7 +164,11 @@ Some bricks have a brown wooden platform with grain, a highlighted edge, and a c
 ### Brick Attribute - Spikes
 Many triangular white spikes protrude from the arena-facing edge. Touching their tips or sides stops Koshi and costs one heart, even while armed. Staying against them does not repeatedly damage him; separating and touching them again can. Losing the last heart ends the attempt. The editor previews the same spikes used for collision in play.
 
-Slimed, Springs, and Spikes are mutually exclusive: choosing one in the custom-level editor replaces the others. All three can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Built-in Levels 1-3 through 1-5 introduce these attributes. Spikes occupy phone-layout bottom 20–40% in Level 1-3, top 40–60% in Level 1-4, and top 40–60% plus right 50–62.5% in Level 1-5; desktop rotates these slots with their bricks. The opening two levels stay unchanged. Restart clears spike contacts and restores health.
+### Brick Attributes - Conveyor
+
+A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); arrows show the direction on the arena-facing edge. Landing on that edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors occupy phone-layout left 50–62.5% in Level 1-3 (clockwise), right 50–62.5% in Level 1-4 (counterclockwise), and left 37.5–50% in Level 1-5 (clockwise). Desktop rotates their directions with the bricks.
+
+Slimed, Springs, Spikes, and Conveyor are mutually exclusive: choosing one in the custom-level editor replaces the others. All four can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Built-in Levels 1-3 through 1-5 introduce these attributes. Spikes occupy phone-layout bottom 20–40% in Level 1-3, top 40–60% in Level 1-4, and top 40–60% plus right 50–62.5% in Level 1-5; desktop rotates these slots with their bricks. The opening two levels stay unchanged. Restart clears spike contacts and restores health.
 
 ## Enemies
 Whenever Koshi loses a heart to an enemy or spikes, he becomes invulnerable to both for one second of game time. For exactly that interval he has an upset face and blinks between red shades. The animation uses the same timer as invulnerability: it ends precisely when he can take damage again. Blocked hits do not extend the timer. Pause freezes both; restart clears both. Contact tracking still requires separation before another hit from the same continuous contact. Protected Koshi can still move, collect items, attack, and be stopped by spikes; falling off the board still ends the attempt.
@@ -300,9 +312,9 @@ with the rest of the board.
 
 | Level | Name | Time | Food goal | Robot defeats | Brick setup |
 |-------|------|------|-----------|---------------|-------------|
-| 1-3 | Crumb patrol | 120s | 20 | 4 | Five-use fast Crumblers at top 20–40% and bottom 60–80%; red slime at left 25–37.5%; Springs at right 62.5–75%; Spikes at bottom 20–40%. |
-| 1-4 | Slime circuit | 150s | 25 | 8 | Fast Warped (12s) at top 80–100%; four-use fast Crumbler at bottom 0–20%; blue slime at left 12.5–25%, red at left 50–62.5%, green at right 25–37.5%; Springs at right 75–87.5%; Spikes at top 40–60%. |
-| 1-5 | Warped showdown | 180s | 30 | 12 | Four-use fast Warped Crumbler (15s) at top 80–100%; fast Warped (10s) at bottom 0–20%; three-use Crumblers at top 20–40% and bottom 60–80%; blue slime at left 12.5–25%, green at right 25–37.5%, red at left 62.5–75%; Springs at right 75–87.5% and bottom 40–60%; Spikes at top 40–60% and right 50–62.5%. |
+| 1-3 | Crumb patrol | 120s | 20 | 4 | Five-use fast Crumblers at top 20–40% and bottom 60–80%; red slime at left 25–37.5%; Springs at right 62.5–75%; Spikes at bottom 20–40%; clockwise Conveyor at left 50–62.5%. |
+| 1-4 | Slime circuit | 150s | 25 | 8 | Fast Warped (12s) at top 80–100%; four-use fast Crumbler at bottom 0–20%; blue slime at left 12.5–25%, red at left 50–62.5%, green at right 25–37.5%; Springs at right 75–87.5%; Spikes at top 40–60%; counterclockwise Conveyor at right 50–62.5%. |
+| 1-5 | Warped showdown | 180s | 30 | 12 | Four-use fast Warped Crumbler (15s) at top 80–100%; fast Warped (10s) at bottom 0–20%; three-use Crumblers at top 20–40% and bottom 60–80%; blue slime at left 12.5–25%, green at right 25–37.5%, red at left 62.5–75%; Springs at right 75–87.5% and bottom 40–60%; Spikes at top 40–60% and right 50–62.5%; clockwise Conveyor at left 37.5–50%. |
 
 The base cooldown mix is three slow and three fast bricks, with remaining bricks
 normal, before the overrides above. Green and red slime in 1-5, and red slime

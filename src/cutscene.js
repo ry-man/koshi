@@ -3,6 +3,60 @@
 
 const { Cutscene, CHARACTERS } = globalThis.KoshiGame;
 
+function drawTom(ctx, time, speaking) {
+  const talking = speaking && Math.floor(time * 8) % 2 === 0;
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#202c35';
+  const metal = ctx.createLinearGradient(-18, 0, 20, 0);
+  metal.addColorStop(0, '#748591'); metal.addColorStop(.45, '#c3cdd2'); metal.addColorStop(1, '#84939e');
+  ctx.fillStyle = metal;
+  ctx.beginPath();
+  ctx.moveTo(12, -2); ctx.lineTo(35, -12); ctx.lineTo(29, -3);
+  ctx.lineTo(39, 0); ctx.lineTo(28, 6); ctx.lineTo(34, 12); ctx.lineTo(14, 14);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (const x of [-10, 10]) {
+    ctx.fillStyle = '#84939e'; ctx.fillRect(x - 3, 20, 6, 17); ctx.strokeRect(x - 3, 20, 6, 17);
+    ctx.beginPath();
+    ctx.moveTo(x + 5, 34); ctx.lineTo(x - 20, 34); ctx.lineTo(x - 15, 38);
+    ctx.lineTo(x - 21, 42); ctx.lineTo(x - 14, 46); ctx.lineTo(x + 6, 44);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.fillStyle = metal;
+  ctx.beginPath();
+  ctx.moveTo(-18, -23); ctx.quadraticCurveTo(-18, -46, 0, -46);
+  ctx.quadraticCurveTo(19, -46, 20, -23); ctx.lineTo(22, 20);
+  ctx.quadraticCurveTo(22, 25, 16, 25); ctx.lineTo(-13, 25);
+  ctx.quadraticCurveTo(-18, 25, -18, 20); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#445561'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, -46); ctx.lineTo(0, -62); ctx.stroke();
+  ctx.fillStyle = speaking ? '#ea7070' : '#95d1c0';
+  ctx.beginPath(); ctx.arc(0, -65, 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = speaking ? '#e5a5a599' : '#9cbab866'; ctx.lineWidth = 1.3;
+  for (const radius of [9, 16]) {
+    ctx.beginPath(); ctx.arc(0, -65, radius, -.55, .55); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -65, radius, Math.PI - .55, Math.PI + .55); ctx.stroke();
+  }
+  ctx.fillStyle = '#d1dadf'; ctx.strokeStyle = '#263640'; ctx.lineWidth = 2;
+  ctx.fillRect(-18, -30, 33, 10); ctx.strokeRect(-18, -30, 33, 10);
+  ctx.fillStyle = '#14232d'; ctx.fillRect(-17, -27, 29, 4);
+  ctx.fillStyle = '#d96967'; ctx.fillRect(-15, -26, 24, 1.5);
+  ctx.fillStyle = '#b9a887';
+  ctx.beginPath();
+  ctx.moveTo(-15, -13); ctx.quadraticCurveTo(-30, -15, -52, -6);
+  ctx.quadraticCurveTo(-55, -2, -48, 1 + (talking ? 3 : 0));
+  ctx.lineTo(-15, 6 + (talking ? 3 : 0)); ctx.quadraticCurveTo(-8, 4, -10, -7);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-50, -3); ctx.lineTo(-19, -3); ctx.lineTo(-18, 1); ctx.stroke();
+  ctx.fillStyle = '#9eafb9';
+  ctx.beginPath(); ctx.moveTo(-2, -2); ctx.lineTo(13, 0); ctx.lineTo(13, 16);
+  ctx.lineTo(8, 11); ctx.lineTo(4, 18); ctx.lineTo(0, 12); ctx.lineTo(-3, 17);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#526773';
+  for (const y of [-38, 20]) { ctx.beginPath(); ctx.arc(15, y, 1.5, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
 function drawPortrait(ctx, character, speaking, time) {
   const box = (color, x, y, w, h) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
   ctx.clearRect(0, 0, 32, 32);
@@ -21,6 +75,15 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#bd8d93', 14, 23, 4, 2);
     box('#26323a', 14, 26, 4, talking ? 3 : 1);
     for (const y of [23, 26]) { box('#edf2e8', 2, y, 7, 1); box('#edf2e8', 23, y, 7, 1); }
+  } else if (character === 'tom') {
+    box('#526773', 19, 1, 1, 6); box(speaking ? '#ea7070' : '#95d1c0', 18, 1, 3, 2);
+    box('#060e16', 12, 7, 15, 23);
+    box('#a5b4bf', 14, 8, 10, 22); box('#7e929f', 24, 11, 2, 18);
+    box('#d1dadf', 12, 13, 13, 6); box('#14232d', 12, 15, 11, 2);
+    box('#d96967', 13, 15, 8, blink ? 1 : 2);
+    box('#263640', 2, 20, 17, talking ? 8 : 6);
+    box('#b9a887', 3, 21, 14, talking ? 6 : 4);
+    box('#263640', 3, 23, 12, 1); box('#526773', 21, 25, 2, 4);
   } else {
     if (character === 'mouse') {
       for (const x of [2, 22]) {
@@ -165,7 +228,8 @@ class CutscenePlayer {
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(0, 28, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
-      this.drawCharacter(ctx, actor.character, time, speaking);
+      if (actor.character === 'tom') drawTom(ctx, time, speaking);
+      else this.drawCharacter(ctx, actor.character, time, speaking);
       ctx.restore();
     });
     drawPortrait(this.portrait.getContext('2d'), line.speaker, typing && !this.paused && !reducedMotion, time);

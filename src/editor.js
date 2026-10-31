@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, CHARACTERS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes } = globalThis.KoshiGame;
+const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, CHARACTERS, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
@@ -172,13 +172,19 @@ function renderBrickInspector(bricks) {
   $('#brick-kind').querySelector('option[value=""]')?.remove();
   $('#brick-slime-color').querySelector('option[value=""]')?.remove();
   $('#brick-slime-color').disabled = !chosen.some(brick => brick.slimed);
+  $('#brick-conveyor-direction').querySelector('option[value=""]')?.remove();
+  $('#brick-conveyor-direction').disabled = !chosen.some(brick => brick.conveyor);
+  if (chosen.length) {
+    const direction = common(chosen.map(brick => brick.conveyorDirection ?? 'clockwise'));
+    if (direction === MIXED) mixedOption($('#brick-conveyor-direction')); else $('#brick-conveyor-direction').value = direction;
+  }
   if (chosen.length) {
     const color = common(chosen.map(brick => brick.slimeColor ?? 'green'));
     if (color === MIXED) mixedOption($('#brick-slime-color')); else $('#brick-slime-color').value = color;
   }
   if (!chosen.length) {
-    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes']) $(selector).disabled = true;
-    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes']) $(selector).indeterminate = false;
+    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor']) $(selector).disabled = true;
+    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor']) $(selector).indeterminate = false;
     $('#brick-selection').textContent = 'Select one or more boundary bricks to change their attributes.';
     return;
   }
@@ -196,7 +202,7 @@ function renderBrickInspector(bricks) {
   };
   flag('#brick-crumbler', '#brick-uses', chosen.map(brick => brick.crumbler), 5);
   flag('#brick-warped', '#brick-warp-seconds', chosen.map(brick => brick.warped), 15);
-  for (const attribute of ['slimed', 'springs', 'spikes']) {
+  for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor']) {
     const box = $(`#brick-${attribute}`), count = chosen.filter(brick => brick[attribute]).length;
     box.disabled = false;
     box.checked = count === chosen.length;
@@ -232,7 +238,7 @@ function renderBoard() {
     element.textContent = [brick.crumbler ? `C:${brick.crumbler}` : '', brick.warped ? `W:${brick.warped}s` : ''].filter(Boolean).join(' ');
     element.dataset.id = brick.id;
     element.dataset.region = key;
-    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}`);
+    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}`);
     element.setAttribute('aria-pressed', String(selectedBricks.has(key)));
     // Pointer clicks are handled by the board gesture; detail 0 means keyboard activation.
     element.addEventListener('click', event => {
@@ -302,6 +308,26 @@ function renderBoard() {
       spikes.append(path);
       const fragment = document.createDocumentFragment();
       fragment.append(element, spikes);
+      return fragment;
+    }
+    if (brick.conveyor) {
+      const ns = 'http://www.w3.org/2000/svg';
+      const conveyor = document.createElementNS(ns, 'svg');
+      conveyor.setAttribute('class', 'brick-conveyor');
+      conveyor.setAttribute('viewBox', '0 0 1 1');
+      conveyor.setAttribute('preserveAspectRatio', 'none');
+      conveyor.setAttribute('aria-hidden', 'true');
+      conveyor.style.cssText = `left:${brick.x / previewGame.width * 100}%;top:${brick.y / previewGame.height * 100}%;width:${brick.w / previewGame.width * 100}%;height:${brick.h / previewGame.height * 100}%;`;
+      const geometry = brickConveyor([brick], previewGame.width, previewGame.height, 0, brick.conveyorDirection);
+      for (const detail of ['belt', 'teeth', 'arrows']) {
+        const path = document.createElementNS(ns, 'path');
+        path.setAttribute('class', `conveyor-${detail}`);
+        path.setAttribute('d', geometry[detail]);
+        path.setAttribute('vector-effect', 'non-scaling-stroke');
+        conveyor.append(path);
+      }
+      const fragment = document.createDocumentFragment();
+      fragment.append(element, conveyor);
       return fragment;
     }
     return element;
@@ -489,18 +515,19 @@ function saveBrick(event) {
     const number = selector => $(selector).value === '' ? null : Number($(selector).value);
     // Only the changed control is applied, so mixed values in other controls are preserved.
     const entries = targets.map(({ brick, region }) => {
-      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null, slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs), spikes: Boolean(brick.spikes) };
+      const entry = { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null, slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs), spikes: Boolean(brick.spikes), conveyor: Boolean(brick.conveyor), conveyorDirection: brick.conveyorDirection ?? 'clockwise' };
+      if (id === 'brick-conveyor-direction' && $('#brick-conveyor-direction').value !== MIXED) entry.conveyorDirection = $('#brick-conveyor-direction').value;
       if (id === 'brick-slime-color' && $('#brick-slime-color').value !== MIXED) entry.slimeColor = $('#brick-slime-color').value;
       if (id === 'brick-kind' && $('#brick-kind').value !== MIXED) entry.kind = $('#brick-kind').value;
       if (id === 'brick-crumbler') entry.crumbler = $('#brick-crumbler').checked ? entry.crumbler ?? number('#brick-uses') ?? 5 : null;
       if (id === 'brick-uses' && entry.crumbler && number('#brick-uses') !== null) entry.crumbler = number('#brick-uses');
       if (id === 'brick-warped') entry.warped = $('#brick-warped').checked ? entry.warped ?? number('#brick-warp-seconds') ?? 15 : null;
       if (id === 'brick-warp-seconds' && entry.warped && number('#brick-warp-seconds') !== null) entry.warped = number('#brick-warp-seconds');
-      if (['brick-slimed', 'brick-springs', 'brick-spikes'].includes(id)) {
+      if (['brick-slimed', 'brick-springs', 'brick-spikes', 'brick-conveyor'].includes(id)) {
         const attribute = id.slice(6);
         entry[attribute] = $(`#${id}`).checked;
         if (entry[attribute]) {
-          for (const other of ['slimed', 'springs', 'spikes']) if (other !== attribute) entry[other] = false;
+          for (const other of ['slimed', 'springs', 'spikes', 'conveyor']) if (other !== attribute) entry[other] = false;
         }
       }
       return entry;
@@ -514,7 +541,7 @@ function saveBrick(event) {
   // Re-render on success and failure so the inspector always reflects the saved level.
   renderBoard();
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes']) {
+for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction']) {
   $(selector).addEventListener('change', saveBrick);
 }
 $('#reset-brick-types').addEventListener('click', () => {
@@ -663,7 +690,7 @@ $('#cutscene-form').addEventListener('submit', event => {
           text: row.querySelector('.scene-text').value,
           actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
             const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82 }[checkbox.value], y: .65 }];
+            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5 }[checkbox.value], y: .65 }];
           }),
         })),
       };

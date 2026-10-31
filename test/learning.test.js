@@ -45,7 +45,7 @@ test('guide illustrates every brick, enemy, heart, and weapon without a story se
   const pictures = GUIDE.flatMap(chapter => chapter.sections.map(([, , picture]) => picture).filter(Boolean));
   for (const picture of [
     'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped', 'brick:warped-crumbler',
-    'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'heart',
+    'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'brick:conveyor', 'heart',
     'enemy:mouse', 'enemy:wheel', ...Object.keys(SWORDS).map(type => `weapon:${type}`),
   ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
   assert.equal(new Set(pictures).size, pictures.length);
