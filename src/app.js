@@ -27,6 +27,8 @@ const toast = document.querySelector('#toast');
 const levelSelect = document.querySelector('#level-select');
 const titleScreen = document.querySelector('#title-screen');
 const weaponStatus = document.querySelector('#weapon-status');
+const weaponIcon = document.querySelector('#weapon-icon');
+const weaponRemaining = document.querySelector('#weapon-remaining');
 const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81' };
 let lastTime = null;
 let displayedState = null;
@@ -277,13 +279,26 @@ function syncUI() {
   const enemyCount = document.querySelector('#enemy-count');
   enemyCount.textContent = `👾 ${game.enemies}${killGoal ? ` / ${killGoal}` : ''}`;
   enemyCount.setAttribute('aria-label', killGoal ? `${game.enemies} of ${killGoal} robots defeated` : `${game.enemies} robots defeated`);
-  const weaponText = game.weapon
-    ? `${SWORDS[game.weapon.type].name} · ${Number.isFinite(game.weapon.uses) ? `${game.weapon.uses} hits` : `${Math.ceil(game.weapon.expires - game.elapsed)}s`}`
-    : 'No sword equipped';
-  if (weaponStatus.textContent !== weaponText) weaponStatus.textContent = weaponText;
+  const weaponCount = game.weapon
+    ? Number.isFinite(game.weapon.uses) ? game.weapon.uses : Math.ceil(Math.max(0, game.weapon.expires - game.elapsed))
+    : null;
+  const timedWeapon = game.weapon && !Number.isFinite(game.weapon.uses);
+  const weaponText = game.weapon ? `${weaponCount}${timedWeapon ? 's' : ''}` : '—';
+  if (weaponRemaining.textContent !== weaponText) weaponRemaining.textContent = weaponText;
+  weaponIcon.toggleAttribute('hidden', !game.weapon);
+  if (game.weapon) weaponIcon.style.color = SWORDS[game.weapon.type].color;
+  const weaponLabel = game.weapon
+    ? `Weapon: ${SWORDS[game.weapon.type].name}, ${weaponCount} ${timedWeapon ? 'seconds' : 'attacks'} remaining`
+    : 'Weapon: no sword equipped';
+  if (weaponStatus.getAttribute('aria-label') !== weaponLabel) weaponStatus.setAttribute('aria-label', weaponLabel);
   if (tutorial) updateTutorial();
   pause.disabled = !['playing', 'paused'].includes(game.state);
-  pause.textContent = game.state === 'paused' ? '▶ Resume' : 'Ⅱ Pause';
+  const pauseLabel = game.state === 'paused' ? 'Resume' : 'Pause';
+  pause.querySelector('.pause-bars').toggleAttribute('hidden', game.state === 'paused');
+  pause.querySelector('.resume-triangle').toggleAttribute('hidden', game.state !== 'paused');
+  pause.querySelector('.control-label').textContent = pauseLabel;
+  pause.setAttribute('aria-label', pauseLabel);
+  pause.title = pauseLabel;
   if (brickRevision !== game.brickRevision) {
     const focusedId = document.activeElement?.closest('.brick')?.dataset.id;
     makeBrickButtons();
@@ -404,7 +419,6 @@ document.querySelector('#title-start').addEventListener('click', () => {
   board.scrollIntoView({ block: 'center' });
 });
 document.querySelector('#title-levels').addEventListener('click', () => {
-  titleScreen.close();
   levelSelect.focus();
   levelSelect.scrollIntoView({ block: 'center' });
 });
@@ -609,7 +623,10 @@ document.querySelector('#guide-topic').addEventListener('change', event => showG
 document.querySelector('#guide-prev').addEventListener('click', () => showGuideChapter(guideIndex - 1));
 document.querySelector('#guide-next').addEventListener('click', () => showGuideChapter(guideIndex + 1));
 document.querySelector('#guide-practice').addEventListener('click', () => startTutorial([0, 3, 4, 6, 2, 10, 13, 15][guideIndex]));
-levelSelect.addEventListener('change', begin);
+levelSelect.addEventListener('change', () => {
+  titleScreen.close();
+  begin();
+});
 function togglePause() {
   if (game.state === 'playing') game.pause();
   else if (game.state === 'paused') game.resume();

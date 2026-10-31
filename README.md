@@ -124,9 +124,14 @@ waves throughout, and food for healing. Ordinary, unlimited-use steering bricks
 remain available. The enemy counter shows defeats against the required total,
 and mission progress follows the less-complete of the two goals.
 
-On phones held upright, the board uses a **portrait 5:8 layout** with compact
-stats and controls. The game fills the visible viewport, with the largest board
-that fits between the controls; extra mission copy, the field guide, and footer
+On phones held upright, the board uses portrait game coordinates with compact
+stats and controls. The board fits the available play area in both
+regular play and tutorials, with 20px of space above and below and no fixed
+5:8 display ratio.
+The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart buttons
+share one row above the stats. Time, weapon, food, enemies, and health are centered
+in equally spaced columns. Choose a level using the dropdown inside **Menu**;
+extra mission copy and footer
 are hidden on phones so the page cannot scroll away from play. Landscape phones
 also use the viewport-fitted layout. Both layouts always have **26 boundary bricks**. Phones have
 **five on top/bottom and eight on each side**. Desktop bricks are rotated
@@ -136,11 +141,13 @@ bottom to left, and left to top. Brick IDs, cooldown types, Crumbler limits,
 and Warped attributes follow each brick through the rotation. Brick dimensions adapt to the screen;
 some bricks are narrower than 44px on small phones to keep the count fixed.
 Toolbar buttons retain at least 44px touch targets.
+The **WEAPON** display shows a sword icon in its weapon color and the remaining
+attack count, or seconds with an **s** for the gold sword. A dash means no weapon.
 Level 1–1 has one slow and one fast brick, and Level 1–2
 has three of each. Levels 1–3 through 1–5 start with that same mix before
 applying their special-brick overrides. Food patterns stay
 inside the playable area, and the level schedule, scoring, and cooldowns are
-unchanged. Desktop instructions remain below the game.
+unchanged. Instructions are available through **Menu → How to play**.
 Desktop play keeps the original landscape board. A restart picks the layout
 for the current screen; resizing during an attempt preserves its game state.
 
@@ -481,7 +488,7 @@ offline [service worker](./sw.js).
 
 ### Troubleshooting installation
 
-Tap **📲 Install app** at the top of the game page (or open
+Open **Menu → 📲 Install app** (or open
 `index.html#install`). The panel:
 
 - installs directly when Chrome allows it;

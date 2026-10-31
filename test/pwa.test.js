@@ -35,6 +35,8 @@ test('game page has an install and troubleshooting panel', () => {
   for (const id of ['install-button', 'install-dialog', 'install-summary', 'install-now', 'install-help', 'install-checks', 'install-copy', 'install-close']) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} exists`);
   }
+  assert.match(html, /<dialog id="title-screen"[\s\S]*?<button class="title-secondary" id="install-button"/);
+  assert.doesNotMatch(html, /<button class="install-button" id="install-button"/);
   const pwa = read('src/pwa.js');
   assert.match(pwa, /beforeinstallprompt/);
   assert.match(pwa, /getInstalledRelatedApps/);

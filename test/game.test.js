@@ -34,6 +34,36 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
 function playing() { const game = new Game(() => .5); game.start(); return game; }
 function aim(game, brick) { return game.steer(brick.id, brick.x + brick.w / 2, brick.y + brick.h / 2); }
 
+test('weapon display shows a colored icon and only remaining attacks or seconds', () => {
+  const { SWORDS } = require('../src/game.js');
+  const root = path.resolve(__dirname, '..');
+  const app = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
+  const body = app.slice(app.indexOf('  const weaponCount ='), app.indexOf('  if (tutorial) updateTutorial();'));
+  assert.ok(body.length > 0);
+  const display = `{${body}}`;
+  const weaponIcon = { style: {}, toggleAttribute(name, value) { this[name] = value; } };
+  const weaponRemaining = { textContent: '' };
+  const weaponStatus = { getAttribute() { return this.label; }, setAttribute(name, value) { this.label = value; } };
+  const game = { elapsed: 2, weapon: null };
+  const context = vm.createContext({ game, SWORDS, weaponIcon, weaponRemaining, weaponStatus });
+  for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 10], ['gold', Infinity]]) {
+    game.weapon = { type, uses, expires: 17 };
+    vm.runInContext(display, context);
+    assert.equal(weaponRemaining.textContent, type === 'gold' ? '15s' : String(uses));
+    assert.equal(weaponIcon.hidden, false);
+    assert.equal(weaponIcon.style.color, SWORDS[type].color);
+    assert.match(weaponStatus.label, new RegExp(`${SWORDS[type].name}, ${type === 'gold' ? '15 seconds' : `${uses} attacks`} remaining`));
+  }
+  game.elapsed = 5.2;
+  vm.runInContext(display, context);
+  assert.equal(weaponRemaining.textContent, '12s');
+  game.weapon = null;
+  vm.runInContext(display, context);
+  assert.equal(weaponRemaining.textContent, '—');
+  assert.equal(weaponIcon.hidden, true);
+  assert.equal(weaponStatus.label, 'Weapon: no sword equipped');
+});
+
 test('title screen provides accessible artwork and explicit game entry without external assets', () => {
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -41,6 +71,23 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.match(html, /<dialog id="title-screen"[^>]+aria-labelledby="title-heading"[^>]+aria-describedby="title-tagline"/);
   assert.match(html, /id="title-start"[^>]+autofocus/);
   assert.match(html, /id="title-levels"/);
+  assert.match(html, /id="title-help"[^>]+>How to play<\/button>/);
+  assert.match(html, /<dialog id="how-to-play"/);
+  assert.doesNotMatch(html, /field-guide|THE FIELD GUIDE/);
+  assert.match(html, /class="brand"/);
+  const controls = html.slice(html.indexOf('<div class="game-controls">'), html.indexOf('<section id="tutorial-panel"'));
+  assert.ok(controls, 'game controls share a container');
+  for (const id of ['level-number', 'title-menu', 'pause', 'restart']) {
+    assert.ok(controls.includes(`id="${id}"`), `${id} belongs to the control row`);
+  }
+  assert.ok(!controls.includes('id="level-select"'), 'level selection is not on the game screen');
+  assert.match(html, /<dialog id="title-screen"[\s\S]*?<select id="level-select"[\s\S]*?<\/dialog>/);
+  assert.match(html, /class="pause-bars"><rect[^>]+\/><rect[^>]+\/>/);
+  assert.ok(!controls.includes('id="weapon-status"'), 'weapon belongs to the stat row');
+  assert.match(html, /<div class="hud">[\s\S]*?id="weapon-status"/);
+  for (const [id, label] of [['title-menu', 'Menu'], ['pause', 'Pause'], ['restart', 'Restart']]) {
+    assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
+  }
   assert.match(html, /src="\.\/icons\/title-scene\.svg"[^>]+alt="[^"]+Koshi[^"]+Robo Mouse[^"]+Robo Wheel/);
   assert.match(artwork, /<title>.+<\/title>/);
   assert.match(artwork, /<desc>.+<\/desc>/);
