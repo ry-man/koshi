@@ -895,6 +895,28 @@ if (installButton) installButton.addEventListener('click', autoPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
 window.addEventListener('blur', autoPause);
 
+function installBackNavigation() {
+  if (!window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)').matches && navigator.standalone !== true) return;
+  function arm() {
+    try {
+      if (history.state?.koshiBackGuard === true) return;
+      // Keep the original URL (including editor playtest data) and reuse the guard on reload.
+      history.replaceState({ ...history.state, koshiBackGuard: false }, '');
+      history.pushState({ ...history.state, koshiBackGuard: true }, '');
+    } catch (error) {
+      console.error('Back navigation protection could not be enabled:', error);
+      const message = document.querySelector('#level-error');
+      message.textContent = `Back navigation protection could not be enabled: ${error.message}. Use the Pause button; Android Back may close the app.`;
+      message.hidden = false;
+    }
+  }
+  window.addEventListener('popstate', () => {
+    arm();
+    autoPause();
+  });
+  arm();
+}
+
 function line(points, color, width = 2) {
   ctx.beginPath();
   points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
@@ -1487,6 +1509,7 @@ saveAttempt(renderSaveSlots);
 makeBrickButtons();
 syncUI();
 if (!location.hash.startsWith('#level=') && location.hash !== '#install') titleScreen.showModal();
+installBackNavigation();
 new ResizeObserver(resize).observe(board);
 requestAnimationFrame(frame);
 })();
