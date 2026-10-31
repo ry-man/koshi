@@ -209,6 +209,31 @@ test('the final enemy death finishes without advancing completed gameplay', () =
   assert.equal(game.elapsed, elapsed);
 });
 
+test('sword blades, guards and handles have thin dark outlines and bronze has a green patina', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const strokes = [], fills = [];
+  const ctx = new Proxy({ fillStyle: '', strokeStyle: '', lineWidth: 0 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'stroke') return () => strokes.push([target.strokeStyle, target.lineWidth]);
+      if (name === 'fill') return () => fills.push(target.fillStyle);
+      return () => {};
+    },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
+    + source.slice(source.indexOf('function drawSword('), source.indexOf('function drawRobot(')), context);
+  for (const sword of Object.values(SWORDS)) {
+    strokes.length = 0; fills.length = 0;
+    context.drawSword(0, 0, sword.color);
+    assert.deepEqual(fills, [sword.color]);
+    assert.deepEqual(strokes, [['#17212a', 1.5], ['#17212a', 7], ['#8a6953', 5], ['#17212a', 6], [sword.color, 4]]);
+  }
+  const [red, green, blue] = SWORDS.bronze.color.slice(1).match(/../g).map(component => parseInt(component, 16));
+  assert.ok(green > red && green > blue);
+  assert.notEqual(SWORDS.bronze.color, SWORDS.wood.color);
+});
+
 test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fireball', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const operations = [], stack = [];

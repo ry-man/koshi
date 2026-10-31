@@ -26,10 +26,40 @@ const SCHEDULE = [
 ];
 const SWORDS = {
   wood: { name: 'Wood Sword', color: '#b88b60', uses: 1 },
-  bronze: { name: 'Bronze Sword', color: '#d69963', uses: 3 },
+  bronze: { name: 'Bronze Sword', color: '#4f8067', uses: 3 },
   silver: { name: 'Silver Sword', color: '#d5e0ec', uses: 10 },
   gold: { name: 'Gold Sword', color: '#f3d16b', seconds: 15 },
 };
+const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
+const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost'];
+
+function brickEnabled(brick) { return !brick.toggle || brick.toggleRemaining === 0; }
+
+function applyBrickTypes(bricks, entries = []) {
+  const regions = brickEditRegions(bricks);
+  for (const entry of entries) {
+    const edgeBricks = bricks.filter(brick => regions.get(brick.id).edge === entry.edge);
+    const center = brick => (regions.get(brick.id).start + regions.get(brick.id).end) / 2;
+    const matching = edgeBricks.filter(brick => center(brick) >= entry.start && center(brick) < entry.end);
+    if (!matching.length) matching.push(edgeBricks.reduce((best, brick) =>
+      Math.abs(center(brick) - (entry.start + entry.end) / 2) < Math.abs(center(best) - (entry.start + entry.end) / 2) ? brick : best));
+    for (const brick of matching) {
+      brick.kind = entry.kind;
+      if (brick.kind === 'cinder') {
+        for (const attribute of ['crumbler', 'warped', 'toggle']) brick[attribute] = null;
+        for (const attribute of CONTACT_SURFACES) brick[attribute] = ['portal', 'spawner'].includes(attribute) ? null : false;
+        continue;
+      }
+      for (const attribute of ['crumbler', 'warped', 'slimeColor', 'conveyorDirection', 'toggle', ...CONTACT_SURFACES]) {
+        if (entry[attribute] === undefined) continue;
+        brick[attribute] = entry[attribute] && typeof entry[attribute] === 'object' ? { ...entry[attribute] } : entry[attribute];
+        if (CONTACT_SURFACES.includes(attribute) && entry[attribute]) {
+          for (const other of CONTACT_SURFACES) if (other !== attribute) brick[other] = ['portal', 'spawner'].includes(other) ? null : false;
+        }
+      }
+    }
+  }
+}
 const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
@@ -189,7 +219,14 @@ const LEVELS = [
   },
 ];
 
-function validateCustomLevel(value) {
+function portalPairIssues(bricks) {
+  return Object.keys(PORTALS).flatMap(color => {
+    const count = bricks.filter(brick => brick.portal === color && brick.absorbedBy == null).length;
+    return count === 0 || count === 2 ? [] : [`${color} portals: ${count} brick${count === 1 ? '' : 's'}; exactly two required.`];
+  });
+}
+
+function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
   const fail = message => { throw new TypeError(message); };
   const number = (v, min, max, name) => {
     if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) fail(`${name} must be a number from ${min} to ${max}.`);
@@ -223,7 +260,7 @@ function validateCustomLevel(value) {
   if (value.brickTypes !== undefined) {
     if (!Array.isArray(value.brickTypes) || value.brickTypes.length > 2000) fail('Brick types must be an array of at most 2000 edge overrides.');
     result.brickTypes = value.brickTypes.map((entry, i) => {
-      if (!entry || !['top', 'bottom', 'left', 'right'].includes(entry.edge) || !Object.hasOwn(COOLDOWNS, entry.kind)) fail(`Brick override ${i + 1} has an unknown edge or type.`);
+      if (!entry || !['top', 'bottom', 'left', 'right'].includes(entry.edge) || !(entry.kind === 'cinder' || Object.hasOwn(COOLDOWNS, entry.kind))) fail(`Brick override ${i + 1} has an unknown edge or type.`);
       const start = number(entry.start, 0, 1, `Brick override ${i + 1} start`);
       const end = number(entry.end, 0, 1, `Brick override ${i + 1} end`);
       if (end <= start) fail(`Brick override ${i + 1} must have an end greater than its start.`);
@@ -246,13 +283,77 @@ function validateCustomLevel(value) {
         if (typeof entry[attribute] !== 'boolean') fail(`Brick override ${i + 1} ${attribute} must be a boolean.`);
         override[attribute] = entry[attribute];
       }
+      if (entry.portal !== undefined) {
+        if (entry.portal !== null && (typeof entry.portal !== 'string' || !Object.hasOwn(PORTALS, entry.portal))) fail(`Brick override ${i + 1} has an unknown portal color.`);
+        override.portal = entry.portal;
+      }
+      if (entry.toggle !== undefined) {
+        if (entry.toggle !== null && ![1, 2, 4].includes(entry.toggle)) fail(`Brick override ${i + 1} toggle must require 1, 2, or 4 clicks.`);
+        override.toggle = entry.toggle;
+      }
+      if (entry.boost !== undefined) {
+        if (typeof entry.boost !== 'boolean') fail(`Brick override ${i + 1} boost must be a boolean.`);
+        override.boost = entry.boost;
+      }
+      if (entry.spawner !== undefined) {
+        if (entry.spawner === null) override.spawner = null;
+        else {
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true }, heart: { heart: true } };
+          if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
+          override.spawner = { kind: spawn.kind, type: spawn.type };
+          if (spawn.kind === 'food') override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn food lifetime`);
+        }
+      }
       if (override.slimed && override.springs) fail(`Brick override ${i + 1} cannot be both Slimed and Springs.`);
       if (override.spikes && (override.slimed || override.springs)) fail(`Brick override ${i + 1} cannot combine Spikes with Slimed or Springs.`);
       if (override.conveyor && (override.slimed || override.springs || override.spikes)) fail(`Brick override ${i + 1} cannot combine Conveyor with another surface.`);
+      if (CONTACT_SURFACES.filter(attribute => override[attribute]).length > 1) fail(`Brick override ${i + 1} cannot combine contact surfaces.`);
+      if (override.kind === 'cinder' && ['crumbler', 'warped', 'toggle', ...CONTACT_SURFACES].some(attribute => override[attribute])) fail(`Brick override ${i + 1}: Cinder bricks cannot have modifiers or contact surfaces.`);
       return override;
     });
   }
+  const bricks = makeBricks();
+  applyBrickTypes(bricks, result.brickTypes);
+  if (value.brickGroups !== undefined) {
+    if (!Array.isArray(value.brickGroups) || value.brickGroups.length > bricks.length / 2) fail('Brick groups must be an array of at most 13 groups.');
+    const used = new Set(), perimeter = brickPerimeter(bricks, WIDTH, HEIGHT);
+    result.brickGroups = value.brickGroups.map((group, i) => {
+      const name = `Brick group ${i + 1}`;
+      if (!group || !Array.isArray(group.members) || group.members.length < 2 || group.members.length > bricks.length) fail(`${name} needs 2–26 brick IDs.`);
+      const members = group.members.map(id => {
+        if (!Number.isInteger(id) || id < 0 || id >= bricks.length || used.has(id)) fail(`${name} has an invalid, duplicate, or overlapping brick ID.`);
+        used.add(id); return id;
+      });
+      if (!Number.isInteger(group.owner) || !members.includes(group.owner)) fail(`${name} owner must be one of its members.`);
+      const selected = new Set(members);
+      const starts = perimeter.filter((id, index) => selected.has(id) && !selected.has(perimeter[(index + perimeter.length - 1) % perimeter.length]));
+      if (members.length !== bricks.length && starts.length !== 1) fail(`${name} members must be adjacent along the perimeter.`);
+      if (members.some(id => bricks[id].kind === 'cinder') && members.some(id => bricks[id].kind !== 'cinder')) fail(`${name} can combine Cinder only with other Cinder bricks.`);
+      return { owner: group.owner, members };
+    });
+  }
+  applyBrickGroups(bricks, result.brickGroups);
+  const issues = portalPairIssues(bricks);
+  if (!allowUnpairedPortals && issues.length) fail(issues.join(' '));
   return result;
+}
+
+function applyBrickGroups(bricks, groups = []) {
+  for (const group of groups) {
+    for (const id of group.members) {
+      bricks[id].initialOwner = id === group.owner ? null : group.owner;
+      bricks[id].absorbedBy = bricks[id].initialOwner;
+    }
+  }
+}
+
+function brickPerimeter(bricks, width, height) {
+  const regions = brickRegions(bricks, width, height);
+  return ['top', 'right', 'bottom', 'left'].flatMap(edge => {
+    const group = bricks.filter(brick => regions.get(brick.id).edge === edge)
+      .sort((a, b) => regions.get(a.id).start - regions.get(b.id).start);
+    return (edge === 'bottom' || edge === 'left' ? group.reverse() : group).map(brick => brick.id);
+  });
 }
 
 function brickRegions(bricks, width, height) {
@@ -704,9 +805,9 @@ function brickNormal(x, y, brick) {
 }
 
 class Game {
-  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null } = {}) {
+  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null, editorPreview = false } = {}) {
     if (customLevel) {
-      this.customLevel = validateCustomLevel(customLevel);
+      this.customLevel = validateCustomLevel(customLevel, { allowUnpairedPortals: editorPreview });
       this.levelIndex = -1;
       this.level = { ...this.customLevel, heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [] };
       this.customEvents = [...this.customLevel.events].sort((a, b) => a.time - b.time);
@@ -748,6 +849,10 @@ class Game {
     this.healing = [];
     this.spikeTouching = new Set();
     this.conveyorRide = null;
+    this.boosted = false;
+    this.portalUntil = 0;
+    this.portalArrival = null;
+    this.portalTrips = 0;
     this.weapon = null;
     this.nextEnemy = 0;
     this.nextWeapon = 0;
@@ -761,51 +866,20 @@ class Game {
         this.bricks[Math.floor((i + .5) * this.bricks.length / 3)].kind = 'fast';
       }
     }
-    if (this.level.brickTypes) {
-      const regions = brickEditRegions(this.bricks);
-      for (const entry of this.level.brickTypes) {
-        const edgeBricks = this.bricks.filter(brick => regions.get(brick.id).edge === entry.edge);
-        const matching = edgeBricks.filter(brick => {
-          const region = regions.get(brick.id), center = (region.start + region.end) / 2;
-          return center >= entry.start && center < entry.end;
-        });
-        if (!matching.length) {
-          const position = (entry.start + entry.end) / 2;
-          matching.push(edgeBricks.reduce((best, brick) => {
-            const center = item => (regions.get(item.id).start + regions.get(item.id).end) / 2;
-            return Math.abs(center(brick) - position) < Math.abs(center(best) - position) ? brick : best;
-          }));
-        }
-        for (const brick of matching) {
-          brick.kind = entry.kind;
-          if (entry.crumbler !== undefined) brick.crumbler = entry.crumbler;
-          if (entry.warped !== undefined) brick.warped = entry.warped;
-          if (entry.slimeColor !== undefined) brick.slimeColor = entry.slimeColor;
-          if (entry.conveyorDirection !== undefined) brick.conveyorDirection = entry.conveyorDirection;
-          for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor']) {
-            if (entry[attribute] === undefined) continue;
-            brick[attribute] = entry[attribute];
-            if (entry[attribute]) {
-              for (const other of ['slimed', 'springs', 'spikes', 'conveyor']) if (other !== attribute) brick[other] = false;
-            }
-          }
-        }
-      }
-    }
+    applyBrickTypes(this.bricks, this.level.brickTypes);
     for (const brick of this.bricks) {
       brick.usesLeft = brick.crumbler ?? null;
       brick.absorbedBy = null;
+      brick.initialOwner = null;
       brick.warpUntil = null;
       brick.hitAt = null;
       brick.hitNormal = null;
       brick.hitPoint = null;
+      brick.toggleRemaining = brick.toggle ?? 0;
+      brick.spawned = false;
     }
-    const regions = brickRegions(this.bricks, this.width, this.height);
-    this.perimeter = ['top', 'right', 'bottom', 'left'].flatMap(edge => {
-      const group = this.bricks.filter(brick => regions.get(brick.id).edge === edge)
-        .sort((a, b) => regions.get(a.id).start - regions.get(b.id).start);
-      return (edge === 'bottom' || edge === 'left' ? group.reverse() : group).map(brick => brick.id);
-    });
+    applyBrickGroups(this.bricks, this.level.brickGroups);
+    this.perimeter = brickPerimeter(this.bricks, this.width, this.height);
   }
 
   start() {
@@ -833,20 +907,29 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
+    if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || brick.kind === 'cinder' || !brickEnabled(brick) || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
     const parts = this.brickParts();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
     const dx = x - this.cat.x, dy = y - this.cat.y;
     const distance = Math.hypot(dx, dy);
     if (!distance) return false;
-    const vx = dx / distance * SPEED, vy = dy / distance * SPEED;
+    const boost = !this.cat.vx && !this.cat.vy && parts.some(part =>
+      this.bricks[part.id].boost && brickEnabled(this.bricks[part.id]) && this.touchingPart(part));
+    const speed = SPEED * (boost ? 2 : 1);
+    const vx = dx / distance * speed, vy = dy / distance * speed;
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
     if (this.spikeParts(parts).some(({ triangle }) =>
       spikeContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, triangle) <= 1e-9)) return false;
     brick.readyAt = this.elapsed + COOLDOWNS[brick.kind];
     if (brick.usesLeft !== null) brick.usesLeft--;
     if (brick.warped) this.absorbNeighbor(brick);
+    for (const other of this.bricks) {
+      if (other.toggle && other.absorbedBy === null && (other.usesLeft !== 0 || other.id === id)) {
+        other.toggleRemaining = other.toggleRemaining === 0 ? other.toggle : other.toggleRemaining - 1;
+      }
+    }
+    this.boosted = boost;
     this.cat.vx = vx;
     this.cat.vy = vy;
     this.conveyorRide = null;
@@ -869,15 +952,61 @@ class Game {
     return parts;
   }
 
+  touchingPart(part) {
+    return Math.hypot(this.cat.x - Math.max(part.x, Math.min(part.x + part.w, this.cat.x)),
+      this.cat.y - Math.max(part.y, Math.min(part.y + part.h, this.cat.y))) <= this.cat.radius + 1e-6;
+  }
+
+  spawnFromBrick(brick) {
+    const spawn = brick.spawner;
+    brick.spawned = true;
+    if (spawn.kind === 'enemy') this.robots.push(...this.createEnemies([this.elapsed, spawn.type, 1]));
+    else if (spawn.kind === 'heart') this.healing.push(this.randomPoint());
+    else if (spawn.kind === 'weapon') this.weapons.push({ ...this.randomPoint(), type: spawn.type });
+    else this.food.push({ ...this.randomPoint(), id: this.foodId++, type: spawn.type,
+      born: this.elapsed, lifetime: spawn.lifetime, expires: this.elapsed + spawn.lifetime });
+  }
+
+  portalExit(brick, parts = this.brickParts()) {
+    const edge = brickRegions(this.bricks, this.width, this.height).get(brick.id).edge;
+    const direction = { top: [0, 1], right: [-1, 0], bottom: [0, -1], left: [1, 0] }[edge];
+    let x = brick.x + brick.w / 2, y = brick.y + brick.h / 2;
+    const members = parts.filter(part => part.id === brick.id);
+    if (direction[0]) {
+      const crossing = members.filter(part => y >= part.y && y <= part.y + part.h);
+      x = direction[0] > 0 ? Math.max(...crossing.map(part => part.x + part.w)) : Math.min(...crossing.map(part => part.x));
+    } else {
+      const crossing = members.filter(part => x >= part.x && x <= part.x + part.w);
+      y = direction[1] > 0 ? Math.max(...crossing.map(part => part.y + part.h)) : Math.min(...crossing.map(part => part.y));
+    }
+    return { x: x + direction[0] * (this.cat.radius + .01), y: y + direction[1] * (this.cat.radius + .01), nx: direction[0], ny: direction[1] };
+  }
+
+  travelPortal(brick, parts) {
+    if (this.elapsed < this.portalUntil || this.portalArrival === brick.id) return false;
+    const destination = this.bricks.find(other => other.id !== brick.id && other.portal === brick.portal && other.absorbedBy === null && brickEnabled(other));
+    if (!destination) return false;
+    const exit = this.portalExit(destination, parts);
+    const speed = Math.hypot(this.cat.vx, this.cat.vy) || SPEED;
+    this.cat.x = exit.x; this.cat.y = exit.y;
+    this.cat.vx = exit.nx * speed; this.cat.vy = exit.ny * speed;
+    this.portalUntil = this.elapsed + .2;
+    this.portalArrival = destination.id;
+    this.portalTrips++;
+    this.conveyorRide = null;
+    this.target = null;
+    return true;
+  }
+
   spikeParts(parts) {
-    return this.bricks.filter(brick => brick.spikes && brick.absorbedBy === null).flatMap(brick =>
+    return this.bricks.filter(brick => brick.spikes && brickEnabled(brick) && brick.absorbedBy === null).flatMap(brick =>
       brickSpikes(parts.filter(part => part.id === brick.id), this.width, this.height).triangles
         .map(triangle => ({ id: brick.id, triangle })));
   }
 
   conveyorEdge(id, parts) {
     const brick = this.bricks[id];
-    if (!brick?.conveyor || brick.absorbedBy !== null) return null;
+    if (!brick?.conveyor || !brickEnabled(brick) || brick.absorbedBy !== null) return null;
     const members = parts.filter(part => part.id === id);
     const radius = this.cat.radius;
     // Offset the union before tracing it so concave corners and unequal brick thicknesses stay clear.
@@ -909,7 +1038,7 @@ class Game {
       for (const offset of [-1, 1]) {
         const neighbor = this.bricks[this.perimeter[(i + offset + this.perimeter.length) % this.perimeter.length]];
         const owner = neighbor.absorbedBy ?? neighbor.id;
-        if (owner !== brick.id) candidates.add(owner);
+        if (owner !== brick.id && this.bricks[owner].kind !== 'cinder') candidates.add(owner);
       }
     }
     if (!candidates.size) return;
@@ -926,7 +1055,7 @@ class Game {
   restoreWarps() {
     for (const brick of this.bricks) {
       if (brick.usesLeft === 0 || brick.warpUntil === null || brick.warpUntil > this.elapsed + 1e-9) continue;
-      for (const member of this.bricks) if (member.absorbedBy === brick.id) member.absorbedBy = null;
+      for (const member of this.bricks) if (member.absorbedBy === brick.id) member.absorbedBy = member.initialOwner ?? null;
       brick.warpUntil = null;
       this.brickRevision++;
     }
@@ -1084,10 +1213,10 @@ class Game {
         }
       }
       const distance = distanceToSegment(0, 0, startX - oldX, startY - oldY, this.cat.x - enemy.x, this.cat.y - enemy.y);
-      if (this.weapon && distance <= this.cat.radius + enemy.radius + 18) {
+      if ((this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
         this.enemies++;
         this.enemyDeaths.push({ ...enemy, deathProgress: 0 });
-        if (Number.isFinite(this.weapon.uses) && --this.weapon.uses === 0) this.weapon = null;
+        if (!this.boosted && Number.isFinite(this.weapon.uses) && --this.weapon.uses === 0) this.weapon = null;
         return false;
       }
       const touching = distance <= this.cat.radius + enemy.radius;
@@ -1156,6 +1285,11 @@ class Game {
     this.food = this.food.filter(item => item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();
+    if (this.portalArrival !== null && !parts.some(part => part.id === this.portalArrival && this.touchingPart(part))) this.portalArrival = null;
+    for (const brick of this.bricks) {
+      if (brick.spawner && !brick.spawned && brickEnabled(brick) && brick.absorbedBy === null
+        && parts.some(part => part.id === brick.id && this.touchingPart(part))) this.spawnFromBrick(brick);
+    }
     const ride = this.conveyorRide;
     let rideEnd = false;
     if (ride) {
@@ -1214,16 +1348,22 @@ class Game {
     }
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
-    const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
+    const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes && brickEnabled(this.bricks[part.id])).map(part => part.id));
     if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
     for (const id of spikeIds) this.spikeTouching.add(id);
     this.combat(dt, startX, startY);
-    if (contacts.length) {
+    for (const id of new Set(contacts.map(part => part.id))) {
+      const brick = this.bricks[id];
+      if (brick.spawner && !brick.spawned && brickEnabled(brick)) this.spawnFromBrick(brick);
+    }
+    const portal = contacts.map(part => this.bricks[part.id]).find(brick => brick.portal && brickEnabled(brick));
+    const teleported = portal && this.travelPortal(portal, parts);
+    if (contacts.length && !teleported) {
       this.conveyorRide = null;
-      const solid = contacts.filter(part => !this.bricks[part.id].springs);
+      const solid = contacts.filter(part => !this.bricks[part.id].springs || !brickEnabled(this.bricks[part.id]));
       if (solid.length || ride) {
         cat.vx = 0; cat.vy = 0;
-        const slimes = solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed)
+        const slimes = solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed && brickEnabled(brick))
           .sort((a, b) => SLIMES[b.slimeColor ?? 'green'].duration - SLIMES[a.slimeColor ?? 'green'].duration);
         if (slimes.length) {
           this.stuckColor = slimes[0].slimeColor ?? 'green';
@@ -1253,6 +1393,7 @@ class Game {
       this.conveyorRide = null;
       cat.vx = 0; cat.vy = 0;
     }
+    if (!cat.vx && !cat.vy) this.boosted = false;
     this.pickups = this.pickups.filter(item => this.elapsed - item.time < .8);
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';
@@ -1266,7 +1407,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, COOLDOWNS, SLIMES, FOODS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

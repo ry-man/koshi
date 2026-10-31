@@ -30,11 +30,11 @@ weapon using the gameplay shapes. Story instructions are not part of this guide.
 Each topic links to a related tutorial step. Escape or Back to title
 closes the guide.
 
-The interactive tutorial uses the actual game board and mechanics in 16 isolated
+The interactive tutorial uses the actual game board and mechanics in 20 isolated
 practice steps. It teaches aiming/stopping, redirection, food, recharge,
 Crumblers, Warped restoration, red/green/blue slime, Springs, mouse combat and
 swords, wheel interception, healing, spawn previews, pause/resume, and combined
-food/robot objectives. An outlined brick provides a suggested target, and action
+food/robot objectives, Portals, Toggles, Spawning, and Boost launches. An outlined brick provides a suggested target, and action
 feedback marks a step complete only after the mechanic has been performed.
 
 Players can freely choose any step, use Previous/Next, retry, or exit at any
@@ -168,7 +168,68 @@ Many triangular white spikes protrude from the arena-facing edge. Touching their
 
 A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); arrows show the direction on the arena-facing edge. Landing on that edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors occupy phone-layout left 50–62.5% in Level 1-3 (clockwise), right 50–62.5% in Level 1-4 (counterclockwise), and left 37.5–50% in Level 1-5 (clockwise). Desktop rotates their directions with the bricks.
 
-Slimed, Springs, Spikes, and Conveyor are mutually exclusive: choosing one in the custom-level editor replaces the others. All four can combine with any cooldown color, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Built-in Levels 1-3 through 1-5 introduce these attributes. Spikes occupy phone-layout bottom 20–40% in Level 1-3, top 40–60% in Level 1-4, and top 40–60% plus right 50–62.5% in Level 1-5; desktop rotates these slots with their bricks. The opening two levels stay unchanged. Restart clears spike contacts and restores health.
+Slimed, Springs, Spikes, Conveyor, Portal, Spawning, and Boost are mutually exclusive: choosing one in the custom-level editor replaces the others. All seven can combine with any cooldown color, Toggle, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion, but not while Toggle-disabled; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Built-in Levels 1-3 through 1-5 introduce the original four surfaces. Spikes occupy phone-layout bottom 20–40% in Level 1-3, top 40–60% in Level 1-4, and top 40–60% plus right 50–62.5% in Level 1-5; desktop rotates these slots with their bricks. Existing campaign layouts stay unchanged. Restart clears spike contacts and restores health.
+
+### Brick Attributes - Portal, Toggle, Spawning, and Boost
+
+Cinder is a separate inert brick type, drawn as a grey concrete block with two
+recessed holes. Koshi stops on contact and can leave by aiming at another brick.
+Cinder cannot be activated, has no cooldown, modifiers, or contact effects,
+does not advance Toggle counters, and cannot be absorbed by Warped bricks.
+Choose Cinder in the editor's brick-type palette; it remains selectable for
+editing. Converting a brick to Cinder clears its existing attributes.
+
+The editor can also combine adjacent selected bricks into a larger starting
+brick, including around corners. Choose an owner to inherit its type and
+attributes; the full combined surface has one cooldown, Crumbler count,
+Toggle cycle, and contact effect. Cinder groups contain only Cinder blocks.
+Split returns them to individual sizes with the group's current attributes.
+Starting groups persist in drafts, exports, playtests, and restart. Warped
+bricks can absorb entire groups; restoration returns every group to its
+starting combined shape instead of splitting it. A grouped Portal is one
+endpoint. Counters and portal exits remain anchored to the chosen owner.
+
+Crumbler counts, Warped timer counts, and Toggle switches form a centered strip
+along the original brick's long axis. They can appear in any combination.
+During Warped growth the strip stays in the original owner's position and size,
+including across corners, and remains readable outside Crumbler's chipped outline.
+`C:` identifies remaining uses, `W:` identifies seconds, and `W:X` means frozen.
+
+Portal pairs have matching red, orange, yellow, green, blue, or purple smoky
+borders. Touching one transports Koshi to its partner's center line, moving
+straight into the arena perpendicular to that partner's edge at his existing
+speed. A merged Warped portal retains its original owner's center line.
+Disabled or absorbed partners cannot receive him; a short arrival lock prevents
+immediate loops. The editor allows individual or group portal edits, warning
+about unfinished pairs. Exactly two endpoints per used color are required
+before export or playtest, not during editing or draft saves. Changing an
+endpoint leaves its partner unchanged. Compact visual palettes replace the
+brick and item dropdowns; inactive settings are hidden and inspector sections
+collapse when selecting a different kind of object.
+
+Toggle switches start disabled and count all successful brick activations,
+including their own: red starts at 1, green at 2, and blue at 4.
+A dark border encloses the enlarged switch,
+and its white knob displays the remaining count in large bold type.
+At zero the brick enables; the next successful activation disables
+it and resets its count. Disabled bricks remain solid but cannot be selected
+and do not apply contact effects.
+
+Spawning bricks show a prominent item-colored icon with a thin dark outline
+and a dark rainbow glow for their configured
+food, sword, robot, or heart. Physical contact spawns one item at a random safe
+location, immediately and once per attempt; clicking alone does not spawn.
+Wheels appear on the inner perimeter. Physical spawning changes the outline to
+contrasting dark grey without a glow; clicking alone does not change it. Restart
+restores it. Food lifetime is configured in the editor. Sword icons share the
+weapon colors: brown wood, dark green patinated bronze, silver, and gold.
+Gameplay swords also have thin dark outlines around the blade, guard, and handle.
+
+Boost bricks display an orange-filled fireball with a dark outline and a
+red-orange ember glow. Resting against a Boost brick makes Koshi's next successful launch twice as
+fast. A fireball surrounds him and defeats robots without spending equipped
+sword charges. Stopping or successfully selecting another brick ends the
+boost; rejected selections, Spring bounces, and Portal travel do not.
 
 ## Enemies
 Whenever Koshi loses a heart to an enemy or spikes, he becomes invulnerable to both for one second of game time. For exactly that interval he has an upset face and blinks between red shades. The animation uses the same timer as invulnerability: it ends precisely when he can take damage again. Blocked hits do not extend the timer. Pause freezes both; restart clears both. Contact tracking still requires separation before another hit from the same continuous contact. Protected Koshi can still move, collect items, attack, and be stopped by spikes; falling off the board still ends the attempt.

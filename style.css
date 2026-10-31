@@ -119,12 +119,47 @@ canvas { display: block; width: 100%; height: 100%; }
 .brick-surface { position: absolute; background-color: var(--brick-fill); pointer-events: auto; overflow: hidden; background-position: var(--pattern-x) var(--pattern-y); }
 .brick:not(.brick-merged), .brick-surface { background-image: linear-gradient(var(--recharge-direction, to right), var(--brick-color) calc((var(--cooldown-fill, 100%) - var(--surface-start, 0%)) * var(--surface-scale, 1)), transparent 0); background-position: 0 0; }
 .brick[data-deactivated="true"], .brick[data-deactivated="true"] .brick-surface { background-image: none; }
+.brick[data-toggle-disabled="true"], .brick[data-toggle-disabled="true"] .brick-surface { background-image: none; }
 .brick.warped .brick-surface::before { background-attachment: scroll; background-position: var(--pattern-x) var(--pattern-y); }
 .brick-outline { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: none; stroke: #ffffff27; stroke-width: 2px; }
 .brick-cracks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: none; stroke: #080e14; stroke-width: calc(1px + var(--crumbler-wear) * 1.8px); stroke-linejoin: bevel; filter: drop-shadow(1px 1px 0 #ffffff60); }
 .brick-slime { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: var(--slime-color, #399d24); stroke: #102619; stroke-width: 1.5px; stroke-linejoin: round; filter: drop-shadow(0 1px 1px #102619); }
 .brick-spikes { position: absolute; overflow: visible; pointer-events: none; fill: #fff; stroke: #aab9c5; stroke-width: 1px; stroke-linejoin: round; filter: drop-shadow(0 1px 1px #0008); }
 .brick-conveyor { position: absolute; overflow: visible; pointer-events: none; }
+.brick-portal-cloud { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; fill: none; stroke: currentColor; }
+.portal-haze { stroke-width: 12px; stroke-linejoin: round; opacity: .55; filter: blur(3px); }
+.portal-puffs { stroke-width: 7px; stroke-dasharray: 2 7; stroke-linecap: round; stroke-linejoin: round; opacity: .8; filter: blur(1px); }
+.brick-info { position: absolute; pointer-events: none; overflow: visible; z-index: 2; }
+.brick-info > svg { overflow: visible; }
+.brick-number-badge text { font-family: 'DM Sans', sans-serif; }
+.brick-item-symbol { pointer-events: none; fill: none; stroke: #27313b; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.brick-cinder { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.brick.cinder { cursor: default; }
+.brick.cinder:not(.brick-merged) { background: #969b99; }
+.brick-item-symbol .item-outline { stroke: #17212a; stroke-width: 5.5; }
+.brick-item-symbol[data-spawn-ready="true"] .item-color { stroke: var(--item-color); }
+.brick-item-symbol[data-spawn-ready="true"] { filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor); animation: spawner-rainbow 6s linear infinite; }
+.brick-boost-symbol { color: #ec4824; filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor); animation: boost-embers 1.8s ease-in-out infinite; }
+@keyframes boost-embers {
+  0%, 100% { color: #ec4824; }
+  50% { color: #ff982e; }
+}
+@keyframes spawner-rainbow {
+  0%, 100% { color: #782f40; }
+  16.667% { color: #824019; }
+  33.333% { color: #686015; }
+  50% { color: #185a38; }
+  66.667% { color: #234f82; }
+  83.333% { color: #60347d; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brick-item-symbol[data-spawn-ready="true"] { animation: none; color: #60347d; }
+  .brick-boost-symbol { animation: none; }
+}
+.brick-toggle { pointer-events: none; filter: drop-shadow(0 1px 2px #0005); }
+.brick[data-toggle-disabled="true"], .editor-brick[data-toggle-disabled="true"] { --brick-fill: color-mix(in srgb, var(--brick-color) 35%, #17232c); }
+.brick[data-toggle-disabled="true"] > .brick-slime { opacity: .25; }
+.guide-special-brick { position: relative; display: inline-block; width: 160px; height: 70px; margin: 10px; background: var(--normal); border-radius: 6px; }
 .conveyor-belt { fill: none; stroke: #626b74; stroke-width: 5px; stroke-linejoin: round; }
 .conveyor-teeth { fill: #adb4ba; stroke: #303840; stroke-width: .8px; }
 .conveyor-arrows { fill: #303840; stroke: #d8dde1; stroke-width: .7px; }

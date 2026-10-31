@@ -9,17 +9,18 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 6);
+  assert.equal(scripts.length, 7);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
   }
   assert.match(scripts[0][1], /src="\.\/src\/game\.js"/);
-  assert.match(scripts[1][1], /src="\.\/src\/cutscene\.js"/);
-  assert.match(scripts[2][1], /src="\.\/src\/learning\.js"/);
-  assert.match(scripts[3][1], /src="\.\/src\/saves\.js"/);
-  assert.match(scripts[4][1], /src="\.\/src\/app\.js"/);
-  assert.match(scripts[5][1], /src="\.\/src\/pwa\.js"/);
+  assert.match(scripts[1][1], /src="\.\/src\/brick-visuals\.js"/);
+  assert.match(scripts[2][1], /src="\.\/src\/cutscene\.js"/);
+  assert.match(scripts[3][1], /src="\.\/src\/learning\.js"/);
+  assert.match(scripts[4][1], /src="\.\/src\/saves\.js"/);
+  assert.match(scripts[5][1], /src="\.\/src\/app\.js"/);
+  assert.match(scripts[6][1], /src="\.\/src\/pwa\.js"/);
   const context = vm.createContext({});
   vm.runInContext(readFileSync(path.join(root, 'src', 'game.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'learning.js'), 'utf8'), context);

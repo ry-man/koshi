@@ -1,7 +1,8 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, CONVEYOR_SPEED, validateCustomLevel, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots } = globalThis.KoshiSaves;
 
@@ -35,7 +36,7 @@ const pendingSaves = [];
 const weaponStatus = document.querySelector('#weapon-status');
 const weaponIcon = document.querySelector('#weapon-icon');
 const weaponRemaining = document.querySelector('#weapon-remaining');
-const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81' };
+const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99' };
 let lastTime = null;
 let displayedState = null;
 let toastUntil = 0;
@@ -277,6 +278,8 @@ function makeBrickButtons() {
     const recharge = brickRecharge(members, game.bricks, game.perimeter, game.width, game.height);
     const button = document.createElement('button');
     button.className = 'brick';
+    button.classList.toggle('cinder', brick.kind === 'cinder');
+    button.disabled = brick.kind === 'cinder';
     button.classList.toggle('crumbler', Boolean(brick.crumbler));
     button.classList.toggle('warped', Boolean(brick.warped));
     button.classList.toggle('slimed', Boolean(brick.slimed));
@@ -348,17 +351,6 @@ function makeBrickButtons() {
         button.append(cracks);
       }
     }
-    const counter = document.createElement('span');
-    counter.className = 'brick-counter';
-    button.append(counter);
-    const anchorStyle = `left:${(brick.x - part.x) / part.w * 100}%;top:${(brick.y - part.y) / part.h * 100}%;width:${brick.w / part.w * 100}%;height:${brick.h / part.h * 100}%;`;
-    if (merged) {
-      const anchor = document.createElement('span');
-      anchor.className = 'brick-anchor';
-      anchor.style.cssText = anchorStyle;
-      anchor.append(counter);
-      button.append(anchor);
-    }
     button.addEventListener('click', event => {
       if (game.state !== 'playing') return;
       const bounds = board.getBoundingClientRect();
@@ -368,6 +360,7 @@ function makeBrickButtons() {
       const steering = tutorial ?? game;
       if (!steering.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
         toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? ''
+          : !brickEnabled(brick) ? `That toggle needs ${brick.toggleRemaining} more successful clicks of other bricks.`
           : brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
           : brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
           : "Koshi can't move toward that spot. Pick another!";
@@ -387,6 +380,7 @@ function makeBrickButtons() {
       spikes.setAttribute('viewBox', '0 0 1 1');
       spikes.setAttribute('preserveAspectRatio', 'none');
       spikes.setAttribute('aria-hidden', 'true');
+      spikes.dataset.id = brick.id;
       spikes.style.cssText = `left:${part.x / game.width * 100}%;top:${part.y / game.height * 100}%;width:${part.w / game.width * 100}%;height:${part.h / game.height * 100}%;`;
       const path = document.createElementNS(ns, 'path');
       path.setAttribute('d', brickSpikes(members, game.width, game.height).path);
@@ -413,16 +407,10 @@ function makeBrickButtons() {
       }
       container.append(conveyor);
     }
-    if (brick.crumbler) {
-      // Keep labels outside the decaying clip path, including on merged bricks.
-      const label = document.createElement('span');
-      label.className = 'brick-label';
-      label.setAttribute('aria-hidden', 'true');
-      label.style.cssText = `left:${brick.x / game.width * 100}%;top:${brick.y / game.height * 100}%;width:${brick.w / game.width * 100}%;height:${brick.h / game.height * 100}%;`;
-      label.append(counter);
-      container.append(label);
-    }
-    return { brick, button, counter, members, spring, conveyor, usesLeft: null };
+    const special = decorateBrick(button, brick, members);
+    exposePortalCloud(special, container);
+    exposeBrickInfo(special, container, brick, game.width, game.height);
+    return { brick, button, members, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
   });
 }
 
@@ -488,7 +476,7 @@ function syncUI() {
     if (focusedId !== undefined) buttons.find(item => String(item.brick.id) === focusedId)?.button.focus({ preventScroll: true });
   }
   for (const item of buttons) {
-    const { brick, button, counter, members } = item;
+    const { brick, button, members } = item;
     if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
       item.usesLeft = brick.usesLeft;
       const wear = 1 - brick.usesLeft / brick.crumbler;
@@ -500,7 +488,12 @@ function syncUI() {
     }
     const remaining = Math.max(0, brick.readyAt - game.elapsed);
     const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
-    button.setAttribute('aria-disabled', String(stuck || remaining > 1e-9 || brick.usesLeft === 0));
+    button.setAttribute('aria-disabled', String(brick.kind === 'cinder' || stuck || !brickEnabled(brick) || remaining > 1e-9 || brick.usesLeft === 0));
+    if (item.special) updateBrick(item.special, brick, game.elapsed);
+    if (item.special?.symbol) item.special.symbol.style.animationPlayState = game.state === 'playing' ? 'running' : 'paused';
+    for (const surface of [item.spring, item.conveyor, item.spikes]) {
+      if (surface) surface.style.opacity = brickEnabled(brick) ? '1' : '.25';
+    }
     if (brick.springs) {
       const age = brick.hitAt === null ? 1 : game.elapsed - brick.hitAt;
       const compression = age > 0 && age < .32 ? Math.sin(Math.PI * age / .32) : 0;
@@ -517,15 +510,14 @@ function syncUI() {
       item.conveyor.querySelector('.conveyor-teeth').setAttribute('d', geometry.teeth);
     }
     button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${COOLDOWNS[brick.kind]} second cooldown${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}, ${brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
     }
-    counter.textContent = [brick.crumbler ? `C:${brick.usesLeft}` : '', brick.warped ? `W:${brick.usesLeft === 0 ? 'X' : warpSeconds === null ? '-' : `${warpSeconds}s`}` : ''].filter(Boolean).join(' ');
-    button.tabIndex = game.state === 'playing' ? 0 : -1;
+    button.tabIndex = game.state === 'playing' && brick.kind !== 'cinder' ? 0 : -1;
     button.classList.toggle('tutorial-target', Boolean(tutorial && tutorial.target.id === brick.id));
-    button.style.setProperty('--cooldown-fill', `${brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
+    button.style.setProperty('--cooldown-fill', `${brick.kind === 'cinder' ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
   }
   if (displayedState === game.state) return;
   displayedState = game.state;
@@ -698,6 +690,18 @@ document.querySelector('#tutorial-sword').addEventListener('change', event => {
 });
 
 function guidePicture(picture, title) {
+  if (picture.startsWith('special:')) {
+    const type = picture.slice(8), image = document.createElement('div');
+    image.className = 'guide-special-brick';
+    image.setAttribute('role', 'img'); image.setAttribute('aria-label', title);
+    const brick = { x: 0, y: 0, w: 160, h: 70,
+      kind: type === 'cinder' ? 'cinder' : 'normal',
+      portal: type === 'portal' ? 'purple' : null, toggle: type === 'toggle' ? 4 : null,
+      toggleRemaining: type === 'toggle' ? 4 : 0, boost: type === 'boost',
+      spawner: type === 'spawner' ? { kind: 'enemy', type: 'mouse' } : null };
+    decorateBrick(image, brick, [brick]);
+    return image;
+  }
   const image = document.createElement('canvas');
   image.className = 'guide-picture';
   image.width = 320; image.height = 160;
@@ -966,6 +970,7 @@ function render(now) {
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
   drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress);
+  if (game.boosted) drawBoost(ctx, game.cat.x, game.cat.y, game.elapsed);
   const stuck = game.stuckUntil > game.elapsed + 1e-9;
   const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
   if (stuck || releaseAge < .65) {
@@ -1073,10 +1078,12 @@ function drawSpawnCue({ kind, x, y, progress }) {
 
 function drawSword(x, y, color) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(.5);
-  ctx.fillStyle = color;
-  ctx.beginPath(); ctx.moveTo(0, -23); ctx.lineTo(6, -14); ctx.lineTo(4, 10); ctx.lineTo(-4, 10); ctx.lineTo(-6, -14); ctx.closePath(); ctx.fill();
-  line([[-10, 10], [10, 10]], color, 4);
+  ctx.fillStyle = color; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -23); ctx.lineTo(6, -14); ctx.lineTo(4, 10); ctx.lineTo(-4, 10); ctx.lineTo(-6, -14); ctx.closePath(); ctx.fill(); ctx.stroke();
+  line([[0, 12], [0, 22]], '#17212a', 7);
   line([[0, 12], [0, 22]], '#8a6953', 5);
+  line([[-10, 10], [10, 10]], '#17212a', 6);
+  line([[-10, 10], [10, 10]], color, 4);
   ctx.restore();
 }
 

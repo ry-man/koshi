@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="./editor.css">
     <script defer src="./src/game.js"></script>
+    <script defer src="./src/brick-visuals.js"></script>
     <script defer src="./src/editor.js"></script>
     <script defer src="./src/pwa.js"></script>
   </head>
@@ -22,6 +23,7 @@
       </header>
       <div class="editor-heading"><div><p class="eyebrow">THE DESIGN STUDIO</p><h1>Build the next adventure.</h1></div><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
       <p id="editor-message" role="status" aria-live="polite">Place a snack, set a time, and make a little magic.</p>
+      <p id="portal-warning" class="editor-warning" role="status" aria-live="polite" hidden></p>
       <section class="editor-panel" aria-label="Level settings">
         <form id="settings-form" class="settings-grid">
           <label>Name <input id="level-name" maxlength="60" required value="My level"></label>
@@ -32,7 +34,8 @@
           <button type="submit">Apply settings</button>
         </form>
       </section>
-      <section class="editor-panel" aria-label="Pre-level cutscene">
+      <details class="editor-panel" aria-label="Pre-level cutscene">
+        <summary>Optional story cutscene</summary>
         <form id="cutscene-form">
           <label class="inline-label"><input id="scene-enabled" type="checkbox"> Optional pre-level cutscene</label>
           <p class="editor-help">The game clock stays stopped during the scene. Each line has a speaker, dialogue, and on-stage cast. Apply the scene before playtesting or exporting.</p>
@@ -43,7 +46,7 @@
           </fieldset>
           <button type="submit">Apply cutscene</button>
         </form>
-      </section>
+      </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
           <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
@@ -63,24 +66,48 @@
           <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food disappears at its expiry; swords and enemy spawn markers persist. Wheels snap to the nearest playable edge. Positions adapt between layouts.</p>
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
-          <section class="brick-inspector" aria-label="Brick inspector">
-            <p class="eyebrow">BRICK TYPE</p>
+          <details id="brick-panel" class="brick-inspector" aria-label="Brick inspector">
+            <summary>Bricks &amp; surfaces</summary>
             <p id="brick-selection" class="editor-help">Select a boundary brick to change its cooldown type.</p>
-            <label>Selected brick type <select id="brick-kind" disabled><option value="slow">Slow · Blue · 15 seconds</option><option value="normal">Normal · Green · 8 seconds</option><option value="fast">Fast · Red · 3 seconds</option></select></label>
+            <div class="file-actions"><button id="combine-bricks" type="button" disabled>Combine</button><button id="split-bricks" type="button" disabled>Split</button></div>
+            <div id="combine-owner-panel" hidden>
+              <p class="editor-help">Choose the brick whose attributes the combined group inherits:</p>
+              <div id="combine-owner-options" class="visual-palette" role="group" aria-label="Combined brick owner"></div>
+            </div>
+            <p class="editor-help">Combine adjacent bricks, including across corners. Split restores individual sizes with the group's current attributes. Cinder combines only with Cinder.</p>
+            <label>Selected brick type <select id="brick-kind" disabled><option value="slow">Slow · Blue · 15 seconds</option><option value="normal">Normal · Green · 8 seconds</option><option value="fast">Fast · Red · 3 seconds</option><option value="cinder">Cinder · Solid, cannot activate</option></select></label>
+            <div id="surface-palette" class="visual-palette" role="group" aria-label="Contact surface"></div>
+            <div id="attribute-palette" class="visual-palette" role="group" aria-label="Brick modifiers"></div>
+            <div class="native-brick-flags" hidden>
             <label><input id="brick-crumbler" type="checkbox" disabled> Crumbler</label>
-            <label>Selections before deactivation <input id="brick-uses" type="number" min="1" max="100000" step="1" value="5" disabled></label>
             <label><input id="brick-warped" type="checkbox" disabled> Warped</label>
-            <label>Warp duration (seconds) <input id="brick-warp-seconds" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
             <label><input id="brick-slimed" type="checkbox" disabled> Slimed</label>
+            <label><input id="brick-springs" type="checkbox" disabled> Springs</label>
+            <label><input id="brick-spikes" type="checkbox" disabled> Spikes</label>
+            <label><input id="brick-conveyor" type="checkbox" disabled> Conveyor</label>
+            <label><input id="brick-portal" type="checkbox" disabled> Portal</label>
+            <label><input id="brick-toggle" type="checkbox" disabled> Toggle</label>
+            <label><input id="brick-spawner" type="checkbox" disabled> Spawning</label>
+            <label><input id="brick-boost" type="checkbox" disabled> Boost</label>
+            </div>
+            <label>Selections before deactivation <input id="brick-uses" type="number" min="1" max="100000" step="1" value="5" disabled></label>
+            <label>Warp duration (seconds) <input id="brick-warp-seconds" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
             <label>Slime color <select id="brick-slime-color" disabled><option value="blue">Blue · 5 seconds</option><option value="green" selected>Green · 3 seconds</option><option value="red">Red · 1 second</option></select></label>
-            <label><input id="brick-springs" type="checkbox" disabled> Springs · reflects Koshi</label>
-            <label><input id="brick-spikes" type="checkbox" disabled> Spikes · costs one heart on contact</label>
-            <label><input id="brick-conveyor" type="checkbox" disabled> Conveyor · carries Koshi along the edge</label>
             <label>Conveyor direction<select id="brick-conveyor-direction" disabled><option value="clockwise">Clockwise</option><option value="counterclockwise">Counterclockwise</option></select></label>
-            <p class="editor-help">Slimed, Springs, Spikes, and Conveyor replace one another. Slime color is independent of brick cooldown: blue holds for 5 seconds, green for 3, red for 1, then flashes a release cue. Springs have a brown platform with a dark outline only on the arena-facing edge. They bounce Koshi even during cooldown; coils underneath appear only during the bounce. White triangular spikes stop Koshi and cost one heart per contact, not repeatedly while resting against them. Thin grey toothed conveyors rotate around the brick, carrying Koshi along the arena-facing edge until the belt ends or another brick blocks him. Warped conveyors carry him around connected corners. Arrows show the chosen direction; he can steer away while riding. All four work with Crumbler and Warped attributes.</p>
-            <button id="reset-brick-types" type="button">Reset brick types to preset</button>
-            <p class="editor-help">Changes apply immediately to every selected brick; only the control you change is applied, so mixed values elsewhere are kept. Desktop bricks rotate 90 degrees clockwise from the phone layout; selection and attributes follow the same brick between previews. Attributes work with any cooldown color. Crumblers stay solid after their selections run out. Warped bricks absorb one random perimeter neighbor or group per selection, including around corners and during cooldown; the first absorption starts the timer. If a Warped Crumbler runs out of selections, its enlarged shape freezes until restart or absorption by another Warped brick. Playtest to see contact effects, absorption, and countdowns.</p>
-          </section>
+            <label>Portal color<select id="brick-portal-color" disabled><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="purple">Purple</option></select></label>
+            <label>Activations until enabled<select id="brick-toggle-clicks" disabled><option value="1">1 · Red switch</option><option value="2">2 · Green switch</option><option value="4">4 · Blue switch</option></select></label>
+            <label>Spawning item<select id="brick-spawn-item" disabled></select></label>
+            <label>Spawned food lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
+            <details class="inspector-help"><summary>Mechanics &amp; reset</summary>
+              <p class="editor-help">Changes apply immediately to selected bricks. Contact surfaces replace one another; modifiers can combine with any surface. Crumbler counts selections; Warped absorbs neighbors temporarily. Slime holds Koshi; Springs reflect him; Spikes hurt; Conveyor carries; Boost launches from rest at double speed.</p>
+              <p class="editor-help">Set portals one brick at a time or in groups. Each used color must have exactly two bricks before playtest or export. Warnings do not prevent editing or saving drafts. Recoloring or removing an endpoint does not change its partner.</p>
+              <p class="editor-help">Toggles start disabled: red 1, green 2, blue 4. Every successful activation counts, including the Toggle itself. At zero it enables; the next activation resets it. Failed clicks do not count.</p>
+              <p class="editor-help">Spawners glow through dark rainbow colors until physical contact spawns one item, then turn dark grey. Clicking alone does not spawn. Restart restores the charge.</p>
+              <button id="reset-brick-types" type="button">Reset brick types to preset</button>
+            </details>
+          </details>
+          <details id="event-panel" open>
+            <summary>Objects &amp; timing</summary>
           <p class="eyebrow" id="inspector-heading">NEW PLACEMENT</p>
           <form id="event-form">
             <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option></select></label>
@@ -89,15 +116,18 @@
               <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
               <label id="lifetime-label">Lifetime (seconds) <input id="event-lifetime" type="number" min="0.1" max="3600" step="any" value="5" required></label>
             </div>
+            <details class="inspector-help"><summary>Exact position</summary>
             <div class="input-pair">
               <label>X (%) <input id="event-x" type="number" min="0" max="100" step="any" value="50" required></label>
               <label>Y (%) <input id="event-y" type="number" min="0" max="100" step="any" value="50" required></label>
             </div>
             <p class="editor-help">0% is the left/top of the safe playable area; 100% is the right/bottom. Use numeric coordinates for keyboard placement or precise alignment.</p>
+            </details>
             <p class="editor-help" id="multi-event-help" hidden>Several events are selected. Only fields you change are applied to all of them; fields marked “Mixed” keep each event's own value. Setting X or Y lines the whole group up on that coordinate.</p>
             <button type="submit" class="primary" id="apply-event">Add event</button>
           </form>
           <div class="inspector-actions"><button id="new-event">New event</button><button id="duplicate-event" disabled>Duplicate</button><button id="delete-event" disabled>Delete</button></div>
+          </details>
         </section>
       </div>
       <section class="editor-panel" aria-label="Scheduled events">

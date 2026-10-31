@@ -60,16 +60,17 @@ writes after confirmation without changing previously saved progress.
 The title screen includes two learning paths:
 
 - **How to play** opens an eight-topic walkthrough of movement and controls,
-  cooldown colors, Crumblers/Warped bricks, slime/Springs/Spikes/Conveyors, every food and healing
+  cooldown colors, Crumblers/Warped bricks, all seven contact surfaces and Toggle switches, every food and healing
   item, both robots and all swords, spawn warnings, and objectives.
   Labeled pictures show every cooldown brick, Crumbler/Warped combination,
   slime color, spring and spike surface, food, healing heart, robot, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
-- **Tutorial** opens 16 interactive practice steps on the real game board:
+- **Tutorial** opens 20 interactive practice steps on the real game board:
   aiming/stopping, redirecting, food, recharge, Crumblers, Warped restoration,
   each of the three slime colors, Springs, mouse/sword combat, wheel interception,
-  healing, spawn warnings, pause/resume, and a combined food/defeat challenge.
+  healing, spawn warnings, pause/resume, a combined food/defeat challenge,
+  Portal pairs, Toggle switches, spawning bricks, and Boost launches.
   An outlined brick suggests where to aim; keyboard labels identify it too.
   Completion is earned by performing the mechanic, not just visiting the page.
 
@@ -262,19 +263,27 @@ playtest links, direct-file play, and the offline app.
    Click/tap any boundary brick (or focus it and press Enter) to select it,
    then change **Selected brick type** in the brick inspector: slow/blue (15s),
    normal/green (8s), or fast/red (3s). Enable **Crumbler** and/or **Warped**
-   independently, or choose **Slimed**, **Springs**, **Spikes**, or **Conveyor** for contact effects.
-   Conveyors have a clockwise/counterclockwise direction selector.
+   independently, or choose **Slimed**, **Springs**, **Spikes**, **Conveyor**,
+   **Portal**, **Spawning**, or **Boost** for contact effects.
+   Compact visual palettes select cooldowns, surfaces, colors, and modifiers.
+   Only settings for enabled attributes are shown; mechanics help and reset
+   are collapsible. The objects inspector closes when selecting only bricks,
+   and the brick inspector closes when selecting only objects.
+   Set Portal colors on individual bricks or any selected group. Incomplete
+   or overfilled pairs show a warning but allow editing and draft saves;
+   each used color must have exactly two bricks before export or playtest.
+   **Toggle** adds an independent 1-, 2-, or 4-activation cycle.
    Set the selection limit (default 5) or warp duration
    (default 15 seconds). Changes apply immediately. Each brick
    can have its own type, independent of the preset. **Reset brick types to
    preset** clears all individual edits. Applying a different boundary preset
    changes defaults but keeps individual overrides until reset.
-2. Choose a food, enemy, or weapon in the inspector. Set its appearance time
+2. Click a food, enemy, or weapon picture in the inspector. Set its appearance time
    and, for food, lifetime. With the **Place** tool, click/tap the dotted
    playable area to add objects. Each click creates one timed placement;
    repeating clicks creates a group with the same timing.
 3. Select a marker or event in the chronological list to edit it. Drag a marker,
-   or enter X/Y percentages and choose **Apply event changes**. Markers also
+   or expand **Exact position**, enter X/Y percentages, and choose **Apply event changes**. Markers also
    support arrow keys (1% steps). **Duplicate** copies an event at the same
    time and position; move it to create lines/circles. **Delete** removes it.
    **New event** returns to placement mode. Overlapping markers can always
@@ -361,7 +370,7 @@ JSON exports/imports, and playtest snapshots. Older levels without it use their
 boundary preset unchanged. Each entry has an `edge` (`top`, `bottom`, `left`,
 `right`), `start` and `end` fractions along that edge (left-to-right on top/bottom,
 top-to-bottom on sides) in the **phone layout**, and `kind` (`slow`, `normal`,
-`fast`). Desktop rotates these saved slots clockwise, including reversing
+`fast`, `cinder`). Desktop rotates these saved slots clockwise, including reversing
 slot order when phone left/right edges become desktop top/bottom.
 Optional
 `crumbler` is an integer selection limit (1–100000); `warped` is a duration
@@ -372,6 +381,16 @@ override is an error, while enabling one in the editor replaces the others.
 A later overlapping override enabling one also removes the others.
 Optional `conveyorDirection` is `"clockwise"` (the default) or `"counterclockwise"`,
 independent of cooldown color and preserved when switching surfaces.
+Optional `portal` is `"red"`, `"orange"`, `"yellow"`, `"green"`, `"blue"`, or
+`"purple"`; `null` removes it. Each color must map to exactly two physical
+bricks after applying all overrides. Optional `boost` is a boolean.
+Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
+`food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
+`wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse` or `wheel`;
+`heart` uses type `heart`. These three surfaces are mutually exclusive with
+one another and with Slimed/Springs/Spikes/Conveyor.
+Optional `toggle` is `1` (red), `2` (green), or `4` (blue), or `null` to remove it; it combines
+with any contact surface, cooldown kind, Crumbler, and Warped.
 Omitted attributes leave earlier overlapping attribute edits unchanged. For example:
 
 ```json
@@ -488,6 +507,96 @@ merge during play.
   even on cooling-down or exhausted bricks. A merged group uses its owner's
   contact attribute over its entire shape, including connecting gaps. Absorbed
   bricks regain their own attributes on restoration.
+
+### Cinder bricks
+
+Custom levels also support `kind: "cinder"`: an inert concrete block with two
+recessed holes. It stops Koshi on contact but cannot be activated or absorbed by
+Warped bricks. Cinder has no cooldown and cannot combine with any modifier or
+contact surface. The editor's Cinder picture button clears existing attributes
+when converting a brick; Cinder blocks remain selectable for editing.
+
+### Larger starting bricks
+
+Select adjacent bricks in the editor (Shift-click to add selections), choose
+the owner picture button, and click **Combine**. The larger brick starts merged
+and shares the chosen owner's type, modifiers, cooldown, and contact effects.
+Groups may cross corners or cover the full perimeter. Cinder combines only
+with Cinder. **Split** returns selected groups to individual sizes while
+retaining the group's current attributes.
+
+Drafts, JSON, and playtests preserve optional `brickGroups`, for example
+`[{ "owner": 0, "members": [0, 2, 4] }]`. IDs are zero-based, stable across
+phone/desktop layouts, and shown as one-based brick numbers in the editor.
+Every group needs 2–26 unique adjacent IDs, including its owner; groups cannot
+overlap. A Portal group counts as one endpoint. Warped growth can absorb
+entire starting groups, but timer restoration and restart retain their saved
+combined sizes. Existing levels without groups are unchanged.
+
+### Portal, Toggle, spawning, and Boost behavior
+
+These mechanics are available in the editor, guide, and four additional
+tutorial steps. Existing campaign layouts are unchanged.
+
+Crumbler counts (`C:`), Warped seconds (`W:`), and Toggle switches share a
+centered information strip, arranged along the original brick's long axis.
+Any combination is supported, with item icons alongside when present. The strip
+stays on the original owner's brick at its original size as a Warped group
+grows, including around corners; it remains outside Crumbler clipping.
+`W:X` denotes a frozen, exhausted Warped Crumbler.
+
+- **Portal pairs:** matching colored smoke encloses the boundaries, with fixed
+  rounded puffs that gently breathe without flickering at the corners. Physical
+  contact transports Koshi to the partner, centered on its original brick's
+  center line and launched perpendicular into the arena, clear of its surface.
+  A merged Warped portal clears its enlarged surface along that same line.
+  Travel retains incoming speed and Boost, but never collects or attacks along
+  the teleport gap. A 0.2-second lockout prevents immediate return loops.
+  If the partner is absorbed or toggle-disabled, the entrance acts as a normal
+  solid landing. Cooldown and exhausted Crumbler selections do not disable
+  portal contact. Create/recolor any number of endpoints while editing; warnings
+  identify colors without exactly two bricks. Draft saves allow unfinished
+  pairs, but export and playtest validate them. Removing or recoloring an
+  endpoint leaves its partner unchanged. Only one pair of each color is supported.
+- **Toggle:** a pill-shaped switch modeled on the supplied reference has a
+  dark outline and a large white sliding button with a bold countdown.
+  Red starts at **1**, green **2**, and blue **4**. Every successful brick
+  activation counts, including the Toggle itself. It starts disabled at N,
+  enables at zero, then the next successful activation disables it and resets N.
+  Invalid, blocked, cooling, or disabled selections do not count.
+  Disabled toggles stay solid and unselectable, and their contact surface is
+  inactive. Absorbed and exhausted toggle bricks do not advance their cycles.
+- **Spawning:** the brick shows a prominent item-colored icon with a thin dark
+  outline and a dark rainbow glow. Sword icons use the corresponding weapon colors.
+  The icon represents its
+  configured food, sword, robot, or heart. Touching it spawns **one** object at
+  a random safe location, immediately, without a timed spawn warning. Wheels
+  appear on the inner perimeter. Merely selecting the brick does not spawn it.
+  Once physical contact spawns the item, its icon becomes contrasting dark grey
+  without a glow, and it cannot spawn again until restart, even
+  after leaving, returning, being absorbed, or restoring from a Warped group.
+- Swords have thin dark outlines around their blades, guards, and handles.
+  Bronze uses a dark green patina, distinct from brown wood, silver, and gold.
+  These colors are shared by gameplay swords, editor palettes, and spawner icons.
+- **Boost:** when Koshi is physically resting against an enabled Boost surface,
+  his next successful launch travels at **840 game units/second**, twice his
+  normal speed. A glowing fireball overlays him and defeats both robot types
+  like a sword, without consuming equipped sword charges. The state ends on
+  stopping or on another successful brick selection; failed clicks do not
+  cancel it. Spring bounces and Portal travel preserve boosted speed. Spikes
+  can still hurt him. Clicking a Boost brick from elsewhere is not a boost.
+  Pause freezes movement and visuals; restart clears the state.
+
+Example paired portals and two other special bricks (saved phone slots):
+
+```json
+"brickTypes": [
+  { "edge": "top", "start": 0, "end": 0.2, "kind": "normal", "portal": "purple" },
+  { "edge": "bottom", "start": 0, "end": 0.2, "kind": "normal", "portal": "purple" },
+  { "edge": "top", "start": 0.4, "end": 0.6, "kind": "fast", "boost": true, "toggle": 2 },
+  { "edge": "bottom", "start": 0.4, "end": 0.6, "kind": "normal", "spawner": { "kind": "weapon", "type": "silver" } }
+]
+```
 - Pause freezes slime locks, release feedback, spring compression, belt rotation,
   and conveyor rides. Restart
   clears all contact effects, spike-contact tracking, and animation state.

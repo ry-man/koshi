@@ -284,8 +284,9 @@ test('UI updates conveyor teeth without requiring Springs, freezes on pause, and
     const teeth = node(), members = game.brickParts().filter(part => part.id === brick.id);
     const context = vm.createContext({
       game, COOLDOWNS, SLIMES, SWORDS, CONVEYOR_SPEED, brickConveyor,
+      brickEnabled: require('../src/game.js').brickEnabled, specialLabel: require('../src/brick-visuals.js').specialLabel,
       document: { querySelector: () => node() },
-      buttons: [{ brick, members, button: node(), counter: node(), usesLeft: brick.usesLeft, conveyor: { querySelector: () => teeth } }],
+      buttons: [{ brick, members, button: node(), counter: node(), usesLeft: brick.usesLeft, conveyor: { style: {}, querySelector: () => teeth } }],
       timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
       weaponStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
       displayedStuck: false, displayedState: 'playing', brickRevision: game.brickRevision, tutorial: null,

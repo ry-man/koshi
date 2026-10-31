@@ -23,6 +23,7 @@ const GUIDE = [
         `brick:${kind}`,
       ]),
       ['Keep moving', 'Cooling bricks stay solid. Use other bricks while one recharges. Brick cooldown color is independent of its slime color.'],
+      ['Cinder blocks', 'Grey concrete blocks with two recessed holes are permanently solid. Koshi stops when he runs into one, but you cannot click it to aim. They have no modifiers or contact effects, do not advance Toggle counters, and cannot be absorbed by Warped bricks.', 'special:cinder'],
     ],
   },
   {
@@ -31,6 +32,7 @@ const GUIDE = [
       ['Crumblers / C counter', 'Jagged Crumblers have limited selections. Each successful selection deepens their chips and cracks and reduces C by one. At C:0 the brick stays solid, but cannot be selected until restart. Its cooldown animation stops.', 'brick:crumbler'],
       ['Warped / W counter', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes. The first absorption starts W; further selections do not restart it.', 'brick:warped'],
       ['Restoration & combinations', 'When W expires, absorbed bricks regain their own attributes and remaining uses. A combined Warped Crumbler that reaches C:0 freezes enlarged with W:X until restart or absorption by another Warped owner.', 'brick:warped-crumbler'],
+      ['Larger starting bricks', 'In the editor, select adjacent bricks and choose an owner before Combine. The whole group shares that owner’s attributes and cooldown. Groups can cross corners; Cinder combines only with Cinder. Split retains current attributes. Warped timer restoration and restart preserve saved starting groups. A Portal group counts as one endpoint.'],
     ],
   },
   {
@@ -44,7 +46,11 @@ const GUIDE = [
       ['Springs', 'A wooden platform with grain and a dark outline covers only the arena-facing edge. It reflects Koshi immediately instead of stopping him. Little springs underneath are hidden at rest and appear only while the platform compresses and rebounds on contact. Redirect him mid-bounce to take control.', 'brick:springs'],
       ['Spikes', 'Many white triangular spikes protrude toward the arena. Touching them costs one heart and stops Koshi. Resting against them does not cause more damage; leaving and touching them again does. Swords do not protect against spikes. Levels 1-3 through 1-5 introduce them.', 'brick:spikes'],
       ['Conveyor', 'A thin grey, finely toothed belt rotates around the brick. Landing on the arena-facing edge carries Koshi in the arrow direction until the belt ends or another brick blocks him. Warped conveyors carry him around connected corners without stopping. Select another brick to steer away while riding. The editor offers clockwise and counterclockwise belts; Levels 1-3 through 1-5 include them.', 'brick:conveyor'],
-      ['Contact is not a selection', 'Slime, Springs, Spikes, and Conveyor work even on cooling or exhausted bricks. Contact does not consume cooldowns or C uses. They replace one another, but can combine with Crumbler and Warped attributes.'],
+      ['Portal pairs', 'Misty colored smoke marks paired portals: red, orange, yellow, green, blue, or purple. Touch one to emerge at the other brick center, heading straight into the arena perpendicular to its surface. A short lockout prevents immediate return loops. If its partner is absorbed or toggle-disabled, the entrance acts as a solid landing. Cooling and exhausted portals still transport. Portal is separate from the neighbor-absorbing Warped attribute.', 'special:portal'],
+      ['Toggle switches', 'The switch resembles a colored pill with a white sliding button and a countdown inside. Red starts at 1, green at 2, blue at 4. Every successful brick activation counts, including the Toggle itself. Initially disabled; at zero it enables. The next successful activation disables it and resets its countdown. Clicking a disabled or cooling brick does not count. Disabled toggles remain solid, cannot be selected, and their contact surfaces are inactive.', 'special:toggle'],
+      ['Spawning bricks', 'An item-colored icon with a thin dark outline and dark rainbow glow indicates a food, sword, robot, or heart. Sword colors distinguish brown wood, green patinated bronze, silver, and gold. Touch the brick to spawn exactly one of that item at a random safe location; clicking alone does nothing. Wheels spawn on the inner perimeter. The icon turns dark grey without a glow when used; restart restores it. Food lifetime is configured in the editor.', 'special:spawner'],
+      ['Boost launches', 'When Koshi rests physically against a Boost brick, his next successful launch travels at twice normal speed. A fireball overlays him and defeats robots like a sword without spending equipped sword charges. The boost ends when he stops or another brick is successfully selected. Failed selections do not cancel it; Spring bounces and Portal travel preserve it.', 'special:boost'],
+      ['Contact is not a selection', 'Slime, Springs, Spikes, Conveyor, Portal, Spawning, and Boost work even on cooling or exhausted bricks, but not while Toggle-disabled. Contact does not consume cooldowns or C uses. These surfaces replace one another, but can combine with Toggle, Crumbler, and Warped attributes.'],
     ],
   },
   {
@@ -111,6 +117,10 @@ const LESSONS = [
   { id: 'warnings', title: 'Spawn warnings', instruction: 'Wait for the skull, swirl, and star at 2 seconds. They reveal objects at 3 seconds. Then aim at the outlined brick to collect the snack.' },
   { id: 'pause', title: 'Pause & resume', instruction: 'Press Pause (or Escape), then Resume. The clock, movement, previews, and all brick timers freeze while paused.' },
   { id: 'objectives', title: 'Two goals to win', instruction: 'Aim at the outlined brick to collect a sword, one food, and defeat one robot. BOTH goals are required to complete this practice challenge.' },
+  { id: 'portal', title: 'Portal pairs', instruction: 'Aim at the outlined purple Portal. Koshi emerges from its partner at the center, heading straight into the arena. Matching smoke colors identify pairs.' },
+  { id: 'toggle', title: 'Toggle switches', instruction: 'The outlined red Toggle starts at 1. Successfully activate another brick to reach zero and enable it. The next successful activation, including the Toggle itself, disables it again.' },
+  { id: 'spawner', title: 'Spawning bricks', instruction: 'Aim at the outlined spawning brick and physically touch it. Its rainbow-glowing heart outline turns dark grey as one healing heart appears at a random safe location. Merely clicking is not enough.' },
+  { id: 'boost', title: 'Boost launches', instruction: 'Koshi rests against the outlined Boost. Select a brick across the board to launch at double speed in a fireball, defeating the robot on the way. Another successful selection ends the boost.' },
 ];
 
 class Tutorial {
@@ -155,6 +165,19 @@ class Tutorial {
     if (id === 'warped') this.target.warped = 8;
     if (id.startsWith('slime-')) { this.target.slimed = true; this.target.slimeColor = id.slice(6); }
     if (id === 'springs') this.target.springs = true;
+    if (id === 'portal') {
+      this.target.portal = 'purple';
+      const partner = game.bricks.filter(brick => regions.get(brick.id).edge === 'left')
+        .sort((a, b) => Math.abs(a.y + a.h / 2 - start.y) - Math.abs(b.y + b.h / 2 - start.y))[0];
+      partner.portal = 'purple';
+    }
+    if (id === 'toggle') { this.target.toggle = 1; this.target.toggleRemaining = 1; }
+    if (id === 'spawner') this.target.spawner = { kind: 'heart', type: 'heart' };
+    if (id === 'boost') {
+      this.target.boost = true;
+      game.cat.x = this.target.x - game.cat.radius;
+      game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
+    }
     if (['mouse', 'wheel', 'objectives'].includes(id)) {
       addSword();
       if (id === 'wheel') {
@@ -218,6 +241,10 @@ class Tutorial {
       warnings: this.previewSeen && game.score > 0,
       pause: this.paused && game.state === 'playing',
       objectives: game.state === 'won',
+      portal: game.portalTrips > 0,
+      toggle: this.target.toggleRemaining === 0,
+      spawner: this.target.spawned,
+      boost: game.enemies >= 1 && this.actions > 0,
     }[id] ?? (id.startsWith('slime-') && this.held && game.stuckUntil === 0);
     if (success) { this.completed.add(id); this.currentComplete = true; }
     return this.currentComplete;
