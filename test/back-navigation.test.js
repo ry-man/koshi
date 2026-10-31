@@ -52,22 +52,22 @@ function fixture({ installed = true, state = null, failure = false } = {}) {
   };
 }
 
-test('installed app Back pauses and re-arms without growing history or resuming play', () => {
+test('installed app Back re-arms without pausing, resetting frame time, or growing history', () => {
   const app = fixture({ state: { other: 'preserved' } });
   assert.equal(app.entries.length, 2);
   assert.equal(app.entries[1].other, 'preserved');
   for (let i = 0; i < 5; i++) {
     app.back();
-    assert.equal(app.game.state, 'paused');
+    assert.equal(app.game.state, 'playing');
     assert.equal(app.entries.length, 2);
     assert.equal(app.entries[1].koshiBackGuard, true);
-    assert.equal(app.context.lastTime, null);
+    assert.equal(app.context.lastTime, 123);
   }
-  assert.equal(app.syncs, 1);
-  app.game.resume();
+  assert.equal(app.syncs, 0);
+  app.game.pause();
   app.back();
   assert.equal(app.game.state, 'paused');
-  assert.equal(app.syncs, 2);
+  assert.equal(app.syncs, 0);
 });
 
 test('reload reuses the existing guard rather than adding another entry', () => {
@@ -84,12 +84,12 @@ test('browser tabs keep native Back navigation', () => {
   assert.equal(app.game.state, 'playing');
 });
 
-test('Back freezes story scenes and never starts a ready or completed level', () => {
+test('Back leaves story scenes and ready or completed levels unchanged', () => {
   const app = fixture();
   app.cutscene.active = true;
   app.game.state = 'ready';
   app.back();
-  assert.equal(app.cutscene.paused, true);
+  assert.equal(app.cutscene.paused, false);
   assert.equal(app.game.state, 'ready');
   for (const state of ['won', 'lost']) {
     app.game.state = state;

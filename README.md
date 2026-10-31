@@ -244,10 +244,10 @@ On phones held upright, the board uses portrait game coordinates with compact
 stats and controls. The board fits the available play area in both
 regular play and tutorials, with 20px of space above and below and no fixed
 5:8 display ratio.
-In the installed app, Android's Back gesture/button normally pauses play
-instead of exiting. Choose **Keep exploring** to resume; repeated Back actions
-keep the app open. This also protects tutorial play, and Back freezes story
-scenes until you continue them. Use Home or the app switcher to leave the app.
+In the installed app, Android's Back gesture/button normally has no in-game
+effect instead of exiting or pausing. Repeated Back actions keep the app open
+without interrupting gameplay, tutorials, or story scenes. Use the Pause button
+to pause, and Home or the app switcher to leave the app.
 The game uses an in-page history entry, not a system-gesture override, so this
 needs device testing and cannot guarantee interception on every Android/browser
 version. Normal browser tabs keep their usual Back navigation.

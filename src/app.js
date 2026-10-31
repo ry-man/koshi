@@ -927,7 +927,6 @@ function installBackNavigation() {
   }
   window.addEventListener('popstate', () => {
     arm();
-    autoPause();
   });
   arm();
 }
