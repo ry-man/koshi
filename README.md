@@ -251,7 +251,9 @@ regular play and tutorials, with 20px of space above and below and no fixed
 5:8 display ratio.
 In the installed app, Back protection is armed by the first real tap or key
 press. Intercepted Android Back gestures/buttons have no in-game effect:
-the game returns to the existing forward history entry without pausing gameplay,
+when the Navigation API offers a cancelable same-document traversal, the game
+cancels it before history, focus, or scroll changes, avoiding a back/forward
+round trip. Otherwise it returns to the existing forward history entry without pausing gameplay,
 tutorials, or story scenes. It never creates replacement entries during Back;
 Chromium can mark those entries skippable after a traversal without fresh input.
 Visible-window blur (including system gesture UI) does not pause the installed
@@ -259,7 +261,8 @@ game. Actually hiding the app still pauses it. Use the Pause button to pause,
 and Home or the app switcher to leave.
 This is browser-history protection, not a system-gesture override. Before the
 first interaction, or if Android/browser bypasses page history, Back can still
-close the app. Device testing is required; guaranteed OS-level blocking requires
+close the app. Browser-controlled predictive gesture visuals may still appear,
+especially when the traversal is not cancelable. Device testing is required; guaranteed OS-level blocking requires
 a native Android app. Normal browser tabs retain native Back and blur pausing.
 The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart buttons
 share one row above the stats. The level is centered in the space between the

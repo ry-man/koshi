@@ -938,6 +938,14 @@ function installBackNavigation() {
     }
   }
   let returning = false;
+  window.navigation?.addEventListener('navigate', event => {
+    if (returning || event.navigationType !== 'traverse' || !event.cancelable || !event.destination.sameDocument) return;
+    const current = history.state?.koshiBackGuard;
+    if (typeof current !== 'boolean' || event.destination.url !== window.location.href) return;
+    // Cancel before history/scroll/focus changes, rather than navigating back
+    // and forward through the browser's visual transition.
+    event.preventDefault();
+  });
   function restore() {
     if (history.state?.koshiBackGuard !== false || returning) return;
     try {

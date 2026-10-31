@@ -10,10 +10,11 @@ const { Game } = require('../src/game.js');
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
 const protection = source.slice(source.indexOf('function isInstalledApp()'), source.indexOf('\nfunction line('));
 
-function fixture({ installed = true, entries = [null], index = entries.length - 1, failure = null } = {}) {
+function fixture({ installed = true, entries = [null], index = entries.length - 1, failure = null, navigationAPI = false } = {}) {
   entries = [...entries];
   const listeners = {};
   const documentListeners = {};
+  const navigationListeners = {};
   const error = { textContent: '', hidden: true };
   const logged = [];
   let syncs = 0, pushes = 0, forwards = 0;
@@ -53,7 +54,11 @@ function fixture({ installed = true, entries = [null], index = entries.length - 
     addEventListener: listen(documentListeners),
   };
   const context = vm.createContext({
-    window: { matchMedia: () => ({ matches: installed }), addEventListener: listen(listeners) },
+    window: {
+      matchMedia: () => ({ matches: installed }), addEventListener: listen(listeners),
+      location: { href: 'https://example.test/koshi/index.html#level=custom' },
+      navigation: navigationAPI ? { addEventListener: listen(navigationListeners) } : undefined,
+    },
     navigator: {}, history, game, cutscene, document, lastTime: 123,
     syncUI: () => { syncs++; },
     console: { error: (...args) => logged.push(args) },
@@ -65,6 +70,15 @@ function fixture({ installed = true, entries = [null], index = entries.length - 
     get pushes() { return pushes; },
     get forwards() { return forwards; },
     get closed() { return closed; },
+    navigate({ url = 'https://example.test/koshi/index.html#level=custom', cancelable = true, sameDocument = true, type = 'traverse' } = {}) {
+      let canceled = false;
+      emit(navigationListeners, 'navigate', {
+        navigationType: type, cancelable,
+        destination: { sameDocument, url },
+        preventDefault() { canceled = true; },
+      });
+      return canceled;
+    },
     input(type = 'pointerdown', isTrusted = true) {
       if (isTrusted) { activated = true; skippable = false; }
       emit(listeners, type, { isTrusted });
@@ -100,6 +114,38 @@ test('guard is created by trusted input, never by startup or synthetic input', (
     app.input(type);
     assert.equal(app.pushes, 1);
   }
+});
+
+test('Navigation API cancels guarded traversals without a back/forward round trip or gameplay changes', () => {
+  const app = fixture({ navigationAPI: true });
+  app.input();
+  app.cutscene.active = true;
+  for (let i = 0; i < 20; i++) {
+    assert.equal(app.navigate(), true);
+    assert.equal(app.entries[1].koshiBackGuard, true);
+    assert.equal(app.game.state, 'playing');
+    assert.equal(app.cutscene.paused, false);
+    assert.equal(app.context.lastTime, 123);
+  }
+  assert.equal(app.forwards, 0);
+  assert.equal(app.pushes, 1);
+  assert.equal(app.syncs, 0);
+});
+
+test('Navigation API leaves unrelated navigation and uncancelable restoration to the existing fallback', () => {
+  const app = fixture({ navigationAPI: true });
+  assert.equal(app.navigate(), false, 'unarmed pages are not trapped');
+  app.input();
+  for (const options of [
+    { url: 'https://example.test/koshi/index.html#level=different' },
+    { url: 'https://example.test/editor.html' },
+    { sameDocument: false }, { type: 'push' }, { type: 'replace' }, { type: 'reload' },
+    { cancelable: false },
+  ]) assert.equal(app.navigate(options), false);
+  app.back();
+  assert.equal(app.navigate(), false, 'allow the fallback forward restoration');
+  app.finishForward();
+  assert.equal(app.game.state, 'playing');
 });
 
 test('repeated system Back reuses activated history without pausing or making entries skippable', () => {
