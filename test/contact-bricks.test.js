@@ -216,7 +216,7 @@ test('trajectory reflects from the connecting gap of larger starting trampolines
   }
 });
 
-test('trajectory uses rounded corner reflection and respects disabled trampolines and intervening spikes', () => {
+test('trajectory uses rounded corner reflection even on Toggle-disabled trampolines and respects intervening spikes', () => {
   const game = setup('springs'), brick = game.bricks[0];
   game.brickParts = () => [brick];
   const n = Math.SQRT1_2;
@@ -229,7 +229,7 @@ test('trajectory uses rounded corner reflection and respects disabled trampoline
   assert.ok(dx < 0 && dy > 0);
   assert.ok(Math.abs(dx + dy) < 1e-7);
   brick.toggle = 2; brick.toggleRemaining = 2;
-  assert.equal(game.trajectory().length, 2, 'disabled spring is a solid wall');
+  assert.deepEqual(game.trajectory(), points, 'Toggle state does not change spring reflection');
   brick.toggleRemaining = 0;
   assert.equal(game.trajectory().length, 3);
   game.bricks[1].spikes = true;

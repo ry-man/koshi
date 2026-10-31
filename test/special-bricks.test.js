@@ -289,8 +289,10 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
   test(`boost requires resting contact, doubles speed and defeats without consuming swords in ${layout}`, () => {
     const game = arena(options), boost = edgeBrick(game, 'right'), other = edgeBrick(game, 'left');
     boost.boost = true;
+    boost.toggle = 4; boost.toggleRemaining = 0;
     assert.equal(game.boostReady, false);
     assert.equal(aim(game, boost), true);
+    assert.equal(boost.toggleRemaining, 4, 'selecting the enabled Boost Toggle disables selection');
     assert.equal(game.boostReady, false, 'not ready while approaching the boost');
     assert.equal(game.boosted, false, 'clicking a boost destination alone gives no boost');
     game.update(2);
@@ -299,12 +301,11 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     game.pause(); game.update(10);
     assert.equal(game.boostReady, true, 'ready cue survives pause');
     game.resume();
-    boost.toggle = 2; boost.toggleRemaining = 2;
-    assert.equal(game.boostReady, false, 'disabled boost cannot charge a launch');
-    boost.toggleRemaining = 0;
-    assert.equal(game.boostReady, true);
-    boost.toggle = null;
+    assert.equal(brickEnabled(boost), false);
+    assert.equal(aim(game, boost), false, 'disabled Toggle still blocks selection');
+    assert.equal(game.boostReady, true, 'disabled Boost Toggle still charges a launch');
     assert.equal(aim(game, other), true);
+    assert.equal(boost.toggleRemaining, 3, 'departure leaves the Boost Toggle disabled');
     assert.equal(game.boostReady, false, 'launch clears the readiness cue');
     assert.equal(game.boosted, true);
     near(Math.hypot(game.cat.vx, game.cat.vy), SPEED * 2);
@@ -360,21 +361,55 @@ test('a Toggle activation advances its counter even when using the last Crumbler
   assert.equal(brick.toggleRemaining, 1);
 });
 
-test('toggle-disabled surfaces are neutral on contact and absorbed portal destinations are unavailable', () => {
-  for (const surface of CONTACT_SURFACES) {
-    const game = arena(), brick = edgeBrick(game, 'right');
+test('Toggle state only gates selection and all seven contact surfaces remain active', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    for (const surface of CONTACT_SURFACES) {
+      const outcomes = [];
+      for (const disabled of [false, true]) {
+        const game = arena(options), brick = edgeBrick(game, 'right');
+        brick.toggle = 2; brick.toggleRemaining = disabled ? 2 : 0;
+        brick[surface] = surface === 'portal' ? 'red' : surface === 'spawner' ? { kind: 'heart', type: 'heart' } : true;
+        if (surface === 'portal') {
+          const destination = edgeBrick(game, 'left');
+          destination.portal = 'red';
+          destination.toggle = 2; destination.toggleRemaining = disabled ? 2 : 0;
+        }
+        const exit = rest(game, brick);
+        game.cat.x += exit.nx * 30; game.cat.y += exit.ny * 30;
+        game.cat.vx = -exit.nx * SPEED; game.cat.vy = -exit.ny * SPEED;
+        const trajectory = game.trajectory();
+        game.update(.1);
+        outcomes.push({
+          cat: { ...game.cat }, hearts: game.hearts, stuckUntil: game.stuckUntil,
+          conveyorRide: game.conveyorRide, portalTrips: game.portalTrips,
+          healing: game.healing, spawned: brick.spawned, boostReady: game.boostReady, trajectory,
+        });
+        assert.equal(brick.toggleRemaining, disabled ? 2 : 0, 'contact does not count as selection');
+        if (surface === 'slimed') assert.ok(game.stuckUntil > game.elapsed);
+        if (surface === 'springs') {
+          assert.ok(game.cat.vx < 0, 'spring reflects even while disabled');
+          assert.equal(trajectory.length, 3, 'preview includes the reflection');
+        }
+        if (surface === 'spikes') assert.equal(game.hearts, 2);
+        if (surface === 'conveyor') assert.equal(game.conveyorRide.id, brick.id);
+        if (surface === 'portal') assert.equal(game.portalTrips, 1);
+        if (surface === 'spawner') assert.equal(game.healing.length, 1);
+        if (surface === 'boost') assert.equal(game.boostReady, true);
+      }
+      assert.deepEqual(outcomes[1], outcomes[0], `${surface}: Toggle state cannot change contact behavior`);
+    }
+    const game = arena(options), brick = edgeBrick(game, 'right');
     brick.toggle = 2; brick.toggleRemaining = 2;
-    brick[surface] = surface === 'portal' ? 'red' : surface === 'spawner' ? { kind: 'heart', type: 'heart' } : true;
-    assert.equal(aim(game, edgeBrick(game, 'top')), true);
-    brick.toggleRemaining = 2;
-    const exit = rest(game, brick);
-    game.cat.x += exit.nx * 10; game.cat.y += exit.ny * 10;
-    game.cat.vx = -exit.nx * SPEED; game.cat.vy = -exit.ny * SPEED;
-    game.update(.1);
-    assert.equal(game.cat.vx, 0); assert.equal(game.hearts, 3);
-    assert.equal(game.stuckUntil, 0); assert.equal(game.conveyorRide, null);
-    assert.equal(game.portalTrips, 0); assert.equal(game.healing.length, 0);
+    brick.spawner = { kind: 'heart', type: 'heart' };
+    rest(game, brick);
+    game.update(.01);
+    assert.equal(game.healing.length, 1, 'resting contact also triggers a disabled spawner');
+    game.update(.01);
+    assert.equal(game.healing.length, 1, 'spawner still fires only once');
   }
+});
+
+test('absorbed portal destinations remain unavailable', () => {
   const game = arena(), source = edgeBrick(game, 'right'), dest = edgeBrick(game, 'left');
   source.portal = dest.portal = 'red';
   dest.absorbedBy = game.bricks.find(brick => ![source.id, dest.id].includes(brick.id)).id;
@@ -629,7 +664,7 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     brick.toggle = 2; brick.toggleRemaining = 2;
     context.KoshiBrickVisuals.updateBrick(visual, brick, 0);
     assert.equal(visual.symbol.dataset.spawnReady, 'true');
-    assert.equal(visual.symbol.style.opacity, '.75');
+    assert.equal(visual.symbol.style.opacity, '1', 'Toggle state does not dim active spawners');
     brick.spawned = true;
     assert.match(specialLabel(brick), /already used/);
   }
@@ -642,7 +677,7 @@ test('shared visuals render matching portal colors, countdown switches and grey 
   assert.equal(boostVisual.symbol.dataset.spawnReady, 'false', 'Boost does not use the spawner rainbow glow');
   boost.toggle = 2; boost.toggleRemaining = 2;
   context.KoshiBrickVisuals.updateBrick(boostVisual, boost, 0);
-  assert.equal(boostVisual.symbol.style.opacity, '.2', 'disabled Boost remains dimmed');
+  assert.equal(boostVisual.symbol.style.opacity, '.8', 'Toggle state does not dim an active Boost surface');
   const compact = { x: 0, y: 0, w: 68, h: 50, crumbler: 5, usesLeft: 5, warped: 15, toggle: 4, toggleRemaining: 4 };
   const compactVisual = context.KoshiBrickVisuals.decorateBrick(node(), compact, [compact]);
   assert.equal(compactVisual.info.attributes.viewBox, '0 0 158 116');

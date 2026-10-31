@@ -515,9 +515,6 @@ function syncUI() {
     button.setAttribute('aria-disabled', String(brick.kind === 'cinder' || stuck || !brickEnabled(brick) || remaining > 1e-9 || brick.usesLeft === 0));
     if (item.special) updateBrick(item.special, brick, game.elapsed);
     if (item.special?.symbol) item.special.symbol.style.animationPlayState = game.state === 'playing' ? 'running' : 'paused';
-    for (const surface of [item.spring, item.conveyor, item.spikes]) {
-      if (surface) surface.style.opacity = brickEnabled(brick) ? '1' : '.25';
-    }
     if (brick.springs) {
       const age = brick.hitAt === null ? 1 : game.elapsed - brick.hitAt;
       const compression = age > 0 && age < .32 ? Math.sin(Math.PI * age / .32) : 0;

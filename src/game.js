@@ -1140,7 +1140,7 @@ class Game {
   get boostReady() {
     return ['playing', 'paused'].includes(this.state) && !this.cat.vx && !this.cat.vy
       && this.brickParts().some(part =>
-        this.bricks[part.id].boost && brickEnabled(this.bricks[part.id]) && this.touchingPart(part));
+        this.bricks[part.id].boost && this.touchingPart(part));
   }
 
   steer(id, x, y) {
@@ -1220,7 +1220,7 @@ class Game {
     };
     const hit = cast(x, y, vx, vy);
     const points = [[x, y], [hit.x, hit.y]];
-    if (!hit.contacts.length || !hit.contacts.every(part => this.bricks[part.id].springs && brickEnabled(this.bricks[part.id]))) {
+    if (!hit.contacts.length || !hit.contacts.every(part => this.bricks[part.id].springs)) {
       return this.target ? [[x, y], [this.target.x, this.target.y]] : points;
     }
     let reflected = { vx, vy };
@@ -1260,7 +1260,7 @@ class Game {
 
   travelPortal(brick, parts) {
     if (this.elapsed < this.portalUntil || this.portalArrival === brick.id) return false;
-    const destination = this.bricks.find(other => other.id !== brick.id && other.portal === brick.portal && other.absorbedBy === null && brickEnabled(other));
+    const destination = this.bricks.find(other => other.id !== brick.id && other.portal === brick.portal && other.absorbedBy === null);
     if (!destination) return false;
     const exit = this.portalExit(destination, parts);
     const speed = Math.hypot(this.cat.vx, this.cat.vy) || SPEED;
@@ -1275,14 +1275,14 @@ class Game {
   }
 
   spikeParts(parts) {
-    return this.bricks.filter(brick => brick.spikes && brickEnabled(brick) && brick.absorbedBy === null).flatMap(brick =>
+    return this.bricks.filter(brick => brick.spikes && brick.absorbedBy === null).flatMap(brick =>
       brickSpikes(parts.filter(part => part.id === brick.id), this.width, this.height).triangles
         .map(triangle => ({ id: brick.id, triangle })));
   }
 
   conveyorEdge(id, parts) {
     const brick = this.bricks[id];
-    if (!brick?.conveyor || !brickEnabled(brick) || brick.absorbedBy !== null) return null;
+    if (!brick?.conveyor || brick.absorbedBy !== null) return null;
     const members = parts.filter(part => part.id === id);
     const radius = this.cat.radius;
     // Offset the union before tracing it so concave corners and unequal brick thicknesses stay clear.
@@ -1881,7 +1881,7 @@ class Game {
     const parts = this.brickParts();
     if (this.portalArrival !== null && !parts.some(part => part.id === this.portalArrival && this.touchingPart(part))) this.portalArrival = null;
     for (const brick of this.bricks) {
-      if (brick.spawner && !brick.spawned && brickEnabled(brick) && brick.absorbedBy === null
+      if (brick.spawner && !brick.spawned && brick.absorbedBy === null
         && parts.some(part => part.id === brick.id && this.touchingPart(part))) this.spawnFromBrick(brick);
     }
     const ride = this.conveyorRide;
@@ -1942,22 +1942,22 @@ class Game {
     }
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
-    const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes && brickEnabled(this.bricks[part.id])).map(part => part.id));
+    const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
     if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
     for (const id of spikeIds) this.spikeTouching.add(id);
     this.combat(dt, startX, startY);
     for (const id of new Set(contacts.map(part => part.id))) {
       const brick = this.bricks[id];
-      if (brick.spawner && !brick.spawned && brickEnabled(brick)) this.spawnFromBrick(brick);
+      if (brick.spawner && !brick.spawned) this.spawnFromBrick(brick);
     }
-    const portal = contacts.map(part => this.bricks[part.id]).find(brick => brick.portal && brickEnabled(brick));
+    const portal = contacts.map(part => this.bricks[part.id]).find(brick => brick.portal);
     const teleported = portal && this.travelPortal(portal, parts);
     if (contacts.length && !teleported) {
       this.conveyorRide = null;
-      const solid = contacts.filter(part => !this.bricks[part.id].springs || !brickEnabled(this.bricks[part.id]));
+      const solid = contacts.filter(part => !this.bricks[part.id].springs);
       if (solid.length || ride) {
         cat.vx = 0; cat.vy = 0;
-        const slimes = solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed && brickEnabled(brick))
+        const slimes = solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed)
           .sort((a, b) => SLIMES[b.slimeColor ?? 'green'].duration - SLIMES[a.slimeColor ?? 'green'].duration);
         if (slimes.length) {
           this.stuckColor = slimes[0].slimeColor ?? 'green';

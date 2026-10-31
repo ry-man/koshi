@@ -186,7 +186,7 @@ Many triangular white spikes protrude from the arena-facing edge. Touching their
 
 A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); arrows show the direction on the arena-facing edge. Landing on that edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors first appear in Level 1-11. Desktop rotates their directions with the bricks.
 
-Slimed, Springs, Spikes, Conveyor, Portal, Spawning, and Boost are mutually exclusive: choosing one in the custom-level editor replaces the others. All seven can combine with any cooldown color, Toggle, Crumbler, and Warped. Contact effects work even during cooldown or after Crumbler exhaustion, but not while Toggle-disabled; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Slime starts in Level 1-6, Spikes in 1-8, Springs in 1-10, and Conveyors in 1-11. Restart clears spike contacts and restores health.
+Slimed, Springs, Spikes, Conveyor, Portal, Spawning, and Boost are mutually exclusive: choosing one in the custom-level editor replaces the others. All seven can combine with any cooldown color, Toggle, Crumbler, and Warped. Contact effects work even during cooldown, after Crumbler exhaustion, or while Toggle-disabled; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Slime starts in Level 1-6, Spikes in 1-8, Springs in 1-10, and Conveyors in 1-11. Restart clears spike contacts and restores health.
 
 ### Brick Attributes - Portal, Toggle, Spawning, and Boost
 
@@ -219,7 +219,7 @@ Portal pairs have matching red, orange, yellow, green, blue, or purple smoky
 borders. Touching one transports Koshi to its partner's center line, moving
 straight into the arena perpendicular to that partner's edge at his existing
 speed. A merged Warped portal retains its original owner's center line.
-Disabled or absorbed partners cannot receive him; a short arrival lock prevents
+Absorbed partners cannot receive him; Toggle-disabled partners still can. A short arrival lock prevents
 immediate loops. The editor allows individual or group portal edits, warning
 about unfinished pairs. Exactly two endpoints per used color are required
 before export or playtest, not during editing or draft saves. Changing an
@@ -232,8 +232,8 @@ including their own: red starts at 1, green at 2, and blue at 4.
 A dark border encloses the enlarged switch,
 and its white knob displays the remaining count in large bold type.
 At zero the brick enables; the next successful activation disables
-it and resets its count. Disabled bricks remain solid but cannot be selected
-and do not apply contact effects.
+it and resets its count. Toggle state only controls whether the brick can be
+selected; all contact effects remain active, including Boost launches.
 
 Spawning bricks show a prominent item-colored icon with a thin dark outline
 and a dark rainbow glow for their configured

@@ -148,7 +148,6 @@ function updateBrick(visual, brick, elapsed) {
   const enabled = brickEnabled(brick);
   visual.button.dataset.toggleDisabled = String(!enabled);
   if (visual.cloud) {
-    visual.cloud.style.opacity = enabled ? '1' : '.2';
     // Moving dashes jump at the closed outline's seam; breathe the fixed mist instead.
     visual.cloud.querySelector('.portal-puffs').style.opacity = String(.7 + Math.sin(elapsed * 1.5) * .1);
   }
@@ -161,7 +160,7 @@ function updateBrick(visual, brick, elapsed) {
   }
   if (visual.symbol) {
     visual.symbol.dataset.spawnReady = String(Boolean(brick.spawner && !brick.spawned));
-    visual.symbol.style.opacity = brick.boost ? enabled ? '.8' : '.2' : enabled ? '1' : '.75';
+    visual.symbol.style.opacity = brick.boost ? '.8' : '1';
   }
   if (visual.crumblerCount) visual.crumblerCount.textContent = `C:${brick.usesLeft ?? brick.crumbler}`;
   if (visual.warpCount) {

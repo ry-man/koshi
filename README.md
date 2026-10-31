@@ -254,10 +254,10 @@ starting blocks (75%) carry that feature: two doubles and one triple.
 The remaining larger block stays ordinary. Returning features remain available
 on separate bricks. The portal introduction uses four endpoints in two matching
 pairs (purple and orange), with three endpoints on larger blocks.
-When Koshi rests against an enabled Boost brick, his next valid launch is
+When Koshi rests against a Boost brick, including a Toggle-disabled one, his next valid launch is
 boost-ready: he opens his mouth wide and his eyes and mouth glow red-orange
 like the brick's flame. The cue freezes on pause and clears when he moves
-or no longer touches an enabled Boost surface; cutscene faces are unchanged.
+or no longer touches a Boost surface; cutscene faces are unchanged.
 Combined-goal progress follows the less-complete target. The final level's
 portal endpoints sit away from corners so Koshi emerges clear of every wall.
 
@@ -695,8 +695,8 @@ rounded exterior and interior corners, without seams between their segments.
   A merged Warped portal clears its enlarged surface along that same line.
   Travel retains incoming speed and Boost, but never collects or attacks along
   the teleport gap. A 0.2-second lockout prevents immediate return loops.
-  If the partner is absorbed or toggle-disabled, the entrance acts as a normal
-  solid landing. Cooldown and exhausted Crumbler selections do not disable
+  If the partner is absorbed, the entrance acts as a normal
+  solid landing. Toggle state, cooldown, and exhausted Crumbler selections do not disable
   portal contact. Create/recolor any number of endpoints while editing; warnings
   identify colors without exactly two bricks. Draft saves allow unfinished
   pairs, but export and playtest validate them. Removing or recoloring an
@@ -707,8 +707,8 @@ rounded exterior and interior corners, without seams between their segments.
   activation counts, including the Toggle itself. It starts disabled at N,
   enables at zero, then the next successful activation disables it and resets N.
   Invalid, blocked, cooling, or disabled selections do not count.
-  Disabled toggles stay solid and unselectable, and their contact surface is
-  inactive. Absorbed and exhausted toggle bricks do not advance their cycles.
+  Toggle state only controls selection: disabled toggles are unselectable, but
+  all contact surfaces still work. Absorbed and exhausted toggle bricks do not advance their cycles.
 - **Spawning:** the brick shows a prominent item-colored icon with a thin dark
   outline and a dark rainbow glow. Sword icons use the corresponding weapon colors.
   The icon represents its
@@ -721,7 +721,7 @@ rounded exterior and interior corners, without seams between their segments.
 - Swords have thin dark outlines around their blades, guards, and handles.
   Bronze uses a dark green patina, distinct from brown wood, silver, and gold.
   These colors are shared by gameplay swords, editor palettes, and spawner icons.
-- **Boost:** when Koshi is physically resting against an enabled Boost surface,
+- **Boost:** when Koshi is physically resting against a Boost surface, even if Toggle-disabled,
   his next successful launch travels at **840 game units/second**, twice his
   normal speed. A glowing fireball overlays him and defeats both robot types
   like a sword, without consuming equipped sword charges. The state ends on

@@ -165,7 +165,6 @@ canvas { display: block; width: 100%; height: 100%; }
 }
 .brick-toggle { pointer-events: none; filter: drop-shadow(0 1px 2px #0005); }
 .brick[data-toggle-disabled="true"], .editor-brick[data-toggle-disabled="true"] { --brick-fill: color-mix(in srgb, var(--brick-color) 35%, #17232c); }
-.brick[data-toggle-disabled="true"] > .brick-slime { opacity: .25; }
 .guide-special-brick { position: relative; display: inline-block; width: 160px; height: 70px; margin: 10px; background: var(--normal); border-radius: 6px; }
 .conveyor-belt { fill: none; stroke: #626b74; stroke-width: 5px; stroke-linejoin: round; }
 .conveyor-teeth { fill: #adb4ba; stroke: #303840; stroke-width: .8px; }
