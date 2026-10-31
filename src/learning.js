@@ -71,10 +71,10 @@ const GUIDE = [
       ['Damage & defeats', 'Unarmed contact costs one heart. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
       ...Object.entries(SWORDS).map(([type, sword]) => [
         sword.name,
-        type === 'gold' ? `${sword.seconds} seconds of unlimited defeats from pickup; pause freezes the timer.` : `Defeats ${sword.uses} robot${sword.uses === 1 ? '' : 's'} before breaking. Works on every enemy type.`,
+        type === 'gold' ? `${sword.seconds} seconds of unlimited attacks from pickup; pause freezes the timer.` : `${sword.uses} attack${sword.uses === 1 ? '' : 's'} before breaking. Shield hits also spend an attack. Works on every enemy type.`,
         `weapon:${type}`,
       ]),
-      ['One sword at a time', 'You cannot swap while equipped. Uncollected swords remain on the board until you can pick them up.'],
+      ['One sword at a time', 'Every collected sword replaces your current sword and resets its attack count or timer. A weaker sword can reduce your remaining attacks. Uncollected swords remain on the board.'],
     ],
   },
   {

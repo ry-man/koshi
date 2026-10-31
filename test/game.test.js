@@ -48,7 +48,7 @@ test('weapon display shows a colored icon and only remaining attacks or seconds'
   const weaponStatus = { getAttribute() { return this.label; }, setAttribute(name, value) { this.label = value; } };
   const game = { elapsed: 2, weapon: null };
   const context = vm.createContext({ game, SWORDS, weaponIcon, weaponRemaining, weaponStatus });
-  for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 10], ['gold', Infinity]]) {
+  for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 5], ['gold', Infinity]]) {
     game.weapon = { type, uses, expires: 17 };
     vm.runInContext(display, context);
     assert.equal(weaponRemaining.textContent, type === 'gold' ? '15s' : String(uses));
@@ -64,6 +64,43 @@ test('weapon display shows a colored icon and only remaining attacks or seconds'
   assert.equal(weaponRemaining.textContent, '—');
   assert.equal(weaponIcon.hidden, true);
   assert.equal(weaponStatus.label, 'Weapon: no sword equipped');
+});
+
+test('aiming draws a subtle transparent dotted line and an exact red outlined target above bricks', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const strokes = [], arcs = [], lines = [], dashes = [];
+  const makeContext = layer => new Proxy({ strokeStyle: '', lineWidth: 0 }, {
+    get(target, property) {
+      if (property in target) return target[property];
+      if (property === 'stroke') return () => strokes.push([layer, target.strokeStyle, target.lineWidth]);
+      if (property === 'arc') return (...args) => arcs.push([layer, ...args]);
+      if (property === 'setLineDash') return pattern => dashes.push([...pattern]);
+      return () => {};
+    },
+  });
+  const game = playing();
+  game.target = { x: 927.25, y: 274.75 };
+  const context = vm.createContext({
+    game, boardCtx: makeContext('board'), actorCtx: makeContext('actors'), ctx: null, trail: [],
+    drawCat() {}, line(points, color, width) { lines.push({ points, color, width }); },
+  });
+  vm.runInContext(app.slice(app.indexOf('function render(now)'), app.indexOf('\nfunction drawSpawnCue')), context);
+  context.render(0);
+  assert.deepEqual(dashes, [[5, 7], []]);
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].width, 2.5);
+  assert.equal(lines[0].color, '#d3ef8b26');
+  assert.deepEqual([...lines[0].points[1]], [game.target.x, game.target.y]);
+  assert.ok(arcs.some(([layer, x, y, radius]) => layer === 'actors' && x === game.target.x && y === game.target.y && radius === 6));
+  assert.deepEqual(strokes.filter(([layer]) => layer === 'actors'),
+    [['actors', '#080e14', 3], ['actors', '#f05252', 1.5]]);
+  const bounced = [[480, 300], [900, 200], [60, 100]];
+  game.trajectory = () => bounced;
+  lines.length = 0;
+  context.render(0);
+  assert.deepEqual(lines[0].points, bounced, 'render includes the reflected segment with unchanged styling');
+  assert.equal(lines[0].color, '#d3ef8b26');
+  assert.equal(lines[0].width, 2.5);
 });
 
 test('title screen provides accessible artwork and explicit game entry without external assets', () => {

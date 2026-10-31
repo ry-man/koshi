@@ -156,10 +156,17 @@ the board; phones keep compact controls above it without scrolling away from pla
   Campaign costs are `ceil(all available food points / 5)`, including food-spawning
   bricks, so even collecting every food creates no more than five hearts.
 - From Level 1–3, collect a sword to automatically strike robots within its reach.
-  **Wood** defeats 1 enemy, **bronze** 3, **silver** 10; **gold** lasts
-  15 seconds from pickup and has unlimited defeats during that time.
-  Koshi holds only one weapon. Other swords stay on the board until he can
-  collect them; dropped swords and hearts do not expire. Pause freezes sword time.
+  **Wood** has 1 attack, **bronze** 3, **silver** 5; **gold** lasts
+  15 seconds from pickup and has unlimited attacks during that time.
+  Shield hits also spend attacks. Each collected sword replaces the current sword
+  and resets its count or timer, even if it is weaker. Uncollected swords and
+  hearts do not expire. Pause freezes sword time.
+- The dotted aiming line is subtle and transparent (15% opacity). A small red circle
+  with a plus sign and thin black outline marks the exact clicked location,
+  drawn above the bricks so it stays visible.
+  When heading toward a trampoline, the line previews the reflected route up to
+  the next wall or trampoline. Only one bounce is predicted, including corner
+  contacts; the preview never traces a chain of bounces.
 - Defeated Robo Mice drop their ears, lose their eye color, and fade into a puff
   of smoke. Robo Wheels implode into a mini fireball. Robo Rams fold their horns,
   implode, and fade into smoke. Robo Buckets frown, flatten, and pop their bombs
@@ -200,8 +207,12 @@ brick styles, repeating useful combinations such as Warped conveyors or
 Boost with Springs. Of 21 starting blocks, 17 are standard, three are double
 (14.3%), and one is triple (4.8%). At most 20% of a level's scheduled robots
 have shields; across the campaign, red shields outnumber green, which outnumber blue.
-Ordinary steering bricks remain available. Swords precede the first robots
-from 1–3 onward. Combined-goal progress follows the less-complete target.
+Ordinary steering bricks remain available. Scheduled swords arrive at least ten
+seconds after the first robots, requiring an initial dodging phase. Food-only
+and survival missions provide just one bronze sword; combat missions generally
+provide two silver swords, or three for targets above ten enemy points.
+Combined-goal progress follows the less-complete target. The final level's
+portal endpoints sit away from corners so Koshi emerges clear of every wall.
 
 On phones held upright, the board uses portrait game coordinates with compact
 stats and controls. The board fits the available play area in both
@@ -601,8 +612,10 @@ tutorial steps. Existing campaign layouts are unchanged.
 Crumbler counts (`C:`), Warped seconds (`W:`), and Toggle switches share a
 centered information strip, arranged along the original brick's long axis.
 Any combination is supported, with item icons alongside when present. The strip
-stays on the original owner's brick at its original size as a Warped group
-grows, including around corners; it remains outside Crumbler clipping.
+keeps its original size but centers on the full starting or grown group.
+Around corners its center stays on the solid rim rather than in empty arena;
+it remains outside Crumbler clipping. Larger non-Crumbler groups have slightly
+rounded exterior and interior corners, without seams between their segments.
 `W:X` denotes a frozen, exhausted Warped Crumbler.
 
 - **Portal pairs:** matching colored smoke encloses the boundaries, with fixed

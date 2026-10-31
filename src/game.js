@@ -26,7 +26,7 @@ const SCHEDULE = [
 const SWORDS = {
   wood: { name: 'Wood Sword', color: '#b88b60', uses: 1 },
   bronze: { name: 'Bronze Sword', color: '#4f8067', uses: 3 },
-  silver: { name: 'Silver Sword', color: '#d5e0ec', uses: 10 },
+  silver: { name: 'Silver Sword', color: '#d5e0ec', uses: 5 },
   gold: { name: 'Gold Sword', color: '#f3d16b', seconds: 15 },
 };
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
@@ -144,11 +144,11 @@ const LEVELS = [
   {
     name: 'Cutlery uprising', concept: 'swords', duration: 90, killGoal: 5,
     enemies: [[10,'mouse',2],[28,'mouse',2],[48,'mouse',2],[68,'mouse',2]], bricks: [],
-    weapons: [[3,'wood'],[8,'bronze'],[24,'silver'],[52,'gold']],
+    weapons: [[20,'wood'],[38,'bronze'],[58,'silver'],[76,'gold']],
     dialogue: [
       ['tom', 'The market is closed! My mice guard the road to the farms.'],
-      ['mouse', 'Swords! Wood has 1 attack, bronze 3, silver 10; gold lasts 15 seconds. Stay out of the cat\'s reach!'],
-      ['koshi', 'Pick up a sword and I strike nearby robots automatically. I carry one at a time. Five enemy points will reopen the road, then lunch!'],
+      ['mouse', 'Swords! Wood has 1 attack, bronze 3, silver 5; gold lasts 15 seconds. Stay out of the cat\'s reach!'],
+      ['koshi', 'First I dodge, then strike! Every sword I collect replaces the old one and resets its attacks, even a weaker sword. Five enemy points, then lunch!'],
     ],
   },
   {
@@ -305,7 +305,7 @@ const LEVELS = [
   {
     name: 'A feast for the world', concept: 'portals', duration: 140, goal: 50, killGoal: 15,
     enemies: [[12,'mouse',6],[28,'wheel',4],[44,'ram',3],[60,'bucket',2],[77,'mouse',1,'blue'],[93,'wheel',1,'green'],[108,'mouse',2,'red'],[123,'bucket',2]],
-    bricks: [[4,{ portal: 'purple' }],[9,{ portal: 'purple' }],[16,{ boost: true }],[19,{ toggle: 2 }]],
+    bricks: [[4,{ portal: 'purple' }],[3,{ portal: 'purple' }],[16,{ boost: true }],[19,{ toggle: 2 }]],
     dialogue: [
       ['tom', 'My last defense: paired Portals! Touch one and you appear at the matching color on the other side.'],
       ['bucket', 'Koshi emerges moving straight into the arena at his current speed. Portal trips do not count as selections or spend brick uses.'],
@@ -330,7 +330,10 @@ const LEVELS = [
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
     heartCost: index < 3 ? Infinity : Math.ceil(foodPoints / 5),
     brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies,
-    weapons: entry.weapons ?? [[3,'silver'],[30,'silver'],[60,'gold'],[Math.min(90, entry.duration - 5),'silver']].filter(([time]) => time < entry.duration),
+    weapons: entry.weapons ?? (entry.survive || !entry.killGoal
+      ? [[entry.enemies[0][0] + 14, 'bronze']]
+      : [[entry.enemies[0][0] + 12, 'silver'], [Math.floor(entry.duration * .6), 'silver'],
+        ...(entry.killGoal > 10 ? [[entry.duration - 22, 'silver']] : [])]),
     cutscene: story(index < 10 ? 'garden' : 'workshop', entry.dialogue, cast),
   };
 });
@@ -547,6 +550,7 @@ function brickShape(parts, crumbly = false, wear = 0) {
   };
   let path = '';
   const polygon = [];
+  const loops = [];
   const normalized = ([px, py]) => `${px / w} ${py / h}`;
   while (outgoing.size) {
     const start = outgoing.keys().next().value;
@@ -586,6 +590,7 @@ function brickShape(parts, crumbly = false, wear = 0) {
       current = next;
     } while (current !== start);
     path += `M${loop.map(normalized).join('L')}Z`;
+    loops.push(loop);
     // Double back along the bridge so even-odd clipping preserves holes in a full perimeter.
     if (polygon.length) polygon.push(loop[0]);
     polygon.push(...loop);
@@ -610,7 +615,37 @@ function brickShape(parts, crumbly = false, wear = 0) {
     }
   }
   const clipPath = `polygon(evenodd, ${polygon.map(([px, py]) => `${px / w * 100}% ${py / h * 100}%`).join(', ')})`;
-  return { x, y, w, h, path, clipPath, cracks };
+  let roundedPath = path, roundedClipPath = clipPath;
+  if (!crumbly) {
+    const roundedLoops = loops.map(loop => {
+      const vertices = loop.slice(0, -1).filter((point, i, all) => {
+        const previous = all[(i + all.length - 1) % all.length], next = all[(i + 1) % all.length];
+        return (point[0] - previous[0]) * (next[1] - point[1]) !== (point[1] - previous[1]) * (next[0] - point[0]);
+      });
+      const radius = Math.min(6, Math.max(...parts.map(part => Math.min(part.w, part.h) / 4)));
+      return vertices.flatMap((point, i) => {
+        const previous = vertices[(i + vertices.length - 1) % vertices.length], next = vertices[(i + 1) % vertices.length];
+        const before = Math.hypot(previous[0] - point[0], previous[1] - point[1]);
+        const after = Math.hypot(next[0] - point[0], next[1] - point[1]);
+        const r = Math.min(radius, before / 2, after / 2);
+        const a = point.map((value, axis) => value + (previous[axis] - value) * r / before);
+        const b = point.map((value, axis) => value + (next[axis] - value) * r / after);
+        return Array.from({ length: 5 }, (_, step) => {
+          const t = step / 4;
+          return point.map((value, axis) => (1 - t) ** 2 * a[axis] + 2 * t * (1 - t) * value + t ** 2 * b[axis]);
+        });
+      });
+    });
+    roundedPath = roundedLoops.map(loop => `M${loop.map(normalized).join('L')}Z`).join('');
+    const points = [];
+    for (const loop of roundedLoops) {
+      if (points.length) points.push(loop[0]);
+      points.push(...loop, loop[0]);
+      if (points.length) points.push(points[0]);
+    }
+    roundedClipPath = `polygon(evenodd, ${points.map(([px, py]) => `${px / w * 100}% ${py / h * 100}%`).join(', ')})`;
+  }
+  return { x, y, w, h, path, clipPath, roundedPath, roundedClipPath, cracks };
 }
 
 function brickInnerEdges(parts, width, height) {
@@ -936,6 +971,11 @@ function brickNormal(x, y, brick) {
   return distance ? { x: dx / distance, y: dy / distance } : null;
 }
 
+function reflectVelocity(vx, vy, normal) {
+  const incoming = vx * normal.x + vy * normal.y;
+  return incoming < 0 ? { vx: vx - 2 * incoming * normal.x, vy: vy - 2 * incoming * normal.y } : { vx, vy };
+}
+
 function levelObjective(level) {
   if (level.survive) return `Survive for ${level.duration} seconds until the timer reaches zero`;
   const targets = [];
@@ -1100,6 +1140,45 @@ class Game {
   touchingPart(part) {
     return Math.hypot(this.cat.x - Math.max(part.x, Math.min(part.x + part.w, this.cat.x)),
       this.cat.y - Math.max(part.y, Math.min(part.y + part.h, this.cat.y))) <= this.cat.radius + 1e-6;
+  }
+
+  trajectory() {
+    const { x, y, vx, vy, radius } = this.cat;
+    const speed = Math.hypot(vx, vy);
+    if (!speed || this.conveyorRide) return this.target ? [[x, y], [this.target.x, this.target.y]] : [];
+    const parts = this.brickParts(), spikes = this.spikeParts(parts);
+    const distance = Math.hypot(this.width, this.height) * 2;
+    const cast = (x, y, vx, vy) => {
+      const dx = vx / speed * distance, dy = vy / speed * distance;
+      let contact = Math.min(1,
+        dx > 0 ? (this.width - radius - x) / dx : dx < 0 ? (radius - x) / dx : Infinity,
+        dy > 0 ? (this.height - radius - y) / dy : dy < 0 ? (radius - y) / dy : Infinity);
+      let contacts = [];
+      for (const part of parts) {
+        const t = brickContact(x, y, dx, dy, radius, part);
+        if (t < contact - 1e-9) { contact = t; contacts = [part]; }
+        else if (t <= contact + 1e-9) contacts.push(part);
+      }
+      for (const spike of spikes) {
+        const t = spikeContact(x, y, dx, dy, radius, spike.triangle);
+        if (t < contact - 1e-9) { contact = t; contacts = [spike]; }
+        else if (t <= contact + 1e-9) contacts.push(spike);
+      }
+      return { x: x + dx * contact, y: y + dy * contact, contacts };
+    };
+    const hit = cast(x, y, vx, vy);
+    const points = [[x, y], [hit.x, hit.y]];
+    if (!hit.contacts.length || !hit.contacts.every(part => this.bricks[part.id].springs && brickEnabled(this.bricks[part.id]))) {
+      return this.target ? [[x, y], [this.target.x, this.target.y]] : points;
+    }
+    let reflected = { vx, vy };
+    for (const part of hit.contacts) {
+      const normal = brickNormal(hit.x, hit.y, part);
+      if (normal) reflected = reflectVelocity(reflected.vx, reflected.vy, normal);
+    }
+    const end = cast(hit.x, hit.y, reflected.vx, reflected.vy);
+    points.push([end.x, end.y]);
+    return points;
   }
 
   spawnFromBrick(brick) {
@@ -1624,12 +1703,22 @@ class Game {
 
   combat(dt, startX, startY) {
     if (this.weapon && this.weapon.expires <= this.elapsed + 1e-9) this.weapon = null;
+    const collected = [];
+    const dx = this.cat.x - startX, dy = this.cat.y - startY, length = Math.hypot(dx, dy);
+    const reach = this.cat.radius + 14;
     this.weapons = this.weapons.filter(item => {
-      if (this.weapon || distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y) > this.cat.radius + 14) return true;
-      const sword = SWORDS[item.type];
-      this.weapon = { type: item.type, uses: sword.uses, expires: sword.seconds ? this.elapsed + sword.seconds : Infinity };
+      if (distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y) > reach) return true;
+      const x = item.x - startX, y = item.y - startY;
+      const along = length ? (x * dx + y * dy) / length : 0;
+      const across = length ? (x * dy - y * dx) / length : 0;
+      collected.push({ item, entry: Math.max(0, along - Math.sqrt(Math.max(0, reach ** 2 - across ** 2))) });
       return false;
     });
+    // Swept pickups replace the sword in encounter order, not spawn-array order.
+    for (const { item } of collected.sort((a, b) => a.entry - b.entry)) {
+      const sword = SWORDS[item.type];
+      this.weapon = { type: item.type, uses: sword.uses, expires: sword.seconds ? this.elapsed + sword.seconds : Infinity };
+    }
     const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket'].includes(enemy.type)) ? this.brickParts() : [];
     const previous = new Map(this.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y }]));
     for (const enemy of this.robots) {
@@ -1831,10 +1920,8 @@ class Game {
           const brick = this.bricks[part.id];
           const normal = brickNormal(cat.x, cat.y, part);
           if (!normal) continue;
-          const incoming = cat.vx * normal.x + cat.vy * normal.y;
-          if (incoming >= 0) continue;
-          cat.vx -= 2 * incoming * normal.x;
-          cat.vy -= 2 * incoming * normal.y;
+          if (cat.vx * normal.x + cat.vy * normal.y >= 0) continue;
+          Object.assign(cat, reflectVelocity(cat.vx, cat.vy, normal));
           brick.hitAt = this.elapsed;
           brick.hitNormal = normal;
           brick.hitPoint = { x: cat.x - normal.x * cat.radius, y: cat.y - normal.y * cat.radius };

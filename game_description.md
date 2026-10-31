@@ -9,6 +9,13 @@ The game opens on a title screen with original artwork of a heroic, sword-wieldi
 ### Overview
 Koshi is controlled by clicking locations on one of any of the "bricks" on the screen. Koshi then immediately begins traveling directly towards the specific location clicked on the brick. Bricks have a cooldown phase before Koshi can be triggered to move towards any point of the same brick once again. Koshi stops when he touches any brick. The player is able to redirect Koshi while he is still in movement by simply clicking another available brick before he stops due to touching a brick.
 
+Koshi's aiming guide uses a subtle dotted trajectory at 15% opacity.
+The exact clicked location is marked above the bricks by a small red circle
+with a plus sign and a thin black outline.
+When Koshi approaches a trampoline, the guide continues along his reflected
+route until the following wall or trampoline. It predicts only the next bounce,
+using Koshi's collision radius and the same reflection as actual movement.
+
 The game is level-based, with multiple worlds split into individual levels. Most levels are defined to last a precise amount of time, with various events/triggers designed to occur at specific times. The objective to win each level varies. Conditions for victory in the level consist of:
 
 1. Collecting enough food before time runs out
@@ -196,12 +203,14 @@ Split returns them to individual sizes with the group's current attributes.
 Starting groups persist in drafts, exports, playtests, and restart. Warped
 bricks can absorb entire groups; restoration returns every group to its
 starting combined shape instead of splitting it. A grouped Portal is one
-endpoint. Counters and portal exits remain anchored to the chosen owner.
+endpoint. Portal exits remain anchored to the chosen owner; graphics center on the group.
 
 Crumbler counts, Warped timer counts, and Toggle switches form a centered strip
 along the original brick's long axis. They can appear in any combination.
-During Warped growth the strip stays in the original owner's position and size,
-including across corners, and remains readable outside Crumbler's chipped outline.
+The strip retains its original size but centers on the full starting or grown
+brick, staying on the solid rim around corners rather than in empty arena.
+It remains readable outside Crumbler's chipped outline. Larger non-Crumbler
+bricks retain slightly rounded corners, including around turns.
 `C:` identifies remaining uses, `W:` identifies seconds, and `W:X` means frozen.
 
 Portal pairs have matching red, orange, yellow, green, blue, or purple smoky
@@ -289,13 +298,13 @@ Defeat: Any weapon defeats the bucket. It frowns, its arms fall away, and it mel
 ## Weapons
 
 ### Swords
-Swords randomly appear and do not ever disappear unless Koshi picks them up. When Koshi touches a sword, he then holds it and can use it to defeat enemies. Koshi cannot hold more than one weapon. If he already has a weapon, he cannot pick up another one until the weapon he is holding is broken. Swords either have a limit on the number of enemies or the time in which they are available. The swords come in the following colors/types:
+Swords randomly appear and do not ever disappear unless Koshi picks them up. Koshi holds one sword at a time. Every sword he touches replaces his current sword and resets its attack count or timer, even when the replacement is weaker. Shield hits also consume an attack. The swords come in the following colors/types:
 
 | Sword Type            | Description                                                                 |
 |-----------------------|-----------------------------------------------------------------------------|
 | Wood Sword            | Destroys 1 enemy then is broken                                             |
 | Bronze Sword          | Destroys 3 enemies then is broken                                           |
-| Silver Sword          | Destroys 10 enemies then is broken                                          |
+| Silver Sword          | Has 5 attacks then is broken                                                |
 | Gold Sword            | Destroys all enemies touches for 15 seconds, then is broken                 |
 
 
@@ -328,10 +337,14 @@ Hearts are disabled before 1-4. Thereafter the heart cost is
 `ceil(total possible food points / 5)`: 14 normally, 17 in 1-15.
 Even collecting all scheduled and brick-spawned food generates at most five hearts.
 
-Swords first appear in 1-3, before its first enemies: wood at 3 seconds,
-bronze at 8, silver at 24, and gold at 52. Later levels supply silver at
-3 and 30 seconds, gold at 60 where time permits, and a final silver at
-90 seconds or five seconds before the time limit, whichever is earlier.
+Swords first appear in 1-3, after its first enemies: wood at 20 seconds,
+bronze at 38, silver at 58, and gold at 76. Later combat levels supply silver
+12 seconds after their first enemies and at 60% of the time limit; targets
+above ten enemy points receive one more silver 22 seconds before the end.
+Food-only and survival levels provide just one bronze, 14 seconds after their
+first enemies. Swords are sparse and separated by at least 16 seconds.
+The final level's paired portals are away from corners, with both exits clear
+of all walls in desktop and portrait play.
 Shielded enemies start in 1-7. No more than 20% of a level's scheduled
 robots have shields; red is most common across the campaign, green rarer,
 and blue rarest. Defeat targets count enemy points, not raw robot counts.

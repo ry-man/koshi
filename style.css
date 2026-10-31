@@ -318,7 +318,7 @@ body:has(.learning-guide[open]) { overflow: hidden; }
 @media (max-width: 480px) {
   .title-actions { display: grid; grid-template-columns: 1fr 1fr; width: min(100%, 350px); }
   .title-actions .primary { grid-column: 1 / -1; }
-  .title-actions #title-levels { grid-column: 1 / -1; }
+  .title-actions #title-saves, .title-actions #title-levels { grid-column: 1 / -1; }
   .title-art { max-height: 38svh; }
   .title-secondary { padding: 10px; }
   .learning-guide { padding: 12px; gap: 10px; }

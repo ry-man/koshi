@@ -295,6 +295,7 @@ function makeBrickButtons() {
     if (brick.crumbler) button.style.clipPath = part.clipPath;
     if (merged) {
       button.classList.add('brick-merged');
+      button.style.clipPath = part.roundedClipPath;
       for (const { part: member, direction, start, scale } of recharge) {
         const surface = document.createElement('span');
         surface.className = 'brick-surface';
@@ -313,7 +314,7 @@ function makeBrickButtons() {
       svg.setAttribute('preserveAspectRatio', 'none');
       svg.setAttribute('aria-hidden', 'true');
       const path = document.createElementNS(ns, 'path');
-      path.setAttribute('d', part.path);
+      path.setAttribute('d', part.roundedPath);
       path.setAttribute('vector-effect', 'non-scaling-stroke');
       svg.append(path);
       button.append(svg);
@@ -508,7 +509,7 @@ function syncUI() {
       const shape = brickShape(members, true, wear);
       button.style.clipPath = shape.clipPath;
       button.style.setProperty('--crumbler-wear', wear);
-      for (const path of button.querySelectorAll('.brick-outline path')) path.setAttribute('d', shape.path);
+      for (const path of button.querySelectorAll('.brick-outline path')) path.setAttribute('d', shape.roundedPath);
       button.querySelector('.brick-cracks path').setAttribute('d', shape.cracks);
     }
     const remaining = Math.max(0, brick.readyAt - game.elapsed);
@@ -967,11 +968,11 @@ function render(now) {
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
   ctx.font = '10px "DM Sans", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#79918d44';
   ctx.fillText('K O S H I ’ S   Q U E S T', WIDTH / 2, HEIGHT - 67);
-  if (game.target) {
-    ctx.setLineDash([4, 8]);
-    line([[game.cat.x, game.cat.y], [game.target.x, game.target.y]], '#d3ef8b30', 1);
+  const trajectory = game.trajectory();
+  if (trajectory.length) {
+    ctx.setLineDash([5, 7]);
+    line(trajectory, '#d3ef8b26', 2.5);
     ctx.setLineDash([]);
-    ctx.strokeStyle = '#d3ef8b'; ctx.beginPath(); ctx.arc(game.target.x, game.target.y, 6, 0, Math.PI * 2); ctx.stroke();
   }
   if (game.state === 'playing' && (game.cat.vx || game.cat.vy)) {
     trail.push({ x: game.cat.x, y: game.cat.y, born: now });
@@ -1010,6 +1011,14 @@ function render(now) {
   }
   ctx = actorCtx;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  if (game.target) {
+    ctx.beginPath();
+    ctx.arc(game.target.x, game.target.y, 6, 0, Math.PI * 2);
+    ctx.moveTo(game.target.x - 4, game.target.y); ctx.lineTo(game.target.x + 4, game.target.y);
+    ctx.moveTo(game.target.x, game.target.y - 4); ctx.lineTo(game.target.x, game.target.y + 4);
+    ctx.strokeStyle = '#080e14'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = '#f05252'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
   for (const point of trail) {
     ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();

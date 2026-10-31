@@ -65,7 +65,7 @@ test('all scheduled events fire once, including late events and timeout', () => 
   const spawn = game.spawn.bind(game), spawnEnemies = game.spawnEnemies.bind(game);
   game.spawn = event => { food.push(event); spawn(event); };
   game.spawnEnemies = event => { robots.push(event); spawnEnemies(event); };
-  game.update(2.99);
+  game.update(19.99);
   assert.equal(game.weapons.length, 0);
   game.update(.02);
   assert.equal(game.weapons[0].type, 'wood');
@@ -319,12 +319,12 @@ test('each shield tier takes its full hit count, shares Koshi protection timing,
       const game = arena();
       const enemy = game.createCustomSpawn({ kind: 'enemy', type, shield, x: .5, y: .5 })[0];
       game.robots = [enemy];
-      game.weapon = { type: 'silver', uses: 10, expires: Infinity };
+      game.weapon = { type: 'silver', uses: 5, expires: Infinity };
       const initialPoints = SHIELDS[shield].hits;
       for (let hit = 1; hit <= initialPoints; hit++) {
         enemy.x = game.cat.x; enemy.y = game.cat.y;
         game.combat(0, game.cat.x, game.cat.y);
-        assert.equal(game.weapon.uses, 10 - hit);
+        assert.equal(game.weapon.uses, 5 - hit);
         if (hit === initialPoints) break;
         assert.equal(game.enemies, 0);
         assert.equal(game.enemyDeaths.length, 0);
@@ -335,7 +335,7 @@ test('each shield tier takes its full hit count, shares Koshi protection timing,
         const deadline = enemy.invulnerableUntil;
         game.elapsed = deadline - .00001;
         game.combat(0, game.cat.x, game.cat.y);
-        assert.equal(game.weapon.uses, 10 - hit, 'protected contacts do not consume sword uses');
+        assert.equal(game.weapon.uses, 5 - hit, 'protected contacts do not consume sword uses');
         assert.equal(enemy.invulnerableUntil, deadline, 'protected contacts do not extend the timer');
         game.pause();
         const progress = game.enemyDamageProgress(enemy);
@@ -362,7 +362,7 @@ test('shield hits consume wood, boosts respect protection without using swords, 
   game.combat(0, game.cat.x, game.cat.y);
   assert.equal(game.weapon, null);
   assert.equal(enemy.shield, 'green');
-  game.weapon = { type: 'silver', uses: 10, expires: Infinity };
+  game.weapon = { type: 'silver', uses: 5, expires: Infinity };
   game.boosted = true;
   game.combat(0, game.cat.x, game.cat.y);
   assert.equal(enemy.shield, 'green');
@@ -370,14 +370,14 @@ test('shield hits consume wood, boosts respect protection without using swords, 
     game.elapsed = enemy.invulnerableUntil;
     game.combat(0, game.cat.x, game.cat.y);
   }
-  assert.equal(game.weapon.uses, 10);
+  assert.equal(game.weapon.uses, 5);
   assert.equal(game.enemies, 4);
   const goalGame = new Game(() => .5, { customLevel: {
     version: 1, id: 'Shield goal', duration: 10, goal: 0, killGoal: 2, heartCost: null, brickSet: 1,
     events: [{ time: 0, kind: 'enemy', type: 'mouse', shield: 'red', x: .5, y: .5 }],
   } });
   goalGame.start();
-  goalGame.weapon = { type: 'silver', uses: 10, expires: Infinity };
+  goalGame.weapon = { type: 'silver', uses: 5, expires: Infinity };
   goalGame.update(.01);
   assert.equal(goalGame.state, 'playing');
   const target = goalGame.robots[0];
@@ -388,19 +388,26 @@ test('shield hits consume wood, boosts respect protection without using swords, 
   assert.equal(goalGame.state, 'won');
 });
 
-test('weapons cannot be swapped, and uncollected swords persist', () => {
+test('every sword replaces the current weapon and resets attacks or gold time', () => {
   const game = arena();
-  equip(game, 'wood');
-  game.weapons.push({ x: game.cat.x, y: game.cat.y, type: 'silver' });
-  game.update(1);
-  assert.equal(game.weapon.type, 'wood');
-  assert.equal(game.weapons.length, 1);
-  game.robots.push(mouse(game));
-  game.update(.001);
-  assert.equal(game.weapon, null);
-  game.update(.001);
-  assert.equal(game.weapon.type, 'silver');
-  assert.equal(game.weapons.length, 0);
+  assert.deepEqual(Object.fromEntries(Object.entries(SWORDS).map(([type, sword]) => [type, sword.uses ?? sword.seconds])),
+    { wood: 1, bronze: 3, silver: 5, gold: 15 });
+  for (const current of Object.keys(SWORDS)) {
+    for (const replacement of Object.keys(SWORDS)) {
+      equip(game, current);
+      if (current !== 'gold') game.weapon.uses = 1;
+      else game.weapon.expires = game.elapsed + 2;
+      const distant = { x: game.cat.x + 200, y: game.cat.y, type: 'gold' };
+      game.weapons.push(distant);
+      game.weapons.push({ x: game.cat.x, y: game.cat.y, type: replacement });
+      game.combat(0, game.cat.x, game.cat.y);
+      assert.equal(game.weapon.type, replacement);
+      assert.equal(game.weapon.uses, SWORDS[replacement].uses);
+      assert.equal(game.weapon.expires, replacement === 'gold' ? game.elapsed + 15 : Infinity);
+      assert.deepEqual(game.weapons, [distant], 'uncollected swords persist');
+      game.weapons = [];
+    }
+  }
 });
 
 test('every sword defeats wheels too, and swept motion collects weapons and hearts', () => {
@@ -423,6 +430,24 @@ test('every sword defeats wheels too, and swept motion collects weapons and hear
   assert.equal(game.weapon.type, 'bronze');
   assert.equal(game.hearts, 2);
   assert.equal(game.healing.length, 0);
+});
+
+test('sweeping through multiple swords equips the last encountered, even if weaker', () => {
+  for (const direction of [-1, 1]) {
+    const game = arena();
+    const startX = game.cat.x, startY = game.cat.y;
+    game.weapon = { type: 'gold', expires: 15 };
+    game.weapons = [
+      { x: startX + direction * 180, y: startY, type: 'wood' },
+      { x: startX + direction * 80, y: startY, type: 'silver' },
+    ];
+    game.cat.x += direction * 250;
+    game.combat(0, startX, startY);
+    assert.equal(game.weapon.type, 'wood');
+    assert.equal(game.weapon.uses, 1);
+    assert.equal(game.weapon.expires, Infinity);
+    assert.equal(game.weapons.length, 0);
+  }
 });
 
 test('unarmed damage happens once per contact, can recur, and can kill', () => {

@@ -34,9 +34,25 @@ function svgNode(tag, attributes = {}) {
   for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
   return node;
 }
+function brickInfoBounds(brick, members) {
+  const shape = brickShape(members);
+  const cx = shape.x + shape.w / 2, cy = shape.y + shape.h / 2;
+  if (members.some(part => cx >= part.x && cx <= part.x + part.w && cy >= part.y && cy <= part.y + part.h)) {
+    return { x: cx - brick.w / 2, y: cy - brick.h / 2, w: brick.w, h: brick.h };
+  }
+  // A corner union's bounding-box center can be empty arena, not brick.
+  const anchors = members.map(part => {
+    const inset = Math.min(part.w, part.h) / 2;
+    return { x: Math.max(part.x + inset, Math.min(part.x + part.w - inset, cx)),
+      y: Math.max(part.y + inset, Math.min(part.y + part.h - inset, cy)) };
+  });
+  const center = anchors.reduce((best, point) => Math.hypot(point.x - cx, point.y - cy) < Math.hypot(best.x - cx, best.y - cy) ? point : best);
+  return { x: center.x - brick.w / 2, y: center.y - brick.h / 2, w: brick.w, h: brick.h };
+}
 function decorateBrick(button, brick, members) {
   let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
+  const infoBounds = brickInfoBounds(brick, members);
   const vertical = brick.h > brick.w;
   if (brick.kind === 'cinder') {
     const block = svgNode('svg', { class: 'brick-cinder', viewBox: vertical ? '0 0 58 100' : '0 0 100 58', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
@@ -51,7 +67,7 @@ function decorateBrick(button, brick, members) {
     face.append(svgNode('path', { d: 'M7 22h2 M48 16h3 M48 38h2 M89 29h3 M21 51h3 M66 7h2 M74 51h3', fill: 'none', stroke: '#626c65', 'stroke-width': 1.5 }));
     if (members.length > 1) {
       const concrete = svgNode('svg', { class: 'brick-cinder', viewBox: '0 0 1 1', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
-      concrete.append(svgNode('path', { d: shape.path, fill: '#969b99', stroke: '#404946', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }));
+      concrete.append(svgNode('path', { d: shape.roundedPath, fill: '#969b99', stroke: '#404946', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }));
       for (const part of members.filter(part => part.sourceId !== undefined)) {
         const tile = svgNode('svg', { x: (part.x - shape.x) / shape.w, y: (part.y - shape.y) / shape.h,
           width: part.w / shape.w, height: part.h / shape.h, viewBox: part.h > part.w ? '0 0 58 100' : '0 0 100 58', preserveAspectRatio: 'none' });
@@ -72,7 +88,7 @@ function decorateBrick(button, brick, members) {
   const rows = slots.length - 1;
   const info = slots.length ? svgNode('svg', { class: 'brick-info', viewBox: stacked ? `0 0 158 ${58 * rows}` : vertical ? `0 0 58 ${length}` : `0 0 ${length} 58`, 'aria-hidden': 'true' }) : null;
   if (info) {
-    info.style.cssText = `left:${(brick.x - shape.x) / shape.w * 100}%;top:${(brick.y - shape.y) / shape.h * 100}%;width:${brick.w / shape.w * 100}%;height:${brick.h / shape.h * 100}%;`;
+    info.style.cssText = `left:${(infoBounds.x - shape.x) / shape.w * 100}%;top:${(infoBounds.y - shape.y) / shape.h * 100}%;width:${infoBounds.w / shape.w * 100}%;height:${infoBounds.h / shape.h * 100}%;`;
     button.append(info);
   }
   let offset = 0;
@@ -124,7 +140,7 @@ function decorateBrick(button, brick, members) {
     toggle.append(group);
     place(toggle, 'toggle');
   }
-  const visual = { button, cloud, knob, count, symbol, vertical, info, crumblerCount, warpCount };
+  const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerCount, warpCount };
   updateBrick(visual, brick, 0);
   return visual;
 }
@@ -158,7 +174,8 @@ function updateBrick(visual, brick, elapsed) {
 }
 function exposeBrickInfo(visual, container, brick, width, height) {
   if (!visual.info) return;
-  visual.info.style.cssText = `left:${brick.x / width * 100}%;top:${brick.y / height * 100}%;width:${brick.w / width * 100}%;height:${brick.h / height * 100}%;`;
+  const bounds = visual.infoBounds;
+  visual.info.style.cssText = `left:${bounds.x / width * 100}%;top:${bounds.y / height * 100}%;width:${bounds.w / width * 100}%;height:${bounds.h / height * 100}%;`;
   visual.info.dataset.id = brick.id;
   container.append(visual.info);
 }
@@ -178,7 +195,7 @@ function drawBoost(ctx, x, y, time) {
   ctx.stroke(new Path2D(FLAME));
   ctx.restore();
 }
-const api = { FLAME, spawnSymbol, spawnColor, specialLabel, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

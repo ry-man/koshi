@@ -290,6 +290,7 @@ test('merged brick outlines cover only the solid union without internal seams', 
       assert.ok(shape.w > 0 && shape.h > 0);
       assert.doesNotMatch(shape.path, /NaN|undefined|Infinity/);
       assert.equal((shape.path.match(/M/g) || []).length, count === 25 ? 2 : 1);
+      assert.equal((shape.roundedPath.match(/M/g) || []).length, count === 25 ? 2 : 1, 'rounded visuals preserve full-perimeter holes');
       let area = 0;
       for (const loop of shape.path.split('Z').filter(Boolean)) {
         const points = [...loop.matchAll(/[ML]([\d.e+-]+) ([\d.e+-]+)/g)].map(match => [Number(match[1]), Number(match[2])]);
@@ -300,6 +301,31 @@ test('merged brick outlines cover only the solid union without internal seams', 
       game.bricks[0].readyAt = 0;
       aim(game, game.bricks[0]);
     }
+  }
+});
+
+test('larger straight and corner bricks have rounded seamless visual outlines without changing collisions', () => {
+  const layouts = [
+    [{ x: 0, y: 0, w: 220, h: 22 }],
+    [{ x: 0, y: 0, w: 22, h: 220 }],
+    [{ x: 0, y: 0, w: 220, h: 22 }, { x: 0, y: 22, w: 22, h: 200 }],
+  ];
+  for (const parts of layouts) {
+    const shape = brickShape(parts);
+    assert.notEqual(shape.roundedPath, shape.path);
+    assert.notEqual(shape.roundedClipPath, shape.clipPath);
+    assert.doesNotMatch(shape.roundedPath, /NaN|Infinity|undefined/);
+    assert.equal((shape.roundedPath.match(/M/g) || []).length, 1, 'one seamless outer outline');
+    const points = [...shape.roundedPath.matchAll(/[ML]([\d.e+-]+) ([\d.e+-]+)/g)]
+      .map(([, x, y]) => [Number(x) * shape.w, Number(y) * shape.h]);
+    assert.ok(points.length >= 20, 'each corner uses multiple curved samples');
+    assert.ok(points[0][1] >= 4 && points[0][1] <= 6, 'rounded corners stay comparable to small bricks');
+    assert.ok(points.every(([x, y]) => x >= 0 && x <= shape.w && y >= 0 && y <= shape.h));
+    assert.ok(!points.some(([x, y]) => x === 0 && y === 0), 'sharp exterior corner removed');
+    assert.match(shape.path, /^M0 0L/, 'collision and inner-edge geometry stays square');
+    const crumbly = brickShape(parts, true);
+    assert.equal(crumbly.roundedPath, crumbly.path, 'crumbly chips remain unchanged');
+    assert.equal(crumbly.roundedClipPath, crumbly.clipPath);
   }
 });
 

@@ -421,7 +421,7 @@ function renderBoard() {
       focusBrick(key);
     });
     element.style.cssText = `left:${shape.x / previewGame.width * 100}%;top:${shape.y / previewGame.height * 100}%;width:${shape.w / previewGame.width * 100}%;height:${shape.h / previewGame.height * 100}%;--brick-color:${{ normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99' }[brick.kind]};background-color:var(--brick-fill, var(--brick-color))`;
-    if (brick.crumbler || merged) element.style.clipPath = shape.clipPath;
+    if (brick.crumbler || merged) element.style.clipPath = shape.roundedClipPath;
     if (merged) element.classList.add('editor-brick-merged');
     const special = decorateBrick(element, brick, members);
     if (brick.slimed || brick.springs || merged) {
@@ -432,7 +432,7 @@ function renderBoard() {
       svg.setAttribute('preserveAspectRatio', 'none');
       svg.setAttribute('aria-hidden', 'true');
       const path = document.createElementNS(ns, 'path');
-      path.setAttribute('d', shape.path);
+      path.setAttribute('d', shape.roundedPath);
       path.setAttribute('vector-effect', 'non-scaling-stroke');
       svg.append(path);
       element.append(svg);

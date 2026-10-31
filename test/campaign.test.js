@@ -102,7 +102,9 @@ test('goals are attainable, schedules ordered, shields rare, and all food genera
       assert.ok(timeline.every(([time], i) => time >= 0 && time < level.duration && (!i || time >= timeline[i - 1][0])), level.id);
     }
     if (index >= 2) {
-      assert.ok(level.weapons[0][0] < level.enemies[0][0]);
+      assert.ok(level.weapons[0][0] >= level.enemies[0][0] + 10, `${level.id}: dodge before swords`);
+      assert.ok(level.weapons.length <= (index === 2 ? 4 : level.killGoal > 10 ? 3 : level.killGoal ? 2 : 1), `${level.id}: sparse swords`);
+      assert.ok(level.weapons.every(([time], i) => !i || time - level.weapons[i - 1][0] >= 16), `${level.id}: space out swords`);
       assert.ok(level.weapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0) >= level.killGoal);
     }
     const game = new Game(() => .5, { level: index });
@@ -116,6 +118,25 @@ test('goals are attainable, schedules ordered, shields rare, and all food genera
   }
   assert.deepEqual([...objectives].sort(), ['both', 'enemies', 'food', 'survival']);
   assert.ok(shields.red > shields.green && shields.green > shields.blue);
+});
+
+test('both final-level portal exits clear every wall in desktop and portrait', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .6 }]) {
+    const game = new Game(() => .5, { level: LEVELS.length - 1, ...options });
+    game.start();
+    const portals = game.bricks.filter(brick => brick.portal && brick.absorbedBy === null);
+    assert.equal(portals.length, 2);
+    const parts = game.brickParts();
+    for (const destination of portals) {
+      const source = portals.find(brick => brick !== destination);
+      game.portalUntil = 0; game.portalArrival = null;
+      assert.equal(game.travelPortal(source, parts), true);
+      assert.ok(!parts.some(part => game.touchingPart(part)), 'Koshi emerges clear of all walls');
+      const exit = { x: game.cat.x, y: game.cat.y };
+      game.update(.05);
+      assert.ok(Math.hypot(game.cat.x - exit.x, game.cat.y - exit.y) > 10, 'Koshi moves into the arena instead of sticking');
+    }
+  }
 });
 
 test('survival never wins early, food-only and enemy-only use only their own target', () => {

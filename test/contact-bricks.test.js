@@ -149,6 +149,97 @@ test('spring rounded corners reflect about the corner normal', () => {
   assert.ok(Math.abs(game.cat.vy - n * SPEED) < 1e-7);
 });
 
+test('trajectory predicts one oblique trampoline bounce on each side without changing game state', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const base = new Game(() => .99, options);
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+      const ids = [...brickRegions(base.bricks, base.width, base.height)].filter(([, region]) => region.edge === edge).map(([id]) => id);
+      const game = setup('springs', options, ids[Math.floor(ids.length / 2)]);
+      const brick = game.bricks[ids[Math.floor(ids.length / 2)]];
+      const { nx, ny, inward } = approach(game, brick, 100);
+      game.target = { x: brick.x + brick.w / 2, y: brick.y + brick.h / 2 };
+      brick.readyAt = 50;
+      const snapshot = structuredClone({ cat: game.cat, bricks: game.bricks, target: game.target, elapsed: game.elapsed });
+      const points = game.trajectory();
+      assert.equal(points.length, 3, 'incoming segment plus only one reflected segment');
+      assert.deepEqual(points[0], [game.cat.x, game.cat.y]);
+      assert.deepEqual({ cat: game.cat, bricks: game.bricks, target: game.target, elapsed: game.elapsed }, snapshot);
+      const dx = points[2][0] - points[1][0], dy = points[2][1] - points[1][1];
+      const length = Math.hypot(dx, dy);
+      assert.ok(length > 10);
+      assert.ok(Math.abs(dx / length - (nx * inward - ny * 100) / SPEED) < 1e-7);
+      assert.ok(Math.abs(dy / length - (ny * inward + nx * 100) / SPEED) < 1e-7);
+      game.update(.1);
+      assert.ok(Math.abs(game.cat.vx / SPEED - dx / length) < 1e-7);
+      assert.ok(Math.abs(game.cat.vy / SPEED - dy / length) < 1e-7);
+      game.cat.x = points[2][0]; game.cat.y = points[2][1];
+      assert.ok(game.brickParts().some(part => game.touchingPart(part)), 'preview stops at the next wall');
+    }
+  }
+});
+
+test('trajectory ends at a second trampoline and does not trace an infinite bounce loop', () => {
+  const game = setup('springs');
+  for (const brick of game.bricks) brick.springs = true;
+  const right = [...brickRegions(game.bricks, game.width, game.height)].filter(([, region]) => region.edge === 'right').map(([id]) => id);
+  const brick = game.bricks[right[Math.floor(right.length / 2)]];
+  approach(game, brick);
+  game.target = { x: brick.x + brick.w / 2, y: brick.y + brick.h / 2 };
+  const points = game.trajectory();
+  assert.equal(points.length, 3);
+  assert.ok(points[2][0] < points[1][0]);
+  assert.equal(points[2][1], points[1][1]);
+  game.cat.x = points[2][0]; game.cat.y = points[2][1];
+  assert.ok(game.brickParts().some(part => part.id !== brick.id && game.touchingPart(part)));
+  game.cat.vx = 0; game.cat.vy = 0; game.target = null;
+  assert.deepEqual(game.trajectory(), [], 'no prediction at rest');
+});
+
+test('trajectory reflects from the connecting gap of larger starting trampolines in both layouts', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const base = setup('springs', options, 4);
+    const game = new Game(() => .99, { ...options, customLevel: {
+      ...base.customLevel, brickGroups: [{ owner: 4, members: [4, 6] }],
+    } });
+    game.start();
+    const brick = game.bricks[4];
+    const bridge = game.brickParts().find(part => part.id === 4 && part.afterId !== undefined);
+    assert.ok(bridge);
+    const { nx, ny } = approach(game, brick);
+    if (nx) game.cat.y = bridge.y + bridge.h / 2;
+    else game.cat.x = bridge.x + bridge.w / 2;
+    const points = game.trajectory();
+    assert.equal(points.length, 3);
+    assert.ok((points[2][0] - points[1][0]) * nx + (points[2][1] - points[1][1]) * ny > 0);
+    game.update(.05);
+    assert.ok(game.cat.vx * nx + game.cat.vy * ny > 0, 'real movement reflects from the same gap');
+  }
+});
+
+test('trajectory uses rounded corner reflection and respects disabled trampolines and intervening spikes', () => {
+  const game = setup('springs'), brick = game.bricks[0];
+  game.brickParts = () => [brick];
+  const n = Math.SQRT1_2;
+  game.cat.x = brick.x - n * (game.cat.radius + 10);
+  game.cat.y = brick.y + brick.h + n * (game.cat.radius + 10);
+  game.cat.vx = n * SPEED; game.cat.vy = -n * SPEED;
+  const points = game.trajectory();
+  assert.equal(points.length, 3);
+  const dx = points[2][0] - points[1][0], dy = points[2][1] - points[1][1];
+  assert.ok(dx < 0 && dy > 0);
+  assert.ok(Math.abs(dx + dy) < 1e-7);
+  brick.toggle = 2; brick.toggleRemaining = 2;
+  assert.equal(game.trajectory().length, 2, 'disabled spring is a solid wall');
+  brick.toggleRemaining = 0;
+  assert.equal(game.trajectory().length, 3);
+  game.bricks[1].spikes = true;
+  game.spikeParts = () => [{ id: 1, triangle: [
+    [game.cat.x + 2, game.cat.y - 2], [game.cat.x + 8, game.cat.y - 2], [game.cat.x + 2, game.cat.y - 8],
+  ] }];
+  game.cat.radius = 1;
+  assert.equal(game.trajectory().length, 2, 'intervening spikes stop the route before a bounce');
+});
+
 test('repeated spring bounces preserve motion and allow mid-flight steering', () => {
   for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .65 }]) {
     const game = setup('springs', options);

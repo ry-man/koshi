@@ -579,7 +579,8 @@ test('shared visuals render matching portal colors, countdown switches and grey 
       assert.equal(merged.info.children.length, [1, 2, 4].filter(bit => mask & bit).length);
       const container = node();
       context.KoshiBrickVisuals.exposeBrickInfo(merged, container, brick, 960, 600);
-      assert.equal(merged.info.style.cssText, `left:${20 / 960 * 100}%;top:${20 / 600 * 100}%;width:${brick.w / 960 * 100}%;height:${brick.h / 600 * 100}%;`);
+      const bounds = merged.infoBounds;
+      assert.equal(merged.info.style.cssText, `left:${bounds.x / 960 * 100}%;top:${bounds.y / 600 * 100}%;width:${brick.w / 960 * 100}%;height:${brick.h / 600 * 100}%;`);
       context.KoshiBrickVisuals.updateBrick(merged, brick, 4);
       if (mask & 1) assert.equal(merged.crumblerCount.textContent, 'C:3');
       if (mask & 2) assert.equal(merged.warpCount.textContent, 'W:8');
@@ -635,4 +636,27 @@ test('shared visuals render matching portal colors, countdown switches and grey 
   assert.equal(compactVisual.info.children[0].attributes.y, '0');
   assert.equal(compactVisual.info.children[1].attributes.y, '58');
   assert.equal(compactVisual.info.children[2].attributes.x, '64');
+});
+
+test('special graphics center on the full starting or grown brick, including corner unions', () => {
+  const { brickInfoBounds } = require('../src/brick-visuals.js');
+  for (const vertical of [false, true]) {
+    const brick = { x: 20, y: 20, w: vertical ? 22 : 100, h: vertical ? 100 : 22 };
+    const members = [brick, { x: vertical ? 20 : 120, y: vertical ? 120 : 20, w: brick.w, h: brick.h }];
+    const bounds = brickInfoBounds(brick, members);
+    assert.equal(bounds.x + bounds.w / 2, vertical ? 31 : 120);
+    assert.equal(bounds.y + bounds.h / 2, vertical ? 120 : 31);
+    assert.equal(bounds.w, brick.w);
+    assert.equal(bounds.h, brick.h);
+  }
+  const game = arena(), brick = game.bricks[0];
+  brick.warped = 30;
+  for (let count = 0; count < 7; count++) game.absorbNeighbor(brick);
+  const members = game.brickParts().filter(part => part.id === brick.id);
+  const bounds = brickInfoBounds(brick, members);
+  const x = bounds.x + bounds.w / 2, y = bounds.y + bounds.h / 2;
+  assert.ok(members.some(part => x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h),
+    'the center marker stays on solid brick, never in the empty center of an L');
+  assert.ok(Math.hypot(x - (brick.x + brick.w / 2), y - (brick.y + brick.h / 2)) > 20,
+    'growth moves the graphics away from the initial owner');
 });
