@@ -343,13 +343,20 @@ Hearts are disabled before 1-4. Thereafter the heart cost is
 Even collecting all scheduled and brick-spawned food generates at most five hearts.
 
 Swords first appear in 1-3, after its first enemies: wood at 20 seconds,
-bronze at 38, silver at 58, and gold at 76. Later combat levels supply silver
-12 seconds after their first enemies and at 60% of the time limit; targets
-above ten enemy points receive one more silver 22 seconds before the end.
+bronze at 38, silver at 58, and gold at 76. Later unshielded combat levels supply
+silver 12 seconds after their first enemies and at 60% of the time limit.
+Shielded enemy-goal missions budget the target plus 50% spare attacks (at least
+five), plus the strongest shield's possible unfinished damage, rounded up to
+whole silver swords. They arrive evenly from 12 seconds after the first enemies
+until 25 seconds before timeout. Levels 1-11 and 1-12 supply three and four
+silvers respectively, leaving room for shield hits that have not yet earned points.
 Food-only and survival levels provide just one bronze, 14 seconds after their
-first enemies. Swords are sparse and separated by at least 16 seconds.
+first enemies, except 1-10, which provides a silver at 28 seconds.
+Level 1-17 provides five silvers at 24/48/65/82/105 seconds for 25 attacks.
+Swords are separated by at least 16 seconds.
 The Boost introduction in 1-14 is the exception: no weapons are supplied;
-its 12-enemy-point target must be met using Boost launches.
+its 12-enemy-point target must be met using Boost launches, with an extended
+140-second limit.
 Special-brick introductions provide at least three separate instances away from
 corner segments. Three of four larger starting blocks (75%) use the introduced
 feature: two doubles and one triple; the fourth larger block stays ordinary.

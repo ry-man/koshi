@@ -212,7 +212,7 @@ the board; phones keep compact controls above it without scrolling away from pla
 | 1–11 | Sushi assembly line | Conveyors | 120s | 35 food + 8 enemy points |
 | 1–12 | The folding pantry | Warped bricks | 120s | 10 enemy points |
 | 1–13 | Ram through the granary | Robo Rams | 120s | 40 food + 9 enemy points |
-| 1–14 | Fast-food rescue | Boost | 120s | 12 enemy points |
+| 1–14 | Fast-food rescue | Boost | 140s | 12 enemy points |
 | 1–15 | Snack dispensary | Spawners | 120s | 45 food + 10 enemy points |
 | 1–16 | Buckets at the bakery | Robo Buckets | 75s | Survive |
 | 1–17 | Cinder soup factory | Cinder | 130s | 45 food + 12 enemy points |
@@ -228,10 +228,21 @@ robots have shields. Red shields start in 1–7, green in 1–12, and blue in 1�
 later missions field more shielded robots and more of the stronger colors.
 Ordinary steering bricks remain available. Scheduled swords arrive at least ten
 seconds after the first robots, requiring an initial dodging phase. Food-only
-and survival missions provide just one bronze sword; combat missions generally
-provide two silver swords, or three for targets above ten enemy points.
+and survival missions provide just one bronze sword, except 1–10's silver
+at 28 seconds to help with shielded wheels. Unshielded combat missions
+generally provide two silver swords. Shielded enemy-goal missions supply enough
+silver attacks for the target plus 50% spare attacks (at least one extra sword's
+five attacks), plus the strongest shield's possible unfinished damage.
+Replacement swords are spaced throughout the level, starting 12 seconds after
+the first robots and ending 25 seconds before timeout. Level 1–11 supplies
+three silvers at 24/60/95 seconds (15 attacks for 8 points); Level 1–12 supplies
+four at 24/48/71/95 seconds (20 attacks for 10 points).
 **Level 1–14 (Boost introduction) supplies no weapons**: players must use
-Boost launches to defeat robots and meet its 12-enemy-point goal.
+Boost launches to defeat robots and meet its 12-enemy-point goal, with a
+140-second limit (20 seconds of extra practice time).
+Level 1–17 has an additional reserve silver: five at 24/48/65/82/105 seconds,
+providing 25 attacks for 12 enemy points. Nearby drops are shifted slightly
+to retain at least 16 seconds between swords.
 Special-brick introduction levels have at least three separate instances of
 the new feature, all away from corner segments. Three of the four larger
 starting blocks (75%) carry that feature: two doubles and one triple.

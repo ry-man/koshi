@@ -29,6 +29,7 @@ const SWORDS = {
   silver: { name: 'Silver Sword', color: '#d5e0ec', uses: 5 },
   gold: { name: 'Gold Sword', color: '#f3d16b', seconds: 15 },
 };
+const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
 const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost'];
 
@@ -214,6 +215,7 @@ const LEVELS = [
   },
   {
     name: 'Pancake trampoline', concept: 'springs', duration: 110, goal: 40,
+    weapons: [[28,'silver']],
     enemies: [[14,'mouse',3],[35,'wheel',3,'red'],[62,'mouse',3],[85,'wheel',2,'red']],
     bricks: [[4,{ springs: true }],[9,{ springs: true }],[16,{ spikes: true }]],
     dialogue: [
@@ -253,7 +255,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Fast-food rescue', concept: 'boost', duration: 120, killGoal: 12,
+    name: 'Fast-food rescue', concept: 'boost', duration: 140, killGoal: 12,
     weapons: [],
     enemies: [[12,'ram',2],[28,'mouse',4],[45,'wheel',3,'red'],[62,'mouse',3,'green'],[80,'ram',3,'green'],[98,'wheel',2]],
     bricks: [[4,{ boost: true }],[9,{ boost: true }],[19,{ conveyor: true }],[16,{ springs: true }]],
@@ -285,6 +287,7 @@ const LEVELS = [
   },
   {
     name: 'Cinder soup factory', concept: 'cinder', duration: 130, goal: 45, killGoal: 12,
+    weapons: [[24,'silver'],[48,'silver'],[65,'silver'],[82,'silver'],[105,'silver']],
     enemies: [[12,'bucket',2],[28,'mouse',4,'red'],[45,'wheel',3,'green'],[63,'ram',2],[80,'mouse',3,'green'],[98,'bucket',2,'green'],[115,'wheel',3]],
     bricks: [[4,{ kind: 'cinder' }],[9,{ kind: 'cinder' }],[16,{ boost: true }],[19,{ springs: true }]],
     dialogue: [
@@ -358,12 +361,20 @@ const LEVELS = [
     ...entry.dialogue.map(([speaker]) => speaker).filter(speaker => !['koshi', 'tom'].includes(speaker)),
     ...entry.enemies.map(([, type]) => type),
   ])].slice(0, 2);
+  const shieldedObjective = entry.killGoal > 0 && entry.enemies.some(([, , , shield]) => shield);
+  const unfinishedShieldHits = Math.max(0, ...entry.enemies.map(([, , , shield]) => (SHIELDS[shield]?.hits ?? 1) - 1));
+  // Leave 50% spare attacks (at least one sword), plus damage sunk into an unfinished shield.
+  const attackBudget = (entry.killGoal ?? 0) + Math.max(5, Math.ceil((entry.killGoal ?? 0) / 2)) + unfinishedShieldHits;
+  const swordCount = Math.ceil(attackBudget / SWORDS.silver.uses);
+  const bufferedWeapons = shieldedObjective ? Array.from({ length: swordCount }, (_, i) => [
+    Math.round(entry.enemies[0][0] + 12 + i * (entry.duration - 25 - entry.enemies[0][0] - 12) / (swordCount - 1)), 'silver',
+  ]) : null;
   return {
     id: `1-${index + 1}`, name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
     heartCost: index < 3 ? Infinity : Math.ceil(foodPoints / 5),
     brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies,
-    weapons: entry.weapons ?? (entry.survive || !entry.killGoal
+    weapons: entry.weapons ?? bufferedWeapons ?? (entry.survive || !entry.killGoal
       ? [[entry.enemies[0][0] + 14, 'bronze']]
       : [[entry.enemies[0][0] + 12, 'silver'], [Math.floor(entry.duration * .6), 'silver'],
         ...(entry.killGoal > 10 ? [[entry.duration - 22, 'silver']] : [])]),
@@ -377,8 +388,6 @@ function portalPairIssues(bricks) {
     return count === 0 || count === 2 ? [] : [`${color} portals: ${count} brick${count === 1 ? '' : 's'}; exactly two required.`];
   });
 }
-
-const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 
 function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
   const fail = message => { throw new TypeError(message); };

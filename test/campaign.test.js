@@ -138,7 +138,9 @@ test('goals are attainable, schedules ordered, shields escalate, and all food ge
     }
     if (index >= 2 && level.concept !== 'boost') {
       assert.ok(level.weapons[0][0] >= level.enemies[0][0] + 10, `${level.id}: dodge before swords`);
-      assert.ok(level.weapons.length <= (index === 2 ? 4 : level.killGoal > 10 ? 3 : level.killGoal ? 2 : 1), `${level.id}: sparse swords`);
+      if (!shieldedCount || !level.killGoal) {
+        assert.ok(level.weapons.length <= (index === 2 ? 4 : level.killGoal ? 2 : 1), `${level.id}: introductory sword supply`);
+      }
       assert.ok(level.weapons.every(([time], i) => !i || time - level.weapons[i - 1][0] >= 16), `${level.id}: space out swords`);
       assert.ok(level.weapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0) >= level.killGoal);
     }
@@ -153,6 +155,34 @@ test('goals are attainable, schedules ordered, shields escalate, and all food ge
   }
   assert.deepEqual([...objectives].sort(), ['both', 'enemies', 'food', 'survival']);
   assert.ok(shields.red > shields.green && shields.green > shields.blue);
+});
+
+test('shielded enemy objectives have spare attack capacity and timely replacement swords', () => {
+  for (const level of LEVELS) {
+    if (!level.killGoal || level.concept === 'boost' || !level.enemies.some(([, , , shield]) => shield)) continue;
+    const unfinished = Math.max(...level.enemies.map(([, , , shield]) => (SHIELDS[shield]?.hits ?? 1) - 1));
+    const minimum = level.killGoal + Math.max(5, Math.ceil(level.killGoal / 2)) + unfinished;
+    const attacks = level.weapons.reduce((sum, [, type]) => sum + (SWORDS[type].uses ?? 0), 0);
+    assert.ok(attacks >= minimum, `${level.id}: target plus spare sword and unfinished shield damage`);
+    assert.ok(attacks < minimum + SWORDS.silver.uses * (level.id === '1-17' ? 2 : 1), `${level.id}: bounded reserve including the Cinder extra sword`);
+    assert.ok(level.weapons.at(-1)[0] <= level.duration - 25, `${level.id}: time to use the reserve`);
+    const earlyAttacks = level.weapons.filter(([time]) => time <= level.duration * .65)
+      .reduce((sum, [, type]) => sum + SWORDS[type].uses, 0);
+    assert.ok(earlyAttacks >= level.killGoal, `${level.id}: enough attacks before the final third`);
+  }
+  assert.deepEqual(LEVELS[10].weapons, [[24, 'silver'], [60, 'silver'], [95, 'silver']]);
+  assert.deepEqual(LEVELS[11].weapons, [[24, 'silver'], [48, 'silver'], [71, 'silver'], [95, 'silver']]);
+});
+
+test('targeted difficulty relief improves Springs and Cinder weapon supply and gives Boost more time', () => {
+  assert.deepEqual(LEVELS[9].weapons, [[28, 'silver']]);
+  assert.equal(LEVELS[9].goal, 40);
+  assert.deepEqual(LEVELS[16].weapons, [[24, 'silver'], [48, 'silver'], [65, 'silver'], [82, 'silver'], [105, 'silver']]);
+  assert.equal(LEVELS[16].weapons.reduce((sum, [, type]) => sum + SWORDS[type].uses, 0), 25);
+  assert.equal(LEVELS[16].killGoal, 12);
+  assert.equal(LEVELS[13].duration, 140);
+  assert.equal(LEVELS[13].killGoal, 12);
+  assert.deepEqual(LEVELS[13].weapons, []);
 });
 
 test('the Boost introduction requires boost defeats and supplies no weapons', () => {
