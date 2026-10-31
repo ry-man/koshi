@@ -743,6 +743,7 @@ class Game {
     this.pickups = [];
     this.foodId = 0;
     this.robots = [];
+    this.enemyDeaths = [];
     this.weapons = [];
     this.healing = [];
     this.spikeTouching = new Set();
@@ -1085,6 +1086,7 @@ class Game {
       const distance = distanceToSegment(0, 0, startX - oldX, startY - oldY, this.cat.x - enemy.x, this.cat.y - enemy.y);
       if (this.weapon && distance <= this.cat.radius + enemy.radius + 18) {
         this.enemies++;
+        this.enemyDeaths.push({ ...enemy, deathProgress: 0 });
         if (Number.isFinite(this.weapon.uses) && --this.weapon.uses === 0) this.weapon = null;
         return false;
       }
@@ -1101,8 +1103,17 @@ class Game {
     });
   }
 
+  updateEnemyDeaths(seconds) {
+    this.enemyDeaths = this.enemyDeaths.filter(enemy => {
+      enemy.deathProgress += seconds / (enemy.type === 'mouse' ? 1.1 : .7);
+      return enemy.deathProgress < 1 - 1e-9;
+    });
+  }
+
   update(seconds) {
-    if (this.state !== 'playing' || !Number.isFinite(seconds) || seconds <= 0) return;
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    if (this.state === 'won' || this.state === 'lost') this.updateEnemyDeaths(seconds);
+    if (this.state !== 'playing') return;
     let remaining = Math.min(seconds, this.level.duration - this.elapsed);
     while (remaining > 1e-9 && this.state === 'playing') {
       let dt = Math.min(remaining, 1 / 120);
@@ -1119,6 +1130,7 @@ class Game {
   }
 
   tick(dt) {
+    this.updateEnemyDeaths(dt);
     this.elapsed = Math.min(this.level.duration, this.elapsed + dt);
     if (this.stuckUntil && this.stuckUntil <= this.elapsed + 1e-9) {
       this.releasedAt = this.stuckUntil;

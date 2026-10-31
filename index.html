@@ -16,6 +16,7 @@
     <script defer src="./src/game.js"></script>
     <script defer src="./src/cutscene.js"></script>
     <script defer src="./src/learning.js"></script>
+    <script defer src="./src/saves.js"></script>
     <script defer src="./src/app.js"></script>
     <script defer src="./src/pwa.js"></script>
   </head>
@@ -55,14 +56,30 @@
         <p id="title-tagline">A little cat. A big appetite. A world worth saving.</p>
         <div class="title-actions">
           <button id="title-start" class="primary" type="button" autofocus>Start adventure <span aria-hidden="true">→</span></button>
+          <button id="title-saves" class="title-secondary" type="button" aria-haspopup="dialog">Save slots</button>
           <button id="title-levels" class="title-secondary" type="button">Choose a level</button>
           <button id="title-help" class="title-secondary" type="button" aria-haspopup="dialog">How to play</button>
           <button id="title-tutorial" class="title-secondary" type="button">Tutorial</button>
           <button class="title-secondary" id="install-button" type="button" aria-haspopup="dialog">📲 Install app</button>
         </div>
+        <p id="save-profile">Guest play - progress is not saved.</p>
+        <p id="save-title-error" class="error" role="alert" hidden></p>
+        <button id="save-title-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
         <label class="menu-level-select" for="level-select">Level
           <select id="level-select"><option value="0">1–1 · First steps</option><option value="1">1–2 · Robo trouble</option><option value="2">1–3 · Crumb patrol</option><option value="3">1–4 · Slime circuit</option><option value="4">1–5 · Warped showdown</option></select>
         </label>
+      </div>
+    </dialog>
+    <dialog id="save-slots" class="install-dialog" aria-labelledby="save-heading" aria-describedby="save-help">
+      <h2 id="save-heading">Campaign save slots</h2>
+      <p id="save-help">Choose a slot and an owner name. Completed campaign levels save automatically in this browser. Continue starts at your first unfinished level, not mid-level.</p>
+      <p id="save-menu-error" class="error" role="alert" hidden></p>
+      <button id="save-menu-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
+      <button id="save-discard" class="title-secondary" type="button" hidden>Discard unsaved wins</button>
+      <div id="save-slot-list"></div>
+      <div class="save-actions">
+        <button id="save-guest" class="title-secondary" type="button">Play as guest</button>
+        <button id="save-close" class="title-secondary" type="button">Back to menu</button>
       </div>
     </dialog>
     <main>
@@ -78,6 +95,9 @@
       </section>
       <section class="game-shell" aria-label="Koshi's Quest game">
         <p id="level-error" class="error" role="alert" hidden></p>
+        <p id="save-status" role="status">Guest play - progress is not saved.</p>
+        <p id="save-error" class="error" role="alert" hidden></p>
+        <button id="save-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
         <div class="game-controls">
           <div class="loadout"><a class="brand" href="./" aria-label="Koshi's Quest home"><span class="brand-mark">K</span><span class="brand-name">KOSHI'S QUEST</span></a><div class="level-status"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div></div>
           <div class="game-toolbar">

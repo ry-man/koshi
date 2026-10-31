@@ -3,6 +3,7 @@
 
 const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, FOODS, CONVEYOR_SPEED, validateCustomLevel, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
+const { SaveSlots } = globalThis.KoshiSaves;
 
 let game;
 const canvas = document.querySelector('#canvas');
@@ -26,6 +27,11 @@ const status = document.querySelector('#game-status');
 const toast = document.querySelector('#toast');
 const levelSelect = document.querySelector('#level-select');
 const titleScreen = document.querySelector('#title-screen');
+const saveDialog = document.querySelector('#save-slots');
+const saves = new SaveSlots(LEVELS.map(level => level.id));
+let activeSave = null;
+let runSave = null;
+const pendingSaves = [];
 const weaponStatus = document.querySelector('#weapon-status');
 const weaponIcon = document.querySelector('#weapon-icon');
 const weaponRemaining = document.querySelector('#weapon-remaining');
@@ -80,6 +86,183 @@ function createGame() {
     customLevel: levelSelect.value === 'custom' ? customLevel : null,
   });
 }
+
+function saveError(message) {
+  for (const id of ['#save-error', '#save-title-error', '#save-menu-error']) {
+    const element = document.querySelector(id);
+    element.textContent = message;
+    element.hidden = !message;
+  }
+  for (const id of ['#save-retry', '#save-title-retry', '#save-menu-retry']) {
+    document.querySelector(id).hidden = !pendingSaves.length;
+  }
+  document.querySelector('#save-discard').hidden = !pendingSaves.length;
+}
+
+function saveAttempt(action) {
+  try {
+    action();
+    if (!pendingSaves.length) saveError('');
+    return true;
+  } catch (error) {
+    console.error('Campaign save:', error);
+    saveError(`${pendingSaves.length ? 'Progress has not been saved. Keep this page open and retry, or discard unsaved wins in Save slots. ' : 'Save action failed. '}${error.message}`);
+    return false;
+  }
+}
+
+function saveProgress(slot) {
+  const next = saves.nextLevel(slot);
+  return slot.completed.length === LEVELS.length
+    ? 'Campaign complete! You can replay the final level.'
+    : `${slot.completed.length} / ${LEVELS.length} levels completed. Continue at Level ${LEVELS[next].id}.`;
+}
+
+function updateSaveProfile() {
+  const text = activeSave
+    ? `Save slot ${activeSave.index + 1}: ${activeSave.slot.owner}. ${saveProgress(activeSave.slot)}`
+    : 'Guest play - progress is not saved.';
+  document.querySelector('#save-profile').textContent = text;
+  document.querySelector('#save-status').textContent = game?.customLevel || tutorial
+    ? 'Practice play - campaign progress is not changed.'
+    : text;
+}
+
+function flushSaves() {
+  while (pendingSaves.length) {
+    const pending = pendingSaves[0];
+    const slot = saves.complete(pending.index, pending.id, pending.levelId);
+    pendingSaves.shift();
+    if (activeSave?.slot.id === slot.id) activeSave.slot = slot;
+  }
+  updateSaveProfile();
+}
+
+function saveVictory() {
+  if (!runSave || tutorial || game.customLevel) return;
+  if (!pendingSaves.some(pending => pending.id === runSave.id && pending.levelId === game.level.id)) {
+    pendingSaves.push({ ...runSave, levelId: game.level.id });
+  }
+  saveAttempt(flushSaves);
+}
+
+function continueSave(index, id) {
+  const slots = saves.load(), slot = saves.slot(slots, index, id);
+  activeSave = { index, slot };
+  levelSelect.value = String(saves.nextLevel(slot));
+  saveDialog.close();
+  titleScreen.close();
+  begin();
+  board.scrollIntoView({ block: 'center' });
+}
+
+function renderSaveSlots() {
+  const list = document.querySelector('#save-slot-list');
+  list.replaceChildren();
+  const slots = saves.load();
+  if (activeSave) {
+    const slot = slots[activeSave.index];
+    activeSave = slot?.id === activeSave.slot.id ? { index: activeSave.index, slot } : null;
+  }
+  updateSaveProfile();
+  slots.forEach((slot, index) => {
+    const section = document.createElement('section'), heading = document.createElement('h3');
+    section.className = 'save-slot';
+    heading.textContent = `Slot ${index + 1}${slot ? ` - ${slot.owner}` : ' - Empty'}`;
+    section.append(heading);
+    if (slot) {
+      const progress = document.createElement('p'), actions = document.createElement('div');
+      progress.textContent = saveProgress(slot);
+      actions.className = 'save-actions';
+      const resume = document.createElement('button'), remove = document.createElement('button');
+      resume.type = remove.type = 'button';
+      resume.className = remove.className = 'title-secondary';
+      resume.textContent = slot.completed.length === LEVELS.length ? 'Replay final level' : 'Continue';
+      resume.setAttribute('aria-label', `${resume.textContent} for ${slot.owner}, slot ${index + 1}`);
+      resume.addEventListener('click', () => saveAttempt(() => continueSave(index, slot.id)));
+      remove.textContent = 'Delete save';
+      remove.setAttribute('aria-label', `Delete save for ${slot.owner}, slot ${index + 1}`);
+      remove.addEventListener('click', () => {
+        if (!confirm(`Delete ${slot.owner}'s save in slot ${index + 1}? This erases all progress in this slot.`)) return;
+        saveAttempt(() => {
+          saves.remove(index, slot.id);
+          for (let i = pendingSaves.length - 1; i >= 0; i--) {
+            if (pendingSaves[i].id === slot.id) pendingSaves.splice(i, 1);
+          }
+          if (runSave?.id === slot.id) runSave = null;
+          renderSaveSlots();
+          document.querySelector('#save-close').focus({ preventScroll: true });
+        });
+      });
+      actions.append(resume, remove);
+      section.append(progress, actions);
+    }
+    const form = document.createElement('form'), label = document.createElement('label');
+    const input = document.createElement('input'), submit = document.createElement('button');
+    input.id = `save-owner-${index}`;
+    input.name = 'owner';
+    input.type = 'text';
+    input.maxLength = 32;
+    input.required = true;
+    input.autocomplete = 'off';
+    input.value = slot?.owner ?? '';
+    label.htmlFor = input.id;
+    label.textContent = `Owner name for slot ${index + 1}`;
+    label.append(input);
+    submit.type = 'submit';
+    submit.className = 'title-secondary';
+    submit.textContent = slot ? 'Save name' : 'Create & play';
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      saveAttempt(() => {
+        if (slot) {
+          saves.rename(index, slot.id, input.value);
+          renderSaveSlots();
+          document.querySelector(`#save-owner-${index}`).focus({ preventScroll: true });
+        } else {
+          const created = saves.create(index, input.value);
+          continueSave(index, created.id);
+        }
+      });
+    });
+    form.append(label, submit);
+    section.append(form);
+    list.append(section);
+  });
+}
+
+document.querySelector('#title-saves').addEventListener('click', () => {
+  autoPause();
+  titleScreen.close();
+  saveAttempt(renderSaveSlots);
+  saveDialog.showModal();
+});
+function closeSaves() {
+  saveDialog.close();
+  titleScreen.showModal();
+  document.querySelector('#title-saves').focus({ preventScroll: true });
+}
+document.querySelector('#save-close').addEventListener('click', closeSaves);
+saveDialog.addEventListener('cancel', event => { event.preventDefault(); closeSaves(); });
+saveDialog.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeSaves(); }
+});
+document.querySelector('#save-guest').addEventListener('click', () => {
+  activeSave = null;
+  runSave = null;
+  updateSaveProfile();
+  closeSaves();
+});
+for (const id of ['#save-retry', '#save-title-retry', '#save-menu-retry']) {
+  document.querySelector(id).addEventListener('click', () => {
+    if (saveAttempt(flushSaves) && saveDialog.open) saveAttempt(renderSaveSlots);
+  });
+}
+document.querySelector('#save-discard').addEventListener('click', () => {
+  if (!confirm('Discard all wins that could not be saved? They cannot be recovered. Existing saved progress will not change.')) return;
+  pendingSaves.length = 0;
+  saveError('');
+});
 
 function makeBrickButtons() {
   const container = document.querySelector('#bricks');
@@ -365,6 +548,7 @@ function syncUI() {
       return;
     }
     const hasNext = !game.customLevel && game.levelIndex + 1 < LEVELS.length;
+    saveVictory();
     showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', `You gathered ${game.score} food and defeated ${game.enemies} robots with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
     status.textContent = hasNext ? `Level complete! Level ${LEVELS[game.levelIndex + 1].id} is next.` : 'Level complete! Replay or choose a level.';
     toast.textContent = 'Level complete!';
@@ -383,6 +567,8 @@ function syncUI() {
 function begin() {
   if (tutorial) { selectTutorial(tutorial.index); return; }
   game = createGame();
+  runSave = activeSave && !game.customLevel ? { index: activeSave.index, id: activeSave.slot.id } : null;
+  updateSaveProfile();
   makeBrickButtons();
   displayedState = null;
   trail = [];
@@ -433,6 +619,7 @@ titleScreen.addEventListener('cancel', event => {
 function showTitle() {
   if (tutorial) {
     tutorial = null;
+    runSave = null;
     document.body.classList.remove('tutorial-active');
     document.querySelector('#tutorial-panel').hidden = true;
     game = createGame();
@@ -445,6 +632,7 @@ function showTitle() {
     syncUI();
   } else autoPause();
   if (!titleScreen.open) titleScreen.showModal();
+  updateSaveProfile();
   document.querySelector('#title-tutorial').focus({ preventScroll: true });
 }
 document.querySelector('#title-menu').addEventListener('click', showTitle);
@@ -483,6 +671,8 @@ function startTutorial(index = 0) {
   if (titleScreen.open) titleScreen.close();
   if (guide.open) guide.close();
   tutorial = new Tutorial();
+  runSave = null;
+  updateSaveProfile();
   document.body.classList.add('tutorial-active');
   document.querySelector('#tutorial-panel').hidden = false;
   document.querySelector('#tutorial-sword').value = tutorial.sword;
@@ -762,6 +952,7 @@ function render(now) {
   }
   for (const item of game.weapons) drawSword(item.x, item.y, SWORDS[item.type].color);
   for (const enemy of game.robots) drawRobot(enemy);
+  for (const enemy of game.enemyDeaths) drawEnemyDeath(enemy);
   for (const pickup of game.pickups) {
     const age = game.elapsed - pickup.time;
     ctx.fillStyle = `rgba(211,239,139,${1 - age / .8})`;
@@ -889,11 +1080,19 @@ function drawSword(x, y, color) {
   ctx.restore();
 }
 
-function drawRobot(enemy) {
+function drawRobot(enemy, deathProgress = null) {
   ctx.save(); ctx.translate(enemy.x, enemy.y);
   ctx.fillStyle = '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
   if (enemy.type === 'mouse') {
-    for (const x of [-15, 15]) { ctx.beginPath(); ctx.arc(x, -15, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    for (const x of [-15, 15]) {
+      ctx.save();
+      if (deathProgress !== null) {
+        ctx.translate(x * deathProgress * 2, 100 * deathProgress * deathProgress);
+        ctx.globalAlpha *= Math.max(0, 1 - deathProgress * 1.5);
+      }
+      ctx.beginPath(); ctx.arc(x, -15, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
   }
   ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   if (enemy.type === 'wheel') {
@@ -905,13 +1104,65 @@ function drawRobot(enemy) {
   }
   line([[-12,-8],[-4,-4]], '#27353d', 3); line([[12,-8],[4,-4]], '#27353d', 3);
   for (const x of [-8, 8]) {
-    ctx.fillStyle = '#d46665'; ctx.fillRect(x-4,-2,8,6);
+    ctx.fillStyle = deathProgress === null ? '#d46665' : '#53616b'; ctx.fillRect(x-4,-2,8,6);
     if (enemy.type === 'mouse') for (let i = -3; i <= 3; i += 3) line([[x+i,-2],[x+i,4]], '#27353d', 1);
   }
   line([[-6,11],[0,7],[6,11]], '#27353d', 2);
-  if (enemy.resting) {
+  if (enemy.resting && deathProgress === null) {
     ctx.fillStyle = '#c9d4db'; ctx.beginPath(); ctx.arc(0, 17, 5, 0, Math.PI * 2); ctx.fill();
     line([[0,10],[3,15]], '#e6a1a1', 3);
+  }
+  ctx.restore();
+}
+
+function drawEnemyDeath(enemy) {
+  const progress = enemy.deathProgress;
+  ctx.save();
+  if (enemy.type === 'mouse') {
+    ctx.globalAlpha = Math.max(0, 1 - Math.max(0, progress - .2) / .5);
+    drawRobot(enemy, progress);
+    if (progress > .2) {
+      const smoke = (progress - .2) / .8;
+      ctx.translate(enemy.x, enemy.y);
+      ctx.globalAlpha = Math.sin(Math.PI * smoke) * .8;
+      for (let i = 0; i < 7; i++) {
+        const angle = i * Math.PI * 2 / 7;
+        ctx.fillStyle = i % 2 ? '#a8b2b9' : '#d1dce4';
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * smoke * 28, Math.sin(angle) * smoke * 18 - smoke * 24,
+          6 + smoke * 12, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else {
+    ctx.translate(enemy.x, enemy.y);
+    if (progress < .35) {
+      const size = Math.max(.01, 1 - progress / .35);
+      ctx.save(); ctx.scale(size, size);
+      drawRobot({ ...enemy, x: 0, y: 0 }, progress);
+      ctx.restore();
+    }
+    if (progress >= .25) {
+      const blast = (progress - .25) / .75;
+      const radius = 3 + Math.sin(Math.PI * blast) * 29;
+      ctx.globalAlpha = 1 - blast;
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 1.8);
+      glow.addColorStop(0, '#ffb62dcc'); glow.addColorStop(1, '#ff4b1600');
+      ctx.fillStyle = glow;
+      ctx.fillRect(-radius * 1.8, -radius * 1.8, radius * 3.6, radius * 3.6);
+      for (const [color, size] of [['#e94b25', 1], ['#ffac32', .72], ['#fff2ab', .4]]) {
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(0, -blast * 10, radius * size, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#ffd46a';
+      for (let i = 0; i < 8; i++) {
+        const angle = i * Math.PI / 4;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * blast * 42, Math.sin(angle) * blast * 42,
+          2 * (1 - blast), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
   ctx.restore();
 }
@@ -940,6 +1191,7 @@ function frame(timestamp) {
 }
 
 game = createGame();
+saveAttempt(renderSaveSlots);
 makeBrickButtons();
 syncUI();
 if (!location.hash.startsWith('#level=') && location.hash !== '#install') titleScreen.showModal();

@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Game, LEVELS, SWORDS } = require('../src/game.js');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 
 function arena(options = {}) {
   const game = new Game(() => .25, { level: 1, ...options });
@@ -146,6 +149,110 @@ test('wood, bronze, and silver break at precisely their defeat limits', () => {
     game.update(.01);
     assert.equal(game.hearts, 2);
   }
+});
+
+test('enemy deaths are harmless snapshots, freeze on pause, expire, and clear on restart', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    for (const type of ['mouse', 'wheel']) {
+      const game = arena(options);
+      game.cat.x = game.bounds().left; game.cat.y = game.bounds().top;
+      game.weapon = { type: 'wood', uses: 1, expires: Infinity };
+      const enemy = { ...mouse(game), type, distance: 0 };
+      game.robots.push(enemy);
+      game.combat(0, game.cat.x, game.cat.y);
+      assert.equal(game.robots.length, 0);
+      assert.equal(game.enemies, 1);
+      assert.equal(game.weapon, null);
+      const death = game.enemyDeaths[0];
+      assert.notEqual(death, enemy);
+      assert.equal(death.type, type);
+      assert.equal(death.deathProgress, 0);
+      const { x, y } = death;
+      game.update(.35);
+      assert.ok(death.deathProgress > 0 && death.deathProgress < 1);
+      assert.equal(death.x, x); assert.equal(death.y, y);
+      assert.equal(game.enemies, 1);
+      assert.equal(game.hearts, 3, 'a wreck overlapping an unarmed cat does not hurt');
+      const progress = death.deathProgress;
+      game.pause();
+      for (const seconds of [10, NaN, Infinity, -1, 0]) game.update(seconds);
+      assert.equal(death.deathProgress, progress);
+      game.resume();
+      game.update(type === 'mouse' ? .75 : .35);
+      assert.equal(game.enemyDeaths.length, 0);
+      game.enemyDeaths.push({ ...death, deathProgress: 0 });
+      game.reset();
+      assert.equal(game.enemyDeaths.length, 0);
+    }
+  }
+});
+
+test('the final enemy death finishes without advancing completed gameplay', () => {
+  const game = arena({ level: 2 });
+  game.score = game.level.goal;
+  game.enemies = game.level.killGoal - 1;
+  game.weapon = { type: 'wood', uses: 1, expires: Infinity };
+  game.robots.push(mouse(game));
+  game.update(.01);
+  assert.equal(game.state, 'won');
+  assert.equal(game.enemyDeaths.length, 1);
+  const elapsed = game.elapsed;
+  game.update(.5);
+  assert.ok(game.enemyDeaths[0].deathProgress > .4);
+  assert.equal(game.elapsed, elapsed);
+  game.update(.6);
+  assert.equal(game.enemyDeaths.length, 0);
+  game.state = 'lost';
+  game.enemyDeaths.push({ ...mouse(game), deathProgress: 0 });
+  game.update(1.1);
+  assert.equal(game.enemyDeaths.length, 0);
+  assert.equal(game.elapsed, elapsed);
+});
+
+test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fireball', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const operations = [], stack = [];
+  const gradient = { addColorStop(...args) { operations.push(['colorStop', ...args]); } };
+  const ctx = new Proxy({ globalAlpha: 1, fillStyle: '#000', strokeStyle: '#000', lineWidth: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'save') return () => stack.push({ ...target });
+      if (name === 'restore') return () => Object.assign(target, stack.pop());
+      if (name === 'createRadialGradient') return (...args) => { operations.push([name, ...args]); return gradient; };
+      return (...args) => operations.push([name, ...args, target.fillStyle, target.globalAlpha]);
+    },
+    set(target, name, value) { target[name] = value; return true; },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
+    + source.slice(source.indexOf('function drawRobot('), source.indexOf('function resize(')), context);
+  const draw = (type, progress = null) => {
+    operations.length = 0;
+    const enemy = { type, x: 100, y: 100, distance: 0, deathProgress: progress };
+    if (progress === null) context.drawRobot(enemy);
+    else context.drawEnemyDeath(enemy);
+    assert.equal(ctx.globalAlpha, 1);
+    assert.equal(stack.length, 0);
+    return operations.slice();
+  };
+  const alive = draw('mouse');
+  assert.ok(alive.some(op => op[0] === 'fillRect' && op.at(-2) === '#d46665'));
+  const mouseDeath = draw('mouse', .4);
+  assert.ok(mouseDeath.some(op => op[0] === 'translate' && op[1] === -12 && Math.abs(op[2] - 16) < 1e-9));
+  assert.ok(mouseDeath.some(op => op[0] === 'fillRect' && op.at(-2) === '#53616b'));
+  assert.ok(!mouseDeath.some(op => op[0] === 'fillRect' && op.at(-2) === '#d46665'));
+  assert.ok(mouseDeath.some(op => op[0] === 'fill' && op.at(-2) === '#a8b2b9' && op.at(-1) < 1));
+  const smoke = draw('mouse', .9);
+  assert.ok(smoke.some(op => op[0] === 'fillRect' && op.at(-1) === 0));
+  const implosion = draw('wheel', .2);
+  assert.ok(implosion.some(op => op[0] === 'scale' && op[1] > 0 && op[1] < 1));
+  assert.ok(!implosion.some(op => op[0] === 'createRadialGradient'));
+  const fireball = draw('wheel', .5);
+  for (const color of ['#e94b25', '#ffac32', '#fff2ab']) {
+    assert.ok(fireball.some(op => op[0] === 'fill' && op.at(-2) === color));
+  }
+  assert.ok(!fireball.some(op => op[0] === 'scale'));
+  assert.match(source, /for \(const enemy of game\.enemyDeaths\) drawEnemyDeath\(enemy\)/);
 });
 
 test('gold has unlimited defeats for 15 seconds and pause freezes its timer', () => {

@@ -161,11 +161,22 @@ class CutscenePlayer {
     const { line, index } = this.playback;
     if (index !== this.displayedIndex) {
       this.displayedIndex = index;
+      // Hidden letters reserve the complete line's wrapping throughout typing.
+      this.textCharacters = this.playback.characters.map(character => {
+        const span = document.createElement('span');
+        span.textContent = character;
+        span.style.visibility = 'hidden';
+        return span;
+      });
+      this.text.replaceChildren(...this.textCharacters);
       this.text.parentElement.scrollTop = 0;
       document.querySelector('#cutscene-speaker').textContent = CHARACTERS[line.speaker];
       document.querySelector('#cutscene-transcript').textContent = `${CHARACTERS[line.speaker]}: ${line.text}`;
     }
-    this.text.textContent = this.playback.text;
+    const visibleCount = this.playback.visibleCount;
+    this.textCharacters.forEach((span, i) => {
+      span.style.visibility = i < visibleCount ? 'visible' : 'hidden';
+    });
     this.next.textContent = this.playback.typing ? 'Reveal text' : index + 1 === this.playback.scene.lines.length ? 'Begin level' : 'Continue';
     document.querySelector('#cutscene-page').textContent = `${index + 1} / ${this.playback.scene.lines.length}`;
     this.draw();

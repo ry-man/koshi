@@ -132,6 +132,58 @@ test('reduced motion, Unicode, skip, and invalid deltas behave predictably', () 
   assert.equal(reduced.index, 1);
 });
 
+test('cutscene rendering reserves full dialogue and reveals Unicode letters in place', () => {
+  const elements = new Map();
+  const document = {
+    hidden: false,
+    createElement() { return { style: {}, textContent: '' }; },
+    querySelector(selector) {
+      if (!elements.has(selector)) elements.set(selector, {
+        addEventListener() {}, showModal() {}, close() {}, focus() {},
+        parentElement: { scrollTop: 50 },
+        replaceChildren(...children) { this.children = children; },
+      });
+      return elements.get(selector);
+    },
+    addEventListener() {},
+  };
+  const motion = { matches: false };
+  const context = vm.createContext({
+    KoshiGame: { Cutscene, CHARACTERS }, document, window: { addEventListener() {} },
+    matchMedia: () => motion, ResizeObserver: class { observe() {} },
+  });
+  vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8'), context);
+  const player = new context.KoshiCutscenePlayer(() => {}, () => {});
+  player.draw = () => {};
+  const data = scene();
+  data.lines[0].text = 'Hi 🐾! A longer word.\nNext row.';
+  player.open(data, 1);
+  const text = elements.get('#cutscene-text');
+  const characters = text.children;
+  const visibleText = () => text.children.filter(span => span.style.visibility === 'visible').map(span => span.textContent).join('');
+  assert.equal(characters.map(span => span.textContent).join(''), data.lines[0].text);
+  assert.equal(characters.length, Array.from(data.lines[0].text).length);
+  assert.equal(visibleText(), '');
+  assert.equal(text.parentElement.scrollTop, 0);
+  assert.equal(elements.get('#cutscene-transcript').textContent, `Koshi: ${data.lines[0].text}`);
+  for (let i = 1; i <= characters.length; i++) {
+    player.playback.elapsed = i / 30 + .000001;
+    player.update(0);
+    assert.equal(text.children, characters, 'layout nodes stay unchanged while typing');
+    assert.equal(visibleText(), Array.from(data.lines[0].text).slice(0, i).join(''));
+  }
+  player.advance();
+  assert.notEqual(text.children, characters);
+  assert.equal(visibleText(), '');
+  assert.equal(text.children.map(span => span.textContent).join(''), data.lines[1].text);
+  player.advance();
+  assert.equal(visibleText(), data.lines[1].text);
+  player.open(data, 1);
+  motion.matches = true;
+  player.update(0);
+  assert.equal(visibleText(), data.lines[0].text);
+});
+
 test('scene playback leaves gameplay ready and time-zero events unspawned until start', () => {
   const game = new Game(() => .5, { customLevel: { ...level(), events: [{ kind: 'weapon', type: 'wood', time: 0, x: .5, y: .5 }] } });
   const playback = new Cutscene(game.level.cutscene);

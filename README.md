@@ -23,10 +23,37 @@ blocks the npm script. Both direct `file://` access and HTTP hosting are support
 
 The title screen features original artwork of a sword-wielding Koshi facing
 Robo Mouse and Robo Wheel among green, blue, and red bricks. **Start adventure**
-starts Level 1–1; **Choose a level** opens the existing level selector. Escape
+starts the selected level (initially Level 1–1); **Choose a level** opens the
+existing level selector. Escape
 dismisses the title to the ready screen. Custom-level playtest links and the
 `#install` troubleshooting link bypass the title. The artwork is bundled for
 offline and direct-file play.
+
+### Campaign saves
+
+Open **Save slots** from the title screen or in-game **Menu**. There are **three
+slots**, each with an owner name (1-32 characters). **Create & play** starts a
+new campaign. **Continue** starts the first unfinished level with fresh hearts,
+timer, and inventory. After finishing all five levels, the slot shows
+**Campaign complete** and offers **Replay final level**.
+
+Campaign wins autosave to the selected slot immediately. Replaying an earlier
+level never removes progress; choosing levels out of order still records each
+completed level separately. Failed attempts and restarting do not erase wins.
+**Save name** renames the owner without resetting progress. **Delete save**
+requires confirmation and erases only that slot. **Play as guest** disables
+saving for the current session. Custom levels and tutorials never change
+campaign saves.
+
+Saves use browser local storage, including offline play. Select a slot again
+after reopening the game. Saves are specific to this browser and site; they
+do not transfer between devices or between direct-file and hosted play.
+Clearing site data removes them, and private browsing may not retain them.
+Storage failures are shown explicitly; unsaved wins can be retried with
+**Retry saving progress** while the page remains open. Invalid stored data is
+not silently reset or overwritten. If a slot was removed elsewhere or saving
+remains unavailable, **Discard unsaved wins** in **Save slots** clears pending
+writes after confirmation without changing previously saved progress.
 
 ### How to play and interactive tutorial
 
@@ -105,6 +132,10 @@ the board; phones keep compact controls above it without scrolling away from pla
   15 seconds from pickup and has unlimited defeats during that time.
   Koshi holds only one weapon. Other swords stay on the board until he can
   collect them; dropped swords and hearts do not expire. Pause freezes sword time.
+- Defeated Robo Mice drop their ears, lose their eye color, and fade into a puff
+  of smoke. Robo Wheels implode into a mini fireball. Defeats count immediately
+  and the wrecks cannot hurt Koshi. Pause freezes these animations; restart
+  clears them.
 - **Pause**, **Escape**, or **Space** pauses/resumes play. Switching tabs or
   leaving the window pauses automatically; resume explicitly when you return.
 - **Tab** through the bricks and press **Enter** or **Space** to aim at a
@@ -183,7 +214,9 @@ character. Tom's design follows the supplied sketch: a tall metal body, radio
 antenna, slit visor, long duck bill, plated wings, and webbed metal feet.
 His antenna lights and bill animate while speaking. Tom is a cutscene character,
 not a new combat enemy or boss.
-Dialogue reveals at **30 characters per second**. **Reveal text** shows the
+Dialogue reveals at **30 characters per second**, with full words laid out
+before typing so letters never jump to the next row as a word appears.
+**Reveal text** shows the
 rest of a line; **Continue** advances; **Begin level** finishes the last line.
 The focused button also accepts Enter or Space. **Skip scene** or Escape skips
 directly to gameplay. No level time, cooldowns, movement, or spawn events advance
