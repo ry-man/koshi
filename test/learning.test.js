@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { GUIDE, LESSONS, Tutorial } = require('../src/learning.js');
-const { Game, SWORDS, LEVELS, brickRegions } = require('../src/game.js');
+const { Game, SWORDS, LEVELS, CONTACT_SURFACES, brickRegions, levelObjective } = require('../src/game.js');
 
 const indexOf = id => LESSONS.findIndex(lesson => lesson.id === id);
 function practice(id, options = {}) {
@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 8);
-  assert.equal(LESSONS.length, 22);
+  assert.equal(LESSONS.length, 27);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   const tutorial = new Tutorial();
   assert.throws(() => tutorial.select(-1), RangeError);
@@ -46,6 +46,7 @@ test('guide illustrates every brick, enemy, heart, and weapon without a story se
   for (const picture of [
     'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped', 'brick:warped-crumbler',
     'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'brick:conveyor', 'heart',
+    'special:cinder', 'special:portal', 'special:toggle', 'special:spawner', 'special:boost',
     'enemy:mouse', 'enemy:wheel', 'enemy:ram', 'enemy:bucket', ...Object.keys(SWORDS).map(type => `weapon:${type}`),
   ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
   assert.equal(new Set(pictures).size, pictures.length);
@@ -54,6 +55,20 @@ test('guide illustrates every brick, enemy, heart, and weapon without a story se
     for (const [title, description] of chapter.sections) assert.doesNotMatch(`${title} ${description}`, /story|cutscene/i);
   }
   assert.ok(GUIDE.some(chapter => chapter.title === 'Objectives'));
+});
+
+test('tutorial covers every contact surface and brick modifier, and rules use real campaign objectives', () => {
+  for (const surface of CONTACT_SURFACES) {
+    const tutorial = practice(surface === 'slimed' ? 'slime-green' : surface);
+    assert.ok(tutorial.target[surface], `missing practice surface: ${surface}`);
+  }
+  for (const id of ['cinder', 'larger', 'crumbler', 'warped', 'warped-crumbler', 'toggle']) {
+    assert.ok(LESSONS.some(lesson => lesson.id === id), `missing practice type: ${id}`);
+  }
+  const objectives = GUIDE.find(chapter => chapter.title === 'Objectives');
+  for (const level of LEVELS) {
+    assert.equal(objectives.sections.find(([title]) => title === `Level ${level.id}`)[1], `${levelObjective(level)}.`);
+  }
 });
 
 for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scale: .3 }]) {
@@ -106,6 +121,54 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     aim(springs); wait(springs, 1.05);
     assert.notEqual(springs.target.hitAt, null);
     assert.equal(springs.observe(), true);
+  });
+
+  test(`Spikes, Conveyors, Cinder, larger bricks, and frozen Warped Crumblers work on ${layout}`, () => {
+    const spikes = practice('spikes', options);
+    aim(spikes); wait(spikes, 1.05);
+    assert.ok(spikes.game.weapon, 'the sword does not protect against spikes');
+    assert.equal(spikes.game.hearts, 2);
+    assert.equal(spikes.observe(), true);
+    wait(spikes, 2);
+    assert.equal(spikes.game.hearts, 2, 'resting does not repeat spike damage');
+    const conveyor = practice('conveyor', options);
+    aim(conveyor); wait(conveyor, 1.05);
+    assert.equal(conveyor.rideSeen, true);
+    assert.equal(conveyor.observe(), false, 'must steer away, not merely touch');
+    assert.equal(aim(conveyor, opposite(conveyor)), true);
+    assert.equal(conveyor.observe(), true);
+    conveyor.select(indexOf('conveyor'), options);
+    assert.equal(conveyor.rideSeen, false, 'retry resets observed riding');
+    aim(conveyor); wait(conveyor, 3);
+    assert.equal(conveyor.game.conveyorRide, null, 'the belt ends naturally');
+    aim(conveyor, opposite(conveyor));
+    assert.equal(conveyor.observe(), true, 'short phone belts do not require racing to redirect before the ride ends');
+    const cinder = practice('cinder', options);
+    const block = cinder.game.bricks.find(brick => brick.kind === 'cinder');
+    assert.ok(cinder.game.touchingPart(block), 'start physically resting against Cinder');
+    assert.equal(aim(cinder, block), false);
+    assert.equal(cinder.actions, 0);
+    assert.equal(aim(cinder), true);
+    wait(cinder, 2.1);
+    assert.equal(cinder.observe(), true);
+    assert.equal(cinder.game.hearts, 3);
+    const larger = practice('larger', options);
+    const member = larger.game.bricks.find(brick => brick.absorbedBy === larger.target.id);
+    assert.ok(member);
+    assert.equal(larger.steer(larger.target.id, member.x + member.w / 2, member.y + member.h / 2), true);
+    assert.equal(larger.target.readyAt, 3);
+    wait(larger, 2.1);
+    assert.equal(larger.observe(), true);
+    assert.equal(member.absorbedBy, larger.target.id);
+    const combined = practice('warped-crumbler', options);
+    aim(combined); wait(combined, 1.05);
+    assert.equal(combined.observe(), false, 'must wait past the restoration time');
+    wait(combined, 7.1);
+    assert.equal(combined.observe(), true);
+    assert.equal(combined.target.usesLeft, 0);
+    assert.notEqual(combined.target.warpUntil, null);
+    assert.ok(combined.game.bricks.some(brick => brick.absorbedBy === combined.target.id));
+    assert.equal(aim(combined), false);
   });
 
   test(`sword pickups and enemy intercepts complete without damage on ${layout}`, () => {

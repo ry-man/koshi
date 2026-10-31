@@ -879,7 +879,10 @@ guide.addEventListener('keydown', event => {
 document.querySelector('#guide-topic').addEventListener('change', event => showGuideChapter(Number(event.target.value)));
 document.querySelector('#guide-prev').addEventListener('click', () => showGuideChapter(guideIndex - 1));
 document.querySelector('#guide-next').addEventListener('click', () => showGuideChapter(guideIndex + 1));
-document.querySelector('#guide-practice').addEventListener('click', () => startTutorial([0, 3, 4, 6, 2, 10, 13, 15][guideIndex]));
+document.querySelector('#guide-practice').addEventListener('click', () => {
+  const id = ['aim', 'cooldown', 'crumbler', 'slime-red', 'food', 'mouse', 'warnings', 'objectives'][guideIndex];
+  startTutorial(LESSONS.findIndex(lesson => lesson.id === id));
+});
 function togglePause() {
   if (game.state === 'playing') game.pause();
   else if (game.state === 'paused') game.resume();
@@ -900,6 +903,9 @@ document.addEventListener('keydown', event => {
     togglePause();
   }
 });
+function isInstalledApp() {
+  return window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)').matches || navigator.standalone === true;
+}
 function autoPause() {
   if (cutscene.active) cutscene.paused = true;
   if (game.state === 'playing') { game.pause(); syncUI(); }
@@ -908,27 +914,54 @@ function autoPause() {
 const installButton = document.getElementById('install-button');
 if (installButton) installButton.addEventListener('click', autoPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
-window.addEventListener('blur', autoPause);
+window.addEventListener('blur', () => {
+  // Android's gesture UI can blur a visible installed app without leaving it.
+  if (!isInstalledApp() || document.hidden) autoPause();
+});
 
 function installBackNavigation() {
-  if (!window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)').matches && navigator.standalone !== true) return;
+  if (!isInstalledApp()) return;
+  function report(error) {
+    console.error('Back navigation protection could not be enabled:', error);
+    const message = document.querySelector('#level-error');
+    message.textContent = `Back navigation protection could not be enabled: ${error.message}. Android Back may close the app.`;
+    message.hidden = false;
+  }
   function arm() {
     try {
       if (history.state?.koshiBackGuard === true) return;
-      // Keep the original URL (including editor playtest data) and reuse the guard on reload.
+      // Create the guard during real input so Chromium does not skip it.
       history.replaceState({ ...history.state, koshiBackGuard: false }, '');
       history.pushState({ ...history.state, koshiBackGuard: true }, '');
     } catch (error) {
-      console.error('Back navigation protection could not be enabled:', error);
-      const message = document.querySelector('#level-error');
-      message.textContent = `Back navigation protection could not be enabled: ${error.message}. Use the Pause button; Android Back may close the app.`;
-      message.hidden = false;
+      report(error);
+    }
+  }
+  let returning = false;
+  function restore() {
+    if (history.state?.koshiBackGuard !== false || returning) return;
+    try {
+      returning = true;
+      // Never push from popstate: Chromium skips entries created after a traversal
+      // without fresh user activation. Reuse the original, activated forward entry.
+      history.forward();
+    } catch (error) {
+      returning = false;
+      report(error);
     }
   }
   window.addEventListener('popstate', () => {
-    arm();
+    if (history.state?.koshiBackGuard === true) returning = false;
+    else restore();
   });
-  arm();
+  for (const type of ['pointerdown', 'keydown', 'click']) {
+    window.addEventListener(type, event => {
+      if (!event.isTrusted || returning) return;
+      if (history.state?.koshiBackGuard === false) restore();
+      else arm();
+    }, { capture: true });
+  }
+  restore();
 }
 
 function line(points, color, width = 2) {
@@ -1011,6 +1044,13 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11); ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11);
   }
   if (!boostReady) ctx.stroke();
+  if (expression === 'won') {
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = '#eff2ed';
+    ctx.beginPath(); ctx.moveTo(-6, 10); ctx.lineTo(-2, 10); ctx.lineTo(-4, 19); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(2, 10); ctx.lineTo(6, 10); ctx.lineTo(5, 16); ctx.lineTo(3, 16); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
   for (const sign of [-1, 1]) {
     for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], hurt ? '#ffd3d5' : '#d7dfdc', 1.2);
   }

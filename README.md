@@ -69,17 +69,21 @@ writes after confirmation without changing previously saved progress.
 The title screen includes two learning paths:
 
 - **How to play** opens an eight-topic walkthrough of movement and controls,
-  cooldown colors, Crumblers/Warped bricks, all seven contact surfaces and Toggle switches, every food and healing
-  item, both robots and all swords, spawn warnings, and objectives.
+  cooldown colors, Cinder blocks, larger groups, Crumblers/Warped combinations,
+  all seven contact surfaces and Toggle switches, every food and healing
+  item, all four robots and all swords, spawn warnings, and current objectives.
   Labeled pictures show every cooldown brick, Crumbler/Warped combination,
   slime color, spring and spike surface, food, healing heart, robot, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
-- **Tutorial** opens 20 interactive practice steps on the real game board:
+- **Tutorial** opens 27 interactive practice steps on the real game board:
   aiming/stopping, redirecting, food, recharge, Crumblers, Warped restoration,
   each of the three slime colors, Springs, mouse/sword combat, wheel interception,
+  ram and bucket combat,
   healing, spawn warnings, pause/resume, a combined food/defeat challenge,
-  Portal pairs, Toggle switches, spawning bricks, and Boost launches.
+  Portal pairs, Toggle switches, spawning bricks, Boost launches, Spikes,
+  Conveyor riding and steering away, leaving solid Cinder blocks, larger
+  shared-cooldown bricks, and frozen Warped Crumblers.
   An outlined brick suggests where to aim; keyboard labels identify it too.
   Completion is earned by performing the mechanic, not just visiting the page.
 
@@ -89,7 +93,7 @@ the combat steps also let players try wood, bronze, silver, or gold swords.
 Completed-topic badges last for the current tutorial visit. Retrying resets the
 arena and current action feedback while keeping those badges. Practice has no
 time limit or story scenes, and a failed attempt can be retried or skipped.
-The final practice challenge uses real victory rules: collect one food and
+The objectives practice challenge uses real victory rules: collect one food and
 defeat one robot. Finish tutorial returns to the title.
 
 **Menu** in the game toolbar reopens the title, pausing a normal attempt.
@@ -122,7 +126,8 @@ the board; phones keep compact controls above it without scrolling away from pla
   within the first second have shortened previews; time-zero spawns remain instant.
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
-  Results now follow a brief ending animation: wins show Koshi cheering and
+  Results now follow a brief ending animation: wins show Koshi cheering with
+  two upper fangs (one long and pointed, one shorter and flat-tipped) and
   bouncing before growing toward the board center; every loss shows X-shaped
   eyes, a frown, and two spins. Gameplay is frozen throughout and wins save
   immediately. Hidden pages and open menus freeze the sequence; restarting or
@@ -244,13 +249,18 @@ On phones held upright, the board uses portrait game coordinates with compact
 stats and controls. The board fits the available play area in both
 regular play and tutorials, with 20px of space above and below and no fixed
 5:8 display ratio.
-In the installed app, Android's Back gesture/button normally has no in-game
-effect instead of exiting or pausing. Repeated Back actions keep the app open
-without interrupting gameplay, tutorials, or story scenes. Use the Pause button
-to pause, and Home or the app switcher to leave the app.
-The game uses an in-page history entry, not a system-gesture override, so this
-needs device testing and cannot guarantee interception on every Android/browser
-version. Normal browser tabs keep their usual Back navigation.
+In the installed app, Back protection is armed by the first real tap or key
+press. Intercepted Android Back gestures/buttons have no in-game effect:
+the game returns to the existing forward history entry without pausing gameplay,
+tutorials, or story scenes. It never creates replacement entries during Back;
+Chromium can mark those entries skippable after a traversal without fresh input.
+Visible-window blur (including system gesture UI) does not pause the installed
+game. Actually hiding the app still pauses it. Use the Pause button to pause,
+and Home or the app switcher to leave.
+This is browser-history protection, not a system-gesture override. Before the
+first interaction, or if Android/browser bypasses page history, Back can still
+close the app. Device testing is required; guaranteed OS-level blocking requires
+a native Android app. Normal browser tabs retain native Back and blur pausing.
 The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart buttons
 share one row above the stats. The level is centered in the space between the
 logo and toolbar. Save-status text stays in the menu, not on the gameplay HUD;
@@ -647,8 +657,8 @@ combined sizes. Existing levels without groups are unchanged.
 
 ### Portal, Toggle, spawning, and Boost behavior
 
-These mechanics are available in the editor, guide, and four additional
-tutorial steps. Existing campaign layouts are unchanged.
+These mechanics are available in the editor, guide, and dedicated tutorial
+steps, alongside practice for every other current brick type.
 
 Crumbler counts (`C:`), Warped seconds (`W:`), and Toggle switches share a
 centered information strip, arranged along the original brick's long axis.

@@ -37,7 +37,7 @@ The title screen offers **How to play** and **Tutorial**.
 
 How to play is a browsable, eight-topic rules walkthrough. Players can select
 topics freely or move with Previous/Next. It describes movement and keyboard
-controls, all cooldown and special bricks, both robot enemies, every food,
+controls, all cooldown and special bricks, all four robot enemies, every food,
 heart healing, all four swords, spawn warnings, and current level goals.
 Labeled pictures illustrate every cooldown brick, Crumbler, Warped and combined
 brick, slime color, spring and spike surface, food, healing heart, enemy, and
@@ -45,17 +45,19 @@ weapon using the gameplay shapes. Story instructions are not part of this guide.
 Each topic links to a related tutorial step. Escape or Back to title
 closes the guide.
 
-The interactive tutorial uses the actual game board and mechanics in 20 isolated
+The interactive tutorial uses the actual game board and mechanics in 27 isolated
 practice steps. It teaches aiming/stopping, redirection, food, recharge,
 Crumblers, Warped restoration, red/green/blue slime, Springs, mouse combat and
-swords, wheel interception, healing, spawn previews, pause/resume, and combined
-food/robot objectives, Portals, Toggles, Spawning, and Boost launches. An outlined brick provides a suggested target, and action
+swords, wheel interception, ram and bucket combat, healing, spawn previews, pause/resume, and combined
+food/robot objectives, Portals, Toggles, Spawning, Boost launches, Spikes,
+Conveyors, Cinder blocks, larger shared-cooldown bricks, and frozen Warped
+Crumblers. An outlined brick provides a suggested target, and action
 feedback marks a step complete only after the mechanic has been performed.
 
 Players can freely choose any step, use Previous/Next, retry, or exit at any
 time. Combat steps offer all sword types. Practice has no countdown or story
 scenes and does not change campaign/editor data. Completion badges remain for
-the current visit; retry refreshes the current action and arena. The final
+the current visit; retry refreshes the current action and arena. The objectives
 challenge requires one food and one robot defeat. Menu reopens the title from
 gameplay, pausing a normal attempt or discarding tutorial practice.
 

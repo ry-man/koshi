@@ -93,3 +93,30 @@ test('ending faces have smiling open mouths or X eyes with a frown', () => {
   c.drawCat(0, 0, 0, null, false, 'won');
   assert.ok(operations.some(op => op[0] === 'quadraticCurveTo' && op.slice(1).join(',') === '0,28,-8,10'), 'open cheering smile');
 });
+
+test('only the victory smile has a pointed upper fang and a shorter flat-tipped fang clipped inside the mouth', () => {
+  const operations = [];
+  const ctx = new Proxy({}, {
+    get: (_, name) => (...args) => operations.push([name, ...args]),
+    set: (_, name, value) => { operations.push(['set', name, value]); return true; },
+  });
+  const c = vm.createContext({ ctx, game: {} });
+  vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function updateEnding(')), c);
+  for (const expression of [null, 'lost', 'won']) {
+    operations.length = 0;
+    c.drawCat(0, 0, 0, null, false, expression);
+    const clip = operations.findIndex(op => op[0] === 'clip');
+    if (expression !== 'won') {
+      assert.equal(clip, -1, 'normal and loss faces remain unchanged');
+      continue;
+    }
+    assert.ok(clip > 0);
+    assert.equal(operations[clip - 2][0], 'stroke', 'clip the existing smiling mouth path');
+    assert.deepEqual(operations.slice(clip + 1, clip + 16), [
+      ['set', 'fillStyle', '#eff2ed'],
+      ['beginPath'], ['moveTo', -6, 10], ['lineTo', -2, 10], ['lineTo', -4, 19], ['closePath'], ['fill'],
+      ['beginPath'], ['moveTo', 2, 10], ['lineTo', 6, 10], ['lineTo', 5, 16], ['lineTo', 3, 16], ['closePath'], ['fill'],
+      ['restore'],
+    ]);
+  }
+});
