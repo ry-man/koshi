@@ -273,7 +273,10 @@ enemy placements and enemy-spawning bricks in the editor.
 
 ### Robo Mouse
 Appearance: Robotic mouse head with grated texture over its eyeballs.
-Movement: Mouse moves in random, curving patterns and periodically stops in place to lick its hands
+Movement: Mouse moves at 75 board units per second in random, curving patterns
+and periodically stops in place to open its mouth and bare two large front teeth.
+The same teeth display appears while speaking in cutscenes and pixel portraits;
+Robo Wheels do not inherit this animation.
 Attack: Does not fire projectiles nor directy chase Koshi. Only damages Koshi if they collide.
 Defeat: Mouse is defeated by any weapon.
 
@@ -343,16 +346,26 @@ bronze at 38, silver at 58, and gold at 76. Later combat levels supply silver
 above ten enemy points receive one more silver 22 seconds before the end.
 Food-only and survival levels provide just one bronze, 14 seconds after their
 first enemies. Swords are sparse and separated by at least 16 seconds.
-The final level's paired portals are away from corners, with both exits clear
-of all walls in desktop and portrait play.
-Shielded enemies start in 1-7. No more than 20% of a level's scheduled
-robots have shields; red is most common across the campaign, green rarer,
-and blue rarest. Defeat targets count enemy points, not raw robot counts.
+The Boost introduction in 1-14 is the exception: no weapons are supplied;
+its 12-enemy-point target must be met using Boost launches.
+Special-brick introductions provide at least three separate instances away from
+corner segments. Three of four larger starting blocks (75%) use the introduced
+feature: two doubles and one triple; the fourth larger block stays ordinary.
+Returning features remain on separate bricks. The final level uses four portals
+in purple and orange pairs, with three endpoints on larger blocks. All exits
+are clear of walls in desktop and portrait play.
+Enemy waves are larger after the enemy-free first level. Shielded enemies start
+in 1-7, with roughly 35-63% of scheduled robots shielded from then onward.
+Red shields start in 1-7, green in 1-12, and blue in 1-18. Later missions use
+more shields and stronger colors. Defeat targets count enemy points, not raw
+robot counts; targets, sword supply, and spawn timing are unchanged.
 
 All levels begin with story cutscenes about Koshi saving the world and its meals
 from Tom's robots. The first scene introduces Tom the Duck without showing any
-combat robot. Each later scene uses only enemy types actually in that level,
-never future enemies. The final mission pairs purple Portals with Boost and
+combat robot. Each campaign scene includes Koshi and at most three enemies
+including Tom; speaking robots take priority in the smaller cast. Each later
+scene uses only enemy types actually in that level, never future enemies.
+The final mission pairs purple Portals with Boost and
 Toggle routes to break Tom's last blockade and reclaim a feast for the world.
 Campaign progress uses a new save key; old five-level saves remain untouched
 and cannot skip these new lessons.

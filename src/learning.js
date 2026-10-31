@@ -64,7 +64,7 @@ const GUIDE = [
   {
     title: 'Robots & swords',
     sections: [
-      ['Robo Mouse', 'Mice wander in curved paths and periodically stop to lick their hands. They do not chase or shoot.', 'enemy:mouse'],
+      ['Robo Mouse', 'Mice patrol at 75 board units per second in curved paths and periodically stop to bare their two large front teeth. They do not chase or shoot.', 'enemy:mouse'],
       ['Robo Wheel', 'Wheels roll along the inner perimeter. Intercept them near a wall while armed.', 'enemy:wheel'],
       ['Robo Ram', 'Sleek metal robots with pale curling horns, tiny nostrils, and a red eye-and-mouth display wander slowly, then pause as their eyes sparkle and aim at Koshi. They line up and charge quickly in a straight line. Dodge the rush or catch it with a sword. A ram ricochets off bricks and loses some speed with each bounce.', 'enemy:ram'],
       ['Robo Bucket', 'Buckets wander slowly with waving arms and randomly shoot blue bombs from their mouths. Bombs bounce off bricks and explode after three seconds; only their growing red flame circles can hurt Koshi. Defeat a bucket to squish it flat and pop its bombs.', 'enemy:bucket'],

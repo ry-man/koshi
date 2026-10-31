@@ -161,5 +161,35 @@ test('Koshi shows red blinking fur and an upset face only while the shared damag
   assert.deepEqual(draw(), { fur: '#dc626b', frown: true });
   game.reset();
   assert.deepEqual(draw(), { fur: '#abb5bd', frown: false });
-  assert.match(source, /drawCat\(game\.cat\.x, game\.cat\.y, game\.elapsed, game\.damageProgress\)/);
+  assert.match(source, /drawCat\(game\.cat\.x, game\.cat\.y, game\.elapsed, game\.damageProgress, game\.boostReady\)/);
+});
+
+test('boost-ready Koshi has a wide glowing mouth and two red glowing eyes without changing fur', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const operations = [], stack = [];
+  const ctx = new Proxy({ fillStyle: '', shadowColor: '', shadowBlur: 0 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'save') return () => stack.push({ ...target });
+      if (name === 'restore') return () => Object.assign(target, stack.pop());
+      return (...args) => operations.push([name, ...args, target.fillStyle, target.shadowColor, target.shadowBlur]);
+    },
+  });
+  const context = vm.createContext({ ctx, game: arena() });
+  vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function render(')), context);
+  const draw = (ready, damage = null, now = 0) => {
+    operations.length = 0;
+    context.drawCat(0, 0, now, damage, ready);
+    assert.equal(stack.length, 0);
+    return operations.slice();
+  };
+  const ready = draw(true);
+  assert.equal(ready.find(op => op[0] === 'fill').at(-3), '#abb5bd', 'normal fur remains');
+  const eyes = ready.filter(op => op[0] === 'ellipse' && op[2] === -3);
+  assert.equal(eyes.length, 2);
+  assert.ok(eyes.every(op => op.at(-2) === '#ec4824' && op.at(-1) === 12));
+  assert.ok(ready.some(op => op[0] === 'ellipse' && op[1] === 0 && op[2] === 15 && op[3] === 8 && op[4] === 7 && op.at(-1) === 14));
+  assert.ok(!draw(false).some(op => op.at(-2) === '#ec4824'), 'no readiness glow during ordinary play or cutscenes');
+  assert.notDeepEqual(draw(true, null, 0), draw(true, null, .45), 'red-orange glow pulses');
+  assert.equal(draw(true, 0).find(op => op[0] === 'fill').at(-3), '#dc626b', 'damage fur feedback remains');
 });

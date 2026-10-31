@@ -55,6 +55,37 @@ test('the replacement campaign introduces exactly one concept in the requested o
   assert.throws(() => new Game(Math.random, { level: LEVELS.length }), RangeError);
 });
 
+test('new brick introductions feature three non-corner instances and 75% of larger bricks', () => {
+  const attributes = {
+    crumblers: 'crumbler', slime: 'slimed', spikes: 'spikes', springs: 'springs',
+    conveyers: 'conveyor', 'warped bricks': 'warped', boost: 'boost',
+    spawners: 'spawner', cinder: 'kind', toggles: 'toggle', portals: 'portal',
+  };
+  for (const [index, level] of LEVELS.entries()) {
+    const attribute = attributes[level.concept];
+    if (!attribute) continue;
+    for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .6 }]) {
+      const game = new Game(() => .5, { level: index, ...options });
+      const matches = brick => attribute === 'kind' ? brick.kind === 'cinder' : Boolean(brick[attribute]);
+      const introduced = activeBricks(game).filter(matches);
+      assert.ok(introduced.length >= 3, `${level.id}: at least three independent instances`);
+      for (const owner of introduced) {
+        const parts = game.bricks.filter(brick => brick.id === owner.id || brick.absorbedBy === owner.id);
+        assert.ok(parts.every(brick => brick.region.start > 0 && brick.region.end < 1), `${level.id}: no corner segments`);
+      }
+      const larger = activeBricks(game).filter(owner => game.bricks.some(brick => brick.absorbedBy === owner.id));
+      assert.equal(larger.length, 4);
+      assert.equal(larger.filter(matches).length, 3, `${level.id}: exactly 75% of larger blocks use the new feature`);
+      if (attribute === 'portal') {
+        assert.equal(introduced.length, 4);
+        const pairs = new Map();
+        for (const brick of introduced) pairs.set(brick.portal, (pairs.get(brick.portal) ?? 0) + 1);
+        assert.deepEqual([...pairs.values()], [2, 2]);
+      }
+    }
+  }
+});
+
 test('campaign layouts use few styles and exact infrequent double/triple block ratios in both orientations', () => {
   for (const [index, level] of LEVELS.entries()) {
     validateCustomLevel({ ...level, version: 1, heartCost: Number.isFinite(level.heartCost) ? level.heartCost : null, events: [] });
@@ -66,7 +97,10 @@ test('campaign layouts use few styles and exact infrequent double/triple block r
       for (const kind of ['slow', 'normal', 'fast']) assert.ok(bricks.some(brick => brick.kind === kind), `${level.id}: missing ${kind}`);
       assert.ok(new Set(bricks.map(style)).size <= 6, `${level.id}: too many styles`);
       assert.ok(level.brickTypes.every(entry => bricks.some(brick =>
-        brick.region.edge === entry.edge && brick.region.start === entry.start && brick.region.end === entry.end)), `${level.id}: hidden special`);
+        brick.region.edge === entry.edge && brick.region.start === entry.start && brick.region.end === entry.end)
+        || game.bricks.some(brick => brick.kind === 'cinder' && brick.absorbedBy !== null
+          && brick.region.edge === entry.edge && brick.region.start === entry.start && brick.region.end === entry.end
+          && game.bricks[brick.absorbedBy].kind === 'cinder')), `${level.id}: hidden special`);
       const sizes = bricks.map(brick => 1 + game.bricks.filter(part => part.absorbedBy === brick.id).length);
       const frequency = size => sizes.filter(value => value === size).length / sizes.length;
       assert.ok(frequency(1) >= .8);
@@ -84,7 +118,7 @@ test('campaign layouts use few styles and exact infrequent double/triple block r
   }
 });
 
-test('goals are attainable, schedules ordered, shields rare, and all food generates at most five hearts', () => {
+test('goals are attainable, schedules ordered, shields escalate, and all food generates at most five hearts', () => {
   const shields = { red: 0, green: 0, blue: 0 };
   const objectives = new Set();
   for (const [index, level] of LEVELS.entries()) {
@@ -97,11 +131,12 @@ test('goals are attainable, schedules ordered, shields rare, and all food genera
       if (shield) { shields[shield] += count; shieldedCount += count; }
     }
     assert.ok(enemyPoints >= level.killGoal, level.id);
-    assert.ok(!enemyCount || shieldedCount / enemyCount <= .2, `${level.id}: too many shields`);
+    if (index < 6) assert.equal(shieldedCount, 0, `${level.id}: shields not introduced`);
+    else assert.ok(shieldedCount / enemyCount >= .35 && shieldedCount / enemyCount <= .65, `${level.id}: shield pressure`);
     for (const timeline of [level.food, level.enemies, level.weapons]) {
       assert.ok(timeline.every(([time], i) => time >= 0 && time < level.duration && (!i || time >= timeline[i - 1][0])), level.id);
     }
-    if (index >= 2) {
+    if (index >= 2 && level.concept !== 'boost') {
       assert.ok(level.weapons[0][0] >= level.enemies[0][0] + 10, `${level.id}: dodge before swords`);
       assert.ok(level.weapons.length <= (index === 2 ? 4 : level.killGoal > 10 ? 3 : level.killGoal ? 2 : 1), `${level.id}: sparse swords`);
       assert.ok(level.weapons.every(([time], i) => !i || time - level.weapons[i - 1][0] >= 16), `${level.id}: space out swords`);
@@ -120,15 +155,56 @@ test('goals are attainable, schedules ordered, shields rare, and all food genera
   assert.ok(shields.red > shields.green && shields.green > shields.blue);
 });
 
+test('the Boost introduction requires boost defeats and supplies no weapons', () => {
+  const index = LEVELS.findIndex(level => level.concept === 'boost');
+  const level = LEVELS[index];
+  assert.deepEqual(level.weapons, []);
+  assert.ok(level.killGoal > 0);
+  assert.ok(level.brickTypes.some(brick => brick.boost));
+  assert.ok(level.brickTypes.every(brick => brick.spawner?.kind !== 'weapon'));
+  assert.match(level.cutscene.lines.map(line => line.text).join(' '), /No swords here/);
+  const game = new Game(() => .5, { level: index });
+  game.start();
+  game.cat.x = 22; game.cat.y = 22;
+  game.update(level.duration);
+  assert.equal(game.weapons.length, 0);
+  assert.equal(game.weapon, null);
+  assert.ok(game.spawnCues.every(cue => cue.kind !== 'weapon'));
+});
+
+test('enemy pressure increases without advancing enemy or shield introductions', () => {
+  const previousCounts = [0, 3, 8, 6, 6, 6, 10, 5, 8, 7, 9, 10, 10, 11, 9, 6, 11, 13, 21];
+  for (const [index, level] of LEVELS.entries()) {
+    const count = level.enemies.reduce((sum, [, , count]) => sum + count, 0);
+    if (index === 0) assert.equal(count, 0);
+    else assert.ok(count >= previousCounts[index] * 1.25, `${level.id}: larger waves`);
+    for (const [, , , shield] of level.enemies) {
+      if (shield === 'green') assert.ok(index >= 11, `${level.id}: green introduced in 1-12`);
+      if (shield === 'blue') assert.ok(index >= 17, `${level.id}: blue introduced in 1-18`);
+    }
+  }
+  const shieldHitsPerRobot = levels => {
+    let hits = 0, robots = 0;
+    for (const level of levels) for (const [, , count, shield] of level.enemies) {
+      hits += count * (shield ? SHIELDS[shield].hits : 1);
+      robots += count;
+    }
+    return hits / robots;
+  };
+  assert.ok(shieldHitsPerRobot(LEVELS.slice(11)) > shieldHitsPerRobot(LEVELS.slice(6, 11)));
+  assert.ok(LEVELS[17].enemies.some(([, , count, shield]) => shield === 'blue' && count >= 3));
+  assert.ok(LEVELS[18].enemies.some(([, , count, shield]) => shield === 'blue' && count >= 3));
+});
+
 test('both final-level portal exits clear every wall in desktop and portrait', () => {
   for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .6 }]) {
     const game = new Game(() => .5, { level: LEVELS.length - 1, ...options });
     game.start();
     const portals = game.bricks.filter(brick => brick.portal && brick.absorbedBy === null);
-    assert.equal(portals.length, 2);
+    assert.equal(portals.length, 4);
     const parts = game.brickParts();
     for (const destination of portals) {
-      const source = portals.find(brick => brick !== destination);
+      const source = portals.find(brick => brick !== destination && brick.portal === destination.portal);
       game.portalUntil = 0; game.portalArrival = null;
       assert.equal(game.travelPortal(source, parts), true);
       assert.ok(!parts.some(part => game.touchingPart(part)), 'Koshi emerges clear of all walls');

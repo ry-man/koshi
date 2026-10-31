@@ -289,11 +289,23 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
   test(`boost requires resting contact, doubles speed and defeats without consuming swords in ${layout}`, () => {
     const game = arena(options), boost = edgeBrick(game, 'right'), other = edgeBrick(game, 'left');
     boost.boost = true;
+    assert.equal(game.boostReady, false);
     assert.equal(aim(game, boost), true);
+    assert.equal(game.boostReady, false, 'not ready while approaching the boost');
     assert.equal(game.boosted, false, 'clicking a boost destination alone gives no boost');
     game.update(2);
     assert.equal(game.cat.vx, 0);
+    assert.equal(game.boostReady, true);
+    game.pause(); game.update(10);
+    assert.equal(game.boostReady, true, 'ready cue survives pause');
+    game.resume();
+    boost.toggle = 2; boost.toggleRemaining = 2;
+    assert.equal(game.boostReady, false, 'disabled boost cannot charge a launch');
+    boost.toggleRemaining = 0;
+    assert.equal(game.boostReady, true);
+    boost.toggle = null;
     assert.equal(aim(game, other), true);
+    assert.equal(game.boostReady, false, 'launch clears the readiness cue');
     assert.equal(game.boosted, true);
     near(Math.hypot(game.cat.vx, game.cat.vy), SPEED * 2);
     const snapshot = { ...game.cat };
@@ -318,6 +330,7 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0); assert.equal(game.boosted, false);
     game.reset();
     assert.equal(game.boosted, false);
+    assert.equal(game.boostReady, false);
   });
 }
 

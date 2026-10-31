@@ -133,7 +133,7 @@ test('HUD marks only required score targets or the survival timer and tracks obj
     game.score = score; game.nextHeart = nextHeart;
     vm.runInContext(`{${hud}}`, context);
     assert.equal(node('#heart-cost').hidden, false);
-    assert.equal(node('#heart-cost-label').textContent, `Next heart: ${earned} / 10 food`);
+    assert.equal(node('#heart-cost-numbers').textContent, `${earned}/10`);
     assert.equal(node('#heart-cost-fill').style.width, `${earned * 10}%`);
     assert.equal(node('#heart-cost-meter').attributes['aria-valuenow'], earned);
     assert.equal(node('#heart-cost-meter').attributes['aria-valuemax'], 10);

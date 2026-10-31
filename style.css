@@ -100,6 +100,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .stat.lives { border: 0; padding: 0; min-width: 0; }
 .lives strong { color: var(--fast); letter-spacing: 4px; }
 .heart-cost { max-width: 150px; margin: 6px auto 0; color: #efb6c4; font-size: 10px; }
+#heart-cost-numbers { display: inline-block; white-space: nowrap; }
 .heart-cost-meter { height: 4px; margin-top: 4px; background: #ffffff15; border-radius: 3px; overflow: hidden; }
 #heart-cost-fill { height: 100%; background: #efb6c4; }
 .objective { display: flex; align-items: center; gap: 18px; padding: 12px 26px; background: #ffffff04; font-size: 11px; }

@@ -117,8 +117,9 @@ the board; phones keep compact controls above it without scrolling away from pla
   within the first second have shortened previews; time-zero spawns remain instant.
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
-- Robo Mice arrive in Level 1–2, wandering in curves and periodically stopping to lick their
-  hands. Robo Wheels arrive in 1–9 and roll around the inside boundary. Robo Rams arrive in 1–13, wander, pause
+- Robo Mice arrive in Level 1–2, patrolling curves at **75 board units/second**
+  (about 15% faster than before) and periodically stopping to open their mouths
+  and bare two large front teeth. Robo Wheels arrive in 1–9 and roll around the inside boundary. Robo Rams arrive in 1–13, wander, pause
   with glowing eyes as they aim at Koshi, then charge straight ahead. Their
   charges ricochet off bricks and slow down with each bounce. Unarmed contact
   costs one heart per enemy contact; remaining overlapped does not repeatedly
@@ -147,8 +148,9 @@ the board; phones keep compact controls above it without scrolling away from pla
   Further contacts do not extend the timer. Pause freezes both protection and
   animation; restart clears them. Spikes still stop him while protected.
 - From Level 1–4 onward, collecting the level's **heart cost** in food points spawns a heart in the playable area.
-  A **Next heart** food counter and pink progress meter beneath Koshi's health
-  show progress toward the next spawn and reset at each threshold. Custom levels
+  A compact **Next: 0/14** food counter (using the level's actual cost) and pink progress meter beneath Koshi's health
+  show progress toward the next spawn and reset at each threshold. The counter
+  wraps after **Next:** when needed, keeping the numbers together. Custom levels
   use their configured heart cost; the meter is hidden when heart spawning is disabled.
   A **pink, sparkling cloud** marks its exact location for **one second** before
   the heart appears. The cloud cannot be collected and freezes while paused.
@@ -205,12 +207,26 @@ the board; phones keep compact controls above it without scrolling away from pla
 Only previously introduced mechanics return. Levels use at most six distinct
 brick styles, repeating useful combinations such as Warped conveyors or
 Boost with Springs. Of 21 starting blocks, 17 are standard, three are double
-(14.3%), and one is triple (4.8%). At most 20% of a level's scheduled robots
-have shields; across the campaign, red shields outnumber green, which outnumber blue.
+(14.3%), and one is triple (4.8%). Enemy waves are larger throughout the campaign
+after the enemy-free opening. From 1–7 onward, roughly 35–63% of scheduled
+robots have shields. Red shields start in 1–7, green in 1–12, and blue in 1–18;
+later missions field more shielded robots and more of the stronger colors.
 Ordinary steering bricks remain available. Scheduled swords arrive at least ten
 seconds after the first robots, requiring an initial dodging phase. Food-only
 and survival missions provide just one bronze sword; combat missions generally
 provide two silver swords, or three for targets above ten enemy points.
+**Level 1–14 (Boost introduction) supplies no weapons**: players must use
+Boost launches to defeat robots and meet its 12-enemy-point goal.
+Special-brick introduction levels have at least three separate instances of
+the new feature, all away from corner segments. Three of the four larger
+starting blocks (75%) carry that feature: two doubles and one triple.
+The remaining larger block stays ordinary. Returning features remain available
+on separate bricks. The portal introduction uses four endpoints in two matching
+pairs (purple and orange), with three endpoints on larger blocks.
+When Koshi rests against an enabled Boost brick, his next valid launch is
+boost-ready: he opens his mouth wide and his eyes and mouth glow red-orange
+like the brick's flame. The cue freezes on pause and clears when he moves
+or no longer touches an enabled Boost surface; cutscene faces are unchanged.
 Combined-goal progress follows the less-complete target. The final level's
 portal endpoints sit away from corners so Koshi emerges clear of every wall.
 
@@ -268,8 +284,14 @@ Pantry, controlled by **Tom the Duck**, the main antagonist. Tom is a robot
 duck who commands the robots and hoards the world's food.
 He is introduced in the first scene and speaks in every campaign scene.
 Koshi fights to save the world while celebrating every kind of food. Each scene
-teaches its level's new mechanic through that story. Robot actors appear only
-once introduced, and only in levels containing that enemy.
+teaches its level's new mechanic through that story. Each campaign scene has
+at most **three enemies including Tom**, plus Koshi. Robot actors appear only
+once introduced, and only in levels containing that enemy; speaking robots
+take priority when choosing the smaller cast. Mice show their front teeth
+when talking, including in their pixel portraits. Wheels do not use the mouse's
+mouth/teeth display. Ground shadows sit at each character's feet or base (lower
+for Tom's long legs) and remain grounded while speakers bob. Mouse teeth extend
+behind the animated mouth edge so their rectangular tops stay hidden.
 Scenes replay when restarting or directly selecting a level. Levels
 without a scene start immediately as before.
 

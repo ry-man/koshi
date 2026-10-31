@@ -30,7 +30,11 @@ test('Tom commands the campaign in every scene and round-trips as a custom speak
     for (const line of campaign.cutscene.lines) {
       assert.ok(line.actors.some(actor => actor.character === 'tom'));
       assert.equal(new Set(line.actors.map(actor => actor.x)).size, line.actors.length);
+      assert.ok(line.actors.filter(actor => actor.character !== 'koshi').length <= 3, `${campaign.id}: stage clutter`);
     }
+    const cast = new Set(campaign.cutscene.lines.flatMap(line => line.actors.map(actor => actor.character)).filter(character => character !== 'koshi'));
+    assert.ok(cast.size <= 3, `${campaign.id}: scene has at most three enemies including Tom`);
+    for (const character of cast) assert.ok(character === 'tom' || campaign.enemies.some(([, type]) => type === character), `${campaign.id}: level-appropriate cast`);
     assert.ok(campaign.enemies.every(([, type]) => type !== 'tom'), 'Tom is a story antagonist, not a new combat enemy');
   }
   const source = { ...level(), cutscene: {
@@ -117,6 +121,55 @@ test('cutscene validation rejects malformed dialogue, actors, themes, and oversi
     { actors: [{ character: 'other', x: .5, y: .5 }] },
   ]) invalid.push({ ...scene(), lines: [{ ...scene().lines[0], ...patch }] });
   for (const cutscene of invalid) assert.throws(() => validateCustomLevel({ ...level(), cutscene }), /Cutscene:/);
+});
+
+test('speaking mouse portraits show two front teeth without giving wheels the same teeth', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const operations = [];
+  const ctx = {
+    clearRect() {},
+    fillRect(...args) { operations.push([...args, this.fillStyle]); },
+  };
+  const context = vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('function drawPortrait('), source.indexOf('class CutscenePlayer')), context);
+  const teeth = (character, speaking) => {
+    operations.length = 0;
+    context.drawPortrait(ctx, character, speaking, 0);
+    return operations.filter(op => op.at(-1) === '#f2eee0');
+  };
+  assert.deepEqual(teeth('mouse', true), [[12, 22, 3, 5, '#f2eee0'], [17, 22, 3, 5, '#f2eee0']]);
+  assert.deepEqual(teeth('mouse', false), []);
+  assert.deepEqual(teeth('wheel', true), []);
+});
+
+test('stage shadows align with each character base and stay grounded while speakers bob', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const loop = source.slice(source.indexOf('    const actorScale ='), source.indexOf('    drawPortrait(this.portrait'));
+  const operations = [];
+  const ctx = new Proxy({}, { get: (_, name) => (...args) => operations.push([name, ...args]) });
+  const context = vm.createContext({
+    ctx, width: 390, height: 560, reducedMotion: true, time: .2,
+    drawTom: () => operations.push(['draw', 'tom']),
+  });
+  vm.runInContext(`function stage(line) { ${loop} }`, context);
+  const player = {
+    positions: new Map(), paused: false,
+    drawCharacter: (_, character) => operations.push(['draw', character]),
+  };
+  for (const [character, base] of Object.entries({ koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21 })) {
+    const draw = speaker => {
+      operations.length = 0;
+      context.stage.call(player, { speaker, actors: [{ character, x: .5, y: .65 }] });
+      return operations.slice();
+    };
+    const silent = draw('other'), speaking = draw(character);
+    const shadow = speaking.findIndex(op => op[0] === 'ellipse');
+    assert.deepEqual(speaking[shadow].slice(1, 5), [character === 'tom' ? -7 : 0, base, 30, 7], character);
+    assert.deepEqual(speaking.slice(0, shadow + 1), silent.slice(0, shadow + 1), 'shadow does not follow speaking bob');
+    const bob = speaking.findIndex((op, i) => i > shadow && op[0] === 'translate');
+    assert.ok(bob > shadow && bob < speaking.findIndex(op => op[0] === 'draw'), 'only the character bobs above its shadow');
+    assert.ok(speaking[bob][2] > 0);
+  }
 });
 
 test('dialogue types at 30 characters per second and requires explicit advancement', () => {

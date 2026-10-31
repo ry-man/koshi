@@ -58,7 +58,7 @@ const cutscene = new globalThis.KoshiCutscenePlayer((context, character, time, s
   const previous = ctx;
   ctx = context;
   if (character === 'koshi') drawCat(0, 0, time);
-  else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, resting: speaking && Math.floor(time * 4) % 2 === 0 });
+  else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
   ctx = previous;
 }, startLevel);
 
@@ -459,7 +459,7 @@ function syncUI() {
   document.querySelector('#heart-cost').hidden = !heartSpawning;
   if (heartSpawning) {
     const earned = Math.max(0, Math.min(heartCost, game.score - (game.nextHeart - heartCost)));
-    document.querySelector('#heart-cost-label').textContent = `Next heart: ${earned} / ${heartCost} food`;
+    document.querySelector('#heart-cost-numbers').textContent = `${earned}/${heartCost}`;
     const meter = document.querySelector('#heart-cost-meter');
     meter.setAttribute('aria-valuemax', heartCost);
     meter.setAttribute('aria-valuenow', earned);
@@ -923,7 +923,7 @@ function line(points, color, width = 2) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.stroke();
 }
 
-function drawCat(x, y, now, damageProgress = null) {
+function drawCat(x, y, now, damageProgress = null, boostReady = false) {
   ctx.save();
   ctx.translate(x, y);
   const hurt = damageProgress !== null;
@@ -954,10 +954,16 @@ function drawCat(x, y, now, damageProgress = null) {
   ctx.fillStyle = hurt ? darkRed ? '#f2a0a5' : '#ffd3d5' : '#eff2ed';
   ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(-3, -5, -4, 7); ctx.quadraticCurveTo(0, 12, 4, 7); ctx.quadraticCurveTo(3, -5, 0, -12); ctx.fill();
   ctx.fillStyle = '#26323a';
-  const blink = !hurt && now % 5.5 > 5.3;
-  for (const eye of [-9, 9]) {
-    ctx.beginPath(); ctx.ellipse(eye, -3, 2.3, blink ? .7 : 3.2, 0, 0, Math.PI * 2); ctx.fill();
+  const ember = `rgb(236,${Math.round(72 + (Math.sin(now * Math.PI * 2 / 1.8) + 1) * 40)},36)`;
+  const blink = !hurt && !boostReady && now % 5.5 > 5.3;
+  ctx.save();
+  if (boostReady) {
+    ctx.fillStyle = ember; ctx.shadowColor = '#ec4824'; ctx.shadowBlur = 12;
   }
+  for (const eye of [-9, 9]) {
+    ctx.beginPath(); ctx.ellipse(eye, -3, boostReady ? 3.2 : 2.3, blink ? .7 : boostReady ? 4.2 : 3.2, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
   if (hurt) {
     line([[-14, -12], [-6, -8]], '#672c39', 2.5);
     line([[6, -8], [14, -12]], '#672c39', 2.5);
@@ -966,12 +972,20 @@ function drawCat(x, y, now, damageProgress = null) {
   ctx.beginPath(); ctx.moveTo(-4, 5); ctx.lineTo(4, 5); ctx.lineTo(0, 9); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#34414a'; ctx.lineWidth = 1.7;
   ctx.beginPath();
-  if (hurt) {
+  if (boostReady) {
+    ctx.save();
+    ctx.fillStyle = '#6b1714'; ctx.strokeStyle = ember;
+    ctx.shadowColor = '#ec4824'; ctx.shadowBlur = 14; ctx.lineWidth = 2;
+    ctx.ellipse(0, 15, 8, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = ember;
+    ctx.beginPath(); ctx.ellipse(0, 17, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  } else if (hurt) {
     ctx.moveTo(-8, 16); ctx.quadraticCurveTo(0, 7, 8, 16);
   } else {
     ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11); ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11);
   }
-  ctx.stroke();
+  if (!boostReady) ctx.stroke();
   for (const sign of [-1, 1]) {
     for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], hurt ? '#ffd3d5' : '#d7dfdc', 1.2);
   }
@@ -1045,7 +1059,7 @@ function render(now) {
     ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
-  drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress);
+  drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
   if (game.boosted) drawBoost(ctx, game.cat.x, game.cat.y, game.elapsed);
   const stuck = game.stuckUntil > game.elapsed + 1e-9;
   const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
@@ -1213,11 +1227,18 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
     ctx.fillStyle = deathProgress === null ? '#d46665' : '#53616b'; ctx.fillRect(x-4,-2,8,6);
     if (enemy.type === 'mouse') for (let i = -3; i <= 3; i += 3) line([[x+i,-2],[x+i,4]], '#27353d', 1);
   }
-  line([[-6,11],[0,7],[6,11]], '#27353d', 2);
-  if (enemy.resting && deathProgress === null) {
-    ctx.fillStyle = '#c9d4db'; ctx.beginPath(); ctx.arc(0, 17, 5, 0, Math.PI * 2); ctx.fill();
-    line([[0,10],[3,15]], '#e6a1a1', 3);
-  }
+  if (enemy.type === 'mouse' && (enemy.resting || enemy.speaking) && deathProgress === null) {
+    const opening = 6 + (Math.sin(enemy.age * 8) + 1) * 1.5;
+    ctx.fillStyle = '#27353d';
+    ctx.beginPath(); ctx.ellipse(0, 11, 9, opening, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = '#f2eee0'; ctx.strokeStyle = '#596975'; ctx.lineWidth = 1;
+    for (const x of [-5, 1]) {
+      ctx.fillRect(x, 0, 4, 13);
+      ctx.strokeRect(x, 0, 4, 13);
+    }
+    ctx.restore();
+  } else line([[-6,11],[0,7],[6,11]], '#27353d', 2);
   ctx.restore();
 }
 

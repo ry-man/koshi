@@ -117,7 +117,10 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#27353d', 9, 12, 5, 2); box('#27353d', 18, 12, 5, 2);
     box('#d46665', 9, 16, 5, blink ? 1 : 4); box('#d46665', 18, 16, 5, blink ? 1 : 4);
     box('#27353d', 12, 23, 8, talking ? 4 : 1);
-    if (talking) for (const x of [13, 16, 19]) box('#d1dce4', x, 24, 1, 1);
+    if (character === 'mouse' && talking) {
+      box('#27353d', 10, 22, 12, 7);
+      for (const x of [12, 17]) box('#f2eee0', x, 22, 3, 5);
+    }
   }
 }
 
@@ -254,10 +257,12 @@ class CutscenePlayer {
       this.positions.set(key, position);
       const speaking = actor.character === line.speaker;
       ctx.save();
-      ctx.translate(position.x, position.y + (speaking ? Math.sin(time * 6) * 3 : 0));
+      ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(0, 28, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21 }[actor.character];
+      ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0, base, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);
       if (actor.character === 'tom') drawTom(ctx, time, speaking);
       else this.drawCharacter(ctx, actor.character, time, speaking);
       ctx.restore();

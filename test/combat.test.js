@@ -75,7 +75,7 @@ test('all scheduled events fire once, including late events and timeout', () => 
   assert.deepEqual(food, LEVELS[2].food);
   assert.deepEqual(robots, LEVELS[2].enemies);
   assert.deepEqual(game.weapons.map(w => w.type), LEVELS[2].weapons.map(w => w[1]));
-  assert.equal(game.robots.length, 8);
+  assert.equal(game.robots.length, LEVELS[2].enemies.reduce((sum, [, , count]) => sum + count, 0));
 });
 
 test('wood, bronze, and silver break at precisely their defeat limits', () => {
@@ -493,11 +493,14 @@ test('food thresholds spawn healing hearts, pickups cap at three, and level 1-1 
   assert.equal(first.healing.length, 0);
 });
 
-test('mouse pauses to lick hands and wheels remain on the inner perimeter in both layouts', () => {
+test('mouse patrols at 75 units per second, pauses to bare teeth, and wheels stay on the perimeter', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
     const game = arena(options);
     game.spawnEnemies([0, 'mouse', 1]);
     const enemy = game.robots[0];
+    const bounds = game.bounds();
+    enemy.x = (bounds.left + bounds.right) / 2;
+    enemy.y = (bounds.top + bounds.bottom) / 2;
     enemy.age = 4.6;
     const { x, y } = enemy;
     game.combat(.1, game.cat.x, game.cat.y);
@@ -506,6 +509,7 @@ test('mouse pauses to lick hands and wheels remain on the inner perimeter in bot
     enemy.age = 6;
     game.combat(.1, game.cat.x, game.cat.y);
     assert.notEqual(enemy.x, x);
+    assert.ok(Math.abs(Math.hypot(enemy.x - x, enemy.y - y) - 7.5) < 1e-9, 'mouse speed is 75 units/second');
     game.spawnEnemies([0, 'wheel', 1]);
     const wheel = game.robots[1], b = game.bounds();
     const distance = wheel.distance;
@@ -516,6 +520,43 @@ test('mouse pauses to lick hands and wheels remain on the inner perimeter in bot
     }
     assert.ok(wheel.distance > distance);
   }
+});
+
+test('resting and speaking mice open their mouths with two large teeth; wheels never inherit it', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const operations = [];
+  const ctx = new Proxy({ fillStyle: '', strokeStyle: '', globalAlpha: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      return (...args) => {
+        assert.ok(args.every(value => typeof value !== 'number' || Number.isFinite(value)));
+        operations.push([name, ...args, target.fillStyle]);
+      };
+    },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
+    + source.slice(source.indexOf('function drawRobotBody('), source.indexOf('function drawRoboBucket(')), context);
+  const draw = (type, attributes = {}, death = null) => {
+    operations.length = 0;
+    ctx.fillStyle = '';
+    context.drawRobotBody({ type, x: 0, y: 0, age: 0, distance: 0, ...attributes }, death);
+    return operations.slice();
+  };
+  for (const attributes of [{ resting: true }, { speaking: true }]) {
+    const mouse = draw('mouse', attributes);
+    assert.ok(mouse.some(op => op[0] === 'ellipse' && op[1] === 0 && op[2] === 11), 'open mouth');
+    assert.deepEqual(mouse.filter(op => op[0] === 'fillRect' && op.at(-1) === '#f2eee0').map(op => op.slice(1, 5)),
+      [[-5, 0, 4, 13], [1, 0, 4, 13]], 'teeth extend above the highest mouth opening with unchanged tips');
+    const clip = mouse.findIndex(op => op[0] === 'clip');
+    assert.ok(clip > mouse.findIndex(op => op[0] === 'ellipse'), 'clip to the animated mouth');
+    assert.ok(clip < mouse.findIndex(op => op[0] === 'fillRect' && op.at(-1) === '#f2eee0'), 'hide tooth tops behind the mouth edge');
+    assert.ok(!mouse.some(op => op.at(-1) === '#e6a1a1'), 'no pink licking tongue');
+    assert.deepEqual(draw('wheel', attributes), draw('wheel'), 'wheel expression does not inherit mouse animation');
+    assert.ok(!draw('mouse', attributes, .5).some(op => op.at(-1) === '#f2eee0'), 'no teeth animation while dying');
+  }
+  assert.ok(!draw('mouse').some(op => op.at(-1) === '#f2eee0'), 'moving silent mouse keeps its closed mouth');
+  assert.notDeepEqual(draw('mouse', { speaking: true, age: 0 }), draw('mouse', { speaking: true, age: .1 }), 'mouth animates over time');
 });
 
 test('Robo Rams wander, lock onto Koshi, telegraph, and charge toward the saved position', () => {

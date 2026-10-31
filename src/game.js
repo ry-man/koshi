@@ -134,16 +134,16 @@ const LEVELS = [
   },
   {
     name: 'Mouse at the market', concept: 'robo mouse', duration: 45, survive: true,
-    enemies: [[8,'mouse',1],[22,'mouse',1],[35,'mouse',1]], weapons: [], bricks: [],
+    enemies: [[8,'mouse',2],[22,'mouse',1],[35,'mouse',1]], weapons: [], bricks: [],
     dialogue: [
       ['tom', 'My Robo Mouse patrol has occupied the market. Hold out until the evacuation bell rings!'],
-      ['mouse', 'We wander in curves and sometimes stop to lick our hands. Touch us without protection and lose a heart!'],
+      ['mouse', 'We patrol in curves and sometimes stop to bare our two front teeth. Touch us without protection and lose a heart!'],
       ['koshi', 'I will dodge your patrol for 45 seconds so everyone can escape. A banana and cheese detour sounds good, too.'],
     ],
   },
   {
     name: 'Cutlery uprising', concept: 'swords', duration: 90, killGoal: 5,
-    enemies: [[10,'mouse',2],[28,'mouse',2],[48,'mouse',2],[68,'mouse',2]], bricks: [],
+    enemies: [[10,'mouse',3],[28,'mouse',3],[48,'mouse',2],[68,'mouse',3]], bricks: [],
     weapons: [[20,'wood'],[38,'bronze'],[58,'silver'],[76,'gold']],
     dialogue: [
       ['tom', 'The market is closed! My mice guard the road to the farms.'],
@@ -153,7 +153,7 @@ const LEVELS = [
   },
   {
     name: 'A hearty harvest', concept: 'hearts and heart cost', duration: 100, goal: 30, killGoal: 4,
-    enemies: [[12,'mouse',2],[35,'mouse',2],[62,'mouse',2]], bricks: [],
+    enemies: [[12,'mouse',3],[35,'mouse',3],[62,'mouse',2]], bricks: [],
     dialogue: [
       ['tom', 'I have stolen the farms\' harvest. My patrol will wear down your three hearts.'],
       ['koshi', 'Food now earns healing hearts! The Next heart meter shows the food cost; each full meter creates a heart after a pink cloud.'],
@@ -163,7 +163,7 @@ const LEVELS = [
   },
   {
     name: 'Cracker causeway', concept: 'crumblers', duration: 100, goal: 35,
-    enemies: [[15,'mouse',2],[45,'mouse',2],[75,'mouse',2]],
+    enemies: [[15,'mouse',3],[45,'mouse',3],[75,'mouse',2]],
     bricks: [[4,{ crumbler: 5 }],[9,{ crumbler: 5 }],[16,{ crumbler: 5 }]],
     dialogue: [
       ['tom', 'The old causeway is made of Crumblers. Every time you select one, its remaining uses fall!'],
@@ -173,7 +173,7 @@ const LEVELS = [
   },
   {
     name: 'Sticky jam depot', concept: 'slime', duration: 100, goal: 30, killGoal: 5,
-    enemies: [[12,'mouse',2],[38,'mouse',2],[68,'mouse',2]],
+    enemies: [[12,'mouse',3],[38,'mouse',3],[68,'mouse',3]],
     bricks: [[4,{ slimed: true, slimeColor: 'green' }],[16,{ slimed: true, slimeColor: 'green' }],[9,{ crumbler: 5 }]],
     dialogue: [
       ['tom', 'My jam depot has slime-coated bricks. Land on one and you are stuck before you can steer again!'],
@@ -183,17 +183,17 @@ const LEVELS = [
   },
   {
     name: 'Tin-foil picnic', concept: 'enemy shields', duration: 110, killGoal: 8,
-    enemies: [[10,'mouse',3],[28,'mouse',1,'red'],[45,'mouse',3],[64,'mouse',1,'red'],[82,'mouse',2]],
+    enemies: [[10,'mouse',4],[28,'mouse',2,'red'],[45,'mouse',3],[64,'mouse',3,'red'],[82,'mouse',2]],
     bricks: [[16,{ slimed: true, slimeColor: 'red' }],[9,{ crumbler: 5 }]],
     dialogue: [
-      ['tom', 'A few elite robots now wear shields. Red needs 2 hits, green 3, blue 4; stronger shields are rarer.'],
+      ['tom', 'My shielded patrol starts here! Red needs 2 hits, green 3, blue 4. Expect more and stronger shields as you approach my pantry.'],
       ['mouse', 'Each hit weakens the shield. We blink with one second of protection between accepted hits!'],
       ['koshi', 'Only a defeat earns points: 1 without a shield, or the original shield\'s hit count. Eight enemy points will rescue this picnic!'],
     ],
   },
   {
     name: 'Skewered supper', concept: 'spikes', duration: 60, survive: true,
-    enemies: [[10,'mouse',2],[30,'mouse',2],[48,'mouse',1,'red']],
+    enemies: [[10,'mouse',3],[30,'mouse',2],[48,'mouse',3,'red']],
     bricks: [[4,{ spikes: true }],[9,{ spikes: true }],[16,{ slimed: true, slimeColor: 'red' }]],
     dialogue: [
       ['tom', 'White spikes guard the supper station. Touching them costs a heart and stops you, even with a sword!'],
@@ -204,7 +204,7 @@ const LEVELS = [
   },
   {
     name: 'Meals on wheels', concept: 'robo wheels', duration: 110, goal: 35, killGoal: 7,
-    enemies: [[12,'wheel',1],[25,'mouse',2],[43,'wheel',2],[62,'mouse',2],[82,'wheel',1,'red']],
+    enemies: [[12,'wheel',2],[25,'mouse',3],[43,'wheel',3,'red'],[62,'mouse',3],[82,'wheel',2,'red']],
     bricks: [[16,{ spikes: true }],[9,{ crumbler: 5 }]],
     dialogue: [
       ['tom', 'Robo Wheels, patrol the inside boundary! Stop Koshi from reaching the city kitchens.'],
@@ -214,7 +214,7 @@ const LEVELS = [
   },
   {
     name: 'Pancake trampoline', concept: 'springs', duration: 110, goal: 40,
-    enemies: [[14,'mouse',2],[35,'wheel',2],[62,'mouse',2],[85,'wheel',1,'red']],
+    enemies: [[14,'mouse',3],[35,'wheel',3,'red'],[62,'mouse',3],[85,'wheel',2,'red']],
     bricks: [[4,{ springs: true }],[9,{ springs: true }],[16,{ spikes: true }]],
     dialogue: [
       ['tom', 'Spring platforms protect my pancake store. Land on one and it bounces you away automatically!'],
@@ -224,7 +224,7 @@ const LEVELS = [
   },
   {
     name: 'Sushi assembly line', concept: 'conveyers', duration: 120, goal: 35, killGoal: 8,
-    enemies: [[12,'mouse',2],[30,'wheel',2],[50,'mouse',1,'red'],[72,'wheel',2],[95,'mouse',2]],
+    enemies: [[12,'mouse',3],[30,'wheel',3],[50,'mouse',3,'red'],[72,'wheel',3,'red'],[95,'mouse',2]],
     bricks: [[19,{ conveyor: true }],[10,{ conveyor: true, conveyorDirection: 'counterclockwise' }],[4,{ springs: true }]],
     dialogue: [
       ['tom', 'Conveyor belts carry supplies into my workshop. Land on the inner edge and the belt carries you along its arrows.'],
@@ -234,7 +234,7 @@ const LEVELS = [
   },
   {
     name: 'The folding pantry', concept: 'warped bricks', duration: 120, killGoal: 10,
-    enemies: [[12,'mouse',3],[32,'wheel',2],[52,'mouse',1,'green'],[74,'mouse',3],[97,'wheel',1,'red']],
+    enemies: [[12,'mouse',4],[32,'wheel',3,'red'],[52,'mouse',3,'green'],[74,'mouse',3],[97,'wheel',2,'red']],
     bricks: [[4,{ warped: 12 }],[19,{ warped: 12, conveyor: true }],[16,{ springs: true }]],
     dialogue: [
       ['tom', 'Warped bricks absorb a neighboring brick each time you select them. My pantry walls will change beneath your plans!'],
@@ -244,7 +244,7 @@ const LEVELS = [
   },
   {
     name: 'Ram through the granary', concept: 'robo rams', duration: 120, goal: 40, killGoal: 9,
-    enemies: [[12,'ram',1],[28,'mouse',3],[46,'wheel',2],[65,'ram',1],[83,'mouse',1,'red'],[100,'wheel',2]],
+    enemies: [[12,'ram',2],[28,'mouse',4],[46,'wheel',3,'red'],[65,'ram',2,'green'],[83,'mouse',2,'green'],[100,'wheel',2]],
     bricks: [[4,{ warped: 12 }],[19,{ conveyor: true }],[16,{ springs: true }]],
     dialogue: [
       ['tom', 'Robo Rams, defend the granary! Aim those glowing eyes at the cat.'],
@@ -254,17 +254,18 @@ const LEVELS = [
   },
   {
     name: 'Fast-food rescue', concept: 'boost', duration: 120, killGoal: 12,
-    enemies: [[12,'ram',1],[28,'mouse',3],[45,'wheel',2],[62,'mouse',1,'green'],[80,'ram',2],[98,'wheel',2]],
+    weapons: [],
+    enemies: [[12,'ram',2],[28,'mouse',4],[45,'wheel',3,'red'],[62,'mouse',3,'green'],[80,'ram',3,'green'],[98,'wheel',2]],
     bricks: [[4,{ boost: true }],[9,{ boost: true }],[19,{ conveyor: true }],[16,{ springs: true }]],
     dialogue: [
       ['tom', 'Boost bricks store launch power. Surely you will overshoot the burger depot!'],
       ['ram', 'Launch while resting on a Boost brick and you travel at double speed, defeating robots on contact without using a sword.'],
-      ['koshi', 'Shielded robots still need spaced hits. Redirecting ends my boost, so I will choose my line carefully. Twelve enemy points, then burgers for everyone!'],
+      ['koshi', 'No swords here: I must use Boost bricks! Shielded robots still need spaced hits. Redirecting ends my boost. Twelve enemy points, then burgers for everyone!'],
     ],
   },
   {
     name: 'Snack dispensary', concept: 'spawners', duration: 120, goal: 45, killGoal: 10,
-    enemies: [[12,'mouse',3],[30,'wheel',2],[50,'ram',1],[70,'mouse',1,'red'],[92,'wheel',2]],
+    enemies: [[12,'mouse',4],[30,'wheel',3,'red'],[50,'ram',2,'green'],[70,'mouse',3,'green'],[92,'wheel',2]],
     bricks: [[4,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[9,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }],[19,{ boost: true }]],
     dialogue: [
       ['tom', 'These Spawning bricks hide supplies. Touch one to release its item at a random spot, only once per attempt!'],
@@ -274,7 +275,7 @@ const LEVELS = [
   },
   {
     name: 'Buckets at the bakery', concept: 'robo buckets', duration: 75, survive: true,
-    enemies: [[12,'bucket',1],[27,'mouse',2],[43,'wheel',1],[56,'ram',1],[65,'bucket',1]],
+    enemies: [[12,'bucket',1],[27,'mouse',3],[43,'wheel',2,'green'],[56,'ram',1,'red'],[65,'bucket',2,'green']],
     bricks: [[4,{ boost: true }],[9,{ springs: true }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }]],
     dialogue: [
       ['tom', 'Robo Buckets, bombard the bakery! Keep the rescue ovens cold.'],
@@ -284,7 +285,7 @@ const LEVELS = [
   },
   {
     name: 'Cinder soup factory', concept: 'cinder', duration: 130, goal: 45, killGoal: 12,
-    enemies: [[12,'bucket',1],[28,'mouse',3],[45,'wheel',2],[63,'ram',1],[80,'mouse',1,'green'],[98,'bucket',1],[115,'wheel',2]],
+    enemies: [[12,'bucket',2],[28,'mouse',4,'red'],[45,'wheel',3,'green'],[63,'ram',2],[80,'mouse',3,'green'],[98,'bucket',2,'green'],[115,'wheel',3]],
     bricks: [[4,{ kind: 'cinder' }],[9,{ kind: 'cinder' }],[16,{ boost: true }],[19,{ springs: true }]],
     dialogue: [
       ['tom', 'Cinder bricks darken the soup factory walls. You cannot select them to steer, and they never recharge.'],
@@ -294,7 +295,7 @@ const LEVELS = [
   },
   {
     name: 'Switchboard supper', concept: 'toggles', duration: 130, killGoal: 14,
-    enemies: [[12,'mouse',3],[28,'wheel',2],[44,'ram',2],[61,'bucket',1],[78,'mouse',1,'blue'],[96,'wheel',1,'red'],[114,'mouse',3]],
+    enemies: [[12,'mouse',4],[28,'wheel',3,'green'],[44,'ram',3,'green'],[61,'bucket',2],[78,'mouse',3,'blue'],[96,'wheel',3,'red'],[114,'mouse',4]],
     bricks: [[4,{ toggle: 2 }],[9,{ toggle: 2 }],[16,{ boost: true }],[19,{ conveyor: true }]],
     dialogue: [
       ['tom', 'Toggle bricks start disabled. Every successful selection of another ready brick counts down their switch!'],
@@ -304,12 +305,12 @@ const LEVELS = [
   },
   {
     name: 'A feast for the world', concept: 'portals', duration: 140, goal: 50, killGoal: 15,
-    enemies: [[12,'mouse',6],[28,'wheel',4],[44,'ram',3],[60,'bucket',2],[77,'mouse',1,'blue'],[93,'wheel',1,'green'],[108,'mouse',2,'red'],[123,'bucket',2]],
+    enemies: [[12,'mouse',7],[28,'wheel',5,'red'],[44,'ram',4,'green'],[60,'bucket',3],[77,'mouse',3,'blue'],[93,'wheel',3,'green'],[108,'mouse',3,'red'],[123,'bucket',3]],
     bricks: [[4,{ portal: 'purple' }],[3,{ portal: 'purple' }],[16,{ boost: true }],[19,{ toggle: 2 }]],
     dialogue: [
       ['tom', 'My last defense: paired Portals! Touch one and you appear at the matching color on the other side.'],
       ['bucket', 'Koshi emerges moving straight into the arena at his current speed. Portal trips do not count as selections or spend brick uses.'],
-      ['koshi', 'Purple to purple, then steer onward! Fifty food points and 15 enemy points will break your final blockade.'],
+      ['koshi', 'Purple to purple or orange to orange, then steer onward! Fifty food points and 15 enemy points will break your final blockade.'],
       ['tom', 'My robots cannot hold every kitchen against a cat who refuses to give up...'],
       ['koshi', 'Then this is our route to victory. Strawberries, pretzels, bananas, cheese, chicken, fish, burgers: a feast for the whole world, not just me!'],
     ],
@@ -319,12 +320,44 @@ const LEVELS = [
     3 + Math.floor(i * (entry.duration - 12) / 6),
     ['L3', 'L3', 'C3', 'L3', 'C3', 'R3', 'S'][i], type, Math.min(25, entry.duration - (3 + Math.floor(i * (entry.duration - 12) / 6))),
   ]);
-  const brickTypes = entry.bricks.map(([id, attributes]) => campaignBrick(id, attributes));
-  const members = index % 2 ? [[4,6],[3,1],[20,22],[11,13,15]] : [[0,2],[7,5],[12,14],[19,21,23]];
-  const brickGroups = members.map(members => ({ owner: index === 0 && members[0] === 0 ? 2 : members[0], members }));
+  const introduced = {
+    crumblers: 'crumbler', slime: 'slimed', spikes: 'spikes', springs: 'springs',
+    conveyers: 'conveyor', 'warped bricks': 'warped', boost: 'boost',
+    spawners: 'spawner', cinder: 'kind', toggles: 'toggle', portals: 'portal',
+  }[entry.concept];
+  let placements = entry.bricks;
+  if (introduced) {
+    const newTypes = entry.bricks.filter(([, attributes]) => attributes[introduced]);
+    const returning = entry.bricks.filter(([, attributes]) => !attributes[introduced]);
+    // Three interior groups showcase the new feature; the fourth stays ordinary.
+    placements = [2, 12, 19].map((id, i) => [id, { ...newTypes[i % newTypes.length][1] }]);
+    const returningIds = [16, 18, 20, 22];
+    if (introduced === 'portal') {
+      placements = [[2, { portal: 'purple' }], [19, { portal: 'purple' }],
+        [12, { portal: 'orange' }], [16, { portal: 'orange' }]];
+      returningIds.shift();
+      placements.push([returningIds[0], Object.assign({}, ...returning.map(([, attributes]) => attributes))]);
+    } else {
+      placements.push(...returning.map(([, attributes], i) => [returningIds[i], attributes]));
+    }
+  }
+  const members = introduced ? [[2,4],[12,14],[17,19,21],[3,5]]
+    : index % 2 ? [[4,6],[3,1],[20,22],[11,13,15]] : [[0,2],[7,5],[12,14],[19,21,23]];
+  const brickGroups = members.map(members => ({
+    owner: introduced && members[0] === 17 ? 19 : index === 0 && members[0] === 0 ? 2 : members[0], members,
+  }));
+  if (introduced === 'kind') {
+    for (const group of brickGroups.slice(0, 3)) {
+      placements.push(...group.members.filter(id => id !== group.owner).map(id => [id, { kind: 'cinder' }]));
+    }
+  }
+  const brickTypes = placements.map(([id, attributes]) => campaignBrick(id, attributes));
   const foodPoints = food.reduce((sum, [, method, type]) => sum + (method === 'S' ? 1 : Number(method.slice(1))) * FOODS[type].value, 0)
     + brickTypes.reduce((sum, brick) => sum + (brick.spawner?.kind === 'food' ? FOODS[brick.spawner.type].value : 0), 0);
-  const cast = [...new Set(entry.enemies.map(([, type]) => type))];
+  const cast = [...new Set([
+    ...entry.dialogue.map(([speaker]) => speaker).filter(speaker => !['koshi', 'tom'].includes(speaker)),
+    ...entry.enemies.map(([, type]) => type),
+  ])].slice(0, 2);
   return {
     id: `1-${index + 1}`, name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
@@ -1090,6 +1123,12 @@ class Game {
     return true;
   }
 
+  get boostReady() {
+    return ['playing', 'paused'].includes(this.state) && !this.cat.vx && !this.cat.vy
+      && this.brickParts().some(part =>
+        this.bricks[part.id].boost && brickEnabled(this.bricks[part.id]) && this.touchingPart(part));
+  }
+
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
     if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || brick.kind === 'cinder' || !brickEnabled(brick) || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
@@ -1099,8 +1138,7 @@ class Game {
     const dx = x - this.cat.x, dy = y - this.cat.y;
     const distance = Math.hypot(dx, dy);
     if (!distance) return false;
-    const boost = !this.cat.vx && !this.cat.vy && parts.some(part =>
-      this.bricks[part.id].boost && brickEnabled(this.bricks[part.id]) && this.touchingPart(part));
+    const boost = this.boostReady;
     const speed = SPEED * (boost ? 2 : 1);
     const vx = dx / distance * speed, vy = dy / distance * speed;
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
@@ -1734,8 +1772,8 @@ class Game {
         enemy.resting = enemy.age % 6 >= 4.5;
         if (!enemy.resting) {
           enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * dt;
-          enemy.x += Math.cos(enemy.phase) * 65 * dt;
-          enemy.y += Math.sin(enemy.phase) * 65 * dt;
+          enemy.x += Math.cos(enemy.phase) * 75 * dt;
+          enemy.y += Math.sin(enemy.phase) * 75 * dt;
           if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
           if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
           enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
