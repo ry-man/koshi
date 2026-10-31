@@ -268,6 +268,11 @@ test('UI updates conveyor teeth without requiring Springs, freezes on pause, and
     attributes: {}, dataset: {}, style: { setProperty() {} }, classList: { toggle() {} },
     setAttribute(name, value) { this.attributes[name] = value; },
     getAttribute(name) { return this.attributes[name]; },
+    toggleAttribute(name, enabled) {
+      if (enabled) this.setAttribute(name, '');
+      else delete this.attributes[name];
+    },
+    querySelector() { return node(); },
   });
   for (const direction of ['clockwise', 'counterclockwise']) {
     const { game, brick } = setup('top', direction);
@@ -277,6 +282,7 @@ test('UI updates conveyor teeth without requiring Springs, freezes on pause, and
       document: { querySelector: () => node() },
       buttons: [{ brick, members, button: node(), counter: node(), usesLeft: brick.usesLeft, conveyor: { querySelector: () => teeth } }],
       timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(), weaponStatus: node(), pause: node(),
+      weaponRemaining: node(), weaponIcon: node(),
       displayedStuck: false, displayedState: 'playing', brickRevision: game.brickRevision, tutorial: null,
     });
     vm.runInContext(synchronization, context);
