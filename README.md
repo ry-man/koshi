@@ -140,7 +140,7 @@ the board; phones keep compact controls above it without scrolling away from pla
   costs one heart per enemy contact; remaining overlapped does not repeatedly
   drain hearts. Separation and another collision can hurt again.
 - Robo Buckets arrive in 1–16, slowly wander and wave their arms, firing blue bombs at random
-  intervals averaging four seconds. Bombs bounce off bricks and are harmless
+  intervals averaging about two seconds. Bombs bounce off bricks and are harmless
   until their three-second fuse expires. Their color gradually shifts from blue
   to red as detonation approaches; the growing red flame circle then
   damages Koshi for a brief time.

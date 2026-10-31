@@ -299,7 +299,7 @@ Defeat: Any weapon defeats the ram. Its horns swing inward as its eyes fade, its
 
 ### Robo Bucket
 Appearance: Smiling faded-yellow bucket robot with a grey handle and waving grey arms, round eyes, and a red nose.
-Movement: Wanders slowly and randomly shoots a blue bomb from its mouth about once every four seconds on average. Bombs fly in straight lines, bounce off bricks with reflected angles, and lose a little speed. Their color gradually changes from blue to red as the three-second fuse runs down.
+Movement: Wanders slowly and randomly shoots a blue bomb from its mouth about once every two seconds on average. Bombs fly in straight lines, bounce off bricks with reflected angles, and lose a little speed. Their color gradually changes from blue to red as the three-second fuse runs down.
 Attack: A bomb is harmless while traveling. After a three-second fuse, it creates a growing red circle of flame that damages Koshi briefly.
 Defeat: Any weapon defeats the bucket. It frowns, its arms fall away, and it melts away with a puff of smoke behind it. Its bombs vanish in tiny explosions.
 

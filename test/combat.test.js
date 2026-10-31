@@ -768,6 +768,23 @@ test('crowded enemy spawns settle without overlap and collisions freeze on pause
   }
 });
 
+test('Robo Bucket randomized throws average about two seconds and retain the minimum interval', () => {
+  const game = arena();
+  const samples = 10000;
+  let total = 0;
+  for (let i = 0; i < samples; i++) {
+    game.random = () => (i + .5) / samples;
+    const interval = game.nextBucketShot();
+    assert.ok(interval >= .25);
+    total += interval;
+  }
+  assert.ok(Math.abs(total / samples - 2) < .02, `average interval: ${total / samples}`);
+  game.random = () => 0;
+  assert.equal(game.nextBucketShot(), .25);
+  game.random = () => 1;
+  assert.ok(Number.isFinite(game.nextBucketShot()));
+});
+
 test('Robo Buckets fire on randomized intervals and bombs bounce while their fuse counts down', () => {
   const game = arena();
   const bucket = game.createCustomSpawn({ kind: 'enemy', type: 'bucket', x: .5, y: .5 })[0];
@@ -779,6 +796,8 @@ test('Robo Buckets fire on randomized intervals and bombs bounce while their fus
   assert.equal(bucket.bombs.length, 1);
   assert.equal(bucket.bombs[0].state, 'flying');
   assert.equal(bucket.bombs[0].radius, 8);
+  assert.ok(Math.abs(bucket.shotTimer - (-2 * Math.log(.75) - .01)) < 1e-8, 'replacement throws use the faster interval');
+  assert.ok(Math.abs(bucket.bombs[0].fuse - 2.98) < 1e-8, 'bombs still have a three-second fuse');
   const bomb = bucket.bombs[0];
   bomb.x = 326; bomb.y = 300; bomb.vx = 200; bomb.vy = 0;
   bomb.fuse = 2.5;

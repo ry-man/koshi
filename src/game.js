@@ -1480,7 +1480,7 @@ class Game {
   }
 
   nextBucketShot() {
-    return Math.max(.25, -4 * Math.log(1 - Math.min(this.random(), 1 - Number.EPSILON)));
+    return Math.max(.25, -2 * Math.log(1 - Math.min(this.random(), 1 - Number.EPSILON)));
   }
 
   initializeBucket(enemy) {
