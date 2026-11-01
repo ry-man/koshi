@@ -468,6 +468,8 @@ test('editor permits unfinished portal pairs and edits only selected endpoints',
   });
   context.renderBoard();
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const immutableStart = source.indexOf('const immutableBrick =');
+  vm.runInContext(source.slice(immutableStart, source.indexOf('\n', immutableStart)), context);
   const start = source.indexOf('function brickEntry(');
   vm.runInContext(source.slice(start, source.indexOf('\nfor (const selector', start)), context);
   const select = ids => { context.selectedBricks = new Set(ids.map(id => context.regionKey(context.previewGame.bricks[id].region))); };
@@ -475,6 +477,7 @@ test('editor permits unfinished portal pairs and edits only selected endpoints',
     const field = context.$(`#${id}`);
     field.value = value; field.checked = checked;
     context.saveBrick({ target: { id } });
+    assert.deepEqual(errors, [], 'editor control changes must not fail silently');
   };
   select([0]);
   change('brick-portal', '', true);
@@ -517,7 +520,7 @@ test('editor permits unfinished portal pairs and edits only selected endpoints',
   assert.doesNotThrow(() => validateCustomLevel(context.level));
   change('brick-kind', 'normal');
   assert.equal(context.previewGame.bricks[0].kind, 'normal');
-  assert.equal(context.previewGame.bricks[0].boost, false);
+  assert.equal(Boolean(context.previewGame.bricks[0].boost), false, 'removing an immutable type does not restore cleared attributes');
   const ids = context.previewGame.perimeter.slice(0, 3);
   select(ids);
   context.combineOwner = ids[1];
@@ -667,6 +670,28 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     assert.equal(visual.symbol.style.opacity, '1', 'Toggle state does not dim active spawners');
     brick.spawned = true;
     assert.match(specialLabel(brick), /already used/);
+  }
+  const { ITEMS } = context.KoshiGame;
+  for (const [type, count] of [['boom-time-red', 1], ['boom-time-green', 3], ['boom-time-blue', 8]]) {
+    const spawn = { kind: 'item', type };
+    const silhouette = spawnSymbol(spawn);
+    assert.match(silhouette, /M-5 -16/);
+    const brick = { x: 0, y: 0, w: 100, h: 25, spawner: spawn };
+    const visual = context.KoshiBrickVisuals.decorateBrick(node(), brick, [brick]);
+    const [outline, body, wickOutline, wick, flame, flameCore, face, hands, countLabel] = visual.symbol.children;
+    assert.equal(visual.symbol.attributes.viewBox, '-28 -40 56 68');
+    assert.equal(outline.attributes.class, 'item-outline');
+    assert.equal(outline.attributes.d, silhouette);
+    assert.equal(body.attributes.class, 'item-color');
+    assert.equal(body.style.fill, ITEMS[type].color);
+    assert.match(wick.attributes.d, /Q-9 -22 -5 -29/);
+    assert.equal(wickOutline.attributes['stroke-width'], '5');
+    assert.equal(flame.attributes.fill, '#ff7928');
+    assert.equal(flameCore.attributes.fill, '#ffe36b');
+    assert.equal(face.attributes.fill, '#fff7df');
+    assert.equal(hands.attributes.d, 'M0 -3 V-10 M0 -3 L6 -1');
+    assert.equal(countLabel.textContent, `+${count}`);
+    assert.equal(countLabel.style.fill, '#111820');
   }
   const boost = { x: 0, y: 0, w: 100, h: 25, boost: true };
   const boostVisual = context.KoshiBrickVisuals.decorateBrick(node(), boost, [boost]);

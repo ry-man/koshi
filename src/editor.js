@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
@@ -9,7 +9,8 @@ const form = $('#event-form');
 const storageKey = 'koshi-level-editor-v1';
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true });
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS })) {
+const immutableBrick = kind => ['cinder', 'goal'].includes(kind);
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -137,7 +138,7 @@ const SURFACE_ICONS = {
 function picture(value, control) {
   const image = document.createElement('span');
   image.className = 'palette-picture';
-  const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie' }[value] }
+  const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie', object: 'soccer-ball' }[value] }
     : control === 'event-type' ? { kind: $('#event-kind').value, type: value }
     : control === 'brick-spawn-item' ? { kind: value.split(':')[0], type: value.split(':')[1] } : null;
   if (item && item.kind && item.type) {
@@ -146,13 +147,13 @@ function picture(value, control) {
     path.setAttribute('d', spawnSymbol(item));
     svg.append(path); image.append(svg);
     image.style.color = spawnColor(item);
-  } else if (['portal', 'toggle', 'spawner', 'boost', 'cinder'].includes(value) || control === 'brick-toggle-clicks') {
+  } else if (['portal', 'toggle', 'spawner', 'boost', 'cinder', 'goal'].includes(value) || control === 'brick-toggle-clicks') {
     const brick = { x: 0, y: 0, w: 88, h: 52 };
     if (value === 'portal') brick.portal = 'purple';
     if (value === 'toggle' || control === 'brick-toggle-clicks') { brick.toggle = control === 'brick-toggle-clicks' ? Number(value) : 1; brick.toggleRemaining = brick.toggle; }
     if (value === 'spawner') brick.spawner = { kind: 'heart', type: 'heart' };
     if (value === 'boost') brick.boost = true;
-    if (value === 'cinder') brick.kind = 'cinder';
+    if (immutableBrick(value)) brick.kind = value;
     decorateBrick(image, brick, [brick]);
   } else if (SURFACE_ICONS[value]) {
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
@@ -234,7 +235,7 @@ function syncPalettes() {
     const plain = CONTACT_SURFACES.every(surface => !$(`#brick-${surface}`).checked && !$(`#brick-${surface}`).indeterminate);
     button.setAttribute('aria-pressed', attribute === 'plain' ? String(plain) : box.indeterminate ? 'mixed' : String(box.checked));
   }
-  for (const id of ['brick-uses', 'brick-warp-seconds', 'brick-spawn-lifetime']) $(`#${id}`).parentElement.hidden = $(`#${id}`).disabled;
+  for (const id of ['brick-uses', 'brick-warp-seconds', 'brick-spawn-lifetime', 'brick-spawn-shield']) $(`#${id}`).parentElement.hidden = $(`#${id}`).disabled;
 }
 
 function message(text, error = false) {
@@ -278,7 +279,8 @@ function typeOptions(type, showLifetime) {
   const types = kind === MIXED ? [] : kind === 'food' ? Object.entries(FOODS).map(([key, food]) => [key, `${food.icon} ${food.name} (+${food.value})`])
     : kind === 'weapon' ? Object.entries(SWORDS).map(([key, sword]) => [key, sword.name])
       : kind === 'item' ? Object.entries(ITEMS).map(([key, item]) => [key, item.name])
-        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern']];
+        : kind === 'object' ? Object.entries(OBJECTS).map(([key, item]) => [key, item.name])
+        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern'], ['snake', 'Robo Snake']];
   $('#event-type').replaceChildren(...types.map(([value, name]) => {
     const option = document.createElement('option');
     option.value = value; option.textContent = name;
@@ -300,14 +302,16 @@ function description(event) {
   return event.kind === 'food' ? `${FOODS[event.type].icon} ${FOODS[event.type].name}`
     : event.kind === 'weapon' ? SWORDS[event.type].name
       : event.kind === 'item' ? ITEMS[event.type].name
-        : `${({ mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern' })[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
+        : event.kind === 'object' ? OBJECTS[event.type].name
+        : `${({ mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake' })[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
 }
 
 function icon(event) {
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
-        : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣', ball: '🏀', jackolantern: '🎃' })[event.type];
+        : event.kind === 'object' ? OBJECTS[event.type].icon
+        : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣', ball: '🏀', jackolantern: '🎃', snake: '🐍' })[event.type];
 }
 
 function readEvent() {
@@ -320,7 +324,7 @@ function readEvent() {
     event.lifetime = Number($('#event-lifetime').value);
   }
   if (event.kind === 'enemy') event.shield = $('#event-shield').value === 'none' ? null : $('#event-shield').value;
-  if (event.kind === 'enemy' && event.type === 'wheel') Object.assign(event, snapWheel(event.x, event.y));
+  if (event.kind === 'enemy' && ['wheel', 'snake'].includes(event.type)) Object.assign(event, snapWheel(event.x, event.y));
   return event;
 }
 
@@ -410,7 +414,7 @@ function renderList() {
     button.type = 'button'; button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
     const time = document.createElement('span'); time.className = 'event-time'; time.textContent = `${event.time}s`;
     const location = document.createElement('span'); location.className = 'event-location';
-    location.textContent = `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : ''} · #${index + 1}`;
+    location.textContent = `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? ' · persistent, kickable' : ''} · #${index + 1}`;
     button.append(time, description(event), location);
     button.addEventListener('click', click => choose('event', index, isAdditive(click)));
     li.append(button); list.append(li);
@@ -421,7 +425,7 @@ function renderBrickInspector(bricks) {
   const regions = brickEditRegions(previewGame.bricks);
   const displayedRegions = brickRegions(previewGame.bricks, previewGame.width, previewGame.height);
   const chosen = bricks.filter(brick => brick.absorbedBy === null && selectedBricks.has(regionKey(regions.get(brick.id))));
-  $('#combine-bricks').disabled = chosen.length < 2;
+  $('#combine-bricks').disabled = chosen.length < 2 || (chosen.some(brick => immutableBrick(brick.kind)) && common(chosen.map(brick => brick.kind)) === MIXED);
   $('#split-bricks').disabled = !chosen.some(brick => (level.brickGroups ?? []).some(group => group.owner === brick.id));
   $('#combine-owner-panel').hidden = chosen.length < 2;
   if (!chosen.some(brick => brick.id === combineOwner)) combineOwner = chosen[0]?.id ?? null;
@@ -433,7 +437,7 @@ function renderBrickInspector(bricks) {
     button.title = `Brick ${brick.id + 1}: ${brick.kind}${specialLabel(brick)}`;
     return button;
   }));
-  const inert = chosen.some(brick => brick.kind === 'cinder');
+  const inert = chosen.some(brick => immutableBrick(brick.kind));
   for (const [selector, enabled, values, fallback] of [
     ['#brick-portal-color', chosen.some(brick => brick.portal), chosen.map(brick => brick.portal).filter(Boolean), 'red'],
     ['#brick-toggle-clicks', chosen.some(brick => brick.toggle), chosen.map(brick => brick.toggle).filter(Boolean).map(String), '1'],
@@ -495,10 +499,10 @@ function renderBrickInspector(bricks) {
   }
   if (chosen.length === 1) {
     const [brick] = chosen;
-    $('#brick-selection').textContent = `${displayedRegions.get(brick.id).edge} edge · brick ${brick.id + 1} · ${brick.kind} (${brick.kind === 'cinder' ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]}s`})`;
+    $('#brick-selection').textContent = `${displayedRegions.get(brick.id).edge} edge · brick ${brick.id + 1} · ${brick.kind} (${immutableBrick(brick.kind) ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]}s`})`;
   } else {
     const edges = [...new Set(chosen.map(brick => displayedRegions.get(brick.id).edge))].join(', ');
-    $('#brick-selection').textContent = `${chosen.length} bricks selected · ${edges} · ${kind === MIXED ? 'mixed types' : `all ${kind} (${kind === 'cinder' ? 'solid, cannot activate' : `${COOLDOWNS[kind]}s`})`}`;
+    $('#brick-selection').textContent = `${chosen.length} bricks selected · ${edges} · ${kind === MIXED ? 'mixed types' : `all ${kind} (${immutableBrick(kind) ? 'solid, cannot activate' : `${COOLDOWNS[kind]}s`})`}`;
   }
 }
 
@@ -531,7 +535,7 @@ function renderBoard() {
     element.classList.toggle('springs', Boolean(brick.springs));
     element.dataset.id = brick.id;
     element.dataset.region = key;
-    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${brick.kind === 'cinder' ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}`);
+    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${immutableBrick(brick.kind) ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}`);
     element.setAttribute('aria-pressed', String(selectedBricks.has(key)));
     element.setAttribute('aria-label', element.getAttribute('aria-label') + specialLabel(brick));
     // Pointer clicks are handled by the board gesture; detail 0 means keyboard activation.
@@ -541,7 +545,7 @@ function renderBoard() {
       choose('brick', key, isAdditive(event));
       focusBrick(key);
     });
-    element.style.cssText = `left:${shape.x / previewGame.width * 100}%;top:${shape.y / previewGame.height * 100}%;width:${shape.w / previewGame.width * 100}%;height:${shape.h / previewGame.height * 100}%;--brick-color:${{ normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99' }[brick.kind]};background-color:var(--brick-fill, var(--brick-color))`;
+    element.style.cssText = `left:${shape.x / previewGame.width * 100}%;top:${shape.y / previewGame.height * 100}%;width:${shape.w / previewGame.width * 100}%;height:${shape.h / previewGame.height * 100}%;--brick-color:${{ normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99', goal: '#f1f3f2' }[brick.kind]};background-color:var(--brick-fill, var(--brick-color))`;
     if (brick.crumbler || merged) element.style.clipPath = shape.roundedClipPath;
     if (merged) element.classList.add('editor-brick-merged');
     const special = decorateBrick(element, brick, members);
@@ -700,7 +704,7 @@ function moveEvent(index, x, y) {
   if (readOnly()) return;
   const event = level.events[index];
   let point = { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
-  if (event.kind === 'enemy' && event.type === 'wheel') point = snapWheel(point.x, point.y);
+  if (event.kind === 'enemy' && ['wheel', 'snake'].includes(event.type)) point = snapWheel(point.x, point.y);
   Object.assign(event, point);
 }
 
@@ -771,7 +775,7 @@ function placeAt(event) {
   if (!form.reportValidity()) return;
   attempt(() => {
     const item = { ...readEvent(), x: point.x, y: point.y };
-    if (item.kind === 'enemy' && item.type === 'wheel') Object.assign(item, snapWheel(item.x, item.y));
+    if (item.kind === 'enemy' && ['wheel', 'snake'].includes(item.type)) Object.assign(item, snapWheel(item.x, item.y));
     level = validateDraft({ ...level, events: [...level.events, item] });
     markChanged(); render();
     message(`Placed ${description(item)} at ${item.time}s. Keep clicking to place more, or use Select to choose markers.`);
@@ -833,6 +837,7 @@ $('#select-mode').addEventListener('click', () => { placing = false; render(); }
 $('#select-all').addEventListener('click', selectAll);
 $('#clear-selection').addEventListener('click', () => setSelection([], []));
 function brickEntry(brick, region) {
+  if (immutableBrick(brick.kind)) return { ...region, kind: brick.kind };
   return { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null,
     slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs),
     spikes: Boolean(brick.spikes), conveyor: Boolean(brick.conveyor), conveyorDirection: brick.conveyorDirection ?? 'clockwise',
@@ -848,7 +853,7 @@ function saveBrick(event) {
     // Only the changed control is applied, so mixed values in other controls are preserved.
     const entries = targets.flatMap(({ brick, region }) => {
       const entry = brickEntry(brick, region);
-      if (brick.kind === 'cinder' && id !== 'brick-kind') throw new Error('Cinder bricks cannot have modifiers or contact surfaces. Change the brick type first.');
+      if (immutableBrick(brick.kind) && id !== 'brick-kind') throw new Error('Cinder and Goal bricks cannot have modifiers or contact surfaces. Change the brick type first.');
       if (id === 'brick-plain') for (const attribute of CONTACT_SURFACES) entry[attribute] = ['portal', 'spawner'].includes(attribute) ? null : false;
       if (id === 'brick-conveyor-direction' && $('#brick-conveyor-direction').value !== MIXED) entry.conveyorDirection = $('#brick-conveyor-direction').value;
       if (id === 'brick-slime-color' && $('#brick-slime-color').value !== MIXED) entry.slimeColor = $('#brick-slime-color').value;
@@ -891,10 +896,7 @@ function saveBrick(event) {
           for (const other of CONTACT_SURFACES) if (other !== attribute) entry[other] = ['portal', 'spawner'].includes(other) ? null : false;
         }
       }
-      if (entry.kind === 'cinder') {
-        for (const attribute of ['crumbler', 'warped', 'toggle']) entry[attribute] = null;
-        for (const attribute of CONTACT_SURFACES) entry[attribute] = ['portal', 'spawner'].includes(attribute) ? null : false;
-      }
+      if (immutableBrick(entry.kind)) for (const attribute of Object.keys(entry)) if (!['edge', 'start', 'end', 'kind'].includes(attribute)) delete entry[attribute];
       return previewGame.bricks.filter(member => member.id === brick.id || member.initialOwner === brick.id)
         .map(member => ({ ...entry, ...regions.get(member.id) }));
     });
@@ -920,7 +922,7 @@ function combineBricks() {
     const keys = new Set(entries.map(regionKey));
     const candidate = { ...level, brickGroups: [...groups, { owner: owner.id, members }],
       brickTypes: [...(level.brickTypes ?? []).filter(entry => !keys.has(regionKey(entry))), ...entries] };
-    if (owners.some(brick => brick.kind === 'cinder') && owners.some(brick => brick.kind !== 'cinder')) throw new Error('Cinder blocks can combine only with other Cinder blocks.');
+    if (owners.some(brick => immutableBrick(brick.kind)) && common(owners.map(brick => brick.kind)) === MIXED) throw new Error('Cinder and Goal blocks can combine only with blocks of the same kind.');
     level = validateDraft(candidate);
     markChanged(); setSelection([], [regionKey(owner.region)]);
     message(`Combined ${members.length} bricks using brick ${owner.id + 1}'s attributes.`);
@@ -989,7 +991,7 @@ function applyToSelected() {
     } else delete next.lifetime;
     if (next.kind !== 'enemy') delete next.shield;
     else if (shieldChanged) next.shield = value('#event-shield') === 'none' ? null : value('#event-shield');
-    if (next.kind === 'enemy' && next.type === 'wheel') Object.assign(next, snapWheel(next.x, next.y));
+    if (next.kind === 'enemy' && ['wheel', 'snake'].includes(next.type)) Object.assign(next, snapWheel(next.x, next.y));
     return next;
   });
   level = validateDraft({ ...level, events });
@@ -1035,6 +1037,12 @@ $('#settings-form').addEventListener('submit', event => {
       survive: $('#win-condition').value === 'survive',
       goal: $('#win-condition').value === 'survive' ? 0 : Number($('#goal').value),
       killGoal: $('#win-condition').value === 'survive' ? 0 : Number($('#kill-goal').value),
+      ...(Number($('#goals-goal').value) !== 0 || level.goalsGoal !== undefined ? {
+        goalsGoal: $('#win-condition').value === 'survive' ? 0 : Number($('#goals-goal').value),
+      } : {}),
+      ...($('#activation-limit').value !== '' || level.activationLimit !== undefined ? {
+        activationLimit: $('#activation-limit').value === '' ? null : Number($('#activation-limit').value),
+      } : {}),
       heartCost: $('#heart-cost').value === '' ? null : Number($('#heart-cost').value), brickSet: Number($('#brick-set').value),
     });
     level = candidate; markChanged(); populateSettings(); render(); message('Level settings applied.');
@@ -1043,6 +1051,8 @@ $('#settings-form').addEventListener('submit', event => {
 function populateSettings() {
   $('#level-name').value = level.id; $('#duration').value = level.duration; $('#goal').value = level.goal;
   $('#kill-goal').value = level.killGoal ?? 0;
+  $('#goals-goal').value = level.goalsGoal ?? 0;
+  $('#activation-limit').value = level.activationLimit ?? '';
   $('#win-condition').value = level.survive ? 'survive' : 'scores';
   updateWinCondition();
   $('#heart-cost').value = level.heartCost ?? ''; $('#brick-set').value = level.brickSet;
@@ -1053,6 +1063,7 @@ function updateWinCondition() {
   const survive = $('#win-condition').value === 'survive';
   $('#goal').disabled = survive;
   $('#kill-goal').disabled = survive;
+  $('#goals-goal').disabled = survive;
 }
 $('#win-condition').addEventListener('change', updateWinCondition);
 function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character: 'koshi', x: .28, y: .65 }, { character: 'mouse', x: .67, y: .65 }, { character: 'wheel', x: .82, y: .7 }] }) {
@@ -1118,7 +1129,7 @@ $('#cutscene-form').addEventListener('submit', event => {
           text: row.querySelector('.scene-text').value,
           actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
             const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5 }[checkbox.value], y: .65 }];
+            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56 }[checkbox.value], y: .65 }];
           }),
         })),
       };

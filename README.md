@@ -28,6 +28,10 @@ existing level selector. Escape
 dismisses the title to the ready screen. Custom-level playtest links and the
 `#install` troubleshooting link bypass the title. The artwork is bundled for
 offline and direct-file play.
+Every level opens with a clear objectives popup and a large **Start** button;
+the level clock and objects remain frozen until Start is pressed. The HUD puts
+**Time left** at the top left, replacing the in-game logo. The tracker row is
+**Koshi's Health**, **Food**, **Enemies**, **Weapon**, **Batteries**, **Goals**.
 Moving between the main menu, story scenes, and gameplay uses a horizontal
 black sawtooth wipe: cover the old phase, change screens while fully black,
 then sweep onward to reveal the new phase. Tutorial entry/exit uses the same
@@ -71,15 +75,15 @@ The title screen includes two learning paths:
 - **How to play** opens an eight-topic walkthrough of movement and controls,
   cooldown colors, Cinder blocks, larger groups, Crumblers/Warped combinations,
   all seven contact surfaces and Toggle switches, every food and healing
-  item, all four robots and all swords, spawn warnings, and current objectives.
+  item, all seven robots and all swords, spawn warnings, and current objectives.
   Labeled pictures show every cooldown brick, Crumbler/Warped combination,
   slime color, spring and spike surface, food, healing heart, robot, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
-- **Tutorial** opens 30 interactive practice steps on the real game board:
+- **Tutorial** opens 32 interactive practice steps on the real game board:
   aiming/stopping, redirecting, food, recharge, Crumblers, Warped restoration,
   each of the three slime colors, Springs, mouse/sword combat, wheel interception,
-  ram and bucket combat,
+  ram and bucket combat, Robo Ball, Jackolantern and Snake combat, soccer goals,
   healing, spawn warnings, pause/resume, a combined food/defeat challenge,
   Portal pairs, Toggle switches, spawning bricks, Boost launches, Spikes,
   Conveyor riding and steering away, leaving solid Cinder blocks, larger
@@ -386,7 +390,7 @@ supports precise actor positions and repeated actors:
 ```
 
 Add this optional property to a level object. Themes are `garden` or `workshop`;
-character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, and `tom`. Each is available as both
+character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
@@ -476,7 +480,7 @@ bricks**, not raw screen pixels: `x: 0` is its left edge and `y: 1` is its
 bottom. The same fractions map to each layout's safe area, so objects stay
 accessible and off bricks on phones and desktops.
 
-Robo Wheels must start on this area's perimeter (at least one coordinate is
+Robo Wheels and Robo Snakes must start on this area's perimeter (at least one coordinate is
 0 or 1). The editor snaps them to the nearest edge; they then roll normally.
 Robo Rams, Buckets, and Mice can start anywhere in the safe area; Mice wander
 while Rams charge after a short aim. Buckets wander and shoot bombs. Items and
@@ -508,11 +512,13 @@ including automatic collection of objects placed over Koshi's starting point.
 ```
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
-`wheel`, `ram`, `bucket`, `ball`, `jackolantern`; weapon types are `wood`, `bronze`, `silver`, `gold`.
+`wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`; weapon types are `wood`, `bronze`, `silver`, `gold`.
 Item types (`kind: "item"`) are `smiley-cookie`, `stopwatch`, `stopwatch-green`, `stopwatch-blue`, `battery`,
 `music-box`, `eggplant`, `saw-blade`, and `magic-sunglasses`. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
-Duration is 1–3600 seconds, food/enemy goals are whole numbers from 0 to 100000,
+Neutral objects use `kind: "object", type: "soccer-ball"` and persist until
+scored or the level ends; they have no lifetime or shield.
+Duration is 1–3600 seconds, food/enemy/soccer goals are whole numbers from 0 to 100000,
 heart costs are positive integers up to
 100000, and a level supports up to 2000 events. Appearance times must be
 nonnegative and strictly before the time limit; food lifetimes are
@@ -607,6 +613,17 @@ During its 1.2-second defeat animation, the nose and mouth dim grey, the antenna
 snaps in half, and the body bursts into fading pieces. Available in the editor,
 spawn bricks, custom cutscenes and guide practice; campaign levels are unchanged.
 
+Robo Snake (`snake`) follows the inner perimeter like a Wheel at 95 units/second.
+Its grey head has red eyes and a flicking forked tongue; its three spiked body
+panels show a grey plus sign, thin oval buttons and unlettered red circular
+buttons, with large symmetric grey shapes and red stripes. The tongue emerges
+from underneath the head shell. Only the head can be damaged.
+Body contact hurts even during sleep or fear, with Koshi's normal damage immunity.
+Every segment blocks enemies and soccer balls; fences block the entire snake.
+Its 1.2-second death scatters and fades the segments and spins the tongue away.
+Available in custom placements, spawn bricks, cutscenes and tutorial practice;
+existing campaign levels remain unchanged.
+
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom
 levels but are not placed in the built-in campaign.
@@ -628,18 +645,86 @@ Music Box sleep takes priority over fleeing. Repeat pickups restart the ten
 seconds, pause freezes the effect and visuals, and reset clears it.
 The item supports editor placements, optional ground lifetimes and spawners.
 
-`goal` is the food target and optional `killGoal` is the enemy-defeat target.
-For score objectives, at least one must be positive; both must be reached when
-both are positive. For survival, set `survive: true`, `goal: 0`, and `killGoal: 0`
-(or omit `killGoal`). Survival cannot be combined with score objectives.
+`goal` is the food target, optional `killGoal` is the enemy-defeat target, and
+optional `goalsGoal` is the number of soccer goals required.
+For score objectives, at least one must be positive; all positive targets must
+be reached. For survival, set `survive: true`, `goal: 0`, `killGoal: 0`, and
+`goalsGoal: 0` (or omit the optional fields). Survival cannot be combined with score objectives.
 Older JSON without the new fields retains its original food-only objective.
+
+### Boom Helmet and Boom Time
+
+Set the optional custom-level `activationLimit` to a whole number from 1 to
+100000, or leave the editor field blank (`null` or omitted) for unlimited play.
+This difficulty modifier works alongside survival or any score objectives.
+Pressing Start drops a round blue, fused Boom Helmet onto Koshi's head.
+Its white circle displays the remaining successful brick activations in black.
+Each accepted selection spends one, including mid-flight redirections and
+selections made with Magical Sunglasses. Failed, cooling, disabled, invalid,
+or blocked clicks and physical brick contacts do not spend charges.
+
+Reaching **zero explodes immediately**, stops movement, and triggers Koshi's
+normal loss/death animation regardless of hearts or invulnerability. Complete
+the level before using the last charge. Pause freezes helmet motion and effects;
+restart restores the original limit.
+
+Boom Time is a bomb-shaped clock pickup, not a level-time bonus:
+
+| Item ID | Color | Helmet charges |
+|---|---|---|
+| `boom-time-red` | Red | +1 |
+| `boom-time-green` | Green | +3 |
+| `boom-time-blue` | Blue | +8 |
+
+They add charges only to an equipped, unexploded helmet; without a helmet,
+pickup has no effect. They support normal item lifetimes and spawning bricks,
+editor placement, pickup effects and guide illustrations. Neither limits nor
+Boom Time pickups are inserted into existing campaign levels.
+
+### Soccer balls and goal bricks
+
+Soccer balls are ordinary black-and-white balls, not enemies or pickups.
+Moving Koshi kicks them on contact; an off-center bump sends the ball off at an
+angle. Swords and Boost do not collect or damage them, and sleep/fear do not
+affect them. They bounce from actual bricks, enemies, and Barrier fences.
+Friction slows them by 100 game units/second each second until they stop.
+Boundary gaps and collision push-outs cannot move balls behind the enclosing
+bricks; escaped balls are returned inside without closing goal openings.
+Kicks are capped at 650 game units/second; enemy rebounds retain 80% of the
+normal relative speed. Enemy movement and health are not changed by ball contact.
+Balls may be scheduled placements or single-use spawning-brick objects.
+
+A Goal (`kind: "goal"`) replaces a boundary brick with top-down white netting
+and a silver metal frame, open toward the board. It remains solid to Koshi and
+enemies, but is never selectable, even with sunglasses. Saw Blade and Ditto
+Stamp cannot change or copy it, and Warped bricks cannot absorb it. Goal bricks
+have no modifiers or contact surfaces and can combine only with other Goals.
+A ball scores when its center crosses the board-facing opening with clearance
+between the posts. Wide shots bounce off the frame. Each scored ball disappears
+once in a sparking cloud, increments Goals, and is removed from physics.
+Pause freezes balls and clouds; reset clears them. Existing campaign levels
+contain no soccer placements, goals, or changed objectives.
+
+Example custom-level additions (fractions use the phone-layout convention):
+
+```json
+{
+  "goalsGoal": 2,
+  "events": [
+    { "time": 0, "kind": "object", "type": "soccer-ball", "x": 0.5, "y": 0.5 }
+  ],
+  "brickTypes": [
+    { "edge": "right", "start": 0.3, "end": 0.5, "kind": "goal" }
+  ]
+}
+```
 
 Individual brick edits are an optional `brickTypes` array, preserved in drafts,
 JSON exports/imports, and playtest snapshots. Older levels without it use their
 boundary preset unchanged. Each entry has an `edge` (`top`, `bottom`, `left`,
 `right`), `start` and `end` fractions along that edge (left-to-right on top/bottom,
 top-to-bottom on sides) in the **phone layout**, and `kind` (`slow`, `normal`,
-`fast`, `cinder`). Desktop rotates these saved slots clockwise, including reversing
+`fast`, `cinder`, `goal`). Desktop rotates these saved slots clockwise, including reversing
 slot order when phone left/right edges become desktop top/bottom.
 Optional
 `crumbler` is an integer selection limit (1–100000); `warped` is a duration
@@ -656,7 +741,7 @@ bricks after applying all overrides. Optional `boost` is a boolean.
 Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
 `wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`,
-`bucket`, `ball`, or `jackolantern`;
+`bucket`, `ball`, `jackolantern`, or `snake`;
 `item` uses one of the item types above; `heart` uses type `heart`.
 Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
 counted from each actual spawn; omit it for full-level persistence.

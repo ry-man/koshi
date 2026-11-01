@@ -107,9 +107,103 @@ test('aiming draws a subtle transparent dotted line and an exact red outlined ta
   assert.equal(lines[0].width, 2.5);
 });
 
+test('soccer goal artwork, ball sprites, and score sparks are drawn on the actor canvas', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const game = playing();
+  const goal = game.bricks.find(brick => brick.absorbedBy === null);
+  goal.kind = 'goal';
+  game.soccerBalls = [{ x: 120, y: 80, radius: 16, vx: 10, vy: 0, angle: .5 }];
+  game.goalEffects = [{ x: 300, y: 120, age: .2, duration: .65 }];
+  const makeContext = () => new Proxy({ globalAlpha: 1, filter: '' }, {
+    get(target, property) { return property in target ? target[property] : () => {}; },
+  });
+  const boardCtx = makeContext(), actorCtx = makeContext(), calls = [];
+  const context = vm.createContext({
+    game, boardCtx, actorCtx, ctx: null, trail: [], ending: null, endingMotion: { matches: true },
+    drawCat() {}, drawMusicStream() {}, drawSunglassesStream() {}, drawBarrier() {}, line() {},
+    drawGoal(ctx, members) { calls.push(['goal', ctx, members.some(part => part.id === goal.id)]); },
+    drawSoccerBall(ctx, ball) { calls.push(['ball', ctx, ball]); },
+    drawGoalSpark(ctx, effect) { calls.push(['spark', ctx, effect]); },
+    drawBrickDestructionSmoke() {}, drawPickupPop() {},
+  });
+  vm.runInContext(app.slice(app.indexOf('function render(now)'), app.indexOf('\nfunction drawSpawnCue')), context);
+  context.render(0);
+  assert.deepEqual(calls.map(([type, layer]) => [type, layer === actorCtx]), [
+    ['goal', true], ['ball', true], ['spark', true],
+  ]);
+  assert.deepEqual(calls[1][2], game.soccerBalls[0]);
+  assert.deepEqual(calls[2][2], game.goalEffects[0]);
+});
+
+test('Boom Time clocks and Boom Helmet render counts, arrival, and the zero-count explosion', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const calls = [];
+  const makeContext = () => new Proxy({}, {
+    get(_target, property) {
+      return (...args) => calls.push([property, ...args]);
+    },
+    set(_target, property, value) { calls.push([property, value]); return true; },
+  });
+  const context = vm.createContext({ ctx: makeContext(), ITEMS: require('../src/game.js').ITEMS });
+  vm.runInContext(app.slice(app.indexOf('function drawGameItem('), app.indexOf('\nfunction drawMagicSunglasses(')), context);
+  for (const [type, count, color] of [
+    ['boom-time-red', 1, '#d94a4a'], ['boom-time-green', 3, '#399d4a'], ['boom-time-blue', 8, '#287dcc'],
+  ]) {
+    calls.length = 0;
+    context.drawGameItem({ x: 0, y: 0, type });
+    assert.ok(calls.some(([name, value]) => name === 'fillStyle' && value === color));
+    assert.ok(calls.some(([name, value]) => name === 'fillText' && value === `+${count}`));
+    assert.ok(calls.some(([name, ...args]) => name === 'arc' && args[2] === 14), 'clock face is white and outlined');
+  }
+
+  vm.runInContext(app.slice(app.indexOf('function drawBoomHelmetArtwork('), app.indexOf('\nfunction drawBrickStamp(')), context);
+  calls.length = 0;
+  const helmet = { boomHelmet: { age: 0, exploded: false }, activationsRemaining: 5, cat: { x: 120, y: 80 } };
+  context.drawBoomHelmet(helmet);
+  assert.ok(calls.some(([name, value]) => name === 'fillText' && value === '5'));
+  assert.ok(calls.some(([name, x, y]) => name === 'translate' && x === 120 && y === -16), 'helmet falls from above');
+  calls.length = 0;
+  helmet.boomHelmet.age = .7; helmet.activationsRemaining = 4;
+  context.drawBoomHelmet(helmet);
+  assert.ok(calls.some(([name, x, y]) => name === 'translate' && x === 120 && y === 80), 'helmet lands on the cat');
+  assert.ok(calls.some(([name, value]) => name === 'fillText' && value === '4'));
+  calls.length = 0;
+  helmet.boomHelmet = { age: 0, exploded: true };
+  context.drawBoomHelmet(helmet);
+  assert.ok(!calls.some(([name]) => name === 'fillText'), 'an exploded helmet is never drawn as worn');
+  assert.ok(calls.some(([name]) => name === 'arc'), 'the helmet explosion draws a cloud');
+  assert.ok(calls.some(([name]) => name === 'stroke'), 'the helmet explosion draws sparks');
+  assert.ok(calls.some(([name, , , radius]) => name === 'arc' && radius >= 12), 'explosion has large fire clouds');
+  for (const color of ['#d93620', '#f05a20', '#ff8c28']) {
+    assert.ok(calls.some(([name, value]) => name === 'fillStyle' && value === color));
+  }
+  calls.length = 0;
+  context.game = helmet;
+  context.ending = { state: 'lost', elapsed: .2 };
+  context.endingPose = () => ({ x: 120, y: 70, rotation: 2, scale: 1 });
+  context.drawCat = () => calls.push(['cat']);
+  vm.runInContext(app.slice(app.indexOf('function drawEnding('), app.indexOf('\nfunction render(')), context);
+  context.drawEnding();
+  const restored = calls.findIndex(([name]) => name === 'restore');
+  const explosion = calls.findIndex(([name, x, y]) => name === 'translate' && x === 120 && y === 58);
+  assert.ok(explosion > restored, 'explosion uses world coordinates after restoring the rotating death pose');
+  assert.match(app, /if \(game\.boomHelmet\) drawBoomHelmet\(game\);/);
+  calls.length = 0;
+  const guideContext = makeContext();
+  context.document = { createElement() {
+    return { getContext: () => guideContext, setAttribute(name, value) { this[name] = value; } };
+  } };
+  vm.runInContext(app.slice(app.indexOf('function guidePicture('), app.indexOf('\nfunction showGuideChapter(')), context);
+  const guideHelmet = context.guidePicture('special:boom-helmet', 'Boom Helmet');
+  assert.equal(guideHelmet.role, 'img');
+  assert.equal(guideHelmet['aria-label'], 'Boom Helmet');
+  assert.ok(calls.some(([name, value]) => name === 'fillText' && value === '5'));
+});
+
 test('title screen provides accessible artwork and explicit game entry without external assets', () => {
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
+  const styles = readFileSync(path.join(root, 'style.css'), 'utf8');
   const artwork = readFileSync(path.join(root, 'icons', 'title-scene.svg'), 'utf8');
   assert.match(html, /<dialog id="title-screen"[^>]+aria-labelledby="title-heading"[^>]+aria-describedby="title-tagline"/);
   assert.match(html, /id="title-start"[^>]+autofocus/);
@@ -117,20 +211,28 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.match(html, /id="title-help"[^>]+>How to play<\/button>/);
   assert.match(html, /<dialog id="how-to-play"/);
   assert.doesNotMatch(html, /field-guide|THE FIELD GUIDE/);
-  assert.match(html, /class="brand"/);
   const controls = html.slice(html.indexOf('<div class="game-controls">'), html.indexOf('<section id="tutorial-panel"'));
   assert.ok(controls, 'game controls share a container');
-  for (const id of ['level-number', 'title-menu', 'pause', 'restart']) {
+  for (const id of ['timer', 'level-number', 'title-menu', 'pause', 'restart']) {
     assert.ok(controls.includes(`id="${id}"`), `${id} belongs to the control row`);
   }
   assert.ok(!controls.includes('id="level-select"'), 'level selection is not on the game screen');
+  assert.ok(!controls.includes('class="brand"'), 'the timer replaces the game-screen logo');
   const title = html.slice(html.indexOf('<dialog id="title-screen"'), html.indexOf('</dialog>', html.indexOf('<dialog id="title-screen"')));
   assert.ok(!title.includes('id="level-select"'));
   assert.match(html, /<dialog id="level-picker"[^>]+aria-labelledby="level-picker-heading"[\s\S]*?<select id="level-select"[\s\S]*?<\/dialog>/);
   assert.match(html, /id="title-levels"[^>]+aria-haspopup="dialog"/);
   assert.match(html, /class="pause-bars"><rect[^>]+\/><rect[^>]+\/>/);
   assert.ok(!controls.includes('id="weapon-status"'), 'weapon belongs to the stat row');
-  assert.match(html, /<div class="hud">[\s\S]*?id="weapon-status"/);
+  const hud = html.slice(html.indexOf('<div class="hud">'), html.indexOf('<div class="objective">'));
+  assert.match(hud, /id="weapon-status"/);
+  assert.deepEqual([...hud.matchAll(/<span class="stat-label">([^<]+)<\/span>/g)].map(([, label]) => label),
+    ["KOSHI'S HEALTH", 'FOOD', 'ENEMIES', 'WEAPON', 'BATTERIES', 'GOALS']);
+  assert.ok(hud.includes('id="goal-count"'));
+  assert.ok(!hud.includes('id="timer"'), 'time is shown in the top-left control row');
+  const mobileHud = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
+  assert.match(mobileHud, /\.stat-label \{ font-size: 8px;/);
+  assert.match(mobileHud, /\.stat\.lives \.stat-label \{ max-width: 62px;[\s\S]*?font-size: 8px;[\s\S]*?white-space: normal;/);
   for (const [id, label] of [['title-menu', 'Menu'], ['pause', 'Pause'], ['restart', 'Restart']]) {
     assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
   }
@@ -140,6 +242,68 @@ test('title screen provides accessible artwork and explicit game entry without e
   for (const color of ['#83bca1', '#7eacdb', '#df8c81']) assert.ok(artwork.includes(color));
   assert.doesNotMatch(artwork, /<(?:script|image)\b|\bhref=/);
   assert.ok(readFileSync(path.join(root, 'sw.js'), 'utf8').includes("'./icons/title-scene.svg'"));
+});
+
+test('Start on a level briefing begins the existing level instead of rebuilding it', () => {
+  assert.doesNotMatch(readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /dialog-note/);
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.id\} · MISSION`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
+  const start = source.indexOf("play.addEventListener('click'");
+  const end = source.indexOf("\nrestart.addEventListener", start);
+  const handler = source.slice(start, end);
+  const play = { addEventListener(name, callback) { this[name] = callback; } };
+  const pause = { focus() {} };
+  let started = 0, rebuilt = 0;
+  const game = { state: 'ready', levelIndex: 0, customLevel: null, start() { started++; this.state = 'playing'; }, resume() { this.state = 'playing'; } };
+  const context = vm.createContext({
+    play, pause, game, lastTime: 0, syncUI() {},
+    startLevel() { game.start(); },
+    begin() { rebuilt++; },
+    levelSelect: { value: '0' },
+    LEVELS: [{ id: '1–1' }, { id: '1–2' }],
+  });
+  vm.runInContext(handler, context);
+  play.click();
+  assert.equal(started, 1);
+  assert.equal(rebuilt, 0);
+
+  game.state = 'won';
+  play.click();
+  assert.equal(rebuilt, 1);
+  assert.equal(context.levelSelect.value, '1', 'campaign advance rebuilds into the next level briefing');
+  game.state = 'lost';
+  play.click();
+  assert.equal(rebuilt, 2, 'retry rebuilds into a fresh briefing');
+});
+
+test('soccer goal and ball guide illustrations use shared artwork', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const source = app.slice(app.indexOf('function guidePicture('), app.indexOf('\nfunction showGuideChapter('));
+  const calls = [];
+  const canvasContext = { scale() {} };
+  const document = {
+    createElement(tag) {
+      return tag === 'canvas'
+        ? { getContext: () => canvasContext, setAttribute(name, value) { this[name] = value; } }
+        : { setAttribute(name, value) { this[name] = value; } };
+    },
+  };
+  const context = vm.createContext({
+    document, ctx: null,
+    decorateBrick(_element, brick) { calls.push(['goal', brick.kind]); },
+    drawSoccerBall(ctx, ball) { calls.push(['ball', ctx === canvasContext, ball.radius]); },
+  });
+  vm.runInContext(source, context);
+  context.guidePicture('special:goal', 'Soccer goals');
+  context.guidePicture('object:soccer-ball', 'Soccer Ball');
+  assert.deepEqual(calls, [['goal', 'goal'], ['ball', true, 16]]);
+
+  const makeButtons = app.slice(app.indexOf('function makeBrickButtons('), app.indexOf('\nfunction syncBrickDestructions('));
+  assert.match(makeButtons, /button\.disabled = brick\.kind === 'cinder' \|\| brick\.kind === 'goal'/);
+  assert.match(makeButtons, /brick\.kind === 'goal' \|\| brick\.kind === 'cinder'/);
+  const sync = app.slice(app.indexOf('function syncUI('), app.indexOf('\nfunction begin('));
+  assert.match(sync, /scoring goal, cannot be activated or changed, and cannot be absorbed/);
+  assert.match(sync, /!\['cinder', 'goal'\]\.includes\(brick\.kind\)/);
 });
 
 test('level popup commits only on Play and cancellation restores selection and menu focus', () => {

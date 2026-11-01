@@ -187,13 +187,16 @@ canvas { display: block; width: 100%; height: 100%; }
 .overlay { position: absolute; inset: 0; display: grid; place-items: center; background: #101b24b8; backdrop-filter: blur(5px); z-index: 5; padding: 16px; }
 .overlay[hidden] { display: none; }
 .dialog { text-align: center; max-width: 410px; padding: 25px; }
+.overlay.level-briefing .dialog { max-width: 560px; padding: clamp(24px, 5vw, 48px); border: 1px solid #d3ef8b55; border-radius: 16px; background: #15252cf2; box-shadow: 0 24px 70px #0009, inset 0 1px #ffffff12; }
+.overlay.level-briefing .dialog h2 { font-size: clamp(30px, 5vw, 44px); }
+.overlay.level-briefing #play { min-width: min(320px, 100%); min-height: 72px; font-size: 22px; box-shadow: 0 8px 26px #d3ef8b30; }
+.overlay.level-briefing #play span { font-size: 24px; }
 .dialog-icon { display: inline-block; font-size: 40px; margin-bottom: 18px; }
 .dialog h2 { font-size: 32px; font-weight: 500; letter-spacing: -1px; margin: 0 0 16px; }
 .dialog > p:not(.eyebrow) { color: #b0bec3; font-size: 14px; line-height: 1.8; margin: 0 0 25px; }
 .primary { border: 0; background: var(--accent); color: #1c2a22; padding: 14px 28px; border-radius: 7px; font-weight: 700; min-width: 174px; }
 .primary:hover { background: #e0ffa0; }
 .primary span { margin-left: 22px; }
-.dialog .dialog-note { font-size: 10px !important; color: var(--muted) !important; margin: 18px 0 0 !important; }
 .game-controls { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 16px; }
 .game-toolbar { display: flex; align-items: center; gap: 8px; }
 .control-icon { margin-right: 4px; }
@@ -211,7 +214,10 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 .loadout { display: contents; font-size: 11px; color: var(--muted); }
 .level-picker-select { display: grid; gap: 8px; margin: 20px 0; font-size: 14px; }
 .level-picker-select select { width: 100%; min-width: 0; background: var(--bg); color: var(--text); border: 1px solid #ffffff26; border-radius: 5px; font: inherit; padding: 8px; min-height: 44px; }
-.loadout .brand { min-width: 0; }
+.timer-stat { text-align: left; }
+.timer-stat .stat-label { margin-bottom: 2px; }
+.timer-stat strong { font-size: 20px; }
+.timer-stat strong span { font-size: 12px; }
 #weapon-status { color: var(--accent); text-align: center; }
 .level-status { min-width: 0; text-align: center; color: var(--muted); }
 .level-status #level-number { margin-inline: auto; }
@@ -224,7 +230,7 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   main { padding: 0 14px; }.masthead { padding: 20px 0; }.edition { display: none; }.intro { padding: 28px 0 24px; gap: 15px; }.level-badge { padding: 8px 12px; }.intro p:not(.eyebrow) { font-size: 12px; }
   .hud { padding: 16px 14px; gap: 13px; }.stat { min-width: 0; padding-right: 13px; }.stat strong { font-size: 18px; }.stat-label { font-size: 7px; letter-spacing: .7px; }.stat strong span { font-size: 11px; }.lives strong { letter-spacing: 0; }
   .objective { padding: 10px 14px; gap: 10px; }.objective strong { font-size: 10px; }#progress-label { display: none; }.board { margin: 8px; }
-  .dialog { padding: 5px; max-width: 330px; }.dialog-icon { font-size: 26px; margin-bottom: 10px; }.dialog h2 { font-size: 24px; margin-bottom: 10px; }.dialog > p:not(.eyebrow) { font-size: 12px; line-height: 1.5; margin-bottom: 14px; }.dialog .dialog-note { display: none; }.dialog .eyebrow { font-size: 8px; margin-bottom: 8px; }.primary { padding: 10px 20px; font-size: 12px; }
+  .dialog { padding: 5px; max-width: 330px; }.dialog-icon { font-size: 26px; margin-bottom: 10px; }.dialog h2 { font-size: 24px; margin-bottom: 10px; }.dialog > p:not(.eyebrow) { font-size: 12px; line-height: 1.5; margin-bottom: 14px; }.dialog .eyebrow { font-size: 8px; margin-bottom: 8px; }.primary { padding: 10px 20px; font-size: 12px; }
 }
 @media (max-width: 440px) {
   .intro h1 { font-size: 25px; }.level-badge { display: none; }.stat { padding-right: 9px; }.hud { gap: 9px; }.stat strong { font-size: 16px; }.stat strong span { font-size: 9px; }.dialog-icon { display: none; }.dialog h2 { font-size: 21px; }.dialog > p:not(.eyebrow) { font-size: 11px; }.brand { font-size: 14px; }
@@ -245,7 +251,8 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   .game-shell > .error { margin: 4px 8px; font-size: 11px; }
   .hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 6px 8px; gap: 5px; }
   .stat { border: 0; padding: 0; }
-  .stat-label { font-size: 7px; letter-spacing: .3px; margin-bottom: 5px; }
+  .stat-label { font-size: 8px; letter-spacing: .2px; line-height: 1.1; margin-bottom: 5px; white-space: normal; }
+  .stat.lives .stat-label { max-width: 62px; margin-inline: auto; font-size: 8px; letter-spacing: 0; line-height: 1.1; white-space: normal; }
   .stat strong { font-size: 17px; }
   #level-number { font-size: 17px; }
   .stat strong span { font-size: 10px; }
@@ -274,6 +281,9 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   .dialog > p:not(.eyebrow) { font-size: 13px; line-height: 1.6; margin-bottom: 18px; }
   .primary { min-height: 48px; font-size: 14px; touch-action: manipulation; }
   .loadout { font-size: 10px; }
+  .timer-stat .stat-label { margin-bottom: 1px; }
+  .timer-stat strong { font-size: 16px; }
+  .timer-stat strong span { font-size: 10px; }
   .weapon-value { font-size: 17px; }
 }
 

@@ -107,7 +107,10 @@
         <p id="save-error" class="error" role="alert" hidden></p>
         <button id="save-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
         <div class="game-controls">
-          <div class="loadout"><a class="brand" href="./" aria-label="Koshi's Quest home"><span class="brand-mark">K</span><span class="brand-name">KOSHI'S QUEST</span></a><div class="level-status"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div></div>
+          <div class="loadout">
+            <div class="stat timer-stat"><span class="stat-label">TIME LEFT</span><strong id="timer" aria-label="60 seconds remaining">◷ 60<span>s</span></strong></div>
+            <div class="level-status"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div>
+          </div>
           <div class="game-toolbar">
             <button id="title-menu" type="button" aria-label="Menu" title="Menu" aria-haspopup="dialog"><span class="control-icon" aria-hidden="true">☰</span><span class="control-label">Menu</span></button>
             <button id="pause" type="button" aria-label="Pause" title="Pause" disabled><svg class="control-icon pause-icon" viewBox="0 0 24 24" aria-hidden="true"><g class="pause-bars"><rect x="5" y="4" width="5" height="16"/><rect x="14" y="4" width="5" height="16"/></g><path class="resume-triangle" d="M7 4 L20 12 L7 20 Z" hidden/></svg><span class="control-label">Pause</span></button>
@@ -124,11 +127,6 @@
           </div>
         </section>
         <div class="hud">
-          <div class="stat"><span class="stat-label">TIME LEFT</span><strong id="timer">◷ 60<span>s</span></strong></div>
-          <div class="stat" id="weapon-status" role="status" aria-label="Weapon: no sword equipped"><span class="stat-label">WEAPON</span><strong class="weapon-value"><svg id="weapon-icon" viewBox="-24 -28 48 56" aria-hidden="true" hidden><g transform="rotate(28)"><path d="M0 -23 L6 -14 L4 10 L-4 10 L-6 -14 Z" fill="currentColor"/><path d="M-10 10 H10" stroke="currentColor" stroke-width="4"/><path d="M0 12 V22" stroke="#8a6953" stroke-width="5"/></g></svg><span id="weapon-remaining">—</span></strong></div>
-          <div class="stat" id="battery-status" role="status" aria-label="Batteries: 0"><span class="stat-label">BATTERIES</span><strong id="battery-count">🔋 0</strong></div>
-          <div class="stat"><span class="stat-label">FOOD</span><strong id="food-count">🍗 0 <span>/ 20</span></strong></div>
-          <div class="stat"><span class="stat-label">ENEMY SCORE</span><strong id="enemy-count">👾 0</strong></div>
           <div class="stat lives">
             <span class="stat-label">KOSHI'S HEALTH</span><strong id="hearts" aria-label="3 of 3 hearts">♥ ♥ ♥</strong>
             <div id="heart-cost" class="heart-cost" hidden>
@@ -136,6 +134,11 @@
               <div id="heart-cost-meter" class="heart-cost-meter" role="progressbar" aria-label="Food toward the next healing heart" aria-valuemin="0"><div id="heart-cost-fill"></div></div>
             </div>
           </div>
+          <div class="stat"><span class="stat-label">FOOD</span><strong id="food-count">🍗 0 <span>/ 20</span></strong></div>
+          <div class="stat"><span class="stat-label">ENEMIES</span><strong id="enemy-count">👾 0</strong></div>
+          <div class="stat" id="weapon-status" role="status" aria-label="Weapon: no sword equipped"><span class="stat-label">WEAPON</span><strong class="weapon-value"><svg id="weapon-icon" viewBox="-24 -28 48 56" aria-hidden="true" hidden><g transform="rotate(28)"><path d="M0 -23 L6 -14 L4 10 L-4 10 L-6 -14 Z" fill="currentColor"/><path d="M-10 10 H10" stroke="currentColor" stroke-width="4"/><path d="M0 12 V22" stroke="#8a6953" stroke-width="5"/></g></svg><span id="weapon-remaining">—</span></strong></div>
+          <div class="stat" id="battery-status" role="status" aria-label="Batteries: 0"><span class="stat-label">BATTERIES</span><strong id="battery-count">🔋 0</strong></div>
+          <div class="stat"><span class="stat-label">GOALS</span><strong id="goal-count" aria-label="0 goals scored">⚽ 0</strong></div>
         </div>
         <div class="objective"><span><span class="live-dot"></span> THE MISSION</span><strong>Collect 20 food before time runs out</strong><span id="progress-label">0% complete</span></div>
         <div class="progress-track"><div id="progress"></div></div>
@@ -151,7 +154,6 @@
               <h2 id="dialog-title">Follow your appetite.</h2>
               <p id="dialog-text">Click a brick to send Koshi toward it. Redirect him mid-flight to scoop up snacks. Get 20 food in 60 seconds!</p>
               <button class="primary" id="play">Let's play <span>→</span></button>
-              <p class="dialog-note" id="dialog-note">Each level teaches a new skill on your quest to save the world's food.</p>
             </div>
           </div>
           <div id="toast" role="status" aria-live="polite"></div>

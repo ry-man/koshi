@@ -33,15 +33,17 @@
         <form id="settings-form" class="settings-grid">
           <label>Name <input id="level-name" maxlength="60" required value="My level"></label>
           <label>Duration (seconds) <input id="duration" type="number" min="1" max="3600" step="any" value="60" required></label>
-          <label>Win condition <select id="win-condition"><option value="scores">Food and/or enemy targets</option><option value="survive">Survive until time runs out</option></select></label>
+          <label>Win condition <select id="win-condition"><option value="scores">Food, enemy and/or soccer targets</option><option value="survive">Survive until time runs out</option></select></label>
           <label>Food goal (0 disables) <input id="goal" type="number" min="0" max="100000" step="1" value="20" required></label>
           <label>Enemy score goal (0 disables) <input id="kill-goal" type="number" min="0" max="100000" step="1" value="0" required></label>
+          <label>Soccer goals (0 disables) <input id="goals-goal" type="number" min="0" max="100000" step="1" value="0" required></label>
+          <label>Boom Helmet activation limit (blank: unlimited) <input id="activation-limit" type="number" min="1" max="100000" step="1" placeholder="Unlimited"></label>
           <label>Heart cost <input id="heart-cost" type="number" min="1" max="100000" step="1" placeholder="None (disabled)"></label>
           <label>Boundary bricks <select id="brick-set"><option value="1">1 slow + 1 fast</option><option value="3">3 slow + 3 fast</option></select></label>
           <button type="submit">Apply settings</button>
         </form>
         </fieldset>
-        <p class="editor-help">Choose survival OR at least one positive score target. When both score targets are set, both must be met before time runs out. Apply settings before playtesting or exporting.</p>
+        <p class="editor-help">Choose survival OR at least one positive food, enemy or soccer target. All enabled targets must be met before time runs out. Soccer goals count balls kicked into Goal bricks. Apply settings before playtesting or exporting.</p>
       </section>
       <details class="editor-panel" aria-label="Pre-level cutscene">
         <summary>Optional story cutscene</summary>
@@ -74,7 +76,7 @@
             <input id="timeline" type="range" min="0" max="60" step="0.1" value="0">
             <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
           </div>
-          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food, items, and weapons disappear at their expiry. Items and weapons with a blank lifetime remain until the level ends. Enemy spawn markers persist. Wheels snap to the nearest playable edge. Other enemies can be placed anywhere. Positions adapt between layouts.</p>
+          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food, items, and weapons disappear at their expiry. Items and weapons with a blank lifetime remain until the level ends. Enemy and soccer ball spawn markers persist. Wheels snap to the nearest playable edge. Other enemies and balls can be placed anywhere. Positions adapt between layouts.</p>
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
           <fieldset id="inspector-access" class="access-fields">
@@ -86,8 +88,8 @@
               <p class="editor-help">Choose the brick whose attributes the combined group inherits:</p>
               <div id="combine-owner-options" class="visual-palette" role="group" aria-label="Combined brick owner"></div>
             </div>
-            <p class="editor-help">Combine adjacent bricks, including across corners. Split restores individual sizes with the group's current attributes. Cinder combines only with Cinder.</p>
-            <label>Selected brick type <select id="brick-kind" disabled><option value="slow">Slow · Blue · 15 seconds</option><option value="normal">Normal · Green · 8 seconds</option><option value="fast">Fast · Red · 3 seconds</option><option value="cinder">Cinder · Solid, cannot activate</option></select></label>
+            <p class="editor-help">Combine adjacent bricks, including across corners. Split restores individual sizes with the group's current attributes. Cinder combines only with Cinder; Goal only with Goal. Both are solid and cannot activate in gameplay or have modifiers or contact surfaces. Change their type to remove them.</p>
+            <label>Selected brick type <select id="brick-kind" disabled><option value="slow">Slow · Blue · 15 seconds</option><option value="normal">Normal · Green · 8 seconds</option><option value="fast">Fast · Red · 3 seconds</option><option value="cinder">Cinder · Solid, cannot activate</option><option value="goal">Goal · Soccer net, cannot activate</option></select></label>
             <div id="surface-palette" class="visual-palette" role="group" aria-label="Contact surface"></div>
             <div id="attribute-palette" class="visual-palette" role="group" aria-label="Brick modifiers"></div>
             <div class="native-brick-flags" hidden>
@@ -124,7 +126,7 @@
             <summary>Objects &amp; timing</summary>
           <p class="eyebrow" id="inspector-heading">NEW PLACEMENT</p>
           <form id="event-form">
-            <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option><option value="item">Item</option></select></label>
+            <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option><option value="item">Item</option><option value="object">Object</option></select></label>
             <label>Object <select id="event-type"></select></label>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <div class="input-pair">
@@ -141,7 +143,7 @@
             <p class="editor-help" id="multi-event-help" hidden>Several events are selected. Only fields you change are applied to all of them; untouched fields marked “Mixed” keep each event's own value. Clearing lifetime keeps selected items and weapons until the level ends (food needs a lifetime). Setting X or Y lines the whole group up on that coordinate.</p>
             <button type="submit" class="primary" id="apply-event">Add event</button>
           </form>
-          <p class="editor-help">Lifetimes start when an object appears. Leave item and weapon lifetimes blank to keep them until the level ends. This does not change an equipped sword's attacks or a collected power-up's duration. Food still requires a lifetime.</p>
+          <p class="editor-help">Lifetimes start when an object appears. Leave item and weapon lifetimes blank to keep them until the level ends. This does not change an equipped sword's attacks or a collected power-up's duration. Food still requires a lifetime. Soccer balls are neutral, persistent kickable objects, not pickups; they have no lifetime or shield. Place Goal bricks to score.</p>
           <div class="inspector-actions"><button id="new-event">New event</button><button id="duplicate-event" disabled>Duplicate</button><button id="delete-event" disabled>Delete</button></div>
           </details>
           </fieldset>

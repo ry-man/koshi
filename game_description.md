@@ -22,22 +22,54 @@ The game is level-based, with multiple worlds split into individual levels. Most
 2. Destroying enough enemies before time runs out
 3. Simply survive until the time runs out
 4. Defeat the boss (no timer is used on bosses)
+5. Score enough soccer goals before time runs out
 
-Playable levels choose survival OR a combination of food and/or enemy targets.
+Playable levels choose survival OR a combination of food, enemy and/or soccer-goal targets.
 Survival wins at the exact time limit if Koshi is still alive on the board.
 Score levels win as soon as all selected targets are reached; failing to reach
 them before the time limit loses. The pre-level briefing states the objective.
-Required food and enemy counters show "/ target" and are highlighted in gold.
+Required food, enemy and soccer-goal counters show "/ target" and are highlighted in gold.
 Survival levels instead highlight the timer countdown in gold. The editor allows
 these choices; zero disables a score target. Boss objectives are not implemented.
+
+Each level opens with an objectives popup and a large **Start** button, including
+restarts and campaign advances. Time does not advance until the player starts.
+The top-left HUD shows **Time left** instead of the in-game logo. The row below
+shows **Koshi's Health**, **Food**, **Enemies**, **Weapon**, **Batteries**, **Goals**
+in that order. Combined progress follows the least-complete required target.
+
+### Boom Helmet difficulty modifier
+
+A level may optionally limit successful brick activations using
+`activationLimit` (a whole number from 1 to 100000; blank, omitted or `null`
+means unlimited). When Start is pressed, a round blue helmet with a bomb fuse
+falls onto Koshi's head. A white circle contains the remaining count in black.
+Every successful selection costs one charge, including mid-flight redirections
+and selections with Magical Sunglasses. Failed clicks, blocked launches, and
+physical brick contacts cost nothing.
+
+At zero, the helmet explodes immediately and Koshi's death/loss animation plays.
+The large red-orange blast stays at the detonation location, independent of
+Koshi's rotating death animation.
+No further movement is possible; hearts and invulnerability cannot prevent it.
+The difficulty limit can accompany survival or combined food/enemy/soccer
+objectives. Pause freezes the helmet animation and restart restores its count.
+
+**Boom Time** is a bomb-shaped analog clock in three pickup colors:
+red (`boom-time-red`) adds **1**, green (`boom-time-green`) adds **3**, and blue
+(`boom-time-blue`) adds **8** helmet charges. The face shows the bonus.
+These pickups do not add level-clock time. Without an equipped helmet they are
+collected with no effect, and cannot revive an exploded helmet. All variants
+are available in editor placements and item spawners, with optional lifetimes
+and standard pickup effects. Existing campaign content stays unchanged.
 
 ### Learning Menus
 
 The title screen offers **How to play** and **Tutorial**.
 
-How to play is a browsable, eight-topic rules walkthrough. Players can select
+How to play is a browsable, nine-topic rules walkthrough. Players can select
 topics freely or move with Previous/Next. It describes movement and keyboard
-controls, all cooldown and special bricks, all four robot enemies, every food,
+controls, all cooldown and special bricks, robot enemies, soccer balls and goals, every food,
 heart healing, all four swords, spawn warnings, and current level goals.
 Labeled pictures illustrate every cooldown brick, Crumbler, Warped and combined
 brick, slime color, spring and spike surface, food, healing heart, enemy, and
@@ -45,7 +77,7 @@ weapon using the gameplay shapes. Story instructions are not part of this guide.
 Each topic links to a related tutorial step. Escape or Back to title
 closes the guide.
 
-The interactive tutorial uses the actual game board and mechanics in 27 isolated
+The interactive tutorial uses the actual game board and mechanics in 32 isolated
 practice steps. It teaches aiming/stopping, redirection, food, recharge,
 Crumblers, Warped restoration, red/green/blue slime, Springs, mouse combat and
 swords, wheel interception, ram and bucket combat, healing, spawn previews, pause/resume, and combined
@@ -292,6 +324,36 @@ fast. A fireball surrounds him and defeats robots without spending equipped
 sword charges. Stopping or successfully selecting another brick ends the
 boost; rejected selections, Spring bounces, and Portal travel do not.
 
+## Soccer
+
+A **Soccer Ball** is an ordinary black-and-white ball with pentagonal patches.
+It is a neutral object, not an enemy or pickup. Koshi kicks it by bumping into
+it while moving; an off-center bump changes the kick direction. The ball rolls
+and bounces off bricks, enemies and Barrier fences. Boundary gaps and collision
+push-outs cannot send a ball behind the enclosing bricks; escaped balls are
+returned inside. Goal openings still admit scoring shots. Friction reduces its
+speed by 100 game units/second each second until it comes to a complete stop. Kicks
+are capped at 650 units/second; rebounds from enemies preserve 80% of the
+normal relative speed. Balls do not damage enemies or Koshi. Swords, Boost,
+sleep and fear do not affect them.
+
+A **Goal** is an unclickable, immutable boundary brick, like Cinder, drawn as a
+top-down soccer goal with white netting and a silver frame. Its opening faces
+the board. Koshi and enemies still collide with it. It cannot have modifiers
+or surfaces, cannot be absorbed by Warped bricks, and cannot be changed or
+copied by Saw Blade or Ditto Stamp. It may combine only with other Goal bricks.
+When a ball's center enters through the opening with clearance from both posts,
+the ball disappears in a sparking cloud and adds one to **Goals**. Wide shots
+reflect from the frame.
+
+Custom levels can set `goalsGoal` to the number of scores required, alone or with
+food (`goal`) and enemy (`killGoal`) targets. All positive targets must be met
+before time runs out. Survival remains exclusive. The editor supports Goals
+and scheduled soccer balls (`kind: "object", type: "soccer-ball"`), including
+ball spawners. Balls have no lifetime or shield. Pause freezes rolling/scoring
+effects; restart clears scores and restores placements. The guide and tutorial
+include soccer. Existing campaign content and objectives remain unchanged.
+
 ## Enemies
 
 **Robo Jackolantern** (`jackolantern`) is an orange pumpkin robot with grey
@@ -307,6 +369,22 @@ waves. Its nose and mouth dim grey, its antenna breaks in half, then it bursts
 into pieces and fades over 1.2 seconds. It supports shields, swords, Boost,
 editor placements/spawners, custom cutscenes and guide practice. Existing
 campaign levels are unchanged.
+
+**Robo Snake** (`snake`) follows the inner perimeter like a Wheel at 95 game
+units/second. Its four grey segments consist of a red-eyed head with a periodically
+extended red forked tongue, followed by spiked panels bearing a simple grey plus
+sign, thin oval buttons and unlettered red circular buttons. Large symmetric grey
+shapes and red stripes decorate the segments. The tongue is drawn underneath the
+head shell so it emerges from beneath the top of the head.
+Only the head accepts sword or Boost hits and shield downgrades. The three body
+segments always damage Koshi on contact, even during sleep, fear or the snake's
+shield invulnerability; Koshi's usual one-second damage immunity still applies.
+Sleep freezes movement; fear slows perimeter movement to 32 game units/second.
+Every segment blocks other enemies and soccer balls and stays inside the bricks,
+with Barrier fences blocking the entire snake. On defeat the four segments fall
+apart and fade over 1.2 seconds while the detached tongue spins away.
+Custom placements snap to the perimeter; editor spawners, portraits, the guide
+and an interactive head-interception lesson support it. Campaign levels stay unchanged.
 
 **Robo Ball** (`ball`) is an orange robot basketball with dark grey stripes,
 two beady red eyes and a rectangular mouth whose grey grate resembles teeth.

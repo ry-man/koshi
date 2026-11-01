@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, SWORDS, ITEMS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, levelObjective, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawGoal } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots } = globalThis.KoshiSaves;
 
@@ -43,7 +43,7 @@ const pendingSaves = [];
 const weaponStatus = document.querySelector('#weapon-status');
 const weaponIcon = document.querySelector('#weapon-icon');
 const weaponRemaining = document.querySelector('#weapon-remaining');
-const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99' };
+const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99', goal: '#4d9475' };
 let lastTime = null;
 let displayedState = null;
 let ending = null;
@@ -64,7 +64,7 @@ const cutscene = new globalThis.KoshiCutscenePlayer((context, character, time, s
   if (character === 'koshi') drawCat(0, 0, time);
   else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
   ctx = previous;
-}, startLevel, action => phaseTransition.run(action));
+}, showLevelBriefing, action => phaseTransition.run(action));
 
 if (location.hash.startsWith('#level=')) {
   try {
@@ -318,7 +318,8 @@ function makeBrickButtons() {
     const button = document.createElement('button');
     button.className = 'brick';
     button.classList.toggle('cinder', brick.kind === 'cinder');
-    button.disabled = brick.kind === 'cinder';
+    button.classList.toggle('goal', brick.kind === 'goal');
+    button.disabled = brick.kind === 'cinder' || brick.kind === 'goal';
     button.classList.toggle('crumbler', Boolean(brick.crumbler));
     button.classList.toggle('warped', Boolean(brick.warped));
     button.classList.toggle('slimed', Boolean(brick.slimed));
@@ -392,7 +393,7 @@ function makeBrickButtons() {
       }
     }
     button.addEventListener('click', event => {
-      if (game.state !== 'playing') return;
+      if (game.state !== 'playing' || brick.kind === 'goal' || brick.kind === 'cinder') return;
       const bounds = board.getBoundingClientRect();
       const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
       const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
@@ -476,11 +477,11 @@ function syncBrickDestructions() {
 }
 
 function showDialog(kicker, title, text, label, icon) {
+  overlay.classList.toggle('level-briefing', game.state === 'ready');
   document.querySelector('#dialog-kicker').textContent = kicker;
   document.querySelector('#dialog-title').textContent = title;
   document.querySelector('#dialog-text').textContent = text;
   document.querySelector('#dialog-icon').textContent = icon;
-  document.querySelector('#dialog-note').hidden = game.state !== 'ready';
   play.textContent = label;
   overlay.hidden = false;
   play.focus({ preventScroll: true });
@@ -496,19 +497,26 @@ function syncUI() {
       status.textContent = stuck ? '' : toast.textContent;
     }
   }
-  const { goal: GOAL, killGoal = 0, survive = false } = game.level;
+  const { goal: GOAL, killGoal = 0, goalsGoal = 0, survive = false } = game.level;
   const DURATION = game.timeLimit;
   const foodTarget = !survive && GOAL > 0 && Number.isFinite(GOAL);
   const enemyTarget = !survive && killGoal > 0 && Number.isFinite(killGoal);
+  const soccerGoalTarget = !survive && goalsGoal > 0 && Number.isFinite(goalsGoal);
+  const soccerGoals = game.goals ?? 0;
   const fraction = survive ? Math.min(1, game.elapsed / DURATION)
-    : Math.min(1, GOAL > 0 ? game.score / GOAL : 1, killGoal > 0 ? game.enemies / killGoal : 1);
+    : Math.min(1, GOAL > 0 ? game.score / GOAL : 1, killGoal > 0 ? game.enemies / killGoal : 1,
+      goalsGoal > 0 ? soccerGoals / goalsGoal : 1);
   timer.innerHTML = Number.isFinite(DURATION) ? `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '◷ ∞';
+  timer.setAttribute('aria-label', Number.isFinite(DURATION)
+    ? `${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))} seconds remaining` : 'Unlimited time');
   foodCount.innerHTML = `🍗 ${game.score}${foodTarget ? ` <span>/ ${GOAL}</span>` : ''}`;
   timer.classList.toggle('win-target', survive);
   foodCount.classList.toggle('win-target', foodTarget);
   foodCount.setAttribute('aria-label', foodTarget ? `${game.score} of ${GOAL} food collected` : `${game.score} food collected`);
   hearts.textContent = '♥ '.repeat(game.hearts).trim() + ' ♡'.repeat(3 - game.hearts);
-  hearts.setAttribute('aria-label', `${game.hearts} of 3 hearts`);
+  const activationStatus = game.activationsRemaining == null
+    ? '' : `; ${game.activationsRemaining} Boom Helmet activations remaining`;
+  hearts.setAttribute('aria-label', `${game.hearts} of 3 hearts${activationStatus}`);
   const heartCost = game.level.heartCost;
   const heartSpawning = Number.isFinite(heartCost) && heartCost > 0;
   document.querySelector('#heart-cost').hidden = !heartSpawning;
@@ -531,6 +539,11 @@ function syncUI() {
   enemyCount.textContent = `👾 ${game.enemies}${enemyTarget ? ` / ${killGoal}` : ''}`;
   enemyCount.classList.toggle('win-target', enemyTarget);
   enemyCount.setAttribute('aria-label', enemyTarget ? `${game.enemies} of ${killGoal} enemy points earned` : `${game.enemies} enemy points earned`);
+  const goalCount = document.querySelector('#goal-count');
+  goalCount.textContent = `⚽ ${soccerGoals}${soccerGoalTarget ? ` / ${goalsGoal}` : ''}`;
+  goalCount.classList.toggle('win-target', soccerGoalTarget);
+  goalCount.setAttribute('aria-label', soccerGoalTarget
+    ? `${soccerGoals} of ${goalsGoal} goals scored` : `${soccerGoals} goals scored`);
   const weaponCount = game.weapon
     ? Number.isFinite(game.weapon.uses) ? game.weapon.uses : Math.ceil(Math.max(0, game.weapon.expires - game.elapsed))
     : null;
@@ -573,8 +586,9 @@ function syncUI() {
     }
     const remaining = Math.max(0, brick.readyAt - game.elapsed);
     const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
-    button.setAttribute('aria-disabled', String(stuck || !game.brickSelectable(brick)));
-    if (item.special) updateBrick(item.special, brick, game.elapsed, game.sunglassesActive && brick.kind !== 'cinder');
+    const immutableGoal = brick.kind === 'goal';
+    button.setAttribute('aria-disabled', String(immutableGoal || stuck || !game.brickSelectable(brick)));
+    if (item.special) updateBrick(item.special, brick, game.elapsed, game.sunglassesActive && !['cinder', 'goal'].includes(brick.kind));
     if (item.special?.symbol) item.special.symbol.style.animationPlayState = game.state === 'playing' ? 'running' : 'paused';
     if (brick.springs) {
       const age = brick.hitAt === null ? 1 : game.elapsed - brick.hitAt;
@@ -591,15 +605,15 @@ function syncUI() {
       const geometry = brickConveyor(members, game.width, game.height, game.elapsed * CONVEYOR_SPEED, brick.conveyorDirection);
       item.conveyor.querySelector('.conveyor-teeth').setAttribute('d', geometry.teeth);
     }
-    button.dataset.deactivated = String(!game.sunglassesActive && brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${game.sunglassesActive && brick.kind !== 'cinder' ? ', Magical Sunglasses: cooldown and selection locks temporarily bypassed' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
+    button.dataset.deactivated = String(brick.kind !== 'goal' && !game.sunglassesActive && brick.usesLeft === 0);
+    const label = `${brick.kind} brick ${brick.id + 1}, ${immutableGoal ? 'scoring goal, cannot be activated or changed, and cannot be absorbed' : brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${game.sunglassesActive && !['cinder', 'goal'].includes(brick.kind) ? ', Magical Sunglasses: cooldown and selection locks temporarily bypassed' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
     }
-    button.tabIndex = game.state === 'playing' && brick.kind !== 'cinder' ? 0 : -1;
+    button.tabIndex = game.state === 'playing' && !['cinder', 'goal'].includes(brick.kind) ? 0 : -1;
     button.classList.toggle('tutorial-target', Boolean(tutorial && tutorial.target.id === brick.id));
-    button.style.setProperty('--cooldown-fill', `${brick.kind === 'cinder' || game.sunglassesActive ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
+    button.style.setProperty('--cooldown-fill', `${['cinder', 'goal'].includes(brick.kind) || game.sunglassesActive ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
   }
   if (ending?.game !== game || ending?.state !== game.state) ending = null;
   if (['won', 'lost'].includes(game.state) && !ending) {
@@ -615,8 +629,8 @@ function syncUI() {
   if (game.state === 'ready') {
     const description = game.customLevel
       ? `${levelObjective(game.level)}. This is your custom level from the editor.`
-      : `Click a brick to send Koshi toward it. ${levelObjective(game.level)}!`;
-    showDialog('READY, LITTLE HERO?', 'Follow your appetite.', description, "Let's play →", '🐾');
+      : `${levelObjective(game.level)}. Click a boundary brick to guide Koshi.`;
+    showDialog(`LEVEL ${game.level.id} · MISSION`, 'Ready for this level?', description, 'Start', '🐾');
     status.textContent = 'Your next adventure is one click away.';
   } else if (game.state === 'playing') {
     overlay.hidden = true;
@@ -664,8 +678,10 @@ function begin() {
     lastTime = null;
     resize();
     syncUI();
-    if (game.level.cutscene) cutscene.open(game.level.cutscene, game.level.id);
-    else startLevel();
+    if (game.level.cutscene) {
+      overlay.hidden = true;
+      cutscene.open(game.level.cutscene, game.level.id);
+    }
   });
 }
 
@@ -676,12 +692,19 @@ function startLevel() {
   pause.focus({ preventScroll: true });
 }
 
+function showLevelBriefing() {
+  displayedState = null;
+  syncUI();
+}
+
 play.addEventListener('click', () => {
   if (game.state === 'paused') {
     game.resume();
     lastTime = null;
     syncUI();
     pause.focus({ preventScroll: true });
+  } else if (game.state === 'ready') {
+    startLevel();
   } else {
     if (game.state === 'won' && !game.customLevel && game.levelIndex + 1 < LEVELS.length) levelSelect.value = String(game.levelIndex + 1);
     begin();
@@ -767,7 +790,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-instruction').textContent = tutorial.lesson.instruction;
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
-  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'objectives'].includes(tutorial.lesson.id);
+  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(tutorial.lesson.id);
   makeBrickButtons();
   displayedState = null;
   displayedStuck = false;
@@ -811,12 +834,22 @@ document.querySelector('#tutorial-sword').addEventListener('change', event => {
 });
 
 function guidePicture(picture, title) {
+  if (picture === 'special:boom-helmet') {
+    const image = document.createElement('canvas');
+    image.className = 'guide-picture'; image.width = 320; image.height = 160;
+    image.setAttribute('role', 'img'); image.setAttribute('aria-label', title);
+    const previous = ctx;
+    ctx = image.getContext('2d'); ctx.scale(2, 2);
+    drawBoomHelmetArtwork(80, 82, 5);
+    ctx = previous;
+    return image;
+  }
   if (picture.startsWith('special:')) {
     const type = picture.slice(8), image = document.createElement('div');
     image.className = 'guide-special-brick';
     image.setAttribute('role', 'img'); image.setAttribute('aria-label', title);
     const brick = { x: 0, y: 0, w: 160, h: 70,
-      kind: type === 'cinder' ? 'cinder' : 'normal',
+      kind: type === 'goal' || type === 'cinder' ? type : 'normal',
       portal: type === 'portal' ? 'purple' : null, toggle: type === 'toggle' ? 4 : null,
       toggleRemaining: type === 'toggle' ? 4 : 0, boost: type === 'boost',
       barrier: type === 'barrier',
@@ -833,7 +866,9 @@ function guidePicture(picture, title) {
   ctx = image.getContext('2d');
   ctx.scale(2, 2);
   const [kind, type] = picture.split(':');
-  if (kind === 'brick' || kind === 'slime') {
+  if (kind === 'object' && type === 'soccer-ball') {
+    drawSoccerBall(ctx, { x: 80, y: 42, radius: 16, vx: 0, vy: 0, angle: 0 });
+  } else if (kind === 'brick' || kind === 'slime') {
     const crumbler = type.includes('crumbler');
     const warped = type.includes('warped');
     const brick = { id: 0, x: 18, y: 22, w: 124, h: 28, region: { edge: 'top', start: 0, end: 1 } };
@@ -941,7 +976,8 @@ document.querySelector('#guide-topic').addEventListener('change', event => showG
 document.querySelector('#guide-prev').addEventListener('click', () => showGuideChapter(guideIndex - 1));
 document.querySelector('#guide-next').addEventListener('click', () => showGuideChapter(guideIndex + 1));
 document.querySelector('#guide-practice').addEventListener('click', () => {
-  const id = ['aim', 'cooldown', 'crumbler', 'slime-red', 'food', 'mouse', 'warnings', 'objectives'][guideIndex];
+  const id = GUIDE[guideIndex].title === 'Robots & swords'
+    ? 'snake' : ['aim', 'cooldown', 'crumbler', 'slime-red', 'food', 'mouse', 'warnings', 'objectives'][guideIndex];
   startTutorial(LESSONS.findIndex(lesson => lesson.id === id));
 });
 function togglePause() {
@@ -1174,6 +1210,25 @@ function endingPose(sequence, width, height) {
   return { x: startX, y: startY - Math.sin(progress * Math.PI) * 28, scale: 1, rotation: progress * Math.PI * 4 };
 }
 
+function drawGoalSpark(ctx, effect) {
+  const progress = Math.max(0, Math.min(1, effect.age / effect.duration));
+  const radius = 8 + progress * 34;
+  ctx.save();
+  ctx.globalAlpha *= 1 - progress;
+  ctx.translate(effect.x, effect.y);
+  for (let i = 0; i < 10; i++) {
+    const angle = i * Math.PI / 5;
+    const inner = radius * (i % 2 ? .4 : .22);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+    ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    ctx.strokeStyle = i % 2 ? '#ff9f43' : '#fff1a8';
+    ctx.lineWidth = i % 2 ? 3 : 2;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawEnding() {
   const pose = endingPose(ending, game.width, game.height);
   ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(pose.rotation); ctx.scale(pose.scale, pose.scale);
@@ -1181,7 +1236,9 @@ function drawEnding() {
   if (game.sunglassesPickup) drawWornSunglasses({ ...game, cat: { x: 0, y: 0 },
     sunglassesPickup: { ...game.sunglassesPickup, x: 0, y: 0 } });
   if (game.maskPickup) drawWornMask({ ...game, cat: { x: 0, y: 0 }, maskPickup: { ...game.maskPickup, x: 0, y: 0 } });
+  if (game.boomHelmet && !game.boomHelmet.exploded) drawBoomHelmet(game, 0, 0);
   ctx.restore();
+  if (game.boomHelmet?.exploded) drawBoomHelmet(game);
 }
 
 function render(now) {
@@ -1251,6 +1308,15 @@ function render(now) {
   }
   ctx = actorCtx;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  const goalBricks = game.bricks.filter(brick => brick.kind === 'goal' && brick.absorbedBy === null);
+  if (goalBricks.length) {
+    const parts = game.brickParts();
+    for (const brick of goalBricks) {
+      drawGoal(ctx, parts.filter(part => part.id === brick.id));
+    }
+  }
+  for (const ball of game.soccerBalls ?? []) drawSoccerBall(ctx, ball);
+  for (const effect of game.goalEffects ?? []) drawGoalSpark(ctx, effect);
   for (const effect of game.brickDestructions) drawBrickDestructionSmoke(effect);
   for (const pickup of game.pickups) drawPickupPop(pickup);
   if (ending?.game === game && ending.state === game.state && !endingMotion.matches) {
@@ -1274,6 +1340,7 @@ function render(now) {
   drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
   if (game.sunglassesPickup) drawWornSunglasses(game);
   if (game.maskPickup) drawWornMask(game);
+  if (game.boomHelmet) drawBoomHelmet(game);
   for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
   if (game.dittoStamp && !game.brickStamps.some(effect => effect.capturing)) {
     ctx.save();
@@ -1423,6 +1490,64 @@ function drawWornMask(game) {
   ctx.translate(pickup.x + (game.cat.x - pickup.x) * eased, pickup.y + (game.cat.y - 2 - pickup.y) * eased);
   ctx.scale(1 - eased * .18, 1 - eased * .18);
   drawSpookyMask(); ctx.restore();
+}
+
+function drawBoomHelmetArtwork(x, y, remaining, fallOffset = 0) {
+  ctx.save(); ctx.translate(x, y + fallOffset);
+  ctx.fillStyle = '#287dcc'; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-22, -11);
+  ctx.quadraticCurveTo(-24, -31, -12, -39);
+  ctx.quadraticCurveTo(0, -48, 12, -39);
+  ctx.quadraticCurveTo(24, -31, 22, -11);
+  ctx.lineTo(17, -7); ctx.lineTo(-17, -7); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#70b5f2'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(-1, -28, 12, Math.PI * 1.12, Math.PI * 1.86); ctx.stroke();
+  ctx.fillStyle = '#8a6953'; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(-4, -48, 8, 7, 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#f1f3f4'; ctx.beginPath(); ctx.arc(0, -22, 9.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#111820'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#111820'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(remaining), 0, -21.5);
+  ctx.restore();
+}
+
+function drawBoomHelmetExplosion(x, y, age) {
+  const progress = Math.max(0, Math.min(1, age / .9));
+  if (progress >= 1) return;
+  ctx.save(); ctx.translate(x, y - 22); ctx.globalAlpha *= 1 - progress;
+  for (let i = 0; i < 12; i++) {
+    const angle = i * Math.PI / 6;
+    const distance = 16 + progress * 48;
+    ctx.fillStyle = ['#d93620', '#f05a20', '#ff8c28'][i % 3];
+    ctx.beginPath();
+    ctx.arc(Math.cos(angle) * distance, Math.sin(angle) * distance, 12 + progress * 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.lineWidth = 4; ctx.lineCap = 'round';
+  for (let i = 0; i < 12; i++) {
+    ctx.strokeStyle = i % 2 ? '#ff8c28' : '#ed4020';
+    const angle = i * Math.PI / 6 + Math.PI / 12;
+    const inner = 18 + progress * 38, outer = inner + 20 * (1 - progress);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+    ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.arc(0, 0, 18 * (1 - progress), 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawBoomHelmet(game, x = game.cat.x, y = game.cat.y) {
+  const helmet = game.boomHelmet;
+  if (helmet.exploded) {
+    drawBoomHelmetExplosion(x, y, helmet.age);
+    return;
+  }
+  const progress = Math.max(0, Math.min(1, helmet.age / .7));
+  const eased = progress * progress * (3 - 2 * progress);
+  drawBoomHelmetArtwork(x, y, game.activationsRemaining, -96 * (1 - eased));
 }
 
 function drawBrickStamp(effect, game) {
@@ -1612,6 +1737,27 @@ function drawGameItem(item) {
     ctx.fillStyle = '#c84a54';
     for (const eye of [-5, 5]) { ctx.beginPath(); ctx.arc(eye, -4, 1.6, 0, Math.PI * 2); ctx.fill(); }
     ctx.strokeStyle = '#c84a54'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(0, -1, 8, .2, Math.PI - .2); ctx.stroke();
+  } else if (item.type.startsWith('boom-time-')) {
+    const boomTime = ITEMS[item.type];
+    ctx.fillStyle = boomTime.color; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, 1, 19, 19, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(-5, -21, 10, 7, 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#17212a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -18); ctx.quadraticCurveTo(-8, -23, -5, -29); ctx.stroke();
+    ctx.strokeStyle = '#e0a04c'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ff7928'; ctx.beginPath();
+    ctx.moveTo(-5, -28); ctx.quadraticCurveTo(-11, -34, -4, -39);
+    ctx.quadraticCurveTo(-3, -34, 1, -35); ctx.quadraticCurveTo(3, -29, -5, -28);
+    ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = '#ffe36b'; ctx.beginPath(); ctx.moveTo(-4, -30);
+    ctx.quadraticCurveTo(-7, -34, -4, -36); ctx.quadraticCurveTo(-3, -33, -1, -32);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff7df'; ctx.beginPath(); ctx.arc(0, 1, 14, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.7; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -7); ctx.moveTo(0, 0); ctx.lineTo(6, -2); ctx.stroke();
+    ctx.fillStyle = '#111820'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`+${boomTime.counts}`, 0, 10);
   } else if (['stopwatch', 'stopwatch-green', 'stopwatch-blue'].includes(item.type)) {
     const stopwatch = ITEMS[item.type];
     ctx.fillStyle = stopwatch.color; ctx.beginPath(); ctx.roundRect(-5, -25, 10, 7, 2); ctx.fill();
@@ -1836,6 +1982,117 @@ function drawFearSweat(enemy) {
   ctx.restore();
 }
 
+function snakeSegmentsForDrawing(enemy) {
+  if (Array.isArray(enemy.segments) && enemy.segments.length) return enemy.segments;
+  if (game?.robots?.includes(enemy) && typeof game.snakeSegments === 'function') {
+    const segments = game.snakeSegments(enemy);
+    if (Array.isArray(segments) && segments.length) return segments;
+  }
+  return Array.from({ length: 4 }, (_, index) => ({
+    x: enemy.x - index * 38, y: enemy.y, radius: 19, angle: 0, index,
+  }));
+}
+
+function drawSnakeSpikes(radius) {
+  ctx.fillStyle = '#737f87'; ctx.strokeStyle = '#35414a'; ctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) {
+    const angle = i * Math.PI / 4;
+    const inner = radius - 3, outer = radius + 5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle - .18) * inner, Math.sin(angle - .18) * inner);
+    ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+    ctx.lineTo(Math.cos(angle + .18) * inner, Math.sin(angle + .18) * inner);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+}
+
+function drawSnakeTongue(x, y, angle, length = 13, spin = 0, alpha = 1, travel = 0) {
+  ctx.save(); ctx.translate(x + Math.cos(angle) * travel, y + Math.sin(angle) * travel);
+  ctx.rotate(angle + spin); ctx.globalAlpha *= alpha;
+  ctx.strokeStyle = '#e83d49'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(11 + length, 0);
+  ctx.moveTo(11 + length, 0); ctx.lineTo(15 + length, -4);
+  ctx.moveTo(11 + length, 0); ctx.lineTo(15 + length, 4); ctx.stroke();
+  ctx.restore();
+}
+
+function drawSnakeSegment(segment, enemy, deathProgress, damageColor) {
+  const radius = segment.radius ?? 19;
+  let x = segment.x, y = segment.y, spin = 0, scale = 1, alpha = 1;
+  if (deathProgress !== null) {
+    const index = segment.index ?? 0;
+    const angle = (segment.angle ?? 0) + index * 2.27 + .65;
+    x += Math.cos(angle) * deathProgress * 27;
+    y += Math.sin(angle) * deathProgress * 24 + deathProgress * deathProgress * 48;
+    spin = deathProgress * (index % 2 ? -4 : 4);
+    scale = Math.max(.05, 1 - deathProgress * .55);
+    alpha = Math.max(0, 1 - deathProgress * .92);
+  }
+  ctx.save(); ctx.translate(x, y); ctx.rotate((segment.angle ?? 0) + spin);
+  ctx.globalAlpha *= alpha; ctx.scale(scale, scale);
+  if (segment.index !== 0) drawSnakeSpikes(radius);
+  ctx.fillStyle = damageColor ?? '#9ba6ac'; ctx.strokeStyle = '#303d46'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = damageColor ? '#ffd4d6' : '#c7ced1';
+  ctx.beginPath(); ctx.arc(0, 0, radius - 4, -.95, .95); ctx.strokeStyle = '#697780'; ctx.lineWidth = 1.4; ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = '#59666f';
+    ctx.beginPath(); ctx.moveTo(-11, side * 9); ctx.lineTo(11, side * 9);
+    ctx.lineTo(7, side * 14); ctx.lineTo(-7, side * 14); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#bd3944';
+    ctx.fillRect(-7, side < 0 ? -13 : 10, 14, 3);
+  }
+  if (segment.index === 0) {
+    ctx.fillStyle = damageColor ?? '#9ba6ac';
+    ctx.beginPath(); ctx.moveTo(-2, -15); ctx.quadraticCurveTo(9, -19, 17, -10);
+    ctx.lineTo(17, 10); ctx.quadraticCurveTo(8, 18, -2, 15); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#202b32';
+    if (enemy.afraid && deathProgress === null) {
+      ctx.save(); ctx.translate(2, 0); ctx.scale(.7, .7); drawScaredFace(); ctx.restore();
+    } else {
+      for (const eyeY of [-7, 7]) {
+        ctx.beginPath(); ctx.ellipse(7, eyeY, 5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = deathProgress === null ? '#ed414b' : '#657078';
+        ctx.beginPath(); ctx.ellipse(8, eyeY, 3.2, 2.3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#202b32';
+      }
+    }
+  } else if (segment.index === 1) {
+    ctx.fillStyle = '#66737b';
+    ctx.beginPath(); ctx.moveTo(-3, -9); ctx.lineTo(3, -9); ctx.lineTo(3, -3);
+    ctx.lineTo(9, -3); ctx.lineTo(9, 3); ctx.lineTo(3, 3); ctx.lineTo(3, 9);
+    ctx.lineTo(-3, 9); ctx.lineTo(-3, 3); ctx.lineTo(-9, 3); ctx.lineTo(-9, -3);
+    ctx.lineTo(-3, -3); ctx.closePath(); ctx.fill();
+  } else if (segment.index === 2) {
+    ctx.fillStyle = '#343e45'; ctx.strokeStyle = '#d1d6d7'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(-8.5, 0, 5.5, 2.5, -.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(8.5, 0, 5.5, 2.5, -.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  } else {
+    for (const x of [-7, 7]) {
+      ctx.fillStyle = '#d82f3d'; ctx.strokeStyle = '#79202a'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, 0, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawSnakeRobot(enemy, deathProgress = null, damageColor = null) {
+  const segments = [...snakeSegmentsForDrawing(enemy)].sort((a, b) => (b.index ?? 0) - (a.index ?? 0));
+  const head = segments.find(segment => segment.index === 0) ?? segments[segments.length - 1];
+  if (!head) return;
+  if (deathProgress !== null) {
+    if (deathProgress > .06) {
+      const progress = Math.max(0, Math.min(1, (deathProgress - .06) / .86));
+      drawSnakeTongue(head.x, head.y, head.angle ?? 0, 15 + progress * 18,
+        progress * 12, 1 - progress, progress * 50);
+    }
+  } else if (!enemy.afraid && !enemy.asleep && enemy.age % 2.2 > 1.82) {
+    const flick = (enemy.age % 2.2 - 1.82) / .38;
+    drawSnakeTongue(head.x, head.y, head.angle ?? 0, 7 + Math.sin(flick * Math.PI) * 7);
+  }
+  for (const segment of segments) drawSnakeSegment(segment, enemy, deathProgress, damageColor);
+}
+
 function drawRobot(enemy, deathProgress = null, damageProgress = null) {
   ctx.save();
   const damageColor = damageProgress === null ? null : Math.floor(damageProgress * 4) % 2 === 0 ? '#dc626b' : '#f2a0a5';
@@ -1851,6 +2108,10 @@ function drawRobot(enemy, deathProgress = null, damageProgress = null) {
 }
 
 function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
+  if (enemy.type === 'snake') {
+    drawSnakeRobot(enemy, deathProgress, damageColor);
+    return;
+  }
   ctx.save(); ctx.translate(enemy.x, enemy.y);
   ctx.fillStyle = damageColor ?? '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
   if (enemy.type === 'jackolantern') {
@@ -2232,7 +2493,10 @@ function drawRoboBall(enemy, deathProgress = null, damageColor = null) {
 function drawEnemyDeath(enemy) {
   const progress = enemy.deathProgress;
   ctx.save();
-  if (enemy.type === 'jackolantern') {
+  if (enemy.type === 'snake') {
+    ctx.globalAlpha *= Math.max(0, 1 - progress);
+    drawRobot(enemy, progress);
+  } else if (enemy.type === 'jackolantern') {
     ctx.globalAlpha *= Math.max(0, Math.min(1, (1 - progress) / .4));
     drawRobot(enemy, progress);
   } else if (enemy.type === 'ball') {

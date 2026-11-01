@@ -18,6 +18,9 @@ const GUIDE = [
     title: 'Power-ups & risky items',
     sections: [
       [ITEMS['smiley-cookie'].name, 'Koshi opens wide and vacuums every food item on the board toward his moving mouth. He keeps moving normally, scores each snack, then licks his lips.', 'item:smiley-cookie'],
+      ...Object.entries(ITEMS).filter(([, item]) => item.counts).map(([type, item]) => [
+        item.name, `A bomb-shaped clock adds ${item.counts} activation${item.counts === 1 ? '' : 's'} to an equipped Boom Helmet. It does not add time to the level clock. Without a helmet it is collected with no effect.`, `item:${type}`,
+      ]),
       ...Object.entries(ITEMS).filter(([, item]) => item.seconds).map(([type, item]) => [
         item.name, `Adds ${item.seconds} seconds to the level clock. The +${item.seconds}s is printed on its face. Stopwatch bonuses add together.`, `item:${type}`,
       ]),
@@ -42,6 +45,8 @@ const GUIDE = [
       ]),
       ['Keep moving', 'Cooling bricks stay solid. Use other bricks while one recharges. Brick cooldown color is independent of its slime color.'],
       ['Cinder blocks', 'Grey concrete blocks with two recessed holes are permanently solid. Koshi stops when he runs into one, but you cannot click it to aim. They have no modifiers or contact effects, do not advance Toggle counters, and cannot be absorbed by Warped bricks.', 'special:cinder'],
+      ['Soccer goals', 'A goal replaces a boundary brick with white netting and a silver metal frame seen from above. It cannot be selected or changed by power-ups, and cannot be absorbed. Koshi still stops against it. Kick a soccer ball through its board-facing opening to score: the ball disappears in a sparking cloud.', 'special:goal'],
+      ['Soccer Ball', 'A normal black-and-white soccer ball is a neutral object, not a pickup or enemy. Bump it while moving to kick it; off-center contact changes its direction. It rolls, bounces off bricks, enemies and Barrier fences, and gradually slows to a complete stop. Swords, sleep and fear do not affect it.', 'object:soccer-ball'],
     ],
   },
   {
@@ -89,6 +94,7 @@ const GUIDE = [
       ['Robo Bucket', 'Buckets wander slowly with waving arms and randomly shoot blue bombs from their mouths. Bombs bounce off bricks and explode after three seconds; only their growing red flame circles can hurt Koshi. Defeat a bucket to squish it flat and pop its bombs.', 'enemy:bucket'],
       ['Robo Ball', 'An orange robot basketball with dark grey seams, beady red eyes and a rectangular grey tooth grate. It travels in straight lines at 120 board units per second, bouncing off bricks, fences and other enemies. On defeat it shrivels, pops its eyes into the air and fades. Sleep and fear affect it like other robots. Available for custom levels.', 'enemy:ball'],
       ['Robo Jackolantern', 'An orange pumpkin robot with grey mechanical eyes and an antenna instead of a stem. It wanders slowly, pauses for a half-second warning, and stomps every four seconds. A square fire ring expands from the stomp location at 120 board units per second. Touching it costs one heart. Bricks and barriers extinguish only the blocked portions; the rest keeps growing. Fear prevents stomps and fire damage; sleep freezes it. On defeat its yellow nose and mouth dim grey, its antenna snaps, and the pumpkin bursts into pieces. Available for custom levels.', 'enemy:jackolantern'],
+      ['Robo Snake', 'A long grey robot follows the inner perimeter at the same pace as a Wheel. It has four segments: a red-eyed head with a flicking forked tongue emerging beneath its shell, then spiked panels with a grey plus sign, thin oval buttons and unlettered red circular buttons. Large symmetric grey shapes and red stripes decorate the segments. Only its head can be attacked with a sword or Boost; body contacts hurt Koshi even while the snake is asleep or afraid, respecting normal damage invulnerability. Fear makes it flee slowly along the border; sleep stops it. On defeat its segments fall apart and fade, and its tongue spins away. Available for custom levels.', 'enemy:snake'],
       ['Damage & defeats', 'Unarmed contact costs one heart. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
       ...Object.entries(SWORDS).map(([type, sword]) => [
         sword.name,
@@ -112,7 +118,8 @@ const GUIDE = [
     title: 'Objectives',
     sections: [
       ['Campaign win conditions', 'The 19 campaign levels introduce one concept each. Some require food points, some enemy points, some BOTH, and others survival until time runs out. The briefing and gold HUD counters show the targets; combined progress follows the less-complete objective.'],
-      ['Custom win conditions', 'Choose food and/or enemy targets, or survive until the timer reaches zero. The briefing states what you must do. Required score counters show / target in gold; survival highlights the countdown in gold.'],
+      ['Custom win conditions', 'Choose any combination of food, enemy and soccer-goal targets, or survive until the timer reaches zero. Every level starts with an objectives popup and a Start button. Required score counters show / target in gold; survival highlights the countdown in gold. All required scores must be reached.'],
+      ['Boom Helmet activation limit', 'An optional level difficulty limit equips a round blue helmet with a bomb fuse when you press Start. It falls onto Koshi’s head and shows remaining activations in black inside a white circle. Each successful brick selection spends one, including redirections and sunglasses selections. Failed clicks and physical brick contacts spend nothing. At zero it explodes immediately and Koshi dies, even while invulnerable. Boom Time pickups add charges before that happens. Pause freezes the helmet; restart restores the limit. Survival and combined score objectives can both use a helmet.', 'special:boom-helmet'],
       ['Enemy shields & score', 'Blue shields take 4 hits, green 3, red 2, and unshielded enemies 1. Hits downgrade blue to green to red to none. After a hit, enemies blink between red shades and are protected for the same one second as Koshi. Destroying an enemy awards its original hit count in enemy points; partial hits earn nothing.'],
       ...LEVELS.map(level => [
         `Level ${level.id}`,
@@ -142,6 +149,8 @@ const LESSONS = [
   { id: 'bucket', title: 'Robo Bucket', instruction: 'Collect a sword and intercept the bucket. Its blue bombs bounce harmlessly for three seconds before their expanding red flames can hurt you.' },
   { id: 'ball', title: 'Robo Ball', instruction: 'Collect a sword and intercept the bouncing basketball robot. It rebounds off walls and other enemies; defeat it to see it shrivel and pop its eyes into the air.' },
   { id: 'jackolantern', title: 'Robo Jackolantern', instruction: 'Collect a sword and intercept the pumpkin robot. Watch its half-second stomp warning: square fire waves grow until blocked by bricks or fences.' },
+  { id: 'snake', title: 'Robo Snake', instruction: 'Collect a sword and intercept the snake’s head at the inner perimeter. Avoid its three spiked body panels: they cannot be attacked and remain dangerous even during sleep or fear.' },
+  { id: 'soccer', title: 'Soccer balls & goals', instruction: 'Select the outlined brick to bump the soccer ball off-center and kick it into the neighboring silver goal. Balls are not collected; watch the Goals counter and scoring spark cloud.' },
   { id: 'healing', title: 'Heal with food', instruction: 'You have two hearts and 9 food. Collect the strawberry to reach 10, then head back along your route to collect the healing heart.' },
   { id: 'warnings', title: 'Spawn warnings', instruction: 'Wait for the skull, swirl, and star at 2 seconds. They reveal objects at 3 seconds. Then aim at the outlined brick to collect the snack.' },
   { id: 'pause', title: 'Pause & resume', instruction: 'Press Pause (or Escape), then Resume. The clock, movement, previews, and all brick timers freeze while paused.' },
@@ -206,6 +215,23 @@ class Tutorial {
     };
     const addSword = () => game.weapons.push({ ...along(.22), type: this.sword });
     const id = this.lesson.id;
+    if (id === 'soccer') {
+      const goal = game.bricks.filter(brick => regions.get(brick.id).edge === 'right' && brick.id !== this.target.id)
+        .sort((a, b) => Math.abs(a.y + a.h / 2 - start.y) - Math.abs(b.y + b.h / 2 - start.y))[0];
+      goal.kind = 'goal';
+      game.cat.x = goal.x - 200;
+      const difference = goal.y + goal.h / 2 - game.cat.y;
+      const reach = game.cat.radius + 16;
+      let low = 0, high = reach - .01;
+      for (let i = 0; i < 40; i++) {
+        const offset = (low + high) / 2;
+        if (offset / Math.sqrt(reach * reach - offset * offset) < (Math.abs(difference) - offset) / 110) low = offset;
+        else high = offset;
+      }
+      game.soccerBalls.push(game.createSoccerBall({ x: goal.x - 110, y: game.cat.y + Math.sign(difference) * (low + high) / 2 }));
+      this.origin = { x: game.cat.x, y: game.cat.y };
+      game.level.goal = 0; game.level.goalsGoal = 1;
+    }
     if (id === 'food') for (const fraction of [.25, .5, .75]) addFood(fraction);
     if (id === 'crumbler') { this.target.crumbler = 2; this.target.usesLeft = 2; }
     if (id === 'warped') this.target.warped = 8;
@@ -240,11 +266,11 @@ class Tutorial {
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'objectives'].includes(id)) {
+    if (['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(id)) {
       addSword();
-      if (id === 'wheel') {
+      if (['wheel', 'snake'].includes(id)) {
         const bounds = game.bounds();
-        const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'wheel', x: 1, y: (start.y - bounds.top) / (bounds.bottom - bounds.top) })[0];
+        const enemy = game.createCustomSpawn({ kind: 'enemy', type: id, x: 1, y: (start.y - bounds.top) / (bounds.bottom - bounds.top) })[0];
         // Start upstream so the moving wheel meets the launch path near arrival.
         enemy.distance -= 95 * (bounds.right - start.x) / engine.SPEED;
         game.placeWheel(enemy);
@@ -318,6 +344,8 @@ class Tutorial {
       bucket: game.enemies >= 1,
       ball: game.enemies >= 1,
       jackolantern: game.enemies >= 1,
+      snake: game.enemies >= 1,
+      soccer: game.goals >= 1,
       healing: game.hearts === 3 && game.score >= 10,
       warnings: this.previewSeen && game.score > 0,
       pause: this.paused && game.state === 'playing',

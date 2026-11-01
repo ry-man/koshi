@@ -49,6 +49,7 @@
 .editor-main .marker { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; border-radius: 50%; min-height: 32px; width: 32px; height: 32px; padding: 0; background: #182b36; border: 2px solid #d3ef8b; font-size: 18px; touch-action: none; cursor: grab; }
 .editor-main .marker[data-kind="enemy"] { border-color: #df8c81; }
 .editor-main .marker[data-kind="weapon"] { border-color: #7eacdb; }
+.editor-main .marker[data-kind="object"] { border-color: #f1f3f2; }
 .editor-main .marker[aria-pressed="true"] { outline: 3px solid white; outline-offset: 3px; z-index: 3; }
 .marker small { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: #10191fee; padding: 1px 3px; font-size: 9px; color: white; white-space: nowrap; }
 .timeline-controls { margin-top: 18px; display: grid; gap: 8px; }
@@ -84,7 +85,7 @@
 .visual-palette button[aria-pressed="mixed"] { border: 2px dashed var(--accent); }
 .visual-palette button:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 .palette-picture { position: relative; display: block; width: 44px; height: 28px; color: #c8d4cc; font-size: 25px; line-height: 28px; }
-.palette-picture > svg:not(.brick-info):not(.brick-portal-cloud):not(.brick-cinder) { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.palette-picture > svg:not(.brick-info):not(.brick-portal-cloud):not(.brick-cinder):not(.brick-goal) { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .palette-swatch { border-radius: 4px; border: 2px solid #17232c; }
 .palette-caption { font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; }
 .editor-warning { border: 1px solid #ef9947; padding: 10px 12px; border-radius: 6px; background: #342b25; color: #ffd4a2; font-size: 13px; line-height: 1.5; }

@@ -109,6 +109,29 @@ function drawPortrait(ctx, character, speaking, time) {
     for (const x of [9, 21]) box('#d52932', x, 10, 3, blink ? 1 : 3);
     box('#383d40', 9, 20, 14, talking ? 7 : 5);
     for (const x of [10, 13, 16, 19, 22]) box('#9ba4a7', x, 21, 1, 3);
+  } else if (character === 'snake') {
+    if (talking || time % 2.2 > 1.82) {
+      box('#d93645', 27, 19, 4, 4);
+      box('#f0646c', 30, 18, 2, 2);
+      box('#f0646c', 30, 22, 2, 2);
+    }
+    for (const [x, y, w, h] of [[1,16,8,10],[7,14,9,12],[13,13,9,13],[19,12,11,14]]) {
+      box('#26343d', x, y, w, h);
+      box('#89969d', x + 1, y + 1, w - 2, h - 2);
+      box('#c1c9cc', x + 2, y + 1, w - 4, 2);
+      box('#59666f', x + 2, y + 3, w - 4, 2);
+      box('#59666f', x + 2, y + h - 4, w - 4, 2);
+      box('#bd3944', x + 3, y + 3, w - 6, 1);
+      box('#bd3944', x + 3, y + h - 3, w - 6, 1);
+    }
+    box('#cbd2d4', 10, 15, 3, 10); box('#cbd2d4', 7, 18, 9, 3);
+    for (const x of [15, 19]) {
+      ctx.fillStyle = '#354149'; ctx.beginPath(); ctx.ellipse(x, 19, 1.7, .7, -.2, 0, Math.PI * 2); ctx.fill();
+    }
+    box('#d23c48', 3, 20, 2, 2); box('#d23c48', 6, 20, 2, 2);
+    box('#e1444c', 25, 16, 2, blink ? 1 : 3);
+    box('#e1444c', 25, 21, 2, blink ? 1 : 3);
+    box('#a4afb3', 27, 16, 2, 7);
   } else if (character === 'bucket') {
     box('#737d80', 7, 1, 18, 3); box('#737d80', 5, 3, 3, 10); box('#737d80', 24, 3, 3, 10);
     box('#60675f', 4, 11, 24, 5); box('#60675f', 6, 16, 20, 14);
@@ -278,8 +301,9 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20 }[actor.character];
-      ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0, base, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19 }[actor.character];
+      ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : actor.character === 'snake' ? -48 : 0,
+        base, actor.character === 'snake' ? 68 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);
       if (actor.character === 'tom') drawTom(ctx, time, speaking);
       else this.drawCharacter(ctx, actor.character, time, speaking);

@@ -20,8 +20,9 @@ test('all campaign scenes validate and every story character speaks', () => {
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['ball', 'jackolantern'].includes(character)).sort());
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['ball', 'jackolantern', 'snake'].includes(character)).sort());
   assert.ok(!speakers.has('ball'), 'new actors do not change existing campaign scenes');
+  assert.ok(!speakers.has('snake'), 'the custom snake does not change existing campaign scenes');
 });
 
 test('Tom commands the campaign in every scene and round-trips as a custom speaker and actor', () => {
@@ -44,6 +45,10 @@ test('Tom commands the campaign in every scene and round-trips as a custom speak
     ] }],
   } };
   assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(source))), source);
+  const snakeScene = { theme: 'workshop', lines: [{
+    speaker: 'snake', text: 'Sss...', actors: [{ character: 'snake', x: .5, y: .65 }, { character: 'koshi', x: .25, y: .65 }],
+  }] };
+  assert.deepEqual(validateCustomLevel({ ...level(), cutscene: snakeScene }).cutscene, snakeScene);
   assert.throws(() => validateCutscene({ ...source.cutscene, lines: [{
     ...source.cutscene.lines[0], actors: [{ character: 'koshi', x: .25, y: .65 }],
   }] }), /speaking character/);
@@ -157,7 +162,7 @@ test('stage shadows align with each character base and stay grounded while speak
     positions: new Map(), paused: false,
     drawCharacter: (_, character) => operations.push(['draw', character]),
   };
-  for (const [character, base] of Object.entries({ koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21 })) {
+  for (const [character, base] of Object.entries({ koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, snake: 19 })) {
     const draw = speaker => {
       operations.length = 0;
       context.stage.call(player, { speaker, actors: [{ character, x: .5, y: .65 }] });
@@ -165,12 +170,71 @@ test('stage shadows align with each character base and stay grounded while speak
     };
     const silent = draw('other'), speaking = draw(character);
     const shadow = speaking.findIndex(op => op[0] === 'ellipse');
-    assert.deepEqual(speaking[shadow].slice(1, 5), [character === 'tom' ? -7 : 0, base, 30, 7], character);
+    assert.deepEqual(speaking[shadow].slice(1, 5), [
+      character === 'tom' ? -7 : character === 'snake' ? -48 : 0,
+      base, character === 'snake' ? 68 : 30, 7,
+    ], character);
     assert.deepEqual(speaking.slice(0, shadow + 1), silent.slice(0, shadow + 1), 'shadow does not follow speaking bob');
     const bob = speaking.findIndex((op, i) => i > shadow && op[0] === 'translate');
     assert.ok(bob > shadow && bob < speaking.findIndex(op => op[0] === 'draw'), 'only the character bobs above its shadow');
     assert.ok(speaking[bob][2] > 0);
   }
+});
+
+test('snake portraits are animated and full-size rendering uses world-space helper segments and death snapshots', () => {
+  const cutscene = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  assert.match(app, /'jackolantern', 'snake', 'objectives'/);
+  assert.match(app, /GUIDE\[guideIndex\]\.title === 'Robots & swords'\s*\?\s*'snake'/);
+  const portraitContext = vm.createContext({});
+  vm.runInContext(cutscene.slice(cutscene.indexOf('function drawPortrait('), cutscene.indexOf('class CutscenePlayer')), portraitContext);
+  const portrait = speaking => {
+    const calls = [];
+    const ctx = new Proxy({}, {
+      get: (_, name) => (...args) => calls.push([name, ...args]),
+      set: (_, name, value) => { calls.push([name, value]); return true; },
+    });
+    portraitContext.drawPortrait(ctx, 'snake', speaking, 0);
+    return calls;
+  };
+  assert.notDeepEqual(portrait(false), portrait(true));
+
+  const calls = [];
+  const ctx = new Proxy({ globalAlpha: 1 }, {
+    get: (target, name) => name in target ? target[name] : (...args) => calls.push([name, ...args]),
+    set: (target, name, value) => { target[name] = value; return true; },
+  });
+  let queries = 0;
+  const segments = [0, 1, 2, 3].map(index => ({ x: 100 - index * 38, y: 200, radius: 19, angle: .4, index }));
+  const enemy = { type: 'snake', x: 100, y: 200, age: 2, segments: undefined };
+  const context = vm.createContext({
+    ctx, game: { robots: [enemy], snakeSegments: () => { queries++; return segments; } },
+    drawScaredFace() {},
+  });
+  const start = app.indexOf('function snakeSegmentsForDrawing(');
+  vm.runInContext(app.slice(start, app.indexOf('function drawRobot(enemy', start)), context);
+  context.drawSnakeRobot(enemy);
+  assert.equal(queries, 1);
+  assert.ok(calls.some(([name, x, y]) => name === 'translate' && x === 100 && y === 200));
+  assert.ok(!calls.some(([name]) => name === 'fillText'), 'snake panels have no letters or words');
+  assert.ok(!calls.some(([name]) => name === 'roundRect'), 'plus marking has no rectangular pad behind it');
+  assert.equal(calls.filter(([name, , , rx, ry]) => name === 'ellipse' && rx === 5.5 && ry === 2.5).length, 2,
+    'two thin oval buttons');
+  for (const y of [-13, 10]) assert.equal(calls.filter(([name, x, py, w, h]) =>
+    name === 'fillRect' && x === -7 && py === y && w === 14 && h === 3).length, 4,
+  'each segment has large mirrored red stripes');
+  const tongue = calls.findIndex(([name, x, y]) => name === 'moveTo' && x === 11 && y === 0);
+  const headShell = calls.findIndex(([name, x, y]) => name === 'moveTo' && x === -2 && y === -15);
+  assert.ok(tongue >= 0 && tongue < headShell, 'tongue renders underneath the head shell');
+  assert.ok(calls.some(([name]) => name === 'lineTo'), 'forked tongue and spiked panels use stroked geometry');
+
+  calls.length = 0;
+  const snapshot = { ...enemy, age: 3, segments };
+  context.game.robots = [];
+  context.game.snakeSegments = () => { throw new Error('death rendering must use frozen segments'); };
+  context.drawSnakeRobot(snapshot, .5);
+  assert.ok(calls.some(([name, x, y]) => name === 'translate' && x !== 100 && y !== 200));
+  assert.match(app, /if \(enemy\.type === 'snake'\) \{\s*ctx\.globalAlpha \*= Math\.max\(0, 1 - progress\);\s*drawRobot\(enemy, progress\);/);
 });
 
 test('dialogue types at 30 characters per second and requires explicit advancement', () => {

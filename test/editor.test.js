@@ -188,23 +188,29 @@ test('HUD marks only required score targets or the survival timer and tracks obj
     }
     return nodes.get(selector);
   };
-  const game = { level: {}, score: 10, enemies: 15, elapsed: 30, timeLimit: 60, hearts: 3, batteries: 0 };
+  const game = { level: {}, score: 10, enemies: 15, goals: 10, elapsed: 30, timeLimit: 60, hearts: 3, batteries: 0 };
   const context = vm.createContext({ game, levelObjective, document: { querySelector: node },
     timer: node('#timer'), foodCount: node('#food-count'), hearts: node('#hearts'),
     progress: node('#progress'), progressLabel: node('#progress-label') });
   const hud = source.slice(start, source.indexOf('  const weaponCount', start));
   for (const [patch, targets, progress] of [
-    [{ goal: 20 }, [false, true, false], '50%'],
-    [{ goal: 0, killGoal: 30 }, [false, false, true], '50%'],
-    [{ goal: 20, killGoal: 60 }, [false, true, true], '25%'],
-    [{ goal: 0, survive: true }, [true, false, false], '50%'],
+    [{ goal: 20 }, [false, true, false, false], '50%'],
+    [{ goal: 0, killGoal: 30 }, [false, false, true, false], '50%'],
+    [{ goal: 20, killGoal: 60 }, [false, true, true, false], '25%'],
+    [{ goal: 0, goalsGoal: 20 }, [false, false, false, true], '50%'],
+    [{ goal: 20, killGoal: 60, goalsGoal: 40 }, [false, true, true, true], '25%'],
+    [{ goal: 0, survive: true }, [true, false, false, false], '50%'],
   ]) {
     game.level = { id: 'HUD preview', duration: 60, ...patch };
     vm.runInContext(`{${hud}}`, context);
-    ['#timer', '#food-count', '#enemy-count'].forEach((id, i) => assert.equal(node(id).classList.contains('win-target'), targets[i]));
+    ['#timer', '#food-count', '#enemy-count', '#goal-count'].forEach((id, i) => assert.equal(node(id).classList.contains('win-target'), targets[i]));
     assert.equal(node('#progress').style.width, progress);
     assert.equal(node('#food-count').innerHTML.includes(`/ ${patch.goal}`), targets[1]);
     assert.equal(node('#enemy-count').textContent.includes(`/ ${patch.killGoal}`), targets[2]);
+    assert.equal(node('#goal-count').textContent.includes(`/ ${patch.goalsGoal}`), targets[3]);
+    if (targets[3]) {
+      assert.equal(node('#goal-count').attributes['aria-label'], `${game.goals} of ${patch.goalsGoal} goals scored`);
+    }
     assert.equal(node('.objective strong').textContent, levelObjective(game.level));
   }
   game.level = { id: 'Heart progress', duration: 60, goal: 100, heartCost: 10 };
@@ -242,18 +248,34 @@ test('editor settings select exclusive survival or score targets and preserve im
   $('#win-condition').listeners.change();
   assert.equal($('#goal').disabled, true);
   assert.equal($('#kill-goal').disabled, true);
+  assert.equal($('#goals-goal').disabled, true);
   apply();
   assert.equal(context.level.survive, true); assert.equal(context.level.goal, 0); assert.equal(context.level.killGoal, 0);
   $('#win-condition').value = 'scores'; $('#win-condition').listeners.change();
   assert.equal($('#goal').disabled, false);
+  assert.equal($('#goals-goal').disabled, false);
   $('#kill-goal').value = '30';
   apply();
   assert.equal(context.level.survive, false); assert.equal(context.level.goal, 0); assert.equal(context.level.killGoal, 30);
-  context.level = { ...blank(), killGoal: 10 };
+  context.level = { ...blank(), killGoal: 10, goalsGoal: 3 };
   context.populateSettings();
   assert.equal($('#goal').value, 50); assert.equal($('#kill-goal').value, 10);
+  assert.equal($('#goals-goal').value, 3);
   assert.equal($('#win-condition').value, 'scores');
-  assert.equal(messages.length, 2);
+  $('#goal').value = '0'; $('#kill-goal').value = '0'; $('#goals-goal').value = '2';
+  apply();
+  assert.equal(context.level.goalsGoal, 2);
+  assert.equal(context.level.goal, 0);
+  assert.equal(context.level.killGoal, 0);
+  $('#goals-goal').value = '1.5';
+  const saved = JSON.stringify(context.level);
+  assert.throws(apply, /soccer|goal/i);
+  assert.equal(JSON.stringify(context.level), saved);
+  $('#win-condition').value = 'survive';
+  apply();
+  assert.equal(context.level.goalsGoal, 0);
+  assert.equal(context.level.survive, true);
+  assert.equal(messages.length, 4);
 });
 
 test('desktop rotates phone bricks clockwise with stable IDs, edit slots, attributes, and adjacency', () => {
@@ -424,18 +446,20 @@ test('normalized placements project to the same relative safe-area positions in 
   }
 });
 
-test('wheel placements snap to an edge and begin at that exact perimeter position', () => {
+test('wheel and snake placements snap to an edge and begin at that exact perimeter position', () => {
   for (const options of [{}, { portrait: true, scale: .35 }]) {
-    for (const [x, y] of [[.1, .5], [.9, .5], [.5, .1], [.5, .9], [0,0], [1,1]]) {
-      const snapped = snapWheel(x, y);
-      const level = { ...blank(), events: [{ ...event('enemy', 'wheel', 0), ...snapped }] };
-      const game = new Game(() => .5, { ...options, customLevel: level });
-      game.start();
-      const point = game.pointFromRelative(snapped.x, snapped.y);
-      assert.ok(Math.abs(game.robots[0].x - point.x) < 1e-8);
-      assert.ok(Math.abs(game.robots[0].y - point.y) < 1e-8);
-      game.update(.1);
-      assert.notDeepEqual({ x: game.robots[0].x, y: game.robots[0].y }, point);
+    for (const type of ['wheel', 'snake']) {
+      for (const [x, y] of [[.1, .5], [.9, .5], [.5, .1], [.5, .9], [0,0], [1,1]]) {
+        const snapped = snapWheel(x, y);
+        const level = { ...blank(), events: [{ ...event('enemy', type, 0), ...snapped }] };
+        const game = new Game(() => .5, { ...options, customLevel: level });
+        game.start();
+        const point = game.pointFromRelative(snapped.x, snapped.y);
+        assert.ok(Math.abs(game.robots[0].x - point.x) < 1e-8, type);
+        assert.ok(Math.abs(game.robots[0].y - point.y) < 1e-8, type);
+        game.update(.1);
+        assert.notDeepEqual({ x: game.robots[0].x, y: game.robots[0].y }, point);
+      }
     }
   }
 });
@@ -473,7 +497,8 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
     return inputs.get(selector);
   };
   const context = vm.createContext({
-    $, FOODS, SWORDS, ITEMS: require('../src/game.js').ITEMS, SHIELDS: {},
+    $, FOODS, SWORDS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {},
+    snapWheel,
     document: { createElement: () => ({}) }, MIXED: '',
     level: blank(), selectedEvents: new Set(), touched: new Set(),
     common: values => values.every(value => value === values[0]) ? values[0] : '',
@@ -519,4 +544,169 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
   context.selectedEvents = new Set([0, 1]); context.touched = new Set(['#event-lifetime']);
   $('#event-lifetime').value = '';
   assert.throws(() => context.applyToSelected(), /Food needs a lifetime/);
+  context.selectedEvents.clear();
+  $('#event-kind').value = 'object'; context.typeOptions('soccer-ball');
+  $('#event-type').value = 'soccer-ball';
+  $('#event-lifetime').value = '10'; $('#event-shield').value = 'blue';
+  assert.equal($('#event-lifetime').disabled, true);
+  assert.equal($('#lifetime-label').hidden, true);
+  assert.equal($('#event-shield').disabled, true);
+  assert.equal($('#shield-label').hidden, true);
+  const ball = context.readEvent();
+  assert.equal(ball.kind, 'object');
+  assert.equal(ball.type, 'soccer-ball');
+  assert.ok(!Object.hasOwn(ball, 'lifetime'));
+  assert.ok(!Object.hasOwn(ball, 'shield'));
+  context.level = { ...blank(), events: [event(), { ...event('enemy', 'mouse'), shield: 'blue' }] };
+  context.selectedEvents = new Set([0, 1]);
+  context.touched = new Set(['#event-kind', '#event-type']);
+  context.applyToSelected();
+  assert.ok(context.level.events.every(event => event.kind === 'object' && event.type === 'soccer-ball'));
+  assert.ok(context.level.events.every(event => !Object.hasOwn(event, 'lifetime') && !Object.hasOwn(event, 'shield')));
+  context.populateEventForm();
+  assert.equal($('#event-lifetime').disabled, true);
+  assert.equal($('#event-shield').disabled, true);
+});
+
+test('snake event selectors and editor placements use Wheel edge snapping', () => {
+  const { spawnSymbol, spawnColor, specialLabel } = require('../src/brick-visuals.js');
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const inputs = new Map();
+  const $ = selector => {
+    if (!inputs.has(selector)) inputs.set(selector, { value: '', dataset: {}, querySelector: () => null, replaceChildren() {}, prepend() {} });
+    return inputs.get(selector);
+  };
+  const context = vm.createContext({
+    $, FOODS, SWORDS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {}, snapWheel,
+    document: { createElement: () => ({}) }, MIXED: '', selectedEvents: new Set(), selectedBricks: new Set(),
+    touched: new Set(), level: blank(), readOnly: () => false, syncPalettes() {},
+  });
+  vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function description(')), context);
+  vm.runInContext(source.slice(source.indexOf('function readEvent('), source.indexOf('function setSelection(')), context);
+  $('#event-kind').value = 'enemy';
+  context.typeOptions('snake');
+  $('#event-type').value = 'snake';
+  $('#event-time').value = '0'; $('#event-x').value = '20'; $('#event-y').value = '70';
+  $('#event-shield').value = 'none';
+  const placement = context.readEvent();
+  assert.deepEqual(JSON.parse(JSON.stringify(placement)), { kind: 'enemy', type: 'snake', time: 0, ...snapWheel(.2, .7), shield: null });
+  const snakeSpawner = { kind: 'enemy', type: 'snake' };
+  const saved = validateCustomLevel({ ...blank(), events: [placement], brickTypes: [
+    { edge: 'top', start: 0, end: .125, kind: 'normal', spawner: snakeSpawner },
+  ] });
+  assert.deepEqual(saved.brickTypes[0].spawner, snakeSpawner);
+  assert.deepEqual(saved.events[0], JSON.parse(JSON.stringify(placement)));
+  assert.ok(source.includes("['wheel', 'snake'].includes(event.type)"));
+  assert.ok(source.includes("['wheel', 'snake'].includes(item.type)"));
+  assert.ok(source.includes("['wheel', 'snake'].includes(next.type)"));
+  assert.match(source, /snake: \{ name: 'Robo Snake' \}/);
+  assert.match(spawnSymbol({ kind: 'enemy', type: 'snake' }), /M-25 5/);
+  assert.equal(spawnColor({ kind: 'enemy', type: 'snake' }), '#bbc5ca');
+  assert.match(specialLabel({ spawner: { kind: 'enemy', type: 'snake' } }), /Spawning: Robo Snake/);
+});
+
+test('soccer editor drafts round-trip scoring targets, balls, goal bricks and ball spawners', () => {
+  const source = { ...blank(), goal: 0, goalsGoal: 2,
+    events: [event('object', 'soccer-ball', 0)],
+    brickTypes: [
+      { edge: 'top', start: 0, end: .125, kind: 'goal' },
+      { edge: 'bottom', start: 0, end: .125, kind: 'normal', spawner: { kind: 'object', type: 'soccer-ball' } },
+    ] };
+  const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true });
+  const draft = validateDraft(source);
+  assert.deepEqual(draft, source);
+  assert.deepEqual(validateDraft(JSON.parse(JSON.stringify(draft))), draft);
+  assert.deepEqual(validateDraft(JSON.parse(decodeURIComponent(encodeURIComponent(JSON.stringify(draft))))), draft);
+  for (const goalsGoal of [-1, 1.5, '2', Infinity, 100001]) {
+    assert.throws(() => validateDraft({ ...source, goalsGoal }), TypeError);
+  }
+  assert.throws(() => validateDraft({ ...source, survive: true }), TypeError);
+  for (const field of [{ lifetime: 5 }, { shield: 'blue' }]) {
+    assert.throws(() => validateDraft({ ...source, events: [{ ...source.events[0], ...field }] }), TypeError);
+    assert.throws(() => validateDraft({ ...source, brickTypes: [
+      { ...source.brickTypes[1], spawner: { ...source.brickTypes[1].spawner, ...field } },
+    ] }), TypeError);
+  }
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const editor = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  assert.match(html, /<option value="object">Object<\/option>/);
+  assert.match(html, /<option value="goal">Goal/);
+  assert.match(editor, /object: OBJECTS/);
+});
+
+test('editor goal bricks clear attributes, reject surface edits, and combine only with goals', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', checked: false,
+      querySelector: () => null, replaceChildren() {} });
+    return nodes.get(selector);
+  };
+  const regionKey = region => `${region.edge}:${region.start}:${region.end}`;
+  const context = vm.createContext({ $, Game, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
+    CONTACT_SURFACES: require('../src/game.js').CONTACT_SURFACES, MIXED: '',
+    immutableBrick: kind => ['cinder', 'goal'].includes(kind),
+    common: values => values.every(value => value === values[0]) ? values[0] : '',
+    validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true }),
+    attempt: action => action(), markChanged() {}, renderBoard() {}, setSelection() {}, message() {},
+    choiceButton: () => ({ setAttribute() {} }), specialLabel: () => '', mixedOption() {},
+  });
+  vm.runInContext(source.slice(source.indexOf('function brickEntry('), source.indexOf('function splitBricks(')), context);
+  vm.runInContext(source.slice(source.indexOf('function renderBrickInspector('), source.indexOf('function renderBoard(')), context);
+  const setup = custom => {
+    context.level = custom;
+    context.previewGame = new Game(() => .5, { customLevel: custom, editorPreview: true });
+    context.selectedBricks = new Set();
+    return context.previewGame;
+  };
+  let game = setup(blank());
+  const target = game.bricks[game.perimeter[0]], region = brickEditRegions(game.bricks).get(target.id);
+  target.crumbler = 5; target.warped = 15; target.spawner = { kind: 'food', type: 'S', lifetime: 5 };
+  context.selectedBricks.add(regionKey(region));
+  $('#brick-kind').value = 'goal';
+  context.saveBrick({ target: { id: 'brick-kind' } });
+  assert.deepEqual(JSON.parse(JSON.stringify(context.level.brickTypes)), [{ ...region, kind: 'goal' }]);
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  context.renderBrickInspector(game.bricks);
+  assert.equal($('#brick-kind').disabled, false, 'goal type remains editable');
+  for (const id of ['crumbler', 'warped', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'toggle']) {
+    assert.equal($(`#brick-${id}`).disabled, true, `${id} is unavailable for goals`);
+  }
+  const saved = JSON.stringify(context.level);
+  assert.throws(() => context.saveBrick({ target: { id: 'brick-springs' } }), /cannot have modifiers or contact surfaces/);
+  assert.equal(JSON.stringify(context.level), saved);
+  $('#brick-kind').value = 'normal';
+  context.saveBrick({ target: { id: 'brick-kind' } });
+  assert.equal(context.level.brickTypes[0].kind, 'normal');
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  $('#brick-spawn-item').value = 'object:soccer-ball';
+  $('#brick-spawn-lifetime').value = '10'; $('#brick-spawn-shield').value = 'blue';
+  context.saveBrick({ target: { id: 'brick-spawn-item' } });
+  assert.deepEqual(JSON.parse(JSON.stringify(context.level.brickTypes[0].spawner)), { kind: 'object', type: 'soccer-ball' });
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  context.renderBrickInspector(game.bricks);
+  assert.equal($('#brick-spawn-item').disabled, false);
+  assert.equal($('#brick-spawn-lifetime').disabled, true);
+  assert.equal($('#brick-spawn-shield').disabled, true);
+  for (const otherKind of ['normal', 'cinder', 'goal']) {
+    const base = new Game(() => .5, { customLevel: blank() });
+    const ids = base.perimeter.slice(0, 2), regions = brickEditRegions(base.bricks);
+    game = setup({ ...blank(), brickTypes: ids.map((id, index) => ({
+      ...regions.get(id), kind: index ? otherKind : 'goal',
+    })) });
+    context.selectedBricks = new Set(ids.map(id => regionKey(regions.get(id))));
+    context.combineOwner = ids[0];
+    context.renderBrickInspector(game.bricks);
+    assert.equal($('#combine-bricks').disabled, otherKind !== 'goal');
+    if (otherKind === 'goal') {
+      context.combineBricks();
+      assert.equal(context.level.brickGroups.length, 1);
+      assert.ok(context.level.brickTypes.every(entry => Object.keys(entry).sort().join(',') === 'edge,end,kind,start'));
+      assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(context.level))), JSON.parse(JSON.stringify(context.level)));
+    } else {
+      const before = JSON.stringify(context.level);
+      assert.throws(() => context.combineBricks(), /same kind/);
+      assert.equal(JSON.stringify(context.level), before);
+    }
+  }
 });
