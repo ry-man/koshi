@@ -414,8 +414,10 @@ playtest links, direct-file play, and the offline app.
    can have its own type, independent of the preset. **Reset brick types to
    preset** clears all individual edits. Applying a different boundary preset
    changes defaults but keeps individual overrides until reset.
-2. Click a food, enemy, or weapon picture in the inspector. Set its appearance time
-   and, for food, lifetime. With the **Place** tool, click/tap the dotted
+2. Click a food, enemy, weapon, or item picture in the inspector. Set its appearance time
+   and on-screen lifetime (required for food, optional for items and weapons).
+   Leave an item or weapon lifetime blank to keep it until the level ends.
+   With the **Place** tool, click/tap the dotted
    playable area to add objects. Each click creates one timed placement;
    repeating clicks creates a group with the same timing.
 3. Select a marker or event in the chronological list to edit it. Drag a marker,
@@ -470,9 +472,14 @@ accessible and off bricks on phones and desktops.
 Robo Wheels must start on this area's perimeter (at least one coordinate is
 0 or 1). The editor snaps them to the nearest edge; they then roll normally.
 Robo Rams, Buckets, and Mice can start anywhere in the safe area; Mice wander
-while Rams charge after a short aim. Buckets wander and shoot bombs. Swords
-remain until collected.
-Food lifetime begins at the scheduled appearance time. Simultaneous events
+while Rams charge after a short aim. Buckets wander and shoot bombs. Items and
+swords remain until collected or until their optional on-screen lifetime expires;
+omitting `lifetime` keeps them until the level ends, including clock extensions.
+Food, item, and weapon lifetimes begin at the scheduled appearance time, not the
+one-second spawn warning. Expiry happens before collection; pause freezes timers.
+Ground lifetime does not change an equipped sword's attacks or effect duration.
+Food, items, and weapons pop larger, then shrink and fade with sparkles on pickup;
+food also displays the points earned. Simultaneous events
 spawn in their original list order. Normal pickup/combat rules still apply,
 including automatic collection of objects placed over Koshi's starting point.
 
@@ -494,13 +501,44 @@ including automatic collection of objects placed over Koshi's starting point.
 ```
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
-`wheel`, `ram`, `bucket`; weapon types are `wood`, `bronze`, `silver`, `gold`. `brickSet` is 1
+`wheel`, `ram`, `bucket`; weapon types are `wood`, `bronze`, `silver`, `gold`.
+Item types (`kind: "item"`) are `smiley-cookie`, `stopwatch`, `stopwatch-green`, `stopwatch-blue`, `battery`,
+`music-box`, `eggplant`, `saw-blade`, and `magic-sunglasses`. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
 Duration is 1–3600 seconds, food/enemy goals are whole numbers from 0 to 100000,
 heart costs are positive integers up to
 100000, and a level supports up to 2000 events. Appearance times must be
 nonnegative and strictly before the time limit; food lifetimes are
-0.1–3600 seconds. JSON files imported through the file picker have a 1 MB limit.
+0.1–3600 seconds. Items and weapons accept the same range for optional `lifetime`;
+omit it (or use `null`) for full-level persistence. JSON files imported through the file picker have a 1 MB limit.
+
+Stopwatches come in red (`stopwatch`, +10 seconds), green (`stopwatch-green`,
++30 seconds), and blue (`stopwatch-blue`, +60 seconds). Each shows its bonus on
+its face; collected bonuses add together. Existing `stopwatch` placements
+remain red and keep their original +10-second behavior. All three variants
+are available in the editor for timed placements and spawn bricks.
+
+The Saw Blade instantly grows curved teeth spinning at full speed around Koshi until his next
+non-cinder brick contact. That brick's entire current merged shape permanently
+becomes solid, unselectable cinder, with a one-second shake, grey smoke, and
+smooth visual fade. Contact modifiers are removed before firing; destroying
+a Portal also removes the other endpoint's Portal attribute. Already-cinder
+contacts preserve the saw. Saw pickups do not stack, and restart clears the
+power and restores the original bricks. Pause freezes the transformation and
+destruction animation. The item also appears in Cracker Causeway.
+
+Magical Sunglasses (`magic-sunglasses`) have sparkling, color-cycling frames.
+They fly onto Koshi's face and bypass cooldowns, Toggle locks, and exhausted
+Crumblers for ten seconds; cinder and absorbed bricks remain unselectable.
+Clicks during the effect do not add cooldowns, consume Crumbler uses, or advance
+Toggle counters. All brick cooldowns are completed when the effect ends;
+Toggle locks and exhausted Crumblers resume their stored state.
+Contact effects (including slime) still apply.
+A translucent, rectangular star-and-smiling-cat banner slides behind gameplay,
+using the same width as the music-box score, but taking ten seconds to exit.
+The glasses fade from Koshi's face after expiry. Another pickup restarts the
+ten seconds rather than stacking them; pause freezes the effect and visuals.
+They are available in the editor and spawn bricks, and appear in Switchboard Supper.
 `goal` is the food target and optional `killGoal` is the enemy-defeat target.
 For score objectives, at least one must be positive; both must be reached when
 both are positive. For survival, set `survive: true`, `goal: 0`, and `killGoal: 0`
@@ -530,7 +568,10 @@ Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
 `wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`, or
 `bucket`;
-`heart` uses type `heart`. These three surfaces are mutually exclusive with
+`item` uses one of the item types above; `heart` uses type `heart`.
+Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
+counted from each actual spawn; omit it for full-level persistence.
+These three surfaces are mutually exclusive with
 one another and with Slimed/Springs/Spikes/Conveyor.
 Optional `toggle` is `1` (red), `2` (green), or `4` (blue), or `null` to remove it; it combines
 with any contact surface, cooldown kind, Crumbler, and Warped.

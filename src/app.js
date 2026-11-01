@@ -1,8 +1,8 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, levelObjective, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost } = globalThis.KoshiBrickVisuals;
+const { Game, LEVELS, SWORDS, ITEMS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, levelObjective, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots } = globalThis.KoshiSaves;
 
@@ -52,6 +52,7 @@ let toastUntil = 0;
 let trail = [];
 let buttons = [];
 let brickRevision = -1;
+const destructionVisuals = new Map();
 let customLevel = null;
 let displayedStuck = false;
 let tutorial = null;
@@ -271,6 +272,27 @@ document.querySelector('#save-discard').addEventListener('click', () => {
 
 function makeBrickButtons() {
   const container = document.querySelector('#bricks');
+  for (const effect of game.brickDestructions) {
+    if (destructionVisuals.has(effect)) continue;
+    const item = buttons.find(item => item.brick.id === effect.id);
+    if (!item) continue;
+    const ghost = document.createElement('div');
+    ghost.className = 'brick-destruction-ghost';
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.inert = true;
+    for (const node of new Set([item.button, item.spring, item.conveyor, item.spikes, item.special?.cloud, item.special?.info].filter(Boolean))) {
+      const clone = node.cloneNode(true);
+      clone.removeAttribute('data-id');
+      ghost.append(clone);
+    }
+    destructionVisuals.set(effect, ghost);
+  }
+  for (const [effect, ghost] of destructionVisuals) {
+    if (!game.brickDestructions.includes(effect)) {
+      ghost.remove();
+      destructionVisuals.delete(effect);
+    }
+  }
   container.replaceChildren();
   brickRevision = game.brickRevision;
   const parts = game.brickParts();
@@ -365,9 +387,9 @@ function makeBrickButtons() {
       const steering = tutorial ?? game;
       if (!steering.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
         toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? ''
-          : !brickEnabled(brick) ? `That toggle needs ${brick.toggleRemaining} more successful clicks of other bricks.`
-          : brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
-          : brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
+          : !game.sunglassesActive && !brickEnabled(brick) ? `That toggle needs ${brick.toggleRemaining} more successful clicks of other bricks.`
+          : !game.sunglassesActive && brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
+          : !game.sunglassesActive && brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
           : "Koshi can't move toward that spot. Pick another!";
         toastUntil = performance.now() + 1800;
       }
@@ -417,6 +439,27 @@ function makeBrickButtons() {
     exposeBrickInfo(special, container, brick, game.width, game.height);
     return { brick, button, members, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
   });
+  for (const ghost of destructionVisuals.values()) container.append(ghost);
+}
+
+function syncBrickDestructions() {
+  for (const [effect, ghost] of destructionVisuals) {
+    const item = buttons.find(item => item.brick.id === effect.id);
+    if (!game.brickDestructions.includes(effect)) {
+      ghost.remove(); destructionVisuals.delete(effect);
+      if (item) item.button.style.transform = '';
+      continue;
+    }
+    const progress = Math.min(1, effect.age);
+    const fade = progress * progress * (3 - 2 * progress);
+    const amplitude = 2 * (1 - progress);
+    const x = Math.sin(effect.age * Math.PI * 2 * 34) * amplitude;
+    const y = Math.cos(effect.age * Math.PI * 2 * 41) * amplitude;
+    const transform = `translate(calc(${x}px * var(--board-scale-x)), calc(${y}px * var(--board-scale-y)))`;
+    ghost.style.opacity = String(1 - fade);
+    ghost.style.transform = transform;
+    if (item) item.button.style.transform = transform;
+  }
 }
 
 function showDialog(kicker, title, text, label, icon) {
@@ -440,7 +483,8 @@ function syncUI() {
       status.textContent = stuck ? '' : toast.textContent;
     }
   }
-  const { duration: DURATION, goal: GOAL, killGoal = 0, survive = false } = game.level;
+  const { goal: GOAL, killGoal = 0, survive = false } = game.level;
+  const DURATION = game.timeLimit;
   const foodTarget = !survive && GOAL > 0 && Number.isFinite(GOAL);
   const enemyTarget = !survive && killGoal > 0 && Number.isFinite(killGoal);
   const fraction = survive ? Math.min(1, game.elapsed / DURATION)
@@ -486,6 +530,9 @@ function syncUI() {
     ? `Weapon: ${SWORDS[game.weapon.type].name}, ${weaponCount} ${timedWeapon ? 'seconds' : 'attacks'} remaining`
     : 'Weapon: no sword equipped';
   if (weaponStatus.getAttribute('aria-label') !== weaponLabel) weaponStatus.setAttribute('aria-label', weaponLabel);
+  const batteryLabel = `Batteries: ${game.batteries}`;
+  document.querySelector('#battery-count').textContent = `🔋 ${game.batteries}`;
+  document.querySelector('#battery-status').setAttribute('aria-label', batteryLabel);
   if (tutorial) updateTutorial();
   pause.disabled = !['playing', 'paused'].includes(game.state);
   const pauseLabel = game.state === 'paused' ? 'Resume' : 'Pause';
@@ -499,6 +546,7 @@ function syncUI() {
     makeBrickButtons();
     if (focusedId !== undefined) buttons.find(item => String(item.brick.id) === focusedId)?.button.focus({ preventScroll: true });
   }
+  syncBrickDestructions();
   for (const item of buttons) {
     const { brick, button, members } = item;
     if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
@@ -512,8 +560,8 @@ function syncUI() {
     }
     const remaining = Math.max(0, brick.readyAt - game.elapsed);
     const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
-    button.setAttribute('aria-disabled', String(brick.kind === 'cinder' || stuck || !brickEnabled(brick) || remaining > 1e-9 || brick.usesLeft === 0));
-    if (item.special) updateBrick(item.special, brick, game.elapsed);
+    button.setAttribute('aria-disabled', String(stuck || !game.brickSelectable(brick)));
+    if (item.special) updateBrick(item.special, brick, game.elapsed, game.sunglassesActive && brick.kind !== 'cinder');
     if (item.special?.symbol) item.special.symbol.style.animationPlayState = game.state === 'playing' ? 'running' : 'paused';
     if (brick.springs) {
       const age = brick.hitAt === null ? 1 : game.elapsed - brick.hitAt;
@@ -530,15 +578,15 @@ function syncUI() {
       const geometry = brickConveyor(members, game.width, game.height, game.elapsed * CONVEYOR_SPEED, brick.conveyorDirection);
       item.conveyor.querySelector('.conveyor-teeth').setAttribute('d', geometry.teeth);
     }
-    button.dataset.deactivated = String(brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
+    button.dataset.deactivated = String(!game.sunglassesActive && brick.usesLeft === 0);
+    const label = `${brick.kind} brick ${brick.id + 1}, ${brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${game.sunglassesActive && brick.kind !== 'cinder' ? ', Magical Sunglasses: cooldown and selection locks temporarily bypassed' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
     }
     button.tabIndex = game.state === 'playing' && brick.kind !== 'cinder' ? 0 : -1;
     button.classList.toggle('tutorial-target', Boolean(tutorial && tutorial.target.id === brick.id));
-    button.style.setProperty('--cooldown-fill', `${brick.kind === 'cinder' ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
+    button.style.setProperty('--cooldown-fill', `${brick.kind === 'cinder' || game.sunglassesActive ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
   }
   if (ending?.game !== game || ending?.state !== game.state) ending = null;
   if (['won', 'lost'].includes(game.state) && !ending) {
@@ -824,6 +872,8 @@ function guidePicture(picture, title) {
   } else if (kind === 'weapon') {
     ctx.save(); ctx.translate(80, 40); ctx.scale(1.25, 1.25);
     drawSword(0, 0, SWORDS[type].color); ctx.restore();
+  } else if (kind === 'item') {
+    drawGameItem({ x: 80, y: 42, type });
   } else {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = kind === 'heart' ? '#ef9d9d' : '#000';
@@ -976,6 +1026,9 @@ function line(points, color, width = 2) {
 }
 
 function drawCat(x, y, now, damageProgress = null, boostReady = false, expression = null) {
+  if (expression === null && typeof game !== 'undefined' && game?.cat?.x === x && game?.cat?.y === y) {
+    expression = game.cookieActive ? 'eating' : game.cookieLickUntil > game.elapsed ? 'licking' : null;
+  }
   ctx.save();
   ctx.translate(x, y);
   const hurt = damageProgress !== null;
@@ -989,15 +1042,30 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
   }
   ctx.shadowColor = '#0008'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 5;
   ctx.fillStyle = fur;
+  const sawAge = game.sawStartedAt == null || game.cat.x !== x || game.cat.y !== y ? null : now - game.sawStartedAt;
+  const sawGrowth = sawAge === null ? 0 : 1;
+  if (sawAge !== null) {
+    ctx.save();
+    ctx.rotate(-Math.PI / 2 + Math.max(0, sawAge) * 36);
+    traceSawBlade(ctx, 23, sawGrowth);
+    ctx.fillStyle = fur; ctx.strokeStyle = '#53616d'; ctx.lineWidth = 1.5;
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.save(); ctx.globalAlpha *= 1 - sawGrowth;
   ctx.beginPath();
   ctx.moveTo(-20, -8); ctx.lineTo(-22, -32); ctx.lineTo(-6, -21);
   ctx.lineTo(7, -21); ctx.lineTo(23, -32); ctx.lineTo(21, -7);
   ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = fur;
   ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.save(); ctx.globalAlpha *= 1 - sawGrowth;
   ctx.fillStyle = hurt ? '#f6b3b8' : '#d6a4a4';
   ctx.beginPath(); ctx.moveTo(-18, -15); ctx.lineTo(-19, -25); ctx.lineTo(-11, -19); ctx.fill();
   ctx.beginPath(); ctx.moveTo(13, -19); ctx.lineTo(20, -25); ctx.lineTo(18, -14); ctx.fill();
+  ctx.restore();
   line([[-10, -20], [-7, -13]], stripes, 4);
   line([[0, -22], [0, -14]], stripes, 4);
   line([[10, -20], [7, -13]], stripes, 4);
@@ -1043,8 +1111,16 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     ctx.fillStyle = ember;
     ctx.beginPath(); ctx.ellipse(0, 17, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+  } else if (expression === 'eating') {
+    ctx.fillStyle = '#572b35';
+    ctx.beginPath(); ctx.ellipse(0, 15, 11, 12 + Math.sin(now * 18) * 1.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f18b9d';
+    ctx.beginPath(); ctx.ellipse(0, 21, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
   } else if (hurt || expression === 'lost') {
     ctx.moveTo(-8, 16); ctx.quadraticCurveTo(0, 7, 8, 16);
+  } else if (expression === 'licking') {
+    ctx.moveTo(-8, 12); ctx.quadraticCurveTo(0, 19, 8, 12);
+    ctx.moveTo(0, 16); ctx.quadraticCurveTo(0, 23 + Math.sin(now * 12) * 2, 4, 17);
   } else {
     ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11); ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11);
   }
@@ -1088,6 +1164,8 @@ function drawEnding() {
   const pose = endingPose(ending, game.width, game.height);
   ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(pose.rotation); ctx.scale(pose.scale, pose.scale);
   drawCat(0, 0, ending.elapsed, null, false, ending.state);
+  if (game.sunglassesPickup) drawWornSunglasses({ ...game, cat: { x: 0, y: 0 },
+    sunglassesPickup: { ...game.sunglassesPickup, x: 0, y: 0 } });
   ctx.restore();
 }
 
@@ -1101,6 +1179,8 @@ function render(now) {
   }
   ctx.strokeStyle = '#9dbb9e09'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
+  drawMusicStream(game);
+  drawSunglassesStream(game);
   ctx.font = '10px "DM Sans", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#79918d44';
   ctx.fillText('K O S H I ’ S   Q U E S T', WIDTH / 2, HEIGHT - 67);
   const trajectory = game.trajectory();
@@ -1118,34 +1198,42 @@ function render(now) {
     const left = Math.max(0, (food.expires - game.elapsed) / food.lifetime);
     ctx.save(); ctx.translate(food.x, food.y);
     ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(0, 17, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = FOOD_COLORS[food.type]; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // Emoji glyphs inherit fillStyle alpha, so draw them with an opaque fill and boosted color.
-    ctx.globalAlpha = 1; ctx.fillStyle = '#000';
-    ctx.filter = 'saturate(1.8) brightness(1.15) contrast(1.1)';
-    ctx.font = '25px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(FOODS[food.type].icon, 0, 1);
-    ctx.filter = 'none';
+    drawFoodBadge(food.type);
     ctx.fillStyle = '#10191f'; ctx.fillRect(-16, -28, 32, 5);
     ctx.fillStyle = left < .25 ? '#ff5a4a' : '#b8ff3c'; ctx.fillRect(-15, -27, 30 * left, 3);
     ctx.restore();
+  }
+  for (const item of game.items) {
+    drawGameItem(item);
+    drawObjectLifetime(item);
   }
   for (const heart of game.healing) {
     ctx.fillStyle = '#ef9d9d'; ctx.font = '30px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('♥', heart.x, heart.y + 10);
   }
-  for (const item of game.weapons) drawSword(item.x, item.y, SWORDS[item.type].color);
-  for (const enemy of game.robots) drawRobot(enemy, null, game.enemyDamageProgress(enemy));
+  for (const item of game.weapons) {
+    drawSword(item.x, item.y, SWORDS[item.type].color);
+    drawObjectLifetime(item);
+  }
+  for (const enemy of game.robots) {
+    drawRobot(enemy, null, game.enemyDamageProgress(enemy));
+    if (enemy.asleep) {
+      ctx.save(); ctx.fillStyle = '#d7c3ff'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Z z', enemy.x + 19, enemy.y - enemy.radius - 6); ctx.restore();
+    }
+  }
   for (const enemy of game.enemyDeaths) drawEnemyDeath(enemy);
   for (const enemy of game.robots) for (const bomb of enemy.bombs ?? []) drawBomb(bomb);
-  for (const pickup of game.pickups) {
-    const age = game.elapsed - pickup.time;
+  for (const pickup of game.pickups.filter(pickup => pickup.kind === 'food')) {
+    const age = pickup.age;
     ctx.fillStyle = `rgba(211,239,139,${1 - age / .8})`;
     ctx.font = 'bold 19px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(`+${pickup.value}`, pickup.x, pickup.y - 20 - age * 45);
   }
   ctx = actorCtx;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  for (const effect of game.brickDestructions) drawBrickDestructionSmoke(effect);
+  for (const pickup of game.pickups) drawPickupPop(pickup);
   if (ending?.game === game && ending.state === game.state && !endingMotion.matches) {
     drawEnding();
     ctx = boardCtx;
@@ -1164,6 +1252,15 @@ function render(now) {
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
   drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
+  if (game.sunglassesPickup) drawWornSunglasses(game);
+  if (game.batteries > 0) {
+    const angle = game.elapsed * 1.8;
+    const x = game.cat.x + Math.cos(angle) * 34, y = game.cat.y + Math.sin(angle) * 28;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle + Math.PI / 2);
+    ctx.fillStyle = '#ffe34a'; ctx.strokeStyle = '#593f0a'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(2, -10); ctx.lineTo(-5, 1); ctx.lineTo(0, 1); ctx.lineTo(-2, 10); ctx.lineTo(6, -2); ctx.lineTo(1, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
   if (game.boosted) drawBoost(ctx, game.cat.x, game.cat.y, game.elapsed);
   const stuck = game.stuckUntil > game.elapsed + 1e-9;
   const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
@@ -1185,6 +1282,80 @@ function render(now) {
   }
   if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);
   ctx = boardCtx;
+}
+
+function drawFoodBadge(type) {
+  ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = FOOD_COLORS[type]; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#000'; ctx.filter = 'saturate(1.8) brightness(1.15) contrast(1.1)';
+  ctx.font = '25px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(FOODS[type].icon, 0, 1);
+  ctx.filter = 'none';
+}
+
+function drawWornSunglasses(game) {
+  const pickup = game.sunglassesPickup;
+  const progress = Math.min(1, pickup.age / .25);
+  const eased = progress * progress * (3 - 2 * progress);
+  const duration = game.sunglassesUntil - game.sunglassesStart;
+  const opacity = Math.max(0, Math.min(1, (duration + .5 - pickup.age) / .5));
+  ctx.save(); ctx.globalAlpha *= opacity;
+  ctx.translate(pickup.x + (game.cat.x - pickup.x) * eased, pickup.y + (game.cat.y - 4 - pickup.y) * eased);
+  const scale = 1 - eased * .15;
+  ctx.scale(scale, scale);
+  drawMagicSunglasses(game.elapsed, progress < 1);
+  ctx.restore();
+}
+
+function drawBrickDestructionSmoke(effect) {
+  const progress = Math.min(1, effect.age);
+  if (progress >= 1) return;
+  ctx.save();
+  ctx.globalAlpha = Math.sin(Math.PI * progress) * .65;
+  for (const part of effect.members) {
+    const count = Math.max(2, Math.ceil(Math.max(part.w, part.h) / 14));
+    for (let i = 0; i < count; i++) {
+      const fraction = (i + .5) / count;
+      const vertical = part.h > part.w;
+      const x = part.x + part.w * (vertical ? .5 : fraction) + Math.sin(i * 2.4) * progress * 7;
+      const y = part.y + part.h * (vertical ? fraction : .5) - progress * (8 + i % 3 * 4);
+      ctx.fillStyle = i % 2 ? '#a7acb0' : '#737b82';
+      ctx.beginPath(); ctx.arc(x, y, 4 + progress * 10, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawPickupPop(pickup) {
+  if (pickup.type === 'magic-sunglasses') return;
+  const progress = Math.min(1, pickup.age / .55);
+  if (progress >= 1) return;
+  ctx.save(); ctx.translate(pickup.x, pickup.y);
+  ctx.globalAlpha = 1 - progress;
+  const scale = progress < .22 ? 1 + progress / .22 * .25 : 1.25 * (1 - (progress - .22) / .78);
+  ctx.save(); ctx.scale(scale, scale);
+  if (pickup.kind === 'weapon') drawSword(0, 0, SWORDS[pickup.type].color);
+  else if (pickup.kind === 'item') drawGameItem({ x: 0, y: 0, type: pickup.type });
+  else drawFoodBadge(pickup.type);
+  ctx.restore();
+  ctx.fillStyle = '#fff0b0';
+  for (let i = 0; i < 8; i++) {
+    const angle = i * Math.PI / 4, radius = 16 + progress * 28, size = 3 * (1 - progress);
+    const x = Math.cos(angle) * radius, y = Math.sin(angle) * radius;
+    ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + size, y);
+    ctx.lineTo(x, y + size); ctx.lineTo(x - size, y); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawObjectLifetime(item) {
+  if (item.lifetime == null) return;
+  const left = Math.max(0, Math.min(1, (item.expires - game.elapsed) / item.lifetime));
+  ctx.save(); ctx.translate(item.x, item.y);
+  ctx.fillStyle = '#10191f'; ctx.fillRect(-16, -30, 32, 5);
+  ctx.fillStyle = left < .25 ? '#ff5a4a' : '#b8ff3c'; ctx.fillRect(-15, -29, 30 * left, 3);
+  ctx.restore();
 }
 
 function drawSpawnCue({ kind, x, y, progress }) {
@@ -1278,6 +1449,199 @@ function drawSword(x, y, color) {
   line([[0, 12], [0, 22]], '#8a6953', 5);
   line([[-10, 10], [10, 10]], '#17212a', 6);
   line([[-10, 10], [10, 10]], color, 4);
+  ctx.restore();
+}
+
+function drawGameItem(item) {
+  ctx.save(); ctx.translate(item.x, item.y);
+  if (item.type === 'smiley-cookie') {
+    ctx.fillStyle = '#c78d50'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff8ec'; ctx.beginPath(); ctx.arc(0, 0, 15.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c84a54';
+    for (const eye of [-5, 5]) { ctx.beginPath(); ctx.arc(eye, -4, 1.6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = '#c84a54'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(0, -1, 8, .2, Math.PI - .2); ctx.stroke();
+  } else if (['stopwatch', 'stopwatch-green', 'stopwatch-blue'].includes(item.type)) {
+    const stopwatch = ITEMS[item.type];
+    ctx.fillStyle = stopwatch.color; ctx.beginPath(); ctx.roundRect(-5, -25, 10, 7, 2); ctx.fill();
+    ctx.fillRect(-15, -20, 7, 5); ctx.fillRect(8, -20, 7, 5);
+    ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff7df'; ctx.beginPath(); ctx.arc(0, 0, 14.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#433b36'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -9); ctx.moveTo(0, 0); ctx.lineTo(6, 3); ctx.stroke();
+    ctx.fillStyle = stopwatch.color; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`+${stopwatch.seconds}s`, 0, 9);
+  } else if (item.type === 'battery') {
+    const yellow = ctx.createLinearGradient(-11, 0, 11, 0);
+    yellow.addColorStop(0, '#927317'); yellow.addColorStop(.3, '#ffe66b');
+    yellow.addColorStop(.6, '#e6c52d'); yellow.addColorStop(1, '#806112');
+    const dark = ctx.createLinearGradient(-11, 0, 11, 0);
+    dark.addColorStop(0, '#101216'); dark.addColorStop(.3, '#50545b');
+    dark.addColorStop(.6, '#272a30'); dark.addColorStop(1, '#080a0d');
+    ctx.save(); ctx.beginPath(); ctx.roundRect(-11, -18, 22, 36, 4); ctx.clip();
+    ctx.fillStyle = yellow; ctx.fillRect(-11, -18, 22, 12);
+    ctx.fillStyle = dark; ctx.fillRect(-11, -6, 22, 24);
+    ctx.restore();
+    ctx.strokeStyle = '#25282d'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-11, -18, 22, 36, 4); ctx.stroke();
+    ctx.fillStyle = '#a6abb2'; ctx.strokeStyle = '#555b63'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, -18, 10, 2.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const terminal = ctx.createLinearGradient(-5, 0, 5, 0);
+    terminal.addColorStop(0, '#737982'); terminal.addColorStop(.35, '#e1e4e8'); terminal.addColorStop(1, '#858b94');
+    ctx.fillStyle = terminal; ctx.beginPath(); ctx.roundRect(-5, -23, 10, 5, 1.5); ctx.fill(); ctx.stroke();
+  } else if (item.type === 'saw-blade') {
+    const metal = ctx.createLinearGradient(-20, -20, 20, 20);
+    metal.addColorStop(0, '#687784'); metal.addColorStop(.35, '#eef3f6');
+    metal.addColorStop(.6, '#b1bec8'); metal.addColorStop(1, '#566470');
+    traceSawBlade(ctx, 16);
+    ctx.fillStyle = metal; ctx.strokeStyle = '#46515b'; ctx.lineWidth = 1.5; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#273941'; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#7c8c99'; ctx.lineWidth = .8;
+    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.stroke();
+  } else if (item.type === 'magic-sunglasses') {
+    drawMagicSunglasses(typeof game === 'undefined' ? 0 : game.elapsed);
+  } else if (item.type === 'music-box') {
+    ctx.fillStyle = '#613951'; ctx.strokeStyle = '#40283c'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-19, -9, 38, 29, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#955779'; ctx.beginPath();
+    ctx.moveTo(11, -7); ctx.lineTo(18, -11); ctx.lineTo(18, 15); ctx.lineTo(11, 19); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d989b8'; ctx.fillRect(-16, -6, 27, 24);
+    ctx.fillStyle = '#e9a9cc'; ctx.beginPath();
+    ctx.moveTo(-16, -6); ctx.lineTo(-9, -11); ctx.lineTo(18, -11); ctx.lineTo(11, -6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#633c55'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(19, 2); ctx.lineTo(26, 2); ctx.stroke();
+    ctx.fillStyle = '#edc7dc'; ctx.beginPath(); ctx.arc(27, 2, 3.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff0b0'; ctx.strokeStyle = '#603452'; ctx.lineWidth = 1;
+    ctx.font = 'bold 23px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeText('♪', -2, 6); ctx.fillText('♪', -2, 6);
+  } else if (item.type === 'eggplant') {
+    ctx.fillStyle = '#40814c'; ctx.beginPath(); ctx.moveTo(-4, -12); ctx.lineTo(-13, -19); ctx.lineTo(-2, -16); ctx.lineTo(3, -23); ctx.lineTo(5, -15); ctx.lineTo(14, -17); ctx.lineTo(8, -9); ctx.closePath(); ctx.fill();
+    const skin = ctx.createLinearGradient(-16, -8, 17, 13);
+    skin.addColorStop(0, '#b993d1'); skin.addColorStop(.3, '#8956aa');
+    skin.addColorStop(.65, '#653582'); skin.addColorStop(1, '#321b48');
+    ctx.fillStyle = skin; ctx.beginPath(); ctx.moveTo(-5, -14); ctx.bezierCurveTo(12, -22, 22, -7, 13, 8); ctx.bezierCurveTo(4, 24, -18, 17, -17, 3); ctx.bezierCurveTo(-17, -5, -12, -11, -5, -14); ctx.fill();
+    ctx.strokeStyle = '#d6b7e5'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-9, -7); ctx.quadraticCurveTo(-15, 2, -9, 8); ctx.stroke();
+    ctx.fillStyle = '#316039'; ctx.beginPath(); ctx.moveTo(-5, -14); ctx.lineTo(5, -16); ctx.lineTo(10, -11); ctx.lineTo(2, -12); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawMagicSunglasses(time, sparkles = true) {
+  ctx.save();
+  ctx.fillStyle = '#152530'; ctx.strokeStyle = `hsl(${time * 140 % 360}, 85%, 70%)`; ctx.lineWidth = 3;
+  for (const sign of [-1, 1]) {
+    ctx.beginPath(); ctx.roundRect(sign < 0 ? -22 : 3, -7, 19, 13, [3, 3, 7, 7]); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#ffffff80'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sign * 8, -4); ctx.lineTo(sign * 15, 1); ctx.stroke();
+    ctx.strokeStyle = `hsl(${time * 140 % 360}, 85%, 70%)`; ctx.lineWidth = 3;
+  }
+  ctx.beginPath(); ctx.moveTo(-3, -3); ctx.quadraticCurveTo(0, -6, 3, -3);
+  ctx.moveTo(-22, -5); ctx.lineTo(-26, -9); ctx.moveTo(22, -5); ctx.lineTo(26, -9); ctx.stroke();
+  if (sparkles) {
+    ctx.fillStyle = '#fff4c5';
+    for (let i = 0; i < 5; i++) {
+      const phase = (time * 1.4 + i / 5) % 1;
+      const size = Math.sin(phase * Math.PI) * 3;
+      const x = Math.cos(i * 2.4) * 29, y = Math.sin(i * 2.4) * 16;
+      ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size); ctx.lineTo(x - size, y); ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawSunglassesStream(game) {
+  const elapsed = ['won', 'lost'].includes(game.state)
+    ? game.sunglassesStart + (game.sunglassesPickup?.age ?? (game.sunglassesUntil - game.sunglassesStart)) : game.elapsed;
+  if (game.sunglassesStart === null || elapsed >= game.sunglassesUntil) return;
+  const duration = game.sunglassesUntil - game.sunglassesStart;
+  if (duration <= 0) return;
+  const progress = Math.max(0, Math.min(1, (elapsed - game.sunglassesStart) / duration));
+  ctx.save(); ctx.globalAlpha = .25;
+  ctx.translate(-progress * (game.width + 36), game.height / 2);
+  ctx.strokeStyle = `hsl(${game.elapsed * 70 % 360}, 80%, 80%)`;
+  ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.4;
+  ctx.strokeRect(-18, -26, game.width + 36, 52);
+  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+    ctx.save(); ctx.translate(x, 0);
+    if (index % 2 === 0) {
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const angle = -Math.PI / 2 + i * Math.PI / 5, radius = i % 2 ? 5 : 12;
+        if (i === 0) ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+        else ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+      }
+      ctx.closePath(); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.moveTo(-11, -4); ctx.lineTo(-12, -17); ctx.lineTo(-3, -10);
+      ctx.lineTo(3, -10); ctx.lineTo(12, -17); ctx.lineTo(11, -4);
+      ctx.arc(0, 0, 12, -.35, Math.PI + .35); ctx.closePath(); ctx.stroke();
+      for (const eye of [-5, 5]) {
+        ctx.beginPath(); ctx.arc(eye, -2, 1.3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.beginPath(); ctx.moveTo(-5, 3); ctx.quadraticCurveTo(0, 10, 5, 3); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawMusicStream(game) {
+  if (game.musicStreamStart === null || game.elapsed >= game.musicStreamUntil) return;
+  const duration = game.musicStreamUntil - game.musicStreamStart;
+  if (duration <= 0) return;
+  const progress = Math.max(0, Math.min(1, (game.elapsed - game.musicStreamStart) / duration));
+  const travel = game.width + 36;
+  ctx.save();
+  ctx.globalAlpha = .25;
+  ctx.translate(-progress * travel, game.height / 2);
+  ctx.strokeStyle = '#e6e3ff';
+  ctx.fillStyle = '#e6e3ff';
+  ctx.lineWidth = 1.4;
+  ctx.strokeRect(-18, -26, game.width + 36, 52);
+  for (let lineIndex = -2; lineIndex <= 2; lineIndex++) {
+    const y = lineIndex * 7;
+    ctx.beginPath(); ctx.moveTo(-18, y); ctx.lineTo(game.width + 18, y); ctx.stroke();
+  }
+  const rhythm = ['whole', 'half', 'quarter', 'eighth', 'restWhole', 'restHalf', 'restQuarter',
+    'restEighth', 'measure', 'eighthPair', 'quarter', 'half', 'restQuarter', 'eighth'];
+  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+    const y = [-5, 2, -2, 5, 0, -4, 4, -1][index % 8];
+    const symbol = rhythm[index % rhythm.length];
+    if (symbol === 'measure') {
+      ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.moveTo(x, -19); ctx.lineTo(x, 19); ctx.stroke();
+      ctx.lineWidth = 1.4;
+    } else if (symbol.startsWith('rest')) {
+      ctx.beginPath();
+      if (symbol === 'restWhole') ctx.rect(x - 5, -8, 10, 4);
+      else if (symbol === 'restHalf') ctx.rect(x - 5, 4, 10, 4);
+      else if (symbol === 'restQuarter') {
+        ctx.moveTo(x + 2, y - 10); ctx.lineTo(x - 2, y - 3); ctx.lineTo(x + 3, y + 1);
+        ctx.lineTo(x - 2, y + 8); ctx.lineTo(x + 1, y + 12);
+      } else {
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 4, y + 3);
+      }
+      if (symbol !== 'restWhole' && symbol !== 'restHalf') ctx.stroke();
+      else ctx.fill();
+    } else {
+      const whole = symbol === 'whole', filled = !['whole', 'half'].includes(symbol);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(-.25);
+      ctx.beginPath(); ctx.ellipse(0, 0, 5.2, 3.5, 0, 0, Math.PI * 2);
+      if (filled) ctx.fill(); else ctx.stroke();
+      if (!whole) {
+        ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(4, -19); ctx.stroke();
+        if (symbol === 'eighth') {
+          ctx.beginPath(); ctx.moveTo(4, -19); ctx.quadraticCurveTo(13, -16, 9, -10); ctx.stroke();
+        }
+      }
+      ctx.restore();
+      if (symbol === 'eighthPair') {
+        ctx.beginPath(); ctx.ellipse(x + 10, y, 5.2, 3.5, -.25, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + 14, y); ctx.lineTo(x + 14, y - 19);
+        ctx.moveTo(x + 4, y - 19); ctx.lineTo(x + 14, y - 19);
+        ctx.moveTo(x + 4, y - 15); ctx.lineTo(x + 14, y - 15); ctx.stroke();
+      }
+    }
+  }
   ctx.restore();
 }
 

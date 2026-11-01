@@ -1,8 +1,24 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, SWORDS, brickShape, brickEnabled } = engine;
+const { PORTALS, FOODS, ITEMS, SWORDS, brickShape, brickEnabled } = engine;
 const FLAME = 'M0 20 C-24 16 -22 -6 -10 -12 Q-8 -2 -3 -5 Q7 -14 3 -24 C26 -7 26 16 0 20 Z';
+const SAW_TEETH = Array.from({ length: 12 }, (_, i) => {
+  const angle = i * Math.PI / 6, step = Math.PI / 6;
+  const point = (offset, radius) => [Math.cos(angle + offset * step) * radius, Math.sin(angle + offset * step) * radius];
+  return { root: point(0, 1), control: point(.2, 1.05), tip: point(.78, 1.34), end: point(1, 1) };
+});
+const SAW_BLADE = `M23 0 ${SAW_TEETH.map(({ control, tip, end }) =>
+  `Q${control.map(n => n * 23).join(' ')} ${tip.map(n => n * 23).join(' ')} L${end.map(n => n * 23).join(' ')}`).join(' ')} Z`;
+function traceSawBlade(ctx, radius, growth = 1) {
+  ctx.beginPath(); ctx.moveTo(radius, 0);
+  for (const { root, control, tip, end } of SAW_TEETH) {
+    ctx.quadraticCurveTo(...control.map((n, i) => (root[i] + (n - root[i]) * growth) * radius),
+      ...tip.map((n, i) => (end[i] + (n - end[i]) * growth) * radius));
+    ctx.lineTo(...end.map(n => n * radius));
+  }
+  ctx.closePath();
+}
 const SYMBOLS = {
   heart: 'M0 16 C-32 -4 -12 -26 0 -12 C12 -26 32 -4 0 16 Z',
   mouse: 'M-12 -10 A7 7 0 1 1 -19 -17 M12 -10 A7 7 0 1 0 19 -17 M16 0 A16 16 0 1 1 -16 0 A16 16 0 1 1 16 0 M-10 -2 H-3 M3 -2 H10 M-6 9 L0 5 L6 9',
@@ -17,17 +33,33 @@ const SYMBOLS = {
   L: 'M-5 4 C-30 0 -10 -28 8 -16 C26 -6 10 14 -5 4 L-12 15 Q-24 12 -18 22 Q-8 27 -7 19 Z',
   F: 'M-16 0 Q0 -20 16 0 Q0 20 -16 0 L-24 -10 V10 Z M8 -1 L8 1',
   H: 'M-20 -2 Q-18 -22 0 -22 Q18 -22 20 -2 Z M-20 4 H20 M-20 10 H20 M-18 16 H18',
+  'smiley-cookie': 'M0 -21 A21 21 0 1 1 0 21 A21 21 0 1 1 0 -21 M-8 -5 A2 2 0 1 0 -8 -4 M8 -5 A2 2 0 1 0 8 -4 M-10 5 Q0 16 10 5',
+  stopwatch: 'M-5 -25 H5 V-19 H-5 Z M-20 -18 H-13 L-9 -14 M20 -18 H13 L9 -14 M0 -20 A20 20 0 1 1 0 20 A20 20 0 1 1 0 -20 M0 -12 V0 L8 5',
+  battery: 'M-12 -20 H12 V-16 H16 V17 H-16 V-16 H-12 Z M-7 -8 L0 -1 L-5 5 L7 -5 L1 -6 L5 -12',
+  'music-box': 'M-20 -8 H12 L20 -13 V13 L12 18 H-20 Z M-16 -12 H15 V-8 H-16 Z M12 -8 L20 -13 V-10 L12 -5 Z M20 1 H25 M25 -2 A3 3 0 1 1 25 4 M-2 -3 V9 M-2 -3 L7 -6 V5 M-2 2 A5 5 0 1 1 -2 3',
+  eggplant: 'M-8 -14 C4 -27 25 -11 18 5 C12 20 -6 22 -17 10 C-28 -3 -17 -19 -7 -16 L-14 -24 L-4 -21 L0 -28 L4 -19 L15 -22 L8 -14',
+  'saw-blade': `${SAW_BLADE} M7 0 A7 7 0 1 1 -7 0 A7 7 0 1 1 7 0`,
+  'magic-sunglasses': 'M-23 -7 H-4 V2 Q-13 14 -22 2 Z M4 -7 H23 L22 2 Q13 14 4 2 Z M-4 -3 Q0 -7 4 -3 M-23 -7 L-27 -11 M23 -7 L27 -11',
 };
 
-function spawnSymbol(spawn) { return SYMBOLS[spawn.kind === 'weapon' ? 'sword' : spawn.kind === 'heart' ? 'heart' : spawn.type]; }
+function spawnSymbol(spawn) {
+  return SYMBOLS[spawn.kind === 'weapon' ? 'sword' : spawn.kind === 'heart' ? 'heart'
+    : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch' : spawn.type];
+}
 function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return SWORDS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
+  if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   return { S: '#db5560', P: '#bd8749', B: '#e6c654', C: '#e8b84e', L: '#c9966c', F: '#73b9cf', H: '#ca9a53' }[spawn.type];
 }
 function specialLabel(brick) {
-  return `${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${brick.spawner ? `, Spawning: ${brick.spawner.kind === 'food' ? FOODS[brick.spawner.type].name : brick.spawner.kind === 'weapon' ? SWORDS[brick.spawner.type].name : brick.spawner.type}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}`;
+  const spawn = brick.spawner;
+  const spawnName = spawn?.kind === 'food' ? FOODS[spawn.type].name
+    : spawn?.kind === 'weapon' ? SWORDS[spawn.type].name
+      : spawn?.kind === 'item' ? ITEMS[spawn.type].name
+        : spawn?.type;
+  return `${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}`;
 }
 function svgNode(tag, attributes = {}) {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -144,8 +176,8 @@ function decorateBrick(button, brick, members) {
   updateBrick(visual, brick, 0);
   return visual;
 }
-function updateBrick(visual, brick, elapsed) {
-  const enabled = brickEnabled(brick);
+function updateBrick(visual, brick, elapsed, sunglassesActive = false) {
+  const enabled = sunglassesActive || brickEnabled(brick);
   visual.button.dataset.toggleDisabled = String(!enabled);
   if (visual.cloud) {
     // Moving dashes jump at the closed outline's seam; breathe the fixed mist instead.
@@ -155,12 +187,13 @@ function updateBrick(visual, brick, elapsed) {
     const x = enabled ? 62 : 26;
     visual.knob.setAttribute('cx', x);
     visual.count.setAttribute('x', x);
-    visual.count.textContent = String(brick.toggleRemaining);
+    visual.count.textContent = String(sunglassesActive ? 0 : brick.toggleRemaining);
     if (visual.vertical) visual.count.setAttribute('transform', `rotate(-90 ${x} 26)`);
   }
   if (visual.symbol) {
     visual.symbol.dataset.spawnReady = String(Boolean(brick.spawner && !brick.spawned));
     visual.symbol.style.opacity = brick.boost ? '.8' : '1';
+    if (brick.spawner?.type === 'magic-sunglasses') visual.symbol.style.setProperty('--item-color', `hsl(${elapsed * 140 % 360}, 85%, 70%)`);
   }
   if (visual.crumblerCount) visual.crumblerCount.textContent = `C:${brick.usesLeft ?? brick.crumbler}`;
   if (visual.warpCount) {
@@ -194,7 +227,7 @@ function drawBoost(ctx, x, y, time) {
   ctx.stroke(new Path2D(FLAME));
   ctx.restore();
 }
-const api = { FLAME, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

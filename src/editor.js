@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, FOODS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, FOODS, ITEMS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
@@ -9,7 +9,7 @@ const form = $('#event-form');
 const storageKey = 'koshi-level-editor-v1';
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true });
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' } }, heart: { heart: { name: 'Heart' } } })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -45,7 +45,7 @@ const SURFACE_ICONS = {
 function picture(value, control) {
   const image = document.createElement('span');
   image.className = 'palette-picture';
-  const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood' }[value] }
+  const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie' }[value] }
     : control === 'event-type' ? { kind: $('#event-kind').value, type: value }
     : control === 'brick-spawn-item' ? { kind: value.split(':')[0], type: value.split(':')[1] } : null;
   if (item && item.kind && item.type) {
@@ -179,7 +179,8 @@ function typeOptions(type, showLifetime) {
   const kind = $('#event-kind').value;
   const types = kind === MIXED ? [] : kind === 'food' ? Object.entries(FOODS).map(([key, food]) => [key, `${food.icon} ${food.name} (+${food.value})`])
     : kind === 'weapon' ? Object.entries(SWORDS).map(([key, sword]) => [key, sword.name])
-    : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket']];
+      : kind === 'item' ? Object.entries(ITEMS).map(([key, item]) => [key, item.name])
+        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket']];
   $('#event-type').replaceChildren(...types.map(([value, name]) => {
     const option = document.createElement('option');
     option.value = value; option.textContent = name;
@@ -187,19 +188,28 @@ function typeOptions(type, showLifetime) {
   }));
   if (kind === MIXED || type === MIXED) mixedOption($('#event-type'));
   else if (type) $('#event-type').value = type;
-  const lifetime = showLifetime ?? kind === 'food';
+  const lifetime = showLifetime ?? ['food', 'item', 'weapon'].includes(kind);
   $('#lifetime-label').hidden = !lifetime;
   $('#event-lifetime').disabled = !lifetime;
+  $('#event-lifetime').required = kind === 'food' && selectedEvents.size <= 1;
+  $('#event-lifetime').placeholder = kind === 'food' ? '' : 'Until level ends';
+  $('#event-lifetime').dataset.kind = kind;
   $('#shield-label').hidden = kind !== 'enemy' && kind !== MIXED;
   $('#event-shield').disabled = kind !== 'enemy' && kind !== MIXED;
 }
 
 function description(event) {
-  return event.kind === 'food' ? `${FOODS[event.type].icon} ${FOODS[event.type].name}` : event.kind === 'weapon' ? SWORDS[event.type].name : `${({ mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket' })[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
+  return event.kind === 'food' ? `${FOODS[event.type].icon} ${FOODS[event.type].name}`
+    : event.kind === 'weapon' ? SWORDS[event.type].name
+      : event.kind === 'item' ? ITEMS[event.type].name
+        : `${({ mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket' })[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
 }
 
 function icon(event) {
-  return event.kind === 'food' ? FOODS[event.type].icon : event.kind === 'weapon' ? '⚔' : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣' })[event.type];
+  return event.kind === 'food' ? FOODS[event.type].icon
+    : event.kind === 'weapon' ? '⚔'
+      : event.kind === 'item' ? ITEMS[event.type].icon
+        : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣' })[event.type];
 }
 
 function readEvent() {
@@ -208,6 +218,9 @@ function readEvent() {
     x: Number($('#event-x').value) / 100, y: Number($('#event-y').value) / 100,
   };
   if (event.kind === 'food') event.lifetime = Number($('#event-lifetime').value);
+  else if (['item', 'weapon'].includes(event.kind) && $('#event-lifetime').value !== '') {
+    event.lifetime = Number($('#event-lifetime').value);
+  }
   if (event.kind === 'enemy') event.shield = $('#event-shield').value === 'none' ? null : $('#event-shield').value;
   if (event.kind === 'enemy' && event.type === 'wheel') Object.assign(event, snapWheel(event.x, event.y));
   return event;
@@ -232,18 +245,24 @@ function populateEventForm() {
       $(id).placeholder = value === MIXED ? 'Mixed' : '';
     };
     const kind = common(items.map(event => event.kind));
-    const foods = items.filter(event => event.kind === 'food');
+    const collectibles = items.filter(event => ['food', 'item', 'weapon'].includes(event.kind));
     if (kind === MIXED) mixedOption($('#event-kind')); else $('#event-kind').value = kind;
-    typeOptions(kind === MIXED ? MIXED : common(items.map(event => event.type)), foods.length > 0);
+    typeOptions(kind === MIXED ? MIXED : common(items.map(event => event.type)), collectibles.length > 0);
     setNumber('#event-time', items.map(event => event.time));
     setNumber('#event-x', items.map(event => event.x), 100);
     setNumber('#event-y', items.map(event => event.y), 100);
-    if (foods.length) setNumber('#event-lifetime', foods.map(event => event.lifetime));
+    if (collectibles.length) {
+      const lifetime = common(collectibles.map(event => event.lifetime ?? ''));
+      $('#event-lifetime').value = lifetime === MIXED ? '' : lifetime;
+      $('#event-lifetime').placeholder = lifetime === MIXED && collectibles.some(event => event.lifetime != null) ? 'Mixed' : kind === 'food' ? '' : 'Until level ends';
+    }
     if (common(items.map(event => event.time)) !== MIXED) $('#timeline').value = items[0].time;
   } else {
     typeOptions($('#event-type').value || undefined);
   }
-  if (!multi) for (const [id, fallback] of Object.entries(numbers)) if ($(id).value === '') $(id).value = fallback;
+  if (!multi) for (const [id, fallback] of Object.entries(numbers)) {
+    if ($(id).value === '' && (id !== '#event-lifetime' || $('#event-kind').value === 'food')) $(id).value = fallback;
+  }
   $('#inspector-heading').textContent = !items.length ? 'NEW PLACEMENT' : multi ? `EDITING ${items.length} EVENTS` : `EDITING EVENT ${indices[0] + 1}`;
   $('#apply-event').textContent = !items.length ? 'Add event' : multi ? `Apply to ${items.length} events` : 'Apply event changes';
   $('#duplicate-event').disabled = !items.length;
@@ -291,7 +310,7 @@ function renderList() {
     button.type = 'button'; button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
     const time = document.createElement('span'); time.className = 'event-time'; time.textContent = `${event.time}s`;
     const location = document.createElement('span'); location.className = 'event-location';
-    location.textContent = `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%${event.kind === 'food' ? ` · lasts ${event.lifetime}s` : ''} · #${index + 1}`;
+    location.textContent = `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : ''} · #${index + 1}`;
     button.append(time, description(event), location);
     button.addEventListener('click', click => choose('event', index, isAdditive(click)));
     li.append(button); list.append(li);
@@ -326,9 +345,10 @@ function renderBrickInspector(bricks) {
     const value = values.length ? common(values) : fallback;
     if (value === MIXED) mixedOption(input); else input.value = value;
   }
-  const lifetimes = chosen.filter(brick => brick.spawner?.kind === 'food').map(brick => brick.spawner.lifetime);
+  const lifetimes = chosen.filter(brick => ['food', 'item', 'weapon'].includes(brick.spawner?.kind)).map(brick => brick.spawner.lifetime ?? '');
   $('#brick-spawn-lifetime').disabled = inert || !lifetimes.length;
-  $('#brick-spawn-lifetime').value = lifetimes.length && common(lifetimes) === MIXED ? '' : lifetimes[0] ?? 15;
+  $('#brick-spawn-lifetime').value = lifetimes.length && common(lifetimes) === MIXED ? '' : lifetimes[0] ?? '';
+  $('#brick-spawn-lifetime').placeholder = lifetimes.length && common(lifetimes) === MIXED && lifetimes.some(value => value !== '') ? 'Mixed' : 'Until level ends';
   const shields = chosen.filter(brick => brick.spawner?.kind === 'enemy').map(brick => brick.spawner.shield ?? 'none');
   $('#brick-spawn-shield').querySelector('option[value=""]')?.remove();
   $('#brick-spawn-shield').disabled = inert || !shields.length;
@@ -530,7 +550,7 @@ function renderBoard() {
   $('#clear-selection').disabled = !summary.length;
   const markers = $('#markers'); markers.replaceChildren();
   level.events.forEach((event, index) => {
-    if (!$('#show-all').checked && (event.time > time || (event.kind === 'food' && event.time + event.lifetime <= time))) return;
+    if (!$('#show-all').checked && (event.time > time || (event.lifetime != null && event.time + event.lifetime <= time))) return;
     const point = previewGame.pointFromRelative(event.x, event.y);
     const marker = document.createElement('button');
     marker.className = 'marker'; marker.type = 'button'; marker.dataset.kind = event.kind; marker.dataset.index = index;
@@ -736,10 +756,16 @@ function saveBrick(event) {
         const [kind, type] = $('#brick-spawn-item').value.split(':');
         entry.spawner = { kind, type };
         if (kind === 'food') entry.spawner.lifetime = number('#brick-spawn-lifetime') ?? 15;
+        else if (['item', 'weapon'].includes(kind) && number('#brick-spawn-lifetime') !== null) entry.spawner.lifetime = number('#brick-spawn-lifetime');
         if (kind === 'enemy') entry.spawner.shield = $('#brick-spawn-shield').value === 'none' || !$('#brick-spawn-shield').value ? null : $('#brick-spawn-shield').value;
       }
       if (id === 'brick-spawn-shield' && entry.spawner?.kind === 'enemy' && $('#brick-spawn-shield').value !== MIXED) entry.spawner.shield = $('#brick-spawn-shield').value === 'none' ? null : $('#brick-spawn-shield').value;
-      if (id === 'brick-spawn-lifetime' && entry.spawner?.kind === 'food' && number('#brick-spawn-lifetime') !== null) entry.spawner.lifetime = number('#brick-spawn-lifetime');
+      if (id === 'brick-spawn-lifetime' && ['food', 'item', 'weapon'].includes(entry.spawner?.kind)) {
+        const lifetime = number('#brick-spawn-lifetime');
+        if (lifetime !== null) entry.spawner.lifetime = lifetime;
+        else if (entry.spawner.kind === 'food') throw new Error('Food needs a lifetime in seconds.');
+        else delete entry.spawner.lifetime;
+      }
       const editedSurface = id === 'brick-portal-color' ? 'portal' : id === 'brick-spawn-item' ? 'spawner' : null;
       if (editedSurface && entry[editedSurface]) {
         for (const other of CONTACT_SURFACES) if (other !== editedSurface) entry[other] = ['portal', 'spawner'].includes(other) ? null : false;
@@ -750,6 +776,7 @@ function saveBrick(event) {
         else if (attribute === 'spawner') {
           const [kind, type] = $('#brick-spawn-item').value.split(':');
           entry.spawner = $('#brick-spawner').checked ? { kind, type, ...(kind === 'food' ? { lifetime: number('#brick-spawn-lifetime') ?? 15 } : {}) } : null;
+          if (entry.spawner && ['item', 'weapon'].includes(kind) && number('#brick-spawn-lifetime') !== null) entry.spawner.lifetime = number('#brick-spawn-lifetime');
           if (entry.spawner?.kind === 'enemy') entry.spawner.shield = $('#brick-spawn-shield').value === 'none' || !$('#brick-spawn-shield').value ? null : $('#brick-spawn-shield').value;
         } else entry[attribute] = $(`#${id}`).checked;
         if (entry[attribute]) {
@@ -816,7 +843,9 @@ $('#reset-brick-types').addEventListener('click', () => {
   markChanged(); renderBoard(); message('Individual brick edits cleared. Boundary preset restored.');
 });
 $('#event-kind').addEventListener('change', () => {
+  const previousKind = $('#event-lifetime').dataset.kind;
   typeOptions();
+  if (previousKind !== $('#event-kind').value) $('#event-lifetime').value = $('#event-kind').value === 'food' ? 5 : '';
   touched.add('#event-kind'); touched.add('#event-type');
 });
 $('#event-type').addEventListener('change', () => touched.add('#event-type'));
@@ -832,8 +861,9 @@ function applyToSelected() {
   const kind = touched.has('#event-kind') && value('#event-kind') !== MIXED ? value('#event-kind') : null;
   const type = touched.has('#event-type') && value('#event-type') !== MIXED ? value('#event-type') : null;
   const time = number('#event-time'), x = number('#event-x'), y = number('#event-y'), lifetime = number('#event-lifetime');
+  const lifetimeChanged = touched.has('#event-lifetime') && !$('#event-lifetime').disabled;
   const shieldChanged = touched.has('#event-shield') && value('#event-shield') !== MIXED;
-  if (!kind && !type && !shieldChanged && [time, x, y, lifetime].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !shieldChanged && !lifetimeChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -842,8 +872,13 @@ function applyToSelected() {
     if (time !== null) next.time = time;
     if (x !== null) next.x = x / 100;
     if (y !== null) next.y = y / 100;
-    if (next.kind === 'food') next.lifetime = lifetime ?? next.lifetime ?? 5;
-    else delete next.lifetime;
+    if (next.kind === 'food') {
+      if (lifetimeChanged && lifetime === null) throw new Error('Food needs a lifetime in seconds.');
+      next.lifetime = lifetime ?? next.lifetime ?? 5;
+    } else if (['item', 'weapon'].includes(next.kind)) {
+      if (lifetimeChanged && lifetime !== null) next.lifetime = lifetime;
+      else if (lifetimeChanged || (kind && event.kind !== kind)) delete next.lifetime;
+    } else delete next.lifetime;
     if (next.kind !== 'enemy') delete next.shield;
     else if (shieldChanged) next.shield = value('#event-shield') === 'none' ? null : value('#event-shield');
     if (next.kind === 'enemy' && next.type === 'wheel') Object.assign(next, snapWheel(next.x, next.y));

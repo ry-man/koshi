@@ -7,6 +7,8 @@ const DURATION = 60;
 const GOAL = 20;
 const SPEED = 420;
 const DAMAGE_DURATION = 1;
+const MUSIC_STREAM_DURATION = 5;
+const SUNGLASSES_DURATION = 10;
 const COOLDOWNS = { slow: 15, normal: 8, fast: 3 };
 const SLIMES = { blue: { duration: 5, color: '#287dcc' }, green: { duration: 3, color: '#399d24' }, red: { duration: 1, color: '#cd4136' } };
 const FOODS = {
@@ -17,6 +19,17 @@ const FOODS = {
   L: { icon: '🍗', value: 5, name: 'Chicken leg' },
   F: { icon: '🐟', value: 6, name: 'Fish' },
   H: { icon: '🍔', value: 7, name: 'Hamburger' },
+};
+const ITEMS = {
+  'smiley-cookie': { name: 'Smiley Cookie', icon: '🍪', color: '#fff2d6' },
+  stopwatch: { name: 'Red Stopwatch (+10s)', icon: '⏱️', color: '#d94a4a', seconds: 10 },
+  'stopwatch-green': { name: 'Green Stopwatch (+30s)', icon: '⏱️', color: '#399d4a', seconds: 30 },
+  'stopwatch-blue': { name: 'Blue Stopwatch (+60s)', icon: '⏱️', color: '#287dcc', seconds: 60 },
+  battery: { name: 'Battery', icon: '🔋', color: '#f0ce35' },
+  'music-box': { name: 'Music Box', icon: '🎵', color: '#d989b8' },
+  eggplant: { name: 'Eggplant (-10 food)', icon: '🍆', color: '#8956aa' },
+  'saw-blade': { name: 'Saw Blade', icon: '⚙', color: '#c4cdd5' },
+  'magic-sunglasses': { name: 'Magical Sunglasses', icon: '🕶', color: '#d989ff' },
 };
 const SCHEDULE = [
   [3, 'L3', 'S', 18], [11, 'L3', 'P', 18], [19, 'C3', 'B', 20],
@@ -154,6 +167,7 @@ const LEVELS = [
   },
   {
     name: 'A hearty harvest', concept: 'hearts and heart cost', duration: 100, goal: 30, killGoal: 4,
+    items: [[12, 'smiley-cookie'], [54, 'eggplant']],
     enemies: [[12,'mouse',3],[35,'mouse',3],[62,'mouse',2]], bricks: [],
     dialogue: [
       ['tom', 'I have stolen the farms\' harvest. My patrol will wear down your three hearts.'],
@@ -164,6 +178,7 @@ const LEVELS = [
   },
   {
     name: 'Cracker causeway', concept: 'crumblers', duration: 100, goal: 35,
+    items: [[40, 'saw-blade']],
     enemies: [[15,'mouse',3],[45,'mouse',3],[75,'mouse',2]],
     bricks: [[4,{ crumbler: 5 }],[9,{ crumbler: 5 }],[16,{ crumbler: 5 }]],
     dialogue: [
@@ -184,6 +199,7 @@ const LEVELS = [
   },
   {
     name: 'Tin-foil picnic', concept: 'enemy shields', duration: 110, killGoal: 8,
+    items: [[34, 'music-box']],
     enemies: [[10,'mouse',4],[28,'mouse',2,'red'],[45,'mouse',3],[64,'mouse',3,'red'],[82,'mouse',2]],
     bricks: [[16,{ slimed: true, slimeColor: 'red' }],[9,{ crumbler: 5 }]],
     dialogue: [
@@ -215,6 +231,7 @@ const LEVELS = [
   },
   {
     name: 'Pancake trampoline', concept: 'springs', duration: 110, goal: 40,
+    items: [[56, 'stopwatch']],
     weapons: [[28,'silver']],
     enemies: [[14,'mouse',3],[35,'wheel',3,'red'],[62,'mouse',3],[85,'wheel',2,'red']],
     bricks: [[4,{ springs: true }],[9,{ springs: true }],[16,{ spikes: true }]],
@@ -267,6 +284,7 @@ const LEVELS = [
   },
   {
     name: 'Snack dispensary', concept: 'spawners', duration: 120, goal: 45, killGoal: 10,
+    items: [[42, 'battery'], [75, 'smiley-cookie']],
     enemies: [[12,'mouse',4],[30,'wheel',3,'red'],[50,'ram',2,'green'],[70,'mouse',3,'green'],[92,'wheel',2]],
     bricks: [[4,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[9,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }],[19,{ boost: true }]],
     dialogue: [
@@ -287,6 +305,7 @@ const LEVELS = [
   },
   {
     name: 'Cinder soup factory', concept: 'cinder', duration: 130, goal: 45, killGoal: 12,
+    items: [[38, 'battery'], [83, 'eggplant']],
     weapons: [[24,'silver'],[48,'silver'],[65,'silver'],[82,'silver'],[105,'silver']],
     enemies: [[12,'bucket',2],[28,'mouse',4,'red'],[45,'wheel',3,'green'],[63,'ram',2],[80,'mouse',3,'green'],[98,'bucket',2,'green'],[115,'wheel',3]],
     bricks: [[4,{ kind: 'cinder' }],[9,{ kind: 'cinder' }],[16,{ boost: true }],[19,{ springs: true }]],
@@ -298,6 +317,7 @@ const LEVELS = [
   },
   {
     name: 'Switchboard supper', concept: 'toggles', duration: 130, killGoal: 14,
+    items: [[44, 'magic-sunglasses']],
     enemies: [[12,'mouse',4],[28,'wheel',3,'green'],[44,'ram',3,'green'],[61,'bucket',2],[78,'mouse',3,'blue'],[96,'wheel',3,'red'],[114,'mouse',4]],
     bricks: [[4,{ toggle: 2 }],[9,{ toggle: 2 }],[16,{ boost: true }],[19,{ conveyor: true }]],
     dialogue: [
@@ -381,7 +401,7 @@ const LEVELS = [
     id: `1-${index + 1}`, name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
     heartCost: index < 3 ? Infinity : Math.ceil(foodPoints / 5),
-    brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies,
+    brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies, items: entry.items ?? [],
     weapons,
     cutscene: story(index < 10 ? 'garden' : 'workshop', entry.dialogue, cast),
   };
@@ -426,12 +446,15 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, weapon: SWORDS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, weapon: SWORDS, item: ITEMS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
     const result = { time, kind: event.kind, type: event.type, x, y };
     shield(event, result, name);
     if (event.kind === 'food') result.lifetime = number(event.lifetime, .1, 3600, `${name} food lifetime`);
+    else if (['item', 'weapon'].includes(event.kind) && event.lifetime != null) {
+      result.lifetime = number(event.lifetime, .1, 3600, `${name} object lifetime`);
+    }
     return result;
   });
   const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
@@ -479,11 +502,14 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, heart: { heart: true } };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, heart: { heart: true }, item: ITEMS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
           if (spawn.kind === 'food') override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn food lifetime`);
+          else if (['item', 'weapon'].includes(spawn.kind) && spawn.lifetime != null) {
+            override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn object lifetime`);
+          }
         }
       }
       if (override.slimed && override.springs) fail(`Brick override ${i + 1} cannot be both Slimed and Springs.`);
@@ -1041,7 +1067,7 @@ class Game {
     if (customLevel) {
       this.customLevel = validateCustomLevel(customLevel, { allowUnpairedPortals: editorPreview });
       this.levelIndex = -1;
-      this.level = { ...this.customLevel, heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [] };
+      this.level = { ...this.customLevel, heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [], items: [] };
       this.customEvents = [...this.customLevel.events].sort((a, b) => a.time - b.time);
     } else {
       if (!LEVELS[level]) throw new RangeError(`Unknown level: ${level}`);
@@ -1060,12 +1086,14 @@ class Game {
   reset() {
     this.state = 'ready';
     this.elapsed = 0;
+    this.timeBonus = 0;
     this.score = 0;
     this.enemies = 0;
     this.hearts = 3;
     this.invulnerableUntil = 0;
     this.nextEvent = 0;
     this.food = [];
+    this.items = [];
     this.bricks = makeBricks(this.portrait, this.scale);
     this.brickRevision = 0;
     this.cat = { x: this.width / 2, y: this.height / 2, radius: 21, vx: 0, vy: 0 };
@@ -1078,6 +1106,18 @@ class Game {
     this.robots = [];
     this.enemyDeaths = [];
     this.weapons = [];
+    this.batteries = 0;
+    this.sawStartedAt = null;
+    this.brickDestructions = [];
+    this.spawnerTouching = new Set();
+    this.cookieActive = false;
+    this.cookieLickUntil = 0;
+    this.enemiesSleepUntil = 0;
+    this.musicStreamStart = null;
+    this.musicStreamUntil = 0;
+    this.sunglassesStart = null;
+    this.sunglassesUntil = 0;
+    this.sunglassesPickup = null;
     this.healing = [];
     this.spikeTouching = new Set();
     this.conveyorRide = null;
@@ -1088,6 +1128,7 @@ class Game {
     this.weapon = null;
     this.nextEnemy = 0;
     this.nextWeapon = 0;
+    this.nextItem = 0;
     this.nextCustom = 0;
     this.pendingSpawns = new Map();
     this.nextHeart = this.level.heartCost;
@@ -1125,6 +1166,13 @@ class Game {
   resume() { if (this.state === 'paused') this.state = 'playing'; }
 
   get invulnerable() { return this.invulnerableUntil > this.elapsed + 1e-9; }
+  get timeLimit() { return this.level.duration + this.timeBonus; }
+  get sunglassesActive() { return this.sunglassesStart !== null && this.elapsed < this.sunglassesUntil - 1e-9; }
+
+  brickSelectable(brick) {
+    return brick.kind !== 'cinder' && brick.absorbedBy === null
+      && (this.sunglassesActive || (brickEnabled(brick) && brick.usesLeft !== 0 && brick.readyAt <= this.elapsed + 1e-9));
+  }
 
   get damageProgress() {
     return this.invulnerable ? 1 - (this.invulnerableUntil - this.elapsed) / DAMAGE_DURATION : null;
@@ -1145,7 +1193,7 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || brick.kind === 'cinder' || !brickEnabled(brick) || brick.absorbedBy !== null || brick.usesLeft === 0 || brick.readyAt > this.elapsed + 1e-9) return false;
+    if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick)) return false;
     const parts = this.brickParts();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
@@ -1158,11 +1206,13 @@ class Game {
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
     if (this.spikeParts(parts).some(({ triangle }) =>
       spikeContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, triangle) <= 1e-9)) return false;
-    brick.readyAt = this.elapsed + COOLDOWNS[brick.kind];
-    if (brick.usesLeft !== null) brick.usesLeft--;
+    if (!this.sunglassesActive) {
+      brick.readyAt = this.elapsed + COOLDOWNS[brick.kind];
+      if (brick.usesLeft !== null) brick.usesLeft--;
+    }
     if (brick.warped) this.absorbNeighbor(brick);
     for (const other of this.bricks) {
-      if (other.toggle && other.absorbedBy === null && (other.usesLeft !== 0 || other.id === id)) {
+      if (!this.sunglassesActive && other.toggle && other.absorbedBy === null && (other.usesLeft !== 0 || other.id === id)) {
         other.toggleRemaining = other.toggleRemaining === 0 ? other.toggle : other.toggleRemaining - 1;
       }
     }
@@ -1238,9 +1288,20 @@ class Game {
     brick.spawned = true;
     if (spawn.kind === 'enemy') this.robots.push(...this.createEnemies([this.elapsed, spawn.type, 1, spawn.shield]));
     else if (spawn.kind === 'heart') this.healing.push(this.randomPoint());
-    else if (spawn.kind === 'weapon') this.weapons.push({ ...this.randomPoint(), type: spawn.type });
+    else if (spawn.kind === 'weapon') this.weapons.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
+    else if (spawn.kind === 'item') this.items.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
     else this.food.push({ ...this.randomPoint(), id: this.foodId++, type: spawn.type,
       born: this.elapsed, lifetime: spawn.lifetime, expires: this.elapsed + spawn.lifetime });
+  }
+
+  touchSpawner(brick) {
+    if (this.spawnerTouching.has(brick.id)) return;
+    this.spawnerTouching.add(brick.id);
+    if (brick.spawned && this.batteries > 0) {
+      brick.spawned = false;
+      this.batteries--;
+    }
+    if (!brick.spawned) this.spawnFromBrick(brick);
   }
 
   portalExit(brick, parts = this.brickParts()) {
@@ -1348,7 +1409,8 @@ class Game {
     prepare(this.customEvents, this.nextCustom, null, event => this.createCustomSpawn(event), event => event.time);
     prepare(this.level.food, this.nextEvent, 'food', event => this.createFood(event));
     prepare(this.level.enemies, this.nextEnemy, 'enemy', event => this.createEnemies(event));
-    prepare(this.level.weapons, this.nextWeapon, 'weapon', ([, type]) => [{ ...this.randomPoint(), type }]);
+    prepare(this.level.weapons, this.nextWeapon, 'weapon', ([time, type, lifetime]) => [this.createCollectible(time, type, lifetime)]);
+    prepare(this.level.items ?? [], this.nextItem, 'item', ([time, type, lifetime]) => [this.createCollectible(time, type, lifetime)]);
   }
 
   get spawnCues() {
@@ -1416,7 +1478,7 @@ class Game {
   spawnCustomEvents() {
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
       const event = this.customEvents[this.nextCustom++];
-      const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : this.robots;
+      const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items : this.robots;
       target.push(...this.takeSpawn(event, entry => this.createCustomSpawn(entry)));
     }
   }
@@ -1424,7 +1486,7 @@ class Game {
   createCustomSpawn(event) {
     const point = this.pointFromRelative(event.x, event.y);
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
-    if (event.kind === 'weapon') return [{ ...point, type: event.type }];
+    if (event.kind === 'weapon' || event.kind === 'item') return [this.createCollectible(event.time, event.type, event.lifetime, point)];
     const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
     this.initializeShield(enemy, event.shield);
     if (event.type === 'ram') this.initializeRam(enemy);
@@ -1438,6 +1500,10 @@ class Game {
       this.placeWheel(enemy);
     }
     return [enemy];
+  }
+
+  createCollectible(time, type, lifetime, point = this.randomPoint()) {
+    return { ...point, type, ...(lifetime == null ? {} : { born: time, lifetime, expires: time + lifetime }) };
   }
 
   spawnEnemies(event) {
@@ -1759,6 +1825,7 @@ class Game {
     const dx = this.cat.x - startX, dy = this.cat.y - startY, length = Math.hypot(dx, dy);
     const reach = this.cat.radius + 14;
     this.weapons = this.weapons.filter(item => {
+      if (item.expires != null && item.expires <= this.elapsed + 1e-9) return false;
       if (distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y) > reach) return true;
       const x = item.x - startX, y = item.y - startY;
       const along = length ? (x * dx + y * dy) / length : 0;
@@ -1770,11 +1837,28 @@ class Game {
     for (const { item } of collected.sort((a, b) => a.entry - b.entry)) {
       const sword = SWORDS[item.type];
       this.weapon = { type: item.type, uses: sword.uses, expires: sword.seconds ? this.elapsed + sword.seconds : Infinity };
+      this.recordPickup(item, 'weapon');
+    }
+    const collectedItems = [];
+    this.items = this.items.filter(item => {
+      if (item.expires != null && item.expires <= this.elapsed + 1e-9) return false;
+      if (distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y) > reach) return true;
+      const x = item.x - startX, y = item.y - startY;
+      const along = length ? (x * dx + y * dy) / length : 0;
+      const across = length ? (x * dy - y * dx) / length : 0;
+      collectedItems.push({ item, entry: Math.max(0, along - Math.sqrt(Math.max(0, reach ** 2 - across ** 2))) });
+      return false;
+    });
+    for (const { item } of collectedItems.sort((a, b) => a.entry - b.entry)) {
+      this.collectItem(item);
+      this.recordPickup(item, 'item');
     }
     const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket'].includes(enemy.type)) ? this.brickParts() : [];
     const previous = new Map(this.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y }]));
     for (const enemy of this.robots) {
       enemy.age += dt;
+      enemy.asleep = this.enemiesSleepUntil > this.elapsed + 1e-9;
+      if (enemy.asleep) { enemy.touching = false; continue; }
       if (enemy.type === 'wheel') {
         enemy.distance += 95 * dt;
         this.placeWheel(enemy);
@@ -1814,7 +1898,7 @@ class Game {
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
       }
-      if (distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
+      if (!enemy.asleep && distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
     });
@@ -1826,6 +1910,74 @@ class Game {
     });
   }
 
+  collectItem(item) {
+    if (item.type === 'smiley-cookie') {
+      this.cookieActive = true;
+      this.cookieLickUntil = 0;
+    } else if (ITEMS[item.type]?.seconds) this.timeBonus += ITEMS[item.type].seconds;
+    else if (item.type === 'battery') this.batteries++;
+    else if (item.type === 'music-box') {
+      this.musicStreamStart = this.elapsed;
+      this.musicStreamUntil = this.elapsed + MUSIC_STREAM_DURATION;
+      this.enemiesSleepUntil = this.musicStreamUntil;
+    }
+    else if (item.type === 'eggplant') this.score = Math.max(0, this.score - 10);
+    else if (item.type === 'saw-blade' && this.sawStartedAt === null) this.sawStartedAt = this.elapsed;
+    else if (item.type === 'magic-sunglasses') {
+      this.sunglassesStart = this.elapsed;
+      this.sunglassesUntil = this.elapsed + SUNGLASSES_DURATION;
+      this.sunglassesPickup = { x: item.x ?? this.cat.x, y: item.y ?? this.cat.y, age: 0 };
+    }
+  }
+
+  sawBrick(brick, parts) {
+    if (this.sawStartedAt === null || brick.kind === 'cinder') return false;
+    const members = parts.filter(part => part.id === brick.id).map(part => ({ ...part }));
+    this.brickDestructions.push({ id: brick.id, members, age: 0 });
+    const portal = brick.portal;
+    for (const member of this.bricks) {
+      if (member.id === brick.id || member.absorbedBy === brick.id) {
+        member.kind = 'cinder';
+        member.crumbler = null; member.warped = null; member.warpUntil = null;
+        member.usesLeft = null; member.readyAt = 0;
+        member.toggle = null; member.toggleRemaining = 0;
+        member.slimed = false; member.springs = false; member.spikes = false;
+        member.conveyor = false; member.portal = null; member.spawner = null; member.boost = false;
+        member.hitAt = null; member.hitNormal = null; member.hitPoint = null;
+        member.initialOwner = member.id === brick.id ? null : brick.id;
+        member.absorbedBy = member.initialOwner;
+      } else if (portal && member.portal === portal) member.portal = null;
+    }
+    this.sawStartedAt = null;
+    this.brickRevision++;
+    return true;
+  }
+
+  updateBrickDestructions(seconds) {
+    this.brickDestructions = this.brickDestructions.filter(effect => {
+      effect.age += seconds;
+      return effect.age < 1 - 1e-9;
+    });
+  }
+
+  attractFoodToCat(seconds, x, y) {
+    if (!this.cookieActive) return;
+    const speed = 520;
+    for (const food of this.food) {
+      const dx = x - food.x, dy = y - food.y, distance = Math.hypot(dx, dy);
+      if (distance <= speed * seconds) {
+        food.x = x; food.y = y;
+      } else {
+        food.x += dx / distance * speed * seconds;
+        food.y += dy / distance * speed * seconds;
+      }
+    }
+    if (!this.food.length) {
+      this.cookieActive = false;
+      this.cookieLickUntil = this.elapsed + 1.2;
+    }
+  }
+
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
       enemy.deathProgress += seconds / (enemy.type === 'mouse' ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
@@ -1833,11 +1985,30 @@ class Game {
     });
   }
 
+  recordPickup(item, kind, value = null) {
+    this.pickups.push({ x: item.x, y: item.y, type: item.type, kind, value, time: this.elapsed, age: 0 });
+  }
+
+  updatePickups(seconds) {
+    if (this.sunglassesPickup) {
+      this.sunglassesPickup.age += seconds;
+      if (this.sunglassesPickup.age >= SUNGLASSES_DURATION + .5) this.sunglassesPickup = null;
+    }
+    this.pickups = this.pickups.filter(pickup => {
+      pickup.age += seconds;
+      return pickup.age < .8 - 1e-9;
+    });
+  }
+
   update(seconds) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
-    if (this.state === 'won' || this.state === 'lost') this.updateEnemyDeaths(seconds);
+    if (this.state === 'won' || this.state === 'lost') {
+      this.updateEnemyDeaths(seconds);
+      this.updatePickups(seconds);
+      this.updateBrickDestructions(seconds);
+    }
     if (this.state !== 'playing') return;
-    let remaining = Math.min(seconds, this.level.duration - this.elapsed);
+    let remaining = Math.min(seconds, this.timeLimit - this.elapsed);
     while (remaining > 1e-9 && this.state === 'playing') {
       let dt = Math.min(remaining, 1 / 120);
       if (this.conveyorRide) {
@@ -1854,7 +2025,13 @@ class Game {
 
   tick(dt) {
     this.updateEnemyDeaths(dt);
-    this.elapsed = Math.min(this.level.duration, this.elapsed + dt);
+    this.updatePickups(dt);
+    this.updateBrickDestructions(dt);
+    const sunglassesWereActive = this.sunglassesActive;
+    this.elapsed = Math.min(this.timeLimit, this.elapsed + dt);
+    if (sunglassesWereActive && !this.sunglassesActive) {
+      for (const brick of this.bricks) brick.readyAt = Math.min(brick.readyAt, this.sunglassesUntil);
+    }
     if (this.stuckUntil && this.stuckUntil <= this.elapsed + 1e-9) {
       this.releasedAt = this.stuckUntil;
       this.stuckUntil = 0;
@@ -1868,7 +2045,12 @@ class Game {
     while (this.nextEnemy < this.level.enemies.length && this.level.enemies[this.nextEnemy][0] <= this.elapsed + 1e-9) this.spawnEnemies(this.level.enemies[this.nextEnemy++]);
     while (this.nextWeapon < this.level.weapons.length && this.level.weapons[this.nextWeapon][0] <= this.elapsed + 1e-9) {
       const event = this.level.weapons[this.nextWeapon++];
-      this.weapons.push(...this.takeSpawn(event, ([, type]) => [{ ...this.randomPoint(), type }]));
+      this.weapons.push(...this.takeSpawn(event, ([time, type, lifetime]) => [this.createCollectible(time, type, lifetime)]));
+    }
+    const itemEvents = this.level.items ?? [];
+    while (this.nextItem < itemEvents.length && itemEvents[this.nextItem][0] <= this.elapsed + 1e-9) {
+      const event = itemEvents[this.nextItem++];
+      this.items.push(...this.takeSpawn(event, ([time, type, lifetime]) => [this.createCollectible(time, type, lifetime)]));
     }
     for (const [event, pending] of this.pendingSpawns) {
       if (pending.kind === 'heart' && pending.time <= this.elapsed + 1e-9) {
@@ -1876,13 +2058,16 @@ class Game {
         this.pendingSpawns.delete(event);
       }
     }
-    this.food = this.food.filter(item => item.expires > this.elapsed + 1e-9);
+    this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();
     if (this.portalArrival !== null && !parts.some(part => part.id === this.portalArrival && this.touchingPart(part))) this.portalArrival = null;
+    for (const id of this.spawnerTouching) {
+      if (!parts.some(part => part.id === id && this.touchingPart(part))) this.spawnerTouching.delete(id);
+    }
     for (const brick of this.bricks) {
-      if (brick.spawner && !brick.spawned && brick.absorbedBy === null
-        && parts.some(part => part.id === brick.id && this.touchingPart(part))) this.spawnFromBrick(brick);
+      if (brick.spawner && brick.absorbedBy === null
+        && parts.some(part => part.id === brick.id && this.touchingPart(part))) this.touchSpawner(brick);
     }
     const ride = this.conveyorRide;
     let rideEnd = false;
@@ -1900,7 +2085,7 @@ class Game {
       }
     }
     const dx = cat.vx * dt, dy = cat.vy * dt;
-    const spikes = dx || dy || this.spikeTouching.size ? this.spikeParts(parts) : [];
+    const spikes = this.sawStartedAt === null && (dx || dy || this.spikeTouching.size) ? this.spikeParts(parts) : [];
     for (const id of this.spikeTouching) {
       const touching = parts.some(part => part.id === id &&
         Math.hypot(cat.x - Math.max(part.x, Math.min(part.x + part.w, cat.x)),
@@ -1911,6 +2096,7 @@ class Game {
     }
     let contact = 1;
     let contacts = [];
+    let collectingSaw = false;
     if (dx || dy) {
       for (const brick of parts) {
         if (this.conveyorRide?.id === brick.id) {
@@ -1921,18 +2107,27 @@ class Game {
         if (t < contact - 1e-9) { contact = t; contacts = [brick]; }
         else if (t <= contact + 1e-9 && t <= 1) contacts.push(brick);
       }
+      const bodyContact = contact, bodyContacts = [...contacts];
       for (const spike of spikes) {
         const t = spikeContact(cat.x, cat.y, dx, dy, cat.radius, spike.triangle);
         if (t < contact - 1e-9) { contact = t; contacts = [spike]; }
         else if (t <= contact + 1e-9 && t <= 1) contacts.push(spike);
       }
+      collectingSaw = this.items.some(item => item.type === 'saw-blade'
+        && (item.expires == null || item.expires > this.elapsed + 1e-9)
+        && distanceToSegment(item.x, item.y, cat.x, cat.y, cat.x + dx * contact, cat.y + dy * contact) <= cat.radius + 14);
+      if (collectingSaw) {
+        contact = bodyContact;
+        contacts = bodyContacts;
+      }
     }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
+    this.attractFoodToCat(dt * contact, endX, endY);
     this.food = this.food.filter(item => {
       if (distanceToSegment(item.x, item.y, cat.x, cat.y, endX, endY) > cat.radius + 12) return true;
       const value = FOODS[item.type].value;
       this.score += value;
-      this.pickups.push({ x: item.x, y: item.y, value, time: this.elapsed });
+      this.recordPickup(item, 'food', value);
       return false;
     });
     while (this.score >= this.nextHeart) {
@@ -1943,12 +2138,22 @@ class Game {
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
     const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
-    if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
-    for (const id of spikeIds) this.spikeTouching.add(id);
+    const sawing = this.sawStartedAt !== null || collectingSaw;
+    if (!sawing) {
+      if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
+      for (const id of spikeIds) this.spikeTouching.add(id);
+    }
     this.combat(dt, startX, startY);
+    const sawTarget = contacts.map(part => this.bricks[part.id]).find(brick => brick.kind !== 'cinder');
+    if (sawTarget) this.sawBrick(sawTarget, parts);
+    if (sawing) {
+      for (const id of spikeIds) if (!this.bricks[id].spikes) spikeIds.delete(id);
+      if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
+      for (const id of spikeIds) this.spikeTouching.add(id);
+    }
     for (const id of new Set(contacts.map(part => part.id))) {
       const brick = this.bricks[id];
-      if (brick.spawner && !brick.spawned) this.spawnFromBrick(brick);
+      if (brick.spawner) this.touchSpawner(brick);
     }
     const portal = contacts.map(part => this.bricks[part.id]).find(brick => brick.portal);
     const teleported = portal && this.travelPortal(portal, parts);
@@ -1986,20 +2191,19 @@ class Game {
       cat.vx = 0; cat.vy = 0;
     }
     if (!cat.vx && !cat.vy) this.boosted = false;
-    this.pickups = this.pickups.filter(item => this.elapsed - item.time < .8);
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';
     } else if (!this.level.survive && this.score >= this.level.goal && this.enemies >= (this.level.killGoal ?? 0)) {
       this.state = 'won';
-    } else if (this.elapsed >= this.level.duration - 1e-9) {
-      this.elapsed = this.level.duration;
+    } else if (this.elapsed >= this.timeLimit - 1e-9) {
+      this.elapsed = this.timeLimit;
       this.state = this.level.survive ? 'won' : 'lost';
     }
   }
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, COOLDOWNS, SLIMES, SHIELDS, FOODS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

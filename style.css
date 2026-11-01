@@ -93,7 +93,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .level-badge span { display: block; color: var(--muted); font-size: 8px; }
 .level-badge strong { font-size: 30px; line-height: 1.4; font-weight: 500; }
 .game-shell { background: var(--panel); border: 1px solid #ffffff16; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 70px #0003; }
-.hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 22px 26px; gap: 8px; }
+.hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 22px 26px; gap: 8px; }
 .stat { min-width: 0; text-align: center; }
 .stat-label { display: block; color: var(--muted); font-size: 9px; margin-bottom: 8px; }
 .stat strong { font-size: 24px; font-weight: 500; white-space: nowrap; }
@@ -142,6 +142,8 @@ canvas { display: block; width: 100%; height: 100%; }
 .brick-item-symbol { pointer-events: none; fill: none; stroke: #27313b; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
 .brick-cinder { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .brick.cinder { cursor: default; }
+.brick-destruction-ghost { position: absolute; inset: 0; pointer-events: none; }
+.brick-destruction-ghost *, .brick-destruction-ghost .brick-surface { pointer-events: none !important; animation-play-state: paused !important; }
 .brick.cinder:not(.brick-merged) { background: #969b99; }
 .brick-item-symbol .item-outline { stroke: #17212a; stroke-width: 5.5; }
 .brick-item-symbol[data-spawn-ready="true"] .item-color { stroke: var(--item-color); }
@@ -241,7 +243,7 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   .game-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; border-radius: 12px; }
   .game-shell > :not(.play-area) { flex-shrink: 0; }
   .game-shell > .error { margin: 4px 8px; font-size: 11px; }
-  .hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 6px 8px; gap: 5px; }
+  .hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 6px 8px; gap: 5px; }
   .stat { border: 0; padding: 0; }
   .stat-label { font-size: 7px; letter-spacing: .3px; margin-bottom: 5px; }
   .stat strong { font-size: 17px; }
@@ -307,7 +309,7 @@ body:has(.learning-guide[open]) { overflow: hidden; }
 .tutorial-active .masthead { flex: 0 0 40px; padding-top: 2px; padding-bottom: 2px; border: 0; }
 .tutorial-active .game-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .tutorial-active .game-shell > :not(.play-area) { flex-shrink: 0; }
-.tutorial-active .hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+.tutorial-active .hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; padding: 8px; }
 .tutorial-active .stat { min-width: 0; border: 0; padding: 0; }
 .tutorial-active .stat strong { font-size: 17px; }
 .tutorial-active .stat-label { font-size: 7px; letter-spacing: .3px; margin-bottom: 4px; }

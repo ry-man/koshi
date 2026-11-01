@@ -48,7 +48,10 @@ test('weapon display shows a colored icon and only remaining attacks or seconds'
   const weaponRemaining = { textContent: '' };
   const weaponStatus = { getAttribute() { return this.label; }, setAttribute(name, value) { this.label = value; } };
   const game = { elapsed: 2, weapon: null };
-  const context = vm.createContext({ game, SWORDS, weaponIcon, weaponRemaining, weaponStatus });
+  const batteryCount = { textContent: '' };
+  const batteryStatus = { setAttribute() {} };
+  const context = vm.createContext({ game, SWORDS, weaponIcon, weaponRemaining, weaponStatus,
+    document: { querySelector(selector) { return selector === '#battery-count' ? batteryCount : batteryStatus; } } });
   for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 5], ['gold', Infinity]]) {
     game.weapon = { type, uses, expires: 17 };
     vm.runInContext(display, context);
@@ -83,7 +86,7 @@ test('aiming draws a subtle transparent dotted line and an exact red outlined ta
   game.target = { x: 927.25, y: 274.75 };
   const context = vm.createContext({
     game, boardCtx: makeContext('board'), actorCtx: makeContext('actors'), ctx: null, trail: [], ending: null,
-    drawCat() {}, line(points, color, width) { lines.push({ points, color, width }); },
+    drawCat() {}, drawMusicStream() {}, drawSunglassesStream() {}, line(points, color, width) { lines.push({ points, color, width }); },
   });
   vm.runInContext(app.slice(app.indexOf('function render(now)'), app.indexOf('\nfunction drawSpawnCue')), context);
   context.render(0);

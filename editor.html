@@ -66,7 +66,7 @@
             <input id="timeline" type="range" min="0" max="60" step="0.1" value="0">
             <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
           </div>
-          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food disappears at its expiry; swords and enemy spawn markers persist. Wheels snap to the nearest playable edge. Other enemies can be placed anywhere. Positions adapt between layouts.</p>
+          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food, items, and weapons disappear at their expiry. Items and weapons with a blank lifetime remain until the level ends. Enemy spawn markers persist. Wheels snap to the nearest playable edge. Other enemies can be placed anywhere. Positions adapt between layouts.</p>
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
           <details id="brick-panel" class="brick-inspector" aria-label="Brick inspector">
@@ -100,7 +100,7 @@
             <label>Portal color<select id="brick-portal-color" disabled><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="purple">Purple</option></select></label>
             <label>Activations until enabled<select id="brick-toggle-clicks" disabled><option value="1">1 · Red switch</option><option value="2">2 · Green switch</option><option value="4">4 · Blue switch</option></select></label>
             <label>Spawning item<select id="brick-spawn-item" disabled></select></label>
-            <label>Spawned food lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
+            <label>Spawned object lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" placeholder="Until level ends" disabled></label>
             <label>Spawned enemy shield<select id="brick-spawn-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <details class="inspector-help"><summary>Mechanics &amp; reset</summary>
               <p class="editor-help">Changes apply immediately to selected bricks. Contact surfaces replace one another; modifiers can combine with any surface. Crumbler counts selections; Warped absorbs neighbors temporarily. Slime holds Koshi; Springs reflect him; Spikes hurt; Conveyor carries; Boost launches from rest at double speed.</p>
@@ -114,12 +114,12 @@
             <summary>Objects &amp; timing</summary>
           <p class="eyebrow" id="inspector-heading">NEW PLACEMENT</p>
           <form id="event-form">
-            <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option></select></label>
+            <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option><option value="item">Item</option></select></label>
             <label>Object <select id="event-type"></select></label>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <div class="input-pair">
               <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
-              <label id="lifetime-label">Lifetime (seconds) <input id="event-lifetime" type="number" min="0.1" max="3600" step="any" value="5" required></label>
+              <label id="lifetime-label">On-screen lifetime (seconds) <input id="event-lifetime" type="number" min="0.1" max="3600" step="any" value="5" required></label>
             </div>
             <details class="inspector-help"><summary>Exact position</summary>
             <div class="input-pair">
@@ -128,9 +128,10 @@
             </div>
             <p class="editor-help">0% is the left/top of the safe playable area; 100% is the right/bottom. Use numeric coordinates for keyboard placement or precise alignment.</p>
             </details>
-            <p class="editor-help" id="multi-event-help" hidden>Several events are selected. Only fields you change are applied to all of them; fields marked “Mixed” keep each event's own value. Setting X or Y lines the whole group up on that coordinate.</p>
+            <p class="editor-help" id="multi-event-help" hidden>Several events are selected. Only fields you change are applied to all of them; untouched fields marked “Mixed” keep each event's own value. Clearing lifetime keeps selected items and weapons until the level ends (food needs a lifetime). Setting X or Y lines the whole group up on that coordinate.</p>
             <button type="submit" class="primary" id="apply-event">Add event</button>
           </form>
+          <p class="editor-help">Lifetimes start when an object appears. Leave item and weapon lifetimes blank to keep them until the level ends. This does not change an equipped sword's attacks or a collected power-up's duration. Food still requires a lifetime.</p>
           <div class="inspector-actions"><button id="new-event">New event</button><button id="duplicate-event" disabled>Duplicate</button><button id="delete-event" disabled>Delete</button></div>
           </details>
         </section>

@@ -98,7 +98,7 @@ test('briefings clearly state each available win condition', () => {
 
 test('HUD marks only required score targets or the survival timer and tracks objective progress', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  const start = source.indexOf('  const { duration: DURATION, goal: GOAL');
+  const start = source.indexOf('  const { goal: GOAL');
   const nodes = new Map();
   const node = selector => {
     if (!nodes.has(selector)) {
@@ -109,7 +109,7 @@ test('HUD marks only required score targets or the survival timer and tracks obj
     }
     return nodes.get(selector);
   };
-  const game = { level: {}, score: 10, enemies: 15, elapsed: 30, hearts: 3 };
+  const game = { level: {}, score: 10, enemies: 15, elapsed: 30, timeLimit: 60, hearts: 3, batteries: 0 };
   const context = vm.createContext({ game, levelObjective, document: { querySelector: node },
     timer: node('#timer'), foodCount: node('#food-count'), hearts: node('#hearts'),
     progress: node('#progress'), progressLabel: node('#progress-label') });
@@ -380,4 +380,64 @@ test('custom objectives, duration, heart costs, and every pickup type use the re
   assert.equal(game.elapsed, 1.5);
   assert.equal(game.state, 'lost');
   assert.equal(game.nextHeart, Infinity);
+});
+
+test('editor lifetime fields omit blank values, preserve mixed durations, and explicitly clear optional lifetimes', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const inputs = new Map();
+  const $ = selector => {
+    if (!inputs.has(selector)) inputs.set(selector, {
+      value: '', placeholder: '', disabled: false, required: false,
+      dataset: {},
+      querySelector: () => null, replaceChildren() {}, prepend() {},
+    });
+    return inputs.get(selector);
+  };
+  const context = vm.createContext({
+    $, FOODS, SWORDS, ITEMS: require('../src/game.js').ITEMS, SHIELDS: {},
+    document: { createElement: () => ({}) }, MIXED: '',
+    level: blank(), selectedEvents: new Set(), touched: new Set(),
+    common: values => values.every(value => value === values[0]) ? values[0] : '',
+    selectedList: () => [...context.selectedEvents],
+    mixedOption: () => {}, syncPalettes() {},
+    validateDraft: validateCustomLevel, markChanged() {}, setSelection() {}, message() {},
+    plural: (count, word) => `${count} ${word}s`,
+  });
+  vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function description(')), context);
+  vm.runInContext(source.slice(source.indexOf('function readEvent('), source.indexOf('function setSelection(')), context);
+  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf("form.addEventListener('submit'")), context);
+  $('#event-time').value = '2'; $('#event-x').value = '20'; $('#event-y').value = '70';
+  for (const [kind, type] of [['item', 'battery'], ['weapon', 'gold']]) {
+    $('#event-kind').value = kind; context.typeOptions(type);
+    $('#event-type').value = type;
+    assert.equal($('#event-lifetime').disabled, false);
+    assert.equal($('#event-lifetime').required, false);
+    assert.ok(!Object.hasOwn(context.readEvent(), 'lifetime'));
+    $('#event-lifetime').value = '3.5';
+    assert.equal(context.readEvent().lifetime, 3.5);
+    context.level = { ...blank(), events: [
+      { ...event(kind, type), lifetime: 4 },
+      { ...event(kind, type), lifetime: 8 },
+    ] };
+    context.selectedEvents = new Set([0, 1]);
+    context.populateEventForm();
+    assert.equal($('#event-lifetime').value, '');
+    assert.equal($('#event-lifetime').placeholder, 'Mixed');
+    $('#event-x').value = '40'; context.touched.add('#event-x');
+    context.applyToSelected();
+    assert.deepEqual(Array.from(context.level.events, event => event.lifetime), [4, 8], 'untouched mixed field preserves values');
+    context.touched.clear(); context.touched.add('#event-lifetime');
+    context.applyToSelected();
+    assert.ok(context.level.events.every(event => !Object.hasOwn(event, 'lifetime')), 'touched blank removes optional lifetime');
+    context.selectedEvents = new Set([0]); context.populateEventForm();
+    assert.equal($('#event-lifetime').value, '', 'single indefinite event must not default to five seconds');
+    assert.equal($('#event-lifetime').required, false);
+    context.selectedEvents.clear();
+  }
+  $('#event-kind').value = 'food'; context.typeOptions('S');
+  assert.equal($('#event-lifetime').required, true);
+  context.level = { ...blank(), events: [event(), event()] };
+  context.selectedEvents = new Set([0, 1]); context.touched = new Set(['#event-lifetime']);
+  $('#event-lifetime').value = '';
+  assert.throws(() => context.applyToSelected(), /Food needs a lifetime/);
 });

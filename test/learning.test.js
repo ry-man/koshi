@@ -25,7 +25,7 @@ function opposite(tutorial) {
 }
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
-  assert.equal(GUIDE.length, 8);
+  assert.equal(GUIDE.length, 9);
   assert.equal(LESSONS.length, 27);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   const tutorial = new Tutorial();
@@ -41,13 +41,14 @@ test('guide covers all playable topics and lessons have unique freely selectable
   }
 });
 
-test('guide illustrates every brick, enemy, heart, and weapon without a story section', () => {
+test('guide illustrates every brick, enemy, heart, weapon, and power-up without a story section', () => {
   const pictures = GUIDE.flatMap(chapter => chapter.sections.map(([, , picture]) => picture).filter(Boolean));
   for (const picture of [
     'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped', 'brick:warped-crumbler',
     'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'brick:conveyor', 'heart',
     'special:cinder', 'special:portal', 'special:toggle', 'special:spawner', 'special:boost',
     'enemy:mouse', 'enemy:wheel', 'enemy:ram', 'enemy:bucket', ...Object.keys(SWORDS).map(type => `weapon:${type}`),
+    'item:smiley-cookie', 'item:stopwatch', 'item:stopwatch-green', 'item:stopwatch-blue', 'item:battery', 'item:music-box', 'item:eggplant', 'item:saw-blade', 'item:magic-sunglasses',
   ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
   assert.equal(new Set(pictures).size, pictures.length);
   for (const chapter of GUIDE) {

@@ -2,7 +2,7 @@
 'use strict';
 
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { Game, COOLDOWNS, SLIMES, FOODS, SWORDS, LEVELS, brickRegions, levelObjective } = engine;
+const { Game, COOLDOWNS, SLIMES, FOODS, ITEMS, SWORDS, LEVELS, brickRegions, levelObjective } = engine;
 
 const GUIDE = [
   {
@@ -12,6 +12,22 @@ const GUIDE = [
       ['Change course', 'Select a different available brick while Koshi is moving to redirect him immediately. A blocked or invalid selection does not use a cooldown or a Crumbler selection.'],
       ['Keyboard & pause', 'Tab to a brick and press Enter or Space to aim at its center. Use Pause in the toolbar, or Escape or Space outside a control, to pause/resume. Pause freezes cooldowns, slime holds, weapons, previews, and Warped timers. In the installed app, intercepted Back gestures are ignored rather than pausing. Switching away pauses automatically; resume explicitly.'],
       ['A fresh attempt', 'Restart resets the current level. Menu returns to the title screen. Choose a level starts that level; Next level advances after a win.'],
+    ],
+  },
+  {
+    title: 'Power-ups & risky items',
+    sections: [
+      [ITEMS['smiley-cookie'].name, 'Koshi opens wide and vacuums every food item on the board toward his moving mouth. He keeps moving normally, scores each snack, then licks his lips.', 'item:smiley-cookie'],
+      ...Object.entries(ITEMS).filter(([, item]) => item.seconds).map(([type, item]) => [
+        item.name, `Adds ${item.seconds} seconds to the level clock. The +${item.seconds}s is printed on its face. Stopwatch bonuses add together.`, `item:${type}`,
+      ]),
+      [ITEMS.battery.name, 'Adds one charge to the battery stockpile. The swirling lightning bolt shows how many you hold. Touch a used spawning brick to make it produce its item again; each new touch spends one battery.', 'item:battery'],
+      [ITEMS['music-box'].name, 'Puts every enemy to sleep for five seconds. Sleeping robots cannot hurt Koshi.', 'item:music-box'],
+      [ITEMS.eggplant.name, 'A harmful pickup: subtracts 10 food points, but never lowers your score below zero.', 'item:eggplant'],
+      [ITEMS['saw-blade'].name, 'Koshi instantly grows a ring of ears shaped into rapidly spinning saw teeth. His next non-cinder brick contact permanently turns the entire current brick shape into cinder, overriding its contact effects. It shakes, smokes, and fades into concrete, then Koshi returns to normal. Existing cinder blocks do not use the saw; extra saw pickups do not stack. Cracker Causeway introduces it.', 'item:saw-blade'],
+      [ITEMS['magic-sunglasses'].name, 'Sparkling rainbow frames fly onto Koshi’s face for ten seconds. All non-cinder bricks are selectable despite cooldowns, Toggle locks, or exhausted Crumblers; clicks do not add cooldowns, spend Crumbler uses, or change Toggle counters. Slime and other contact effects still apply. A translucent rectangle of stars and smiling cats slides behind the arena; the power ends when it exits, then the glasses fade away. All brick cooldowns finish at expiry; Toggle locks and exhausted Crumblers resume their stored state. Another pair restarts the ten seconds; pause freezes the effect. Switchboard Supper introduces them.', 'item:magic-sunglasses'],
+      ['On-screen lifetimes', 'Items and weapons can have an optional lifetime in seconds, starting when they appear. Leave it blank in the editor to keep them until the level ends. Timed objects show a lifetime bar; pause freezes expiry. Pickup does not shorten an equipped sword or power-up effect.'],
+      ['Pickup sparkle', 'Collected food, items, and swords briefly pop larger, then shrink and fade into a burst of sparkles. Food also shows the points earned.'],
     ],
   },
   {
@@ -48,7 +64,7 @@ const GUIDE = [
       ['Conveyor', 'A thin grey, finely toothed belt rotates around the brick. Landing on the arena-facing edge carries Koshi in the arrow direction until the belt ends or another brick blocks him. Warped conveyors carry him around connected corners without stopping. Select another brick to steer away while riding. The editor offers clockwise and counterclockwise belts; Level 1-11 introduces them.', 'brick:conveyor'],
       ['Portal pairs', 'Misty colored smoke marks paired portals: red, orange, yellow, green, blue, or purple. Touch one to emerge at the other brick center, heading straight into the arena perpendicular to its surface. A short lockout prevents immediate return loops. If its partner is absorbed, the entrance acts as a solid landing. Cooling, exhausted, and Toggle-disabled portals still transport. Portal is separate from the neighbor-absorbing Warped attribute.', 'special:portal'],
       ['Toggle switches', 'The switch resembles a colored pill with a white sliding button and a countdown inside. Red starts at 1, green at 2, blue at 4. Every successful brick activation counts, including the Toggle itself. Initially disabled; at zero it enables. The next successful activation disables it and resets its countdown. Clicking a disabled or cooling brick does not count. Toggle only controls selection: disabled toggles cannot be selected, but their contact surfaces still work.', 'special:toggle'],
-      ['Spawning bricks', 'An item-colored icon with a thin dark outline and dark rainbow glow indicates a food, sword, robot, or heart. Sword colors distinguish brown wood, green patinated bronze, silver, and gold. Touch the brick to spawn exactly one of that item at a random safe location; clicking alone does nothing. Wheels spawn on the inner perimeter. The icon turns dark grey without a glow when used; restart restores it. Food lifetime is configured in the editor.', 'special:spawner'],
+      ['Spawning bricks', 'An item-colored icon with a thin dark outline and dark rainbow glow indicates food, a sword, a robot, a heart, or a power-up. Sword colors distinguish brown wood, green patinated bronze, silver, and gold. Touch the brick to spawn exactly one item at a random safe location; clicking alone does nothing. A held Battery can recharge a used spawner on a new touch. Wheels spawn on the inner perimeter. Restart restores spent spawners. Food lifetime is configured in the editor.', 'special:spawner'],
       ['Boost launches', 'When Koshi rests physically against a Boost brick, his wide-open mouth and eyes glow red to signal that his next successful launch travels at twice normal speed. A fireball overlays him and hits robots like a sword without spending equipped sword charges; shielded robots still require multiple hits. The boost ends when he stops or another brick is successfully selected. Failed selections do not cancel it; Spring bounces and Portal travel preserve it. Level 1-14 has no swords: use Boost to fight.', 'special:boost'],
       ['Contact is not a selection', 'Slime, Springs, Spikes, Conveyor, Portal, Spawning, and Boost work even on cooling, exhausted, or Toggle-disabled bricks. Contact does not consume cooldowns or C uses. These surfaces replace one another, but can combine with Toggle, Crumbler, and Warped attributes.'],
     ],
@@ -74,7 +90,7 @@ const GUIDE = [
         type === 'gold' ? `${sword.seconds} seconds of unlimited attacks from pickup; pause freezes the timer.` : `${sword.uses} attack${sword.uses === 1 ? '' : 's'} before breaking. Shield hits also spend an attack. Works on every enemy type.`,
         `weapon:${type}`,
       ]),
-      ['One sword at a time', 'Every collected sword replaces your current sword and resets its attack count or timer. A weaker sword can reduce your remaining attacks. Uncollected swords remain on the board.'],
+      ['One sword at a time', 'Every collected sword replaces your current sword and resets its attack count or timer. A weaker sword can reduce your remaining attacks. Uncollected swords remain until their optional on-screen lifetime expires, or until the level ends.'],
     ],
   },
   {
@@ -98,7 +114,7 @@ const GUIDE = [
         `${levelObjective(level)}.`,
       ]),
       ['Losing & retrying', 'Running out of time without meeting score targets, losing all hearts, or leaving the board ends an attempt. Reaching the time limit alive wins a survival level. Restart restores bricks, hearts, objects, and timers. Boss objectives are not implemented yet.'],
-      ['Make your own', 'The level editor creates portable levels with timed food, robots, weapons, and brick attributes. Playtest links work without a server.'],
+      ['Make your own', 'The level editor creates portable levels with timed food, robots, weapons, power-ups, and brick attributes. Playtest links work without a server.'],
     ],
   },
 ];

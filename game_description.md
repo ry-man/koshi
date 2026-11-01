@@ -241,7 +241,12 @@ food, sword, robot, or heart. Physical contact spawns one item at a random safe
 location, immediately and once per attempt; clicking alone does not spawn.
 Wheels appear on the inner perimeter. Physical spawning changes the outline to
 contrasting dark grey without a glow; clicking alone does not change it. Restart
-restores it. Food lifetime is configured in the editor. Sword icons share the
+restores it. Food lifetime is required in the editor; item and sword on-screen
+lifetimes are optional, with blank meaning they remain until the level ends.
+The timer starts at the actual spawn and freezes on pause, independently of any
+collected power-up or equipped sword duration. Collected food, items, and swords
+briefly enlarge, then shrink and fade with sparkles; expired objects do not.
+Sword icons share the
 weapon colors: brown wood, dark green patinated bronze, silver, and gold.
 Gameplay swords also have thin dark outlines around the blade, guard, and handle.
 
