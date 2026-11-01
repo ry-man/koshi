@@ -9,7 +9,7 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 8);
+  assert.equal(scripts.length, 10);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
@@ -19,9 +19,11 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   assert.match(scripts[2][1], /src="\.\/src\/cutscene\.js"/);
   assert.match(scripts[3][1], /src="\.\/src\/learning\.js"/);
   assert.match(scripts[4][1], /src="\.\/src\/saves\.js"/);
-  assert.match(scripts[5][1], /src="\.\/src\/transitions\.js"/);
-  assert.match(scripts[6][1], /src="\.\/src\/app\.js"/);
-  assert.match(scripts[7][1], /src="\.\/src\/pwa\.js"/);
+  assert.match(scripts[5][1], /src="\.\/src\/worlds\.js"/);
+  assert.match(scripts[6][1], /src="\.\/src\/world-map\.js"/);
+  assert.match(scripts[7][1], /src="\.\/src\/transitions\.js"/);
+  assert.match(scripts[8][1], /src="\.\/src\/app\.js"/);
+  assert.match(scripts[9][1], /src="\.\/src\/pwa\.js"/);
   const context = vm.createContext({});
   vm.runInContext(readFileSync(path.join(root, 'src', 'game.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'learning.js'), 'utf8'), context);
@@ -36,6 +38,30 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
 
 function playing() { const game = new Game(() => .5); game.start(); return game; }
 function aim(game, brick) { return game.steer(brick.id, brick.x + brick.w / 2, brick.y + brick.h / 2); }
+
+test('moves count successful steering and mid-flight redirects, not invalid clicks, contacts or passive motion', () => {
+  const game = new Game(() => .5);
+  assert.equal(game.moves, 0);
+  assert.equal(aim(game, game.bricks[0]), false);
+  game.start();
+  const first = game.bricks.find(brick => aim(game, brick));
+  assert.ok(first);
+  assert.equal(game.moves, 1);
+  assert.equal(aim(game, first), false, 'cooldown failure is not a move');
+  assert.equal(game.steer(-1, 0, 0), false);
+  assert.equal(game.moves, 1);
+  const second = game.bricks.find(brick => brick.id !== first.id && aim(game, brick));
+  assert.ok(second, 'redirect while moving');
+  assert.equal(game.moves, 2);
+  for (let i = 0; i < 200; i++) game.update(.025);
+  assert.equal(game.moves, 2, 'movement and brick contact cost no additional moves');
+  game.pause();
+  const count = game.moves;
+  assert.equal(aim(game, game.bricks[5]), false);
+  assert.equal(game.moves, count);
+  game.reset();
+  assert.equal(game.moves, 0);
+});
 
 test('weapon display shows a colored icon and only remaining attacks or seconds', () => {
   const { SWORDS } = require('../src/game.js');
@@ -247,20 +273,27 @@ test('title screen provides accessible artwork and explicit game entry without e
 test('Start on a level briefing begins the existing level instead of rebuilding it', () => {
   assert.doesNotMatch(readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /dialog-note/);
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.id\} · MISSION`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
+  assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.number \?\? game\.level\.id\} · MISSION`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
   const start = source.indexOf("play.addEventListener('click'");
   const end = source.indexOf("\nrestart.addEventListener", start);
   const handler = source.slice(start, end);
   const play = { addEventListener(name, callback) { this[name] = callback; } };
   const pause = { focus() {} };
-  let started = 0, rebuilt = 0;
+  let started = 0, rebuilt = 0, maps = 0;
   const game = { state: 'ready', levelIndex: 0, customLevel: null, start() { started++; this.state = 'playing'; }, resume() { this.state = 'playing'; } };
   const context = vm.createContext({
     play, pause, game, lastTime: 0, syncUI() {},
     startLevel() { game.start(); },
     begin() { rebuilt++; },
+    openLevelPicker({ level, insideWorld, advance }) {
+      maps++;
+      assert.equal(insideWorld, true);
+      assert.equal(advance, true);
+      context.levelSelect.value = String(level);
+    },
     levelSelect: { value: '0' },
     LEVELS: [{ id: '1–1' }, { id: '1–2' }],
+    nextLevelIndex: index => index === 0 ? 1 : -1,
   });
   vm.runInContext(handler, context);
   play.click();
@@ -269,11 +302,19 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
 
   game.state = 'won';
   play.click();
-  assert.equal(rebuilt, 1);
-  assert.equal(context.levelSelect.value, '1', 'campaign advance rebuilds into the next level briefing');
+  assert.equal(rebuilt, 0);
+  assert.equal(maps, 1);
+  assert.equal(context.levelSelect.value, '0', 'campaign advance starts the map animation at the completed level');
   game.state = 'lost';
   play.click();
-  assert.equal(rebuilt, 2, 'retry rebuilds into a fresh briefing');
+  assert.equal(rebuilt, 1, 'retry rebuilds into a fresh briefing');
+  game.state = 'won'; game.levelIndex = 1;
+  play.click();
+  assert.equal(maps, 2, 'final campaign level also returns to selection');
+  assert.equal(context.levelSelect.value, '1');
+  game.customLevel = {};
+  play.click();
+  assert.equal(rebuilt, 2, 'custom playtests can replay without campaign maps');
 });
 
 test('soccer goal and ball guide illustrations use shared artwork', () => {
@@ -325,7 +366,9 @@ test('level popup commits only on Play and cancellation restores selection and m
   levelSelect.value = '3';
   let starts = 0;
   const context = vm.createContext({
-    document: { querySelector: element }, titleScreen, levelSelect,
+    document: { querySelector: element }, titleScreen, levelSelect, saveDialog: element('#save-slots'), autoPause() {},
+    guidePicture() {}, guestProfile: {}, customLevel: null,
+    KoshiWorldMap: class { open() {} },
     begin() { starts++; element('#level-picker').close(); },
   });
   vm.runInContext(source.slice(source.indexOf("document.querySelector('#title-levels').addEventListener"),
@@ -335,7 +378,7 @@ test('level popup commits only on Play and cancellation restores selection and m
   open();
   assert.equal(picker.open, true);
   assert.equal(titleScreen.open, false);
-  assert.equal(levelSelect.focused, true);
+  assert.equal(element('.map-node[aria-pressed="true"]').focused, true);
   for (const cancel of [
     () => element('#level-picker-close').listeners.click(),
     () => picker.listeners.cancel({ preventDefault() {} }),
@@ -356,6 +399,31 @@ test('level popup commits only on Play and cancellation restores selection and m
   assert.equal(picker.open, false);
   assert.equal(titleScreen.open, false);
   assert.equal(starts, 1);
+});
+
+test('new adventure and title Escape require world selection instead of starting gameplay', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const actions = [], listeners = {};
+  const context = vm.createContext({
+    document: { querySelector: () => ({ addEventListener: (name, listener) => { listeners[name] = listener; } }) },
+    openLevelPicker: options => actions.push(options),
+    game: { customLevel: null },
+    phaseTransition: { run: action => action() },
+    titleScreen: { close() { actions.push('close'); } },
+    play: { focus() { actions.push('focus'); } },
+  });
+  const start = source.indexOf("document.querySelector('#title-start').addEventListener");
+  vm.runInContext(source.slice(start, source.indexOf("document.querySelector('#title-levels').addEventListener", start)), context);
+  listeners.click();
+  assert.equal(actions[0].level, 0);
+  const dismiss = source.indexOf('function dismissTitle()');
+  vm.runInContext(source.slice(dismiss, source.indexOf("titleScreen.addEventListener('cancel'", dismiss)), context);
+  context.dismissTitle();
+  assert.equal(actions.length, 2);
+  assert.equal(actions[1], undefined, 'Escape opens the map without a level override');
+  context.game.customLevel = {};
+  context.dismissTitle();
+  assert.deepEqual(actions.slice(2), ['close', 'focus'], 'custom editor flow stays unchanged');
 });
 
 test('level begins with three hearts, no enemies, and correct boundary brick mix', () => {

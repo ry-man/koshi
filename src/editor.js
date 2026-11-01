@@ -38,7 +38,7 @@ const writeButtons = ['#place-mode', '#new-level'];
 for (const [index, campaign] of LEVELS.entries()) {
   const option = document.createElement('option');
   option.value = String(index);
-  option.textContent = `${campaign.id} - ${campaign.name} (read-only)`;
+  option.textContent = `${campaign.number} - ${campaign.name} (read-only)`;
   $('#editor-level').append(option);
 }
 
@@ -75,7 +75,7 @@ function syncAccess() {
   board.dataset.readOnly = String(locked);
   $('#editor-bricks').setAttribute('aria-label', locked ? 'Read-only boundary bricks' : 'Editable boundary bricks');
   $('#level-access').textContent = locked
-    ? `${level.id} - ${level.name}: read-only game level. Inspect bricks, events, cutscenes and timing; editing, import, export and draft saving are disabled. Your custom work is preserved. Spawn positions are representative; the game randomizes them each run.`
+    ? `${level.number} - ${level.name}: read-only game level. Inspect bricks, events, cutscenes and timing; editing, import, export and draft saving are disabled. Your custom work is preserved. Spawn positions are representative; the game randomizes them each run.`
     : 'Custom levels are editable. Game levels are available for read-only inspection.';
   $('#board-hint').hidden = locked;
   $('#playtest').textContent = locked ? 'Play game level →' : 'Playtest →';
@@ -258,7 +258,7 @@ function markChanged() {
 }
 
 function updatePlaytest() {
-  $('#playtest').href = readOnly() ? `./index.html#campaign=${encodeURIComponent(level.id)}`
+  $('#playtest').href = readOnly() ? `./index.html#campaign=${encodeURIComponent(level.number)}`
     : `./index.html#level=${encodeURIComponent(JSON.stringify(level))}`;
 }
 
@@ -1049,7 +1049,7 @@ $('#settings-form').addEventListener('submit', event => {
   });
 });
 function populateSettings() {
-  $('#level-name').value = level.id; $('#duration').value = level.duration; $('#goal').value = level.goal;
+  $('#level-name').value = level.number ?? level.id; $('#duration').value = level.duration; $('#goal').value = level.goal;
   $('#kill-goal').value = level.killGoal ?? 0;
   $('#goals-goal').value = level.goalsGoal ?? 0;
   $('#activation-limit').value = level.activationLimit ?? '';

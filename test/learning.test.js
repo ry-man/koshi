@@ -68,7 +68,7 @@ test('tutorial covers every contact surface and brick modifier, and rules use re
   }
   const objectives = GUIDE.find(chapter => chapter.title === 'Objectives');
   for (const level of LEVELS) {
-    assert.equal(objectives.sections.find(([title]) => title === `Level ${level.id}`)[1], `${levelObjective(level)}.`);
+    assert.equal(objectives.sections.find(([title]) => title === `Level ${level.number}`)[1], `${levelObjective(level)}.`);
   }
 });
 

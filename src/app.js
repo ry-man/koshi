@@ -5,6 +5,7 @@ const { Game, LEVELS, SWORDS, ITEMS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawGoal } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots } = globalThis.KoshiSaves;
+const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
 
 let game;
 const canvas = document.querySelector('#canvas');
@@ -30,16 +31,20 @@ const levelSelect = document.querySelector('#level-select');
 for (const [index, level] of LEVELS.entries()) {
   const option = document.createElement('option');
   option.value = String(index);
-  option.textContent = `${level.id} · ${level.name}`;
+  option.textContent = `${level.number} · ${level.name}`;
   levelSelect.append(option);
 }
 const titleScreen = document.querySelector('#title-screen');
 const phaseTransition = new globalThis.KoshiPhaseTransition();
 const saveDialog = document.querySelector('#save-slots');
-const saves = new SaveSlots(LEVELS.map(level => level.id));
+const mainLevels = LEVELS.filter(level => !WORLDS.find(world => world.id === level.worldId).special);
+const saves = new SaveSlots(LEVELS.map(level => level.id), undefined, undefined, mainLevels.map(level => level.id));
 let activeSave = null;
 let runSave = null;
 const pendingSaves = [];
+const guestProfile = { guest: true, completed: [], results: {} };
+const recordedAttempts = new WeakSet();
+let attemptId = makeAttemptId();
 const weaponStatus = document.querySelector('#weapon-status');
 const weaponIcon = document.querySelector('#weapon-icon');
 const weaponRemaining = document.querySelector('#weapon-remaining');
@@ -86,7 +91,7 @@ if (location.hash.startsWith('#level=')) {
 if (location.hash.startsWith('#campaign=')) {
   try {
     const id = decodeURIComponent(location.hash.slice(10));
-    const index = LEVELS.findIndex(level => level.id === id);
+    const index = LEVELS.findIndex(level => level.id === id || level.number === id);
     if (index < 0) throw new Error('Game level could not be found.');
     levelSelect.value = String(index);
   } catch (failure) {
@@ -111,6 +116,10 @@ function createGame() {
   });
 }
 
+function makeAttemptId() {
+  return Array.from(globalThis.crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8, '0')).join('');
+}
+
 function saveError(message) {
   for (const id of ['#save-error', '#save-title-error', '#save-menu-error']) {
     const element = document.querySelector(id);
@@ -130,16 +139,16 @@ function saveAttempt(action) {
     return true;
   } catch (error) {
     console.error('Campaign save:', error);
-    saveError(`${pendingSaves.length ? 'Progress has not been saved. Keep this page open and retry, or discard unsaved wins in Save slots. ' : 'Save action failed. '}${error.message}`);
+    saveError(`${pendingSaves.length ? 'Progress has not been saved. Keep this page open and retry, or discard unsaved results in Save slots. ' : 'Save action failed. '}${error.message}`);
     return false;
   }
 }
 
 function saveProgress(slot) {
-  const next = saves.nextLevel(slot);
-  return slot.completed.length === LEVELS.length
-    ? 'Campaign complete! You can replay the final level.'
-    : `${slot.completed.length} / ${LEVELS.length} levels completed. Continue at Level ${LEVELS[next].id}.`;
+  const next = saves.resumeLevel(slot);
+  return saves.mainLevelIds.every(id => slot.completed.includes(id))
+    ? `Campaign complete! Continue at Level ${LEVELS[next].number} on the map.`
+    : `${slot.completed.length} / ${LEVELS.length} levels completed. Continue at Level ${LEVELS[next].number} on the map.`;
 }
 
 function updateSaveProfile() {
@@ -152,27 +161,34 @@ function updateSaveProfile() {
 function flushSaves() {
   while (pendingSaves.length) {
     const pending = pendingSaves[0];
-    const slot = saves.complete(pending.index, pending.id, pending.levelId);
+    const slot = pending.levelId
+      ? saves.visit(pending.index, pending.id, pending.levelId)
+      : saves.record(pending.index, pending.id, pending.attemptId, pending.result);
     pendingSaves.shift();
     if (activeSave?.slot.id === slot.id) activeSave.slot = slot;
   }
   updateSaveProfile();
 }
 
-function saveVictory() {
-  if (!runSave || tutorial || game.customLevel) return;
-  if (!pendingSaves.some(pending => pending.id === runSave.id && pending.levelId === game.level.id)) {
-    pendingSaves.push({ ...runSave, levelId: game.level.id });
+function saveResult() {
+  if (tutorial || game.customLevel || recordedAttempts.has(game)) return;
+  if (!['won', 'lost'].includes(game.state)) return;
+  recordedAttempts.add(game);
+  const result = { levelId: game.level.id, outcome: game.state, time: game.elapsed, food: game.score, enemy: game.enemies, moves: game.moves };
+  if (!runSave) {
+    guestProfile.results[attemptId] = result;
+    if (game.state === 'won' && !guestProfile.completed.includes(game.level.id)) guestProfile.completed.push(game.level.id);
+    return;
   }
+  pendingSaves.push({ ...runSave, attemptId, result });
   saveAttempt(flushSaves);
 }
 
-function continueSave(index, id) {
+function continueSave(index, id, fresh = false) {
   const slots = saves.load(), slot = saves.slot(slots, index, id);
   activeSave = { index, slot };
-  levelSelect.value = String(saves.nextLevel(slot));
-  begin();
-  board.scrollIntoView({ block: 'center' });
+  updateSaveProfile();
+  openLevelPicker({ insideWorld: !fresh, level: fresh ? 0 : saves.resumeLevel(slot) });
 }
 
 function renderSaveSlots() {
@@ -196,7 +212,7 @@ function renderSaveSlots() {
       const resume = document.createElement('button'), remove = document.createElement('button');
       resume.type = remove.type = 'button';
       resume.className = remove.className = 'title-secondary';
-      resume.textContent = slot.completed.length === LEVELS.length ? 'Replay final level' : 'Continue';
+      resume.textContent = 'Continue';
       resume.setAttribute('aria-label', `${resume.textContent} for ${slot.owner}, slot ${index + 1}`);
       resume.addEventListener('click', () => saveAttempt(() => continueSave(index, slot.id)));
       remove.textContent = 'Delete save';
@@ -240,7 +256,7 @@ function renderSaveSlots() {
           document.querySelector(`#save-owner-${index}`).focus({ preventScroll: true });
         } else {
           const created = saves.create(index, input.value);
-          continueSave(index, created.id);
+          continueSave(index, created.id, true);
         }
       });
     });
@@ -278,7 +294,7 @@ for (const id of ['#save-retry', '#save-title-retry', '#save-menu-retry']) {
   });
 }
 document.querySelector('#save-discard').addEventListener('click', () => {
-  if (!confirm('Discard all wins that could not be saved? They cannot be recovered. Existing saved progress will not change.')) return;
+  if (!confirm('Discard all results that could not be saved? They cannot be recovered. Existing saved progress will not change.')) return;
   pendingSaves.length = 0;
   saveError('');
 });
@@ -531,8 +547,11 @@ function syncUI() {
   }
   progress.style.width = `${fraction * 100}%`;
   progressLabel.textContent = `${Math.round(fraction * 100)}% complete`;
-  document.querySelector('#level-number').textContent = game.level.id;
-  document.querySelector('.level-badge strong').textContent = game.level.id;
+  document.querySelector('#level-number').textContent = game.level.number ?? game.level.id;
+  document.querySelector('.level-badge strong').textContent = game.level.number ?? game.level.id;
+  const world = WORLDS.find(world => world.id === game.level.worldId);
+  document.querySelector('.intro .eyebrow').textContent = world
+    ? `WORLD ${world.id} / ${world.name.toUpperCase()}` : 'CUSTOM / YOUR ADVENTURE';
   document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.level.name?.toUpperCase() ?? (game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS');
   document.querySelector('.objective strong').textContent = levelObjective(game.level);
   const enemyCount = document.querySelector('#enemy-count');
@@ -618,19 +637,24 @@ function syncUI() {
   if (ending?.game !== game || ending?.state !== game.state) ending = null;
   if (['won', 'lost'].includes(game.state) && !ending) {
     ending = { game, state: game.state, elapsed: 0, duration: game.state === 'won' ? 2.4 : 1.8 };
-    if (game.state === 'won' && !tutorial) saveVictory();
+    if (!tutorial) saveResult();
     overlay.hidden = true;
     toast.textContent = '';
     status.textContent = game.state === 'won' ? 'Level complete! Koshi is celebrating.' : 'Koshi needs another try.';
   }
   if (ending && !endingMotion.matches && ending.elapsed < ending.duration) return;
+  if (game.state === 'won' && !tutorial && !game.customLevel && !ending.mapReturned) {
+    ending.mapReturned = true;
+    openLevelPicker({ insideWorld: true, level: game.levelIndex, advance: true });
+    return;
+  }
   if (displayedState === game.state) return;
   displayedState = game.state;
   if (game.state === 'ready') {
     const description = game.customLevel
       ? `${levelObjective(game.level)}. This is your custom level from the editor.`
       : `${levelObjective(game.level)}. Click a boundary brick to guide Koshi.`;
-    showDialog(`LEVEL ${game.level.id} · MISSION`, 'Ready for this level?', description, 'Start', '🐾');
+    showDialog(`LEVEL ${game.level.number ?? game.level.id} · MISSION`, 'Ready for this level?', description, 'Start', '🐾');
     status.textContent = 'Your next adventure is one click away.';
   } else if (game.state === 'playing') {
     overlay.hidden = true;
@@ -644,11 +668,12 @@ function syncUI() {
       status.textContent = 'Practice challenge complete. Choose another step or exit to the title.';
       return;
     }
-    const hasNext = !game.customLevel && game.levelIndex + 1 < LEVELS.length;
-    showDialog(`LEVEL ${game.level.id} COMPLETE`, 'One well-fed hero.', survive
+    const next = game.customLevel ? -1 : nextLevelIndex(game.levelIndex);
+    const hasNext = next !== -1;
+    showDialog(`LEVEL ${game.level.number ?? game.level.id} COMPLETE`, 'One well-fed hero.', survive
       ? `You survived all ${DURATION} seconds! You gathered ${game.score} food and earned ${game.enemies} enemy points.`
-      : `You gathered ${game.score} food and earned ${game.enemies} enemy points with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, hasNext ? 'Next level →' : 'Play again →', '🏆');
-    status.textContent = hasNext ? `Level complete! Level ${LEVELS[game.levelIndex + 1].id} is next.` : 'Level complete! Replay or choose a level.';
+      : `You gathered ${game.score} food and earned ${game.enemies} enemy points with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, game.customLevel ? 'Play again →' : hasNext ? 'Choose next level →' : 'Choose a level →', '🏆');
+    status.textContent = hasNext ? `Level complete! Level ${LEVELS[next].number} is next.` : 'Level complete! Replay or choose a level.';
     toast.textContent = 'Level complete!';
   } else if (game.state === 'lost') {
     if (tutorial) {
@@ -669,6 +694,7 @@ function begin() {
   phaseTransition.run(() => {
     for (const dialog of [titleScreen, saveDialog, levelPicker]) if (dialog.open) dialog.close();
     game = createGame();
+    attemptId = makeAttemptId();
     runSave = activeSave && !game.customLevel ? { index: activeSave.index, id: activeSave.slot.id } : null;
     updateSaveProfile();
     makeBrickButtons();
@@ -680,12 +706,16 @@ function begin() {
     syncUI();
     if (game.level.cutscene) {
       overlay.hidden = true;
-      cutscene.open(game.level.cutscene, game.level.id);
+      cutscene.open(game.level.cutscene, game.level.number ?? game.level.id);
     }
   });
 }
 
 function startLevel() {
+  if (runSave && !tutorial && !game.customLevel) {
+    pendingSaves.push({ ...runSave, levelId: game.level.id });
+    saveAttempt(flushSaves);
+  }
   game.start();
   lastTime = null;
   syncUI();
@@ -706,21 +736,31 @@ play.addEventListener('click', () => {
   } else if (game.state === 'ready') {
     startLevel();
   } else {
-    if (game.state === 'won' && !game.customLevel && game.levelIndex + 1 < LEVELS.length) levelSelect.value = String(game.levelIndex + 1);
+    if (game.state === 'won' && !game.customLevel) {
+      openLevelPicker({ insideWorld: true, level: game.levelIndex, advance: true });
+      return;
+    }
     begin();
   }
 });
 restart.addEventListener('click', begin);
 document.querySelector('#title-start').addEventListener('click', () => {
-  begin();
-  board.scrollIntoView({ block: 'center' });
+  openLevelPicker({ level: 0 });
 });
 document.querySelector('#title-levels').addEventListener('click', () => {
-  levelBeforePicker = levelSelect.value;
-  titleScreen.close();
-  levelPicker.showModal();
-  levelSelect.focus();
+  openLevelPicker();
 });
+function openLevelPicker({ insideWorld = false, level = null, advance = false } = {}) {
+  autoPause();
+  levelBeforePicker = levelSelect.value;
+  if (level !== null) levelSelect.value = String(level);
+  for (const dialog of [titleScreen, saveDialog]) if (dialog.open) dialog.close();
+  levelPicker.showModal();
+  worldMap.open();
+  if (advance) worldMap.advanceFrom(Number(levelSelect.value));
+  else if (insideWorld) worldMap.showWorld(worldMap.world);
+  else document.querySelector('.map-node[aria-pressed="true"]').focus();
+}
 const levelPicker = document.querySelector('#level-picker');
 let levelBeforePicker = levelSelect.value;
 function closeLevelPicker() {
@@ -737,7 +777,17 @@ levelPicker.addEventListener('keydown', event => {
 document.querySelector('#level-picker-play').addEventListener('click', () => {
   begin();
 });
+const worldMap = new globalThis.KoshiWorldMap({
+  selection: levelSelect,
+  profile: () => activeSave ? activeSave.slot : guestProfile,
+  picture: guidePicture,
+  custom: () => customLevel,
+});
 function dismissTitle() {
+  if (!game.customLevel) {
+    openLevelPicker();
+    return;
+  }
   phaseTransition.run(() => {
     titleScreen.close();
     play.focus({ preventScroll: true });

@@ -214,6 +214,59 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 .loadout { display: contents; font-size: 11px; color: var(--muted); }
 .level-picker-select { display: grid; gap: 8px; margin: 20px 0; font-size: 14px; }
 .level-picker-select select { width: 100%; min-width: 0; background: var(--bg); color: var(--text); border: 1px solid #ffffff26; border-radius: 5px; font: inherit; padding: 8px; min-height: 44px; }
+.level-picker-select[hidden] { display: none; }
+.world-picker { width: min(900px, calc(100vw - 24px)); height: min(820px, calc(100svh - 24px)); overflow: hidden; }
+.world-picker[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.world-picker .learning-heading { height: 64px; overflow: auto; }
+.world-picker .learning-heading h2 { font-size: 24px; }
+.map-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; min-height: 0; }
+.map-viewport { height: 100%; min-height: 0; overflow: auto; scrollbar-gutter: stable; border-radius: 14px; }
+.world-picker .save-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 12px; background: var(--panel); }
+.world-picker .save-actions button { min-width: 0; min-height: 48px; margin: 0; padding: 10px; white-space: nowrap; font-size: 12px; }
+.world-picker .save-actions button[hidden] { display: block; visibility: hidden; }
+.world-map { position: relative; min-height: 100%; border-radius: 14px; overflow: hidden; background: radial-gradient(ellipse at 20% 70%, #648d5460, transparent 55%), #18352b; }
+.world-map[data-theme="workshop"] { background: repeating-linear-gradient(45deg, #ffffff03 0 12px, transparent 12px 24px), radial-gradient(ellipse at 60% 60%, #94682460, transparent 60%), #342d25; }
+.map-paths { position: absolute; width: 100%; height: 100%; pointer-events: none; }
+.map-paths line { stroke: #e1c88c; stroke-width: 4px; vector-effect: non-scaling-stroke; }
+.map-paths .special-route { stroke-dasharray: 7 5; stroke: #d8a7f1; }
+.map-node { position: absolute; transform: translate(-50%, -50%); min-width: 54px; min-height: 44px; max-width: 150px; border: 2px solid #a3c49a; border-radius: 16px; padding: 8px 10px; color: #f9f6e9; background: #28523b; cursor: pointer; }
+.map-node[data-theme="workshop"] { background: #694826; border-color: #d9ac6f; }
+.map-node small { display: block; font-size: 11px; }
+.map-node strong { display: block; white-space: nowrap; font-size: 12px; }
+.world-emblem { display: block; width: 36px; height: 30px; margin: 0 auto 4px; fill: #b2dca0; stroke: #d7edbe; stroke-width: 2px; }
+.map-node[data-theme="workshop"] .world-emblem { fill: #d5a568; stroke: #efd6aa; }
+.map-zoom { animation: map-zoom .3s ease-out; transform-origin: top center; }
+@keyframes map-zoom { from { transform: scale(.92); opacity: .5; } to { transform: scale(1); opacity: 1; } }
+.map-node[aria-pressed="true"] { outline: 3px solid #ffdc75; outline-offset: 3px; }
+.completion-flag { position: absolute; right: -9px; top: -22px; width: 25px; height: 30px; border-left: 3px solid #e8dfc7; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
+.flag-cloth { display: block; width: 24px; height: 17px; background: #e8b94e; clip-path: polygon(0 0, 100% 10%, 80% 50%, 100% 90%, 0 100%); transform-origin: left center; animation: flag-wave 1.4s ease-in-out infinite alternate; }
+@keyframes flag-wave { from { transform: perspective(70px) rotateY(-25deg) skewY(-6deg); } to { transform: perspective(70px) rotateY(25deg) skewY(6deg); } }
+.map-koshi { position: absolute; width: 46px; height: 46px; transform: translate(-50%, calc(-100% - 27px)); pointer-events: none; transition: left .35s ease, top .35s ease; filter: drop-shadow(0 3px 2px #0008); }
+.map-details { min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: 16px; background: #ffffff06; border: 1px solid #ffffff15; border-radius: 12px; }
+.map-details h3 { margin: 0; }
+.map-objectives { display: flex; flex-wrap: wrap; gap: 12px; }
+.map-objective { display: inline-flex; align-items: center; gap: 6px; font-size: 22px; white-space: nowrap; }
+.map-objective strong { font-size: 18px; }
+.map-details dl { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr; gap: 8px 16px; font-size: 14px; }
+.map-details dd { margin: 0; }
+.map-details dt, .map-note { color: var(--muted); }
+.map-note { font-size: 12px; }
+.map-features { display: flex; flex-wrap: wrap; gap: 8px; }
+.map-feature { display: grid; justify-items: center; width: 72px; font-size: 10px; text-align: center; }
+.map-feature .guide-picture, .map-feature .guide-special-brick { width: 64px; height: 36px; margin: 0 0 4px; overflow: hidden; }
+@media (max-width: 480px) {
+  .world-picker { padding: 12px; }
+  .map-node { padding: 6px; min-width: 48px; max-width: 110px; font-size: 12px; }
+  .map-node strong { font-size: 11px; }
+  .map-koshi { width: 38px; height: 38px; }
+  .map-details { padding: 10px; }
+}
+@media (max-width: 760px) {
+  .map-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, .9fr) minmax(0, 1.1fr); }
+  .world-picker .save-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .world-picker #level-picker-play { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .map-koshi { transition: none; } .map-zoom, .flag-cloth { animation: none; } }
 .timer-stat { text-align: left; }
 .timer-stat .stat-label { margin-bottom: 2px; }
 .timer-stat strong { font-size: 20px; }

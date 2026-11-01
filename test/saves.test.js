@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { LEVELS } = require('../src/game.js');
-const { SaveSlots, SAVE_KEY, SLOT_COUNT } = require('../src/saves.js');
+const { SaveSlots, SAVE_KEY, SLOT_COUNT, levelStats } = require('../src/saves.js');
 
 const levelIds = LEVELS.map(level => level.id);
 
@@ -117,6 +117,110 @@ test('storage failures propagate and stale sessions cannot update a replacement 
   assert.throws(() => blocked.load(), /Storage blocked/);
 });
 
+test('finished attempts persist once, track both outcomes and keep fastest wins and highest point scores', () => {
+  const { saves, storage } = fixture(), slot = saves.create(0, 'Player');
+  const result = { levelId: levelIds[0], outcome: 'won', time: 12.5, food: 25, enemy: 3 };
+  saves.record(0, slot.id, 'first', result);
+  saves.record(0, slot.id, 'first', result);
+  saves.record(0, slot.id, 'loss', { ...result, outcome: 'lost', time: 2, food: 30, enemy: 1 });
+  saves.record(0, slot.id, 'faster', { ...result, time: 10, enemy: 6 });
+  const reloaded = new SaveSlots(levelIds, () => storage).load()[0];
+  assert.deepEqual(reloaded.completed, [levelIds[0]]);
+  assert.deepEqual(levelStats(reloaded.results, levelIds[0]), {
+    wins: 2, losses: 1, winPercent: 2 / 3 * 100, lossPercent: 1 / 3 * 100,
+    bestTime: 10, fewestMoves: null, mostFood: 30, mostEnemies: 6,
+  });
+  saves.record(0, slot.id, 'other-loss', { ...result, levelId: levelIds[1], outcome: 'lost' });
+  assert.deepEqual(saves.load()[0].completed, [levelIds[0]], 'losses never complete a level');
+  assert.equal(levelStats(saves.load()[0].results, levelIds[1]).bestTime, null);
+});
+
+test('legacy completions stay valid without fabricated statistics', () => {
+  const { saves } = fixture(), slot = saves.create(0, 'Player');
+  saves.complete(0, slot.id, levelIds[0]);
+  const loaded = saves.load()[0];
+  assert.equal(loaded.results, undefined);
+  assert.deepEqual(levelStats(loaded.results, levelIds[0]), {
+    wins: 0, losses: 0, winPercent: null, lossPercent: null,
+    bestTime: null, fewestMoves: null, mostFood: null, mostEnemies: null,
+  });
+  saves.record(0, slot.id, 'new', { levelId: levelIds[0], outcome: 'won', time: 15, food: 20, enemy: 0 });
+  assert.deepEqual(saves.load()[0].completed, [levelIds[0]]);
+});
+
+test('last played persists at level entry, including abandoned levels, without recording an outcome', () => {
+  const { saves, storage, data } = fixture(), slot = saves.create(0, 'Player');
+  saves.complete(0, slot.id, levelIds[0]);
+  assert.equal(saves.resumeLevel(saves.load()[0]), 1, 'legacy saves fall back to first unfinished');
+  saves.visit(0, slot.id, levelIds[20]);
+  const loaded = new SaveSlots(levelIds, () => storage).load()[0];
+  assert.equal(loaded.lastPlayed, levelIds[20]);
+  assert.equal(saves.resumeLevel(loaded), 20);
+  assert.deepEqual(loaded.completed, [levelIds[0]]);
+  assert.equal(loaded.results, undefined, 'quits have no outcome');
+  saves.record(0, slot.id, 'delayed-result', { levelId: levelIds[0], outcome: 'won', time: 12, food: 20, enemy: 0 });
+  assert.equal(saves.resumeLevel(saves.load()[0]), 20, 'a retried result cannot overwrite a more recent visit');
+  const before = data.get(SAVE_KEY);
+  assert.throws(() => saves.visit(0, slot.id, 'custom'), /campaign levels/);
+  assert.equal(data.get(SAVE_KEY), before);
+  const invalid = JSON.parse(before);
+  invalid.slots[0].lastPlayed = 'unknown';
+  data.set(SAVE_KEY, JSON.stringify(invalid));
+  assert.throws(() => saves.load(), /invalid/);
+});
+
+test('fewest moves uses only wins with recorded counts, keeps zero, and survives reloads', () => {
+  const { saves, storage } = fixture(), slot = saves.create(0, 'Player');
+  const result = { levelId: levelIds[0], outcome: 'won', time: 12, food: 20, enemy: 0 };
+  saves.record(0, slot.id, 'legacy', result);
+  saves.record(0, slot.id, 'first', { ...result, moves: 8 });
+  saves.record(0, slot.id, 'better', { ...result, moves: 5 });
+  saves.record(0, slot.id, 'loss', { ...result, outcome: 'lost', moves: 1 });
+  const loaded = new SaveSlots(levelIds, () => storage).load()[0];
+  assert.equal(levelStats(loaded.results, levelIds[0]).fewestMoves, 5);
+  saves.record(0, slot.id, 'zero', { ...result, moves: 0 });
+  assert.equal(levelStats(saves.load()[0].results, levelIds[0]).fewestMoves, 0);
+  for (const moves of [-1, 1.5, '2', null, Infinity]) {
+    assert.throws(() => saves.record(0, slot.id, 'invalid', { ...result, moves }), /Invalid completed/);
+  }
+  assert.throws(() => saves.record(0, slot.id, 'better', { ...result, moves: 4 }), /different saved result/);
+});
+
+test('invalid results, conflicting retries and stale profiles fail without modifying saves', () => {
+  const { saves, data, storage } = fixture(), slot = saves.create(0, 'Player');
+  const result = { levelId: levelIds[0], outcome: 'won', time: 12, food: 20, enemy: 0 };
+  saves.record(0, slot.id, 'first', result);
+  const before = data.get(SAVE_KEY);
+  for (const patch of [{ outcome: 'quit' }, { time: -1 }, { time: Infinity }, { food: '20' }, { enemy: NaN }, { levelId: 'custom' }]) {
+    assert.throws(() => saves.record(0, slot.id, 'bad', { ...result, ...patch }), /Invalid completed/);
+  }
+  assert.throws(() => saves.record(0, slot.id, 'first', { ...result, time: 10 }), /different saved result/);
+  assert.throws(() => saves.record(0, slot.id, '__proto__', result), /attempt ID/);
+  assert.equal(data.get(SAVE_KEY), before);
+  const write = storage.setItem;
+  storage.setItem = () => { throw new Error('Storage full'); };
+  assert.throws(() => saves.record(0, slot.id, 'retry', result), /Storage full/);
+  assert.equal(data.get(SAVE_KEY), before);
+  storage.setItem = write;
+  saves.record(0, slot.id, 'retry', result);
+  saves.record(0, slot.id, 'retry', result);
+  assert.equal(levelStats(saves.load()[0].results, levelIds[0]).wins, 2);
+  saves.remove(0, slot.id);
+  saves.create(0, 'Replacement');
+  assert.throws(() => saves.record(0, slot.id, 'stale', result), /changed or was deleted/);
+});
+
+test('malformed saved attempt data is reported and left untouched', () => {
+  const { saves, data } = fixture();
+  const slot = { id: 'profile', owner: 'Player', completed: [] };
+  for (const results of [null, [], { attempt: { levelId: levelIds[0], outcome: 'quit', time: 0, food: 0, enemy: 0 } }]) {
+    const raw = JSON.stringify({ version: 1, slots: [{ ...slot, results }, null, null] });
+    data.set(SAVE_KEY, raw);
+    assert.throws(() => saves.load());
+    assert.equal(data.get(SAVE_KEY), raw);
+  }
+});
+
 function uiFixture() {
   const { saves, storage, data } = fixture();
   const elements = new Map(), errors = [];
@@ -137,9 +241,12 @@ function uiFixture() {
   };
   const context = vm.createContext({
     document, saves, LEVELS, pendingSaves: [], activeSave: null, runSave: null,
-    game: { level: LEVELS[0] }, tutorial: null, console: { error(...args) { errors.push(args); } },
+    game: { level: LEVELS[0], state: 'won', elapsed: 10, score: 20, enemies: 2, moves: 4 },
+    recordedAttempts: new WeakSet(), attemptId: 'attempt-1',
+    guestProfile: { completed: [], results: {} },
+    tutorial: null, console: { error(...args) { errors.push(args); } },
     titleScreen: node(), saveDialog: node(), levelSelect: node(), board: node(),
-    autoPause() {}, begin() {}, confirm: () => true,
+    openLevelPicker(options) { this.mapOptions = options; }, autoPause() {}, begin() {}, confirm: () => true,
   });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf('function saveError('), source.indexOf('function makeBrickButtons(')), context);
@@ -153,7 +260,7 @@ test('UI autosaves only campaign profiles and exposes failed wins for retry', ()
   context.runSave = { index: 0, id: slot.id };
   const write = storage.setItem;
   storage.setItem = () => { throw new Error('Storage full'); };
-  context.saveVictory();
+  context.saveResult();
   assert.equal(context.pendingSaves.length, 1);
   assert.equal(saves.load()[0].completed.length, 0);
   assert.match(elements.get('#save-error').textContent, /Progress has not been saved.*Storage full/);
@@ -163,16 +270,44 @@ test('UI autosaves only campaign profiles and exposes failed wins for retry', ()
   storage.setItem = write;
   elements.get('#save-retry').listeners.click();
   assert.deepEqual(saves.load()[0].completed, [levelIds[0]]);
+  assert.equal(levelStats(saves.load()[0].results, levelIds[0]).fewestMoves, 4);
   assert.equal(context.pendingSaves.length, 0);
   assert.equal(elements.get('#save-error').hidden, true);
   assert.match(elements.get('#save-profile').textContent, /Player.*1 \/ 34.*1-2/);
   context.game = { level: LEVELS[1], customLevel: {} };
-  context.saveVictory();
+  context.saveResult();
   context.game.customLevel = null; context.tutorial = {};
-  context.saveVictory();
+  context.saveResult();
   context.tutorial = null; context.runSave = null;
-  context.saveVictory();
+  context.saveResult();
   assert.deepEqual(saves.load()[0].completed, [levelIds[0]], 'custom, tutorial and guest wins never save');
+});
+
+test('UI records losses once, ignores abandoned attempts, and tracks guest results only for the visit', () => {
+  const { context, saves } = uiFixture();
+  const slot = saves.create(0, 'Player');
+  context.activeSave = { index: 0, slot };
+  context.runSave = { index: 0, id: slot.id };
+  for (const state of ['ready', 'playing', 'paused']) {
+    context.game.state = state;
+    context.saveResult();
+  }
+  assert.equal(saves.load()[0].results, undefined);
+  context.game.state = 'lost';
+  context.saveResult(); context.saveResult();
+  assert.equal(levelStats(saves.load()[0].results, levelIds[0]).losses, 1);
+  assert.deepEqual(saves.load()[0].completed, []);
+  context.game = { level: LEVELS[1], state: 'won', elapsed: 45, score: 12, enemies: 1 };
+  context.runSave = null; context.attemptId = 'guest';
+  context.saveResult(); context.saveResult();
+  assert.equal(levelStats(context.guestProfile.results, levelIds[1]).wins, 1);
+  assert.equal(levelStats(saves.load()[0].results, levelIds[1]).wins, 0);
+  context.game = { level: LEVELS[1], state: 'won', elapsed: 45, score: 12, enemies: 1, customLevel: {} };
+  context.runSave = { index: 0, id: slot.id }; context.attemptId = 'custom';
+  context.saveResult();
+  context.game.customLevel = null; context.tutorial = {};
+  context.saveResult();
+  assert.equal(levelStats(saves.load()[0].results, levelIds[1]).wins, 0);
 });
 
 test('slot UI renders owner names as text, resumes saved levels, and confirms deletion', () => {
@@ -183,12 +318,14 @@ test('slot UI renders owner names as text, resumes saved levels, and confirms de
   const sections = elements.get('#save-slot-list').children;
   assert.equal(sections.length, 3);
   assert.equal(sections[0].children[0].textContent, 'Slot 1 - <b>Player</b>');
-  let started = 0;
+  let started = 0, mapOptions;
   context.begin = () => { started++; };
+  context.openLevelPicker = options => { mapOptions = options; };
   context.continueSave(0, slot.id);
-  assert.equal(context.levelSelect.value, '1');
+  assert.equal(mapOptions.level, 1);
+  assert.equal(mapOptions.insideWorld, true);
   assert.equal(context.activeSave.slot.id, slot.id);
-  assert.equal(started, 1);
+  assert.equal(started, 0);
   const remove = sections[0].children[2].children[1];
   context.confirm = () => false;
   remove.listeners.click();
@@ -197,6 +334,43 @@ test('slot UI renders owner names as text, resumes saved levels, and confirms de
   remove.listeners.click();
   assert.equal(saves.load()[0], null);
   assert.equal(context.activeSave, null);
+});
+
+test('loading opens the last-played level map while a newly created slot opens world selection', () => {
+  const { context, saves } = uiFixture(), slot = saves.create(0, 'Player');
+  saves.visit(0, slot.id, levelIds[20]);
+  const openings = [];
+  context.openLevelPicker = options => openings.push(options);
+  context.begin = () => assert.fail('loading must not start gameplay');
+  context.continueSave(0, slot.id);
+  assert.equal(openings[0].insideWorld, true);
+  assert.equal(openings[0].level, 20);
+  const fresh = saves.create(1, 'New player');
+  context.continueSave(1, fresh.id, true);
+  assert.equal(openings[1].insideWorld, false);
+  assert.equal(openings[1].level, 0);
+});
+
+test('starting campaign play queues last-played persistence and storage failures can be retried', () => {
+  const { context, saves, storage, elements } = uiFixture(), slot = saves.create(0, 'Player');
+  context.runSave = { index: 0, id: slot.id };
+  context.activeSave = { index: 0, slot };
+  context.game = { level: LEVELS[12], state: 'ready', start() { this.state = 'playing'; } };
+  context.pause = { focus() {} };
+  context.syncUI = () => {};
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf('function startLevel('), source.indexOf('function showLevelBriefing(')), context);
+  const write = storage.setItem;
+  storage.setItem = () => { throw new Error('Storage full'); };
+  context.startLevel();
+  assert.equal(context.game.state, 'playing');
+  assert.equal(context.pendingSaves.length, 1);
+  assert.match(elements.get('#save-error').textContent, /Storage full/);
+  storage.setItem = write;
+  context.flushSaves();
+  assert.equal(context.pendingSaves.length, 0);
+  assert.equal(saves.load()[0].lastPlayed, levelIds[12]);
+  assert.equal(saves.load()[0].results, undefined);
 });
 
 test('unrecoverable pending wins can be discarded only with confirmation', () => {
@@ -219,8 +393,8 @@ test('unrecoverable pending wins can be discarded only with confirmation', () =>
 test('autosaving and profile binding are wired to victory and level start', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const ending = source.slice(source.indexOf("if (['won', 'lost'].includes(game.state)"), source.indexOf('  if (displayedState === game.state) return;'));
-  assert.match(ending, /if \(game\.state === 'won' && !tutorial\) saveVictory\(\)/);
-  assert.ok(ending.indexOf('saveVictory()') < ending.indexOf('ending.elapsed < ending.duration'), 'save before waiting for celebration');
+  assert.match(ending, /if \(!tutorial\) saveResult\(\)/);
+  assert.ok(ending.indexOf('saveResult()') < ending.indexOf('ending.elapsed < ending.duration'), 'save before waiting for celebration');
   const begin = source.slice(source.indexOf('function begin('), source.indexOf('function startLevel('));
   assert.match(begin, /runSave = activeSave && !game\.customLevel/);
   const context = vm.createContext({});

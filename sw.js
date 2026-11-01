@@ -14,6 +14,8 @@ const ASSETS = [
   './src/cutscene.js',
   './src/learning.js',
   './src/saves.js',
+  './src/worlds.js',
+  './src/world-map.js',
   './src/transitions.js',
   './src/app.js',
   './src/editor.js',

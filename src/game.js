@@ -617,7 +617,9 @@ const LEVELS = [
     weapons.sort((a, b) => a[0] - b[0]);
   }
   return {
-    id: `1-${index + 1}`, name: entry.name, concept: entry.concept, duration: entry.duration,
+    id: `1-${index + 1}`, worldId: index < 10 ? '1' : '2',
+    number: index < 10 ? `1-${index + 1}` : `2-${index - 9}`,
+    name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
     heartCost: index < 3 || foodPoints === 0 ? Infinity : Math.ceil(foodPoints / 5),
     brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies, items: entry.items ?? [],
@@ -1420,6 +1422,7 @@ class Game {
     this.state = 'ready';
     this.elapsed = 0;
     this.timeBonus = 0;
+    this.moves = 0;
     this.score = 0;
     this.enemies = 0;
     this.goals = 0;
@@ -1572,6 +1575,7 @@ class Game {
     this.cat.vy = vy;
     this.conveyorRide = null;
     this.target = { x, y };
+    this.moves++;
     if (this.activationsRemaining !== null && --this.activationsRemaining === 0) {
       this.boomHelmet.exploded = true;
       this.boomHelmet.age = 0;

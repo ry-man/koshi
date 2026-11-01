@@ -18,6 +18,8 @@
     <script defer src="./src/cutscene.js"></script>
     <script defer src="./src/learning.js"></script>
     <script defer src="./src/saves.js"></script>
+    <script defer src="./src/worlds.js"></script>
+    <script defer src="./src/world-map.js"></script>
     <script defer src="./src/transitions.js"></script>
     <script defer src="./src/app.js"></script>
     <script defer src="./src/pwa.js"></script>
@@ -69,22 +71,30 @@
         <button id="save-title-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
       </div>
     </dialog>
-    <dialog id="level-picker" class="install-dialog" aria-labelledby="level-picker-heading">
-      <h2 id="level-picker-heading">Choose a level</h2>
-      <label class="level-picker-select" for="level-select">Level
+    <dialog id="level-picker" class="install-dialog world-picker" aria-labelledby="level-picker-heading">
+      <header class="learning-heading">
+        <h2 id="level-picker-heading">World map</h2>
+      </header>
+      <p>Click a world to move Koshi; click it again to enter. Choose a level to play. Waving flags mark completed stops.</p>
+      <div class="map-layout">
+        <div class="map-viewport"><div id="world-map" class="world-map" role="group" aria-label="Adventure map"></div></div>
+        <section id="map-details" class="map-details" aria-live="polite" aria-atomic="true"></section>
+      </div>
+      <label class="level-picker-select" for="level-select" hidden>Level
         <select id="level-select"></select>
       </label>
       <div class="save-actions">
-        <button id="level-picker-play" class="primary" type="button">Play level</button>
+        <button id="level-picker-play" class="primary" type="button" hidden>Play level</button>
+        <button id="world-map-back" class="title-secondary" type="button" hidden>All worlds</button>
         <button id="level-picker-close" class="title-secondary" type="button">Back to menu</button>
       </div>
     </dialog>
     <dialog id="save-slots" class="install-dialog" aria-labelledby="save-heading" aria-describedby="save-help">
       <h2 id="save-heading">Campaign save slots</h2>
-      <p id="save-help">Choose a slot and an owner name. Completed campaign levels save automatically in this browser. Continue starts at your first unfinished level, not mid-level.</p>
+      <p id="save-help">Choose a slot and an owner name. New games open the world map. Continue opens the level map in your last-played world, with that level selected. Progress saves automatically in this browser; attempts never resume mid-level.</p>
       <p id="save-menu-error" class="error" role="alert" hidden></p>
       <button id="save-menu-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
-      <button id="save-discard" class="title-secondary" type="button" hidden>Discard unsaved wins</button>
+      <button id="save-discard" class="title-secondary" type="button" hidden>Discard unsaved results</button>
       <div id="save-slot-list"></div>
       <div class="save-actions">
         <button id="save-guest" class="title-secondary" type="button">Play as guest</button>

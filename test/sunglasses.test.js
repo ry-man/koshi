@@ -215,7 +215,7 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
   const button = node(), knob = node(), count = node();
   const special = { button, knob, count };
   const context = vm.createContext({
-    ...engine, ...visuals, game, document: { querySelector: () => node() },
+    ...engine, ...visuals, game, WORLDS: require('../src/worlds.js').WORLDS, document: { querySelector: () => node() },
     buttons: [{ brick, members: game.brickParts().filter(part => part.id === brick.id), button, special, usesLeft: brick.usesLeft }],
     timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
     weaponStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),

@@ -11,27 +11,36 @@ const helpers = source.slice(source.indexOf('function updateEnding('), source.in
 const transition = source.slice(source.indexOf('  if (ending?.game !== game'), source.indexOf('  displayedState = game.state;'));
 
 function fixture(state = 'won') {
-  const game = { state, width: 600, height: 960, cat: { x: 100, y: 200 } };
+  const game = { state, levelIndex: 0, width: 600, height: 960, cat: { x: 100, y: 200 } };
   const overlay = { hidden: false }, status = {}, toast = {}, document = { hidden: false, querySelector: () => null };
-  let saves = 0;
+  let saves = 0, maps = 0;
   const context = vm.createContext({
     game, ending: null, endingMotion: { matches: false }, tutorial: null,
     displayedState: 'playing', overlay, status, toast, document,
-    saveVictory: () => { saves++; },
+    saveResult: () => { saves++; },
+    openLevelPicker(options) {
+      maps++;
+      assert.equal(options.insideWorld, true);
+      assert.equal(options.advance, true);
+      assert.equal(options.level, game.levelIndex);
+    },
   });
   vm.runInContext(`${helpers}\nfunction transition() { ${transition} return true; }`, context);
-  return { context, game, overlay, document, get saves() { return saves; } };
+  return { context, game, overlay, document, get saves() { return saves; }, get maps() { return maps; } };
 }
 
-test('endings defer results, freeze gameplay, and save wins immediately just once', () => {
+test('endings defer dialogs, freeze gameplay, and record finished results immediately just once', () => {
   for (const state of ['won', 'lost']) {
     const app = fixture(state), c = app.context;
     assert.equal(c.transition(), undefined);
     assert.equal(app.overlay.hidden, true);
-    assert.equal(app.saves, state === 'won' ? 1 : 0);
+    assert.equal(app.saves, 1);
     for (let i = 0; i < 30; i++) c.updateEnding(.1);
-    assert.equal(c.transition(), true);
-    assert.equal(app.saves, state === 'won' ? 1 : 0);
+    assert.equal(c.transition(), state === 'won' ? undefined : true);
+    assert.equal(app.maps, state === 'won' ? 1 : 0);
+    c.transition();
+    assert.equal(app.maps, state === 'won' ? 1 : 0, 'map opens once per victory');
+    assert.equal(app.saves, 1);
     assert.equal(app.game.state, state);
     assert.deepEqual(app.game.cat, { x: 100, y: 200 });
   }
@@ -72,6 +81,7 @@ test('menus and hidden pages freeze endings; new attempts discard them; reduced 
   document.querySelector = () => null; c.updateEnding(.1);
   assert.equal(c.ending.elapsed, .1);
   c.endingMotion.matches = true;
+  assert.equal(c.transition(), undefined);
   assert.equal(c.transition(), true);
   game.state = 'ready';
   assert.equal(c.transition(), true);

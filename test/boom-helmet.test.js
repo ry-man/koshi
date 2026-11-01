@@ -38,14 +38,17 @@ test('helmet arrives only after Start, counts only successful activations includ
   game.bricks[0].kind = 'goal'; assert.equal(aim(game, 0), false);
   game.bricks[1].kind = 'cinder'; assert.equal(aim(game, 1), false);
   assert.equal(aim(game, 2), true); assert.equal(game.activationsRemaining, 4);
+  assert.equal(game.moves, 1);
   assert.equal(aim(game, 2), false); assert.equal(game.activationsRemaining, 4);
   assert.equal(aim(game, 3), true); assert.equal(game.activationsRemaining, 3);
   game.collectItem({ type: 'magic-sunglasses' });
   assert.equal(aim(game, 2), true); assert.equal(game.activationsRemaining, 2);
+  assert.equal(game.moves, 3, 'redirects and sunglasses selections each add one move');
   game.update(.1);
   const age = game.boomHelmet.age, remaining = game.activationsRemaining;
   game.pause(); game.update(1); assert.equal(aim(game, 4), false);
   assert.equal(game.boomHelmet.age, age); assert.equal(game.activationsRemaining, remaining);
+  assert.equal(game.moves, 3, 'pause and rejected selections do not add moves');
   game.resume(); game.update(.1); assert.ok(game.boomHelmet.age > age);
 });
 
@@ -55,6 +58,7 @@ test('zero explodes immediately on the last successful activation, bypasses prot
   game.collectItem({ type: 'magic-sunglasses' });
   assert.equal(aim(game, 0), true);
   assert.equal(game.state, 'lost'); assert.equal(game.activationsRemaining, 0); assert.equal(game.hearts, 0);
+  assert.equal(game.moves, 1, 'a successful selection that exhausts the helmet still counts');
   assert.equal(game.boomHelmet.exploded, true); assert.equal(game.boomHelmet.age, 0);
   assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
   assert.equal(aim(game, 1), false);
@@ -71,6 +75,7 @@ test('physical brick contacts cost no charges; blocked same-position launches do
   assert.equal(game.activationsRemaining, 2);
   assert.equal(aim(game, target.id), false);
   assert.equal(game.activationsRemaining, 2);
+  assert.equal(game.moves, 1, 'physical contacts and blocked launches add no moves');
 });
 
 test('merged bricks, Barrier toggles, Boost launches and Toggle activations each cost exactly one charge', () => {

@@ -4,6 +4,29 @@
 const SAVE_KEY = 'koshi-campaign-saves-v2';
 const SLOT_COUNT = 3;
 
+function validateResult(result, levelIds) {
+  if (!result || !levelIds.includes(result.levelId) || !['won', 'lost'].includes(result.outcome)
+    || !['time', 'food', 'enemy'].every(key => Number.isFinite(result[key]) && result[key] >= 0)
+    || (result.moves !== undefined && (!Number.isSafeInteger(result.moves) || result.moves < 0))) {
+    throw new Error('Invalid completed level result.');
+  }
+}
+
+function levelStats(results, levelId) {
+  const attempts = Object.values(results ?? {}).filter(result => result.levelId === levelId);
+  const wins = attempts.filter(result => result.outcome === 'won');
+  const moveRecords = wins.filter(result => result.moves !== undefined);
+  return {
+    wins: wins.length, losses: attempts.length - wins.length,
+    winPercent: attempts.length ? wins.length / attempts.length * 100 : null,
+    lossPercent: attempts.length ? (attempts.length - wins.length) / attempts.length * 100 : null,
+    bestTime: wins.length ? Math.min(...wins.map(result => result.time)) : null,
+    fewestMoves: moveRecords.length ? Math.min(...moveRecords.map(result => result.moves)) : null,
+    mostFood: attempts.length ? Math.max(...attempts.map(result => result.food)) : null,
+    mostEnemies: attempts.length ? Math.max(...attempts.map(result => result.enemy)) : null,
+  };
+}
+
 function ownerName(value) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > 32) {
     throw new Error('Enter an owner name between 1 and 32 characters.');
@@ -12,10 +35,11 @@ function ownerName(value) {
 }
 
 class SaveSlots {
-  constructor(levelIds, storage = () => globalThis.localStorage, makeId = () => globalThis.crypto.randomUUID()) {
+  constructor(levelIds, storage = () => globalThis.localStorage, makeId = () => globalThis.crypto.randomUUID(), mainLevelIds = levelIds) {
     this.levelIds = levelIds;
     this.storage = storage;
     this.makeId = makeId;
+    this.mainLevelIds = mainLevelIds;
   }
   load() {
     const raw = this.storage().getItem(SAVE_KEY);
@@ -30,7 +54,15 @@ class SaveSlots {
         || ownerName(slot.owner) !== slot.owner || !Array.isArray(slot.completed)
         || slot.completed.some(id => !this.levelIds.includes(id))
         || new Set(slot.completed).size !== slot.completed.length) invalid();
+      if (slot.lastPlayed !== undefined && !this.levelIds.includes(slot.lastPlayed)) invalid();
       ids.add(slot.id);
+      if (slot.results !== undefined) {
+        if (!slot.results || typeof slot.results !== 'object' || Array.isArray(slot.results)) invalid();
+        for (const [id, result] of Object.entries(slot.results)) {
+          if (!id) invalid();
+          validateResult(result, this.levelIds);
+        }
+      }
     }
     return data.slots;
   }
@@ -72,13 +104,44 @@ class SaveSlots {
     }
     return slot;
   }
+  record(index, id, attemptId, result) {
+    if (typeof attemptId !== 'string' || !attemptId || ['__proto__', 'constructor', 'prototype'].includes(attemptId)) {
+      throw new Error('Invalid level attempt ID.');
+    }
+    validateResult(result, this.levelIds);
+    const slots = this.load(), slot = this.slot(slots, index, id);
+    slot.results ??= {};
+    if (Object.hasOwn(slot.results, attemptId)) {
+      const previous = slot.results[attemptId];
+      if (['levelId', 'outcome', 'time', 'food', 'enemy', 'moves'].some(key => previous[key] !== result[key])) {
+        throw new Error('This attempt already has a different saved result.');
+      }
+      return slot;
+    }
+    slot.results[attemptId] = { ...result };
+    if (result.outcome === 'won' && !slot.completed.includes(result.levelId)) slot.completed.push(result.levelId);
+    this.write(slots);
+    return slot;
+  }
+  visit(index, id, levelId) {
+    if (!this.levelIds.includes(levelId)) throw new Error('Only campaign levels can be saved.');
+    const slots = this.load(), slot = this.slot(slots, index, id);
+    if (slot.lastPlayed !== levelId) {
+      slot.lastPlayed = levelId;
+      this.write(slots);
+    }
+    return slot;
+  }
+  resumeLevel(slot) {
+    return slot.lastPlayed === undefined ? this.nextLevel(slot) : this.levelIds.indexOf(slot.lastPlayed);
+  }
   nextLevel(slot) {
-    const next = this.levelIds.findIndex(id => !slot.completed.includes(id));
-    return next === -1 ? this.levelIds.length - 1 : next;
+    const next = this.mainLevelIds.find(id => !slot.completed.includes(id)) ?? this.mainLevelIds.at(-1);
+    return this.levelIds.indexOf(next);
   }
 }
 
-const api = { SaveSlots, SAVE_KEY, SLOT_COUNT };
+const api = { SaveSlots, SAVE_KEY, SLOT_COUNT, levelStats };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiSaves = api;
 })();

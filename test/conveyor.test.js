@@ -284,6 +284,7 @@ test('UI updates conveyor teeth without requiring Springs, freezes on pause, and
     const teeth = node(), members = game.brickParts().filter(part => part.id === brick.id);
     const context = vm.createContext({
       game, COOLDOWNS, SLIMES, SWORDS, CONVEYOR_SPEED, brickConveyor,
+      WORLDS: require('../src/worlds.js').WORLDS,
       brickEnabled: require('../src/game.js').brickEnabled, levelObjective: require('../src/game.js').levelObjective,
       specialLabel: require('../src/brick-visuals.js').specialLabel,
       syncBrickDestructions() {},

@@ -81,7 +81,10 @@ test('campaign play links choose the original game level and malformed links rep
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const start = source.indexOf("if (location.hash.startsWith('#campaign='))");
   const script = source.slice(start, source.indexOf('function layoutOptions()', start));
-  for (const [hash, expected] of [['#campaign=1-19', '18'], ['#campaign=1-34', '33'], ['#campaign=unknown', null], ['#campaign=%', null]]) {
+  for (const [hash, expected] of [
+    ['#campaign=1-19', '18'], ['#campaign=1-34', '33'], ['#campaign=2-1', '10'], ['#campaign=2-9', '18'],
+    ['#campaign=2-24', '33'], ['#campaign=unknown', null], ['#campaign=%', null],
+  ]) {
     const levelSelect = { value: '0' }, error = { hidden: true }, failures = [];
     const context = vm.createContext({ location: { hash }, LEVELS, levelSelect,
       document: { querySelector: () => error }, console: { error: (...args) => failures.push(args) } });
@@ -193,7 +196,7 @@ test('HUD marks only required score targets or the survival timer and tracks obj
     return nodes.get(selector);
   };
   const game = { level: {}, score: 10, enemies: 15, goals: 10, elapsed: 30, timeLimit: 60, hearts: 3, batteries: 0 };
-  const context = vm.createContext({ game, levelObjective, document: { querySelector: node },
+  const context = vm.createContext({ game, levelObjective, WORLDS: require('../src/worlds.js').WORLDS, document: { querySelector: node },
     timer: node('#timer'), foodCount: node('#food-count'), hearts: node('#hearts'),
     progress: node('#progress'), progressLabel: node('#progress-label') });
   const hud = source.slice(start, source.indexOf('  const weaponCount', start));
