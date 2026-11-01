@@ -165,7 +165,7 @@ test('UI autosaves only campaign profiles and exposes failed wins for retry', ()
   assert.deepEqual(saves.load()[0].completed, [levelIds[0]]);
   assert.equal(context.pendingSaves.length, 0);
   assert.equal(elements.get('#save-error').hidden, true);
-  assert.match(elements.get('#save-profile').textContent, /Player.*1 \/ 19.*1-2/);
+  assert.match(elements.get('#save-profile').textContent, /Player.*1 \/ 34.*1-2/);
   context.game = { level: LEVELS[1], customLevel: {} };
   context.saveVictory();
   context.game.customLevel = null; context.tutorial = {};

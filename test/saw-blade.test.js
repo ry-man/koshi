@@ -38,7 +38,7 @@ test('saw placements, spawners, optional expiry, and matching curved artwork are
   game.spawnFromBrick(spawner);
   assert.equal(game.items[0].type, 'saw-blade');
   assert.equal(game.items[0].expires, game.elapsed + 2);
-  assert.ok(LEVELS.every(level => !level.items.some(([, type]) => type === 'saw-blade')));
+  assert.ok(LEVELS.slice(0, 19).every(level => !level.items.some(([, type]) => type === 'saw-blade')));
   const symbol = spawnSymbol({ kind: 'item', type: 'saw-blade' });
   assert.equal((symbol.match(/Q/g) || []).length, 12, 'twelve curved teeth');
   assert.equal(ITEMS['saw-blade'].name, 'Saw Blade');

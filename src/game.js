@@ -363,6 +363,199 @@ const LEVELS = [
       ['koshi', 'Then this is our route to victory. Strawberries, pretzels, bananas, cheese, chicken, fish, burgers: a feast for the whole world, not just me!'],
     ],
   },
+  {
+    name: 'Bouncing breakfast', concept: 'robo ball', duration: 90, killGoal: 4,
+    enemies: [[8,'ball',3],[26,'ball',3,'red'],[48,'ball',4]], weapons: [[22,'silver'],[52,'silver']],
+    bricks: [[2,{ crumbler: 4 }],[12,{ crumbler: 4 }],[19,{ springs: true }]],
+    dialogue: [
+      ['tom', 'The feast was only the beginning! My Robo Balls guard the breakfast reserves deeper in the pantry.'],
+      ['ball', 'I bounce in straight lines at 120 units per second, off walls and robots. No pauses: touching me costs a heart!'],
+      ['koshi', 'I will intercept with a sword and earn 4 enemy points. A robot basketball is not a breakfast snack!'],
+    ],
+  },
+  {
+    name: 'Cookie calling', concept: 'smiley cookie', duration: 75, goal: 35,
+    enemies: [[6,'mouse',3],[26,'wheel',2],[48,'mouse',3,'red']], weapons: [[20,'bronze'],[44,'silver']],
+    bricks: [[2,{ conveyor: true }],[12,{ slimed: true, slimeColor: 'green' }]],
+    items: [[12,'smiley-cookie'],[36,'smiley-cookie'],[57,'smiley-cookie']],
+    dialogue: [
+      ['tom', 'My mice and wheels patrol the scattered food reserves. Ride the conveyor, but beware the sticky slime!'],
+      ['koshi', 'A Smiley Cookie draws all food currently on the board toward me! I can keep moving while I eat, until that batch is gone.'],
+      ['tom', 'It does not collect future food. Wait for a tasty batch before taking the cookie!'],
+      ['koshi', 'Three cookies, plenty of snacks: I will recover 35 food points for the breakfast club.'],
+    ],
+  },
+  {
+    name: 'Lunch against the clock', concept: 'stopwatches', duration: 18, goal: 35, killGoal: 3,
+    food: [[2,'L3','B',18],[5,'L3','C',25],[8,'C3','L',30],[11,'L3','F',35],[14,'C3','H',40]],
+    enemies: [[2,'mouse',4],[6,'mouse',3,'red'],[12,'mouse',3]], weapons: [[12,'silver'],[16,'silver']],
+    bricks: [[2,{ crumbler: 4 }],[12,{ springs: true }]],
+    events: [
+      { time: 0, kind: 'item', type: 'stopwatch', x: .5, y: .5 },
+      { time: 6, kind: 'item', type: 'stopwatch-green', x: .3, y: .5 },
+      { time: 12, kind: 'item', type: 'stopwatch-blue', x: .7, y: .5 },
+    ],
+    dialogue: [
+      ['tom', 'Only 18 seconds to rescue lunch and defeat my mice! Your timer is almost empty already.'],
+      ['koshi', 'Stopwatches add time: red gives 10 seconds, green 30, blue 60. Their bonuses stack! The red one starts right beside me.'],
+      ['mouse', 'The clock keeps counting down. Collect the other stopwatches before it runs out!'],
+      ['koshi', 'With extra time I can gather 35 food points and earn 3 enemy points. Lunch will not be late!'],
+    ],
+  },
+  {
+    name: 'Recharge the cutlery', concept: 'battery', duration: 120, killGoal: 12,
+    enemies: [[0,'mouse',6],[30,'mouse',6,'red'],[55,'mouse',6],[80,'mouse',6,'red']], weapons: [],
+    bricks: [[2,{ spawner: { kind: 'weapon', type: 'silver' } }],[12,{ slimed: true, slimeColor: 'green' }]],
+    items: [[3,'battery'],[25,'battery'],[50,'battery']],
+    dialogue: [
+      ['tom', 'My mice are already on guard! Reach the silver-sword dispenser past the slime. Its first sword has only 5 attacks, but you need 12 enemy points!'],
+      ['koshi', 'Batteries recharge a spent spawner when I touch it again. Each new visit spends one battery and immediately releases another sword.'],
+      ['mouse', 'Staying on the dispenser does not recharge it again. Leave, collect the sword, then return with a battery!'],
+      ['koshi', 'No loose swords or Boost shortcuts here. I must reuse that dispenser for more weapons and rescue our cutlery!'],
+    ],
+  },
+  {
+    name: 'Pantry lullaby', concept: 'music box', duration: 90, goal: 30, killGoal: 4,
+    enemies: [[8,'mouse',4],[24,'bucket',2],[44,'mouse',4,'red'],[64,'bucket',2]], weapons: [[22,'silver'],[50,'silver']],
+    bricks: [[2,{ slimed: true, slimeColor: 'green' }],[12,{ conveyor: true }]],
+    items: [[12,'music-box'],[32,'music-box'],[56,'music-box']],
+    dialogue: [
+      ['tom', 'My mice and bomb-throwing bucket will keep you away from the supper shelves!'],
+      ['bucket', 'That Music Box puts robots to sleep for 5 seconds. Our movement and attacks pause while its notes play!'],
+      ['koshi', 'I can use the quiet moment to collect food or strike with a sword. The music does not last forever, so I will plan my route first.'],
+      ['tom', 'Recover 30 food points and earn 4 enemy points if you can stay awake through my pantry lullaby!'],
+    ],
+  },
+  {
+    name: 'Eggplant mix-up', concept: 'eggplant', duration: 80, goal: 35,
+    enemies: [[6,'mouse',3],[28,'wheel',3],[50,'mouse',3,'red']], weapons: [[20,'bronze'],[46,'silver']],
+    bricks: [[2,{ spikes: true }],[12,{ warped: 10 }]],
+    items: [[10,'eggplant'],[30,'eggplant'],[50,'eggplant']],
+    dialogue: [
+      ['tom', 'My mice and wheels guard Warped walls and spikes. I have mixed purple Eggplants into the food supply: each removes 10 food points!'],
+      ['koshi', 'My food score cannot fall below zero, but losing a meal still delays the rescue. I will redirect around those purple traps.'],
+      ['tom', 'You must finish with 35 food points, not merely collect that much before the Eggplants subtract it.'],
+      ['koshi', 'There is enough good food even after a mistake. This time I will leave the Eggplants for you!'],
+    ],
+  },
+  {
+    name: 'Saw through the blockade', concept: 'saw blade', duration: 110, killGoal: 6,
+    enemies: [[8,'mouse',5],[32,'mouse',5,'red'],[60,'mouse',5]], weapons: [],
+    bricks: [[2,{ boost: true }],[12,{ boost: true }],[19,{ boost: true }],[16,{ crumbler: 4 }]],
+    items: [[5,'saw-blade'],[40,'saw-blade']],
+    dialogue: [
+      ['tom', 'Saw Blades can destroy your routes! Carry one into a brick and the whole brick turns into unclickable Cinder, including a larger group.'],
+      ['koshi', 'Each saw works once. Goals are immune, but an ordinary or Boost brick is not. I must not cut away every useful launch point!'],
+      ['mouse', 'There are no swords or weapon spawners. Only launches from the remaining Boost bricks can defeat us!'],
+      ['koshi', 'I will spend the saw on a plain brick, preserve my Boost routes, and earn 6 enemy points to reopen the food road.'],
+    ],
+  },
+  {
+    name: 'Snake at the snack rack', concept: 'robo snake', duration: 100, killGoal: 3,
+    enemies: [[8,'snake',2],[32,'snake',2],[58,'snake',2,'red'],[78,'snake',1]],
+    weapons: [[22,'silver'],[52,'silver']],
+    bricks: [[2,{ springs: true }],[12,{ crumbler: 4 }]],
+    dialogue: [
+      ['tom', 'Robo Snakes, coil around the snack rack! Your four segments should block every hungry cat.'],
+      ['snake', 'I follow the inner perimeter at 95 units per second. Only my head accepts sword or Boost hits!'],
+      ['koshi', 'The three spiked body segments still hurt even during sleep or fear. I will intercept the head with a sword, not chase the tail.'],
+      ['tom', 'Earn 3 enemy points to free the snack rack. My snakes will not make that easy!'],
+    ],
+  },
+  {
+    name: 'A brighter buffet', concept: 'magical sunglasses', duration: 85, goal: 40,
+    enemies: [[6,'wheel',3],[28,'mouse',3],[50,'wheel',3,'red']], weapons: [[20,'bronze'],[48,'silver']],
+    bricks: [[2,{ crumbler: 2 }],[12,{ toggle: 2 }],[19,{ crumbler: 2 }]],
+    items: [[8,'magic-sunglasses'],[30,'magic-sunglasses'],[55,'magic-sunglasses']],
+    dialogue: [
+      ['tom', 'My mice and wheels patrol the buffet. Short-lived Crumblers and disabled Toggle routes will slow you down!'],
+      ['koshi', 'Magical Sunglasses let me select recharging bricks, exhausted Crumblers, and disabled Toggles for 10 seconds!'],
+      ['tom', 'They do not make Cinder or Goal bricks selectable, and they do not remove dangerous contact effects.'],
+      ['koshi', 'Another pair refreshes the effect. I will use those bright routes to recover 40 food points before the glasses fade!'],
+    ],
+  },
+  {
+    name: 'Three-course kickoff', concept: 'soccer goals and balls', duration: 110, goalsGoal: 3,
+    food: [], enemies: [[6,'mouse',3],[30,'wheel',2],[56,'mouse',3,'red']], weapons: [[20,'bronze'],[48,'silver']],
+    bricks: [[2,{ kind: 'goal' }],[4,{ kind: 'goal' }],[12,{ kind: 'goal' }],[14,{ kind: 'goal' }],
+      [19,{ kind: 'goal' }],[21,{ kind: 'goal' }],[23,{ kind: 'goal' }],
+      [16,{ springs: true }],[18,{ conveyor: true }],[0,{}],[8,{}],[17,{}]],
+    events: [0,18,36,54,72].map(time => ({ time, kind: 'object', type: 'soccer-ball', x: .5, y: .4 })),
+    dialogue: [
+      ['tom', 'My mice and wheels patrol the picnic grounds! Dodge them and score 3 goals before time runs out. Food and enemy points are not required.'],
+      ['koshi', 'I kick a Soccer Ball by bumping it while moving. Off-center bumps change its direction; friction slows it until it stops.'],
+      ['tom', 'The net faces the arena. Balls must enter between the posts; wide shots bounce. Goal bricks cannot be selected!'],
+      ['koshi', 'Three wide goals, a Spring bounce and a conveyor route! I will aim through each ball and redirect before landing. Five balls give me two spare shots for our three-course picnic!'],
+    ],
+  },
+  {
+    name: 'Stamp a snack shortcut', concept: 'ditto stamp', duration: 90, goal: 35,
+    enemies: [[6,'mouse',3],[28,'ball',3],[52,'mouse',3,'red']], weapons: [[20,'bronze'],[48,'silver']],
+    bricks: [[2,{ boost: true }],[12,{ conveyor: true }]],
+    items: [[5,'ditto-stamp'],[35,'ditto-stamp']],
+    dialogue: [
+      ['tom', 'My mice and balls guard the snack delivery. One Boost route and a conveyor? You will never cover the whole pantry!'],
+      ['koshi', 'A Ditto Stamp captures the properties of the first brick I stop on, then copies them onto my next landing brick. Its size stays the same!'],
+      ['tom', 'Portals cannot supply or receive copies, Goals are immune, and Spring bounces cannot capture a source because you do not stop.'],
+      ['koshi', 'I will land on the Boost brick first, then stamp a plain brick into another fast route. Recover 35 food points with my new shortcut!'],
+    ],
+  },
+  {
+    name: 'Scare up some supper', concept: 'spooky mask', duration: 90, goal: 30, killGoal: 4,
+    enemies: [[8,'mouse',4],[28,'ram',4],[50,'mouse',5,'red']],
+    weapons: [[22,'silver'],[50,'silver']],
+    bricks: [[2,{ spikes: true }],[12,{ springs: true }]],
+    items: [[12,'spooky-mask'],[32,'spooky-mask'],[56,'spooky-mask']],
+    dialogue: [
+      ['tom', 'My mice and rams will stand firm between you and supper!'],
+      ['ram', 'That Spooky Mask makes us flee slowly for 10 seconds. We cannot attack or hurt him while afraid!'],
+      ['koshi', 'New arrivals are scared too, and another mask refreshes the effect. I can collect food or fight, but I must be ready when fear ends.'],
+      ['tom', 'Thirty food points and 4 enemy points will free supper. Stop making frightening faces at my robots!'],
+    ],
+  },
+  {
+    name: 'Fence the food depot', concept: 'barrier blocks', duration: 100, goal: 35, killGoal: 4,
+    enemies: [[8,'bucket',3],[32,'ball',4,'red'],[58,'bucket',3]],
+    weapons: [[22,'silver'],[52,'silver']],
+    bricks: [[2,{ barrier: true }],[12,{ barrier: true }],[19,{ barrier: true }],
+      [16,{ crumbler: 4 }],[18,{ springs: true }],[0,{}],[8,{}],[17,{}]],
+    dialogue: [
+      ['tom', 'Robo Balls and Buckets, guard the food depot! Bounce and bombard your way past Koshi.'],
+      ['bucket', 'Selecting a Barrier brick grows a fence straight into the arena until it reaches a wall or another fence. Robots and flying bombs bounce off it!'],
+      ['koshi', 'I pass through freely. Selecting its brick again after cooldown retracts the fence, so I can change the protected routes.'],
+      ['tom', 'Use your fences to recover 35 food points and earn 4 enemy points. That depot is still mine!'],
+    ],
+  },
+  {
+    name: 'Pumpkin pantry patrol', concept: 'robo jackolantern', duration: 100, killGoal: 4,
+    enemies: [[8,'jackolantern',2],[30,'jackolantern',2],[52,'jackolantern',2,'red'],[74,'jackolantern',2]],
+    weapons: [[22,'silver'],[52,'silver']],
+    bricks: [[2,{ barrier: true }],[12,{ barrier: true }],[19,{ barrier: true }],[16,{ toggle: 2 }]],
+    dialogue: [
+      ['tom', 'Robo Jackolanterns, light up the pumpkin pantry! Let no cat approach the food reserves.'],
+      ['jackolantern', 'I wander slowly, warn for half a second, then stomp every 4 seconds. A square ring of fire grows outward from each stomp!'],
+      ['koshi', 'Bricks and Barrier fences stop the fire, but other robots do not. Defeating the pumpkin extinguishes its waves. I will set fences and strike with a sword.'],
+      ['tom', 'Earn 4 enemy points to clear the pumpkin pantry. Watch for that warning before you cross the fire!'],
+    ],
+  },
+  {
+    name: 'The final countdown feast', concept: 'boom helmet and boom times', duration: 100, goal: 35,
+    activationLimit: 6, enemies: [[6,'mouse',3],[28,'wheel',3],[52,'mouse',4,'red']],
+    weapons: [[20,'bronze'],[48,'silver']],
+    bricks: [[2,{ warped: 10 }],[12,{ conveyor: true }]],
+    events: [
+      { time: 0, kind: 'item', type: 'boom-time-blue', x: .5, y: .5 },
+      { time: 12, kind: 'item', type: 'boom-time-green', x: .3, y: .5 },
+      { time: 24, kind: 'item', type: 'boom-time-red', x: .7, y: .5 },
+      { time: 42, kind: 'item', type: 'boom-time-blue', x: .5, y: .3 },
+    ],
+    dialogue: [
+      ['tom', 'My mice and wheels guard Warped conveyors! A Boom Helmet begins with 6 charges when you press Start. Every successful brick selection spends one, even a midair redirect!'],
+      ['koshi', 'At zero it explodes immediately. Hearts cannot save me, so I must collect Boom Times before I spend my last charge!'],
+      ['tom', 'Red adds 1 charge, green 3, blue 8. Those bomb clocks do not add level time. Failed clicks and physical brick contacts cost no charges.'],
+      ['koshi', 'The first blue clock is beside me. I will plan each route, collect more charges, and recover 35 food points for the world\'s final countdown feast!'],
+    ],
+  },
 ].map((entry, index) => {
   const food = entry.food ?? Object.keys(FOODS).map((type, i) => [
     3 + Math.floor(i * (entry.duration - 12) / 6),
@@ -389,7 +582,8 @@ const LEVELS = [
       placements.push(...returning.map(([, attributes], i) => [returningIds[i], attributes]));
     }
   }
-  const members = introduced ? [[2,4],[12,14],[17,19,21],[3,5]]
+  const members = index >= 19 ? [[2,4],[12,14], index % 2 ? [19,21] : [19,21,23]]
+    : introduced ? [[2,4],[12,14],[17,19,21],[3,5]]
     : index % 2 ? [[4,6],[3,1],[20,22],[11,13,15]] : [[0,2],[7,5],[12,14],[19,21,23]];
   const brickGroups = members.map(members => ({
     owner: introduced && members[0] === 17 ? 19 : index === 0 && members[0] === 0 ? 2 : members[0], members,
@@ -418,16 +612,19 @@ const LEVELS = [
     ? [[entry.enemies[0][0] + 14, 'bronze']]
     : [[entry.enemies[0][0] + 12, 'silver'], [Math.floor(entry.duration * .6), 'silver'],
       ...(entry.killGoal > 10 ? [[entry.duration - 22, 'silver']] : [])]);
-  if (index >= 10 && entry.killGoal > 0 && !brickTypes.some(brick => brick.boost)) {
+  if (index >= 10 && index < 19 && entry.killGoal > 0 && !brickTypes.some(brick => brick.boost)) {
     weapons.push([Math.floor(entry.duration / 3), 'bronze'], [Math.floor(entry.duration * 2 / 3), 'bronze']);
     weapons.sort((a, b) => a[0] - b[0]);
   }
   return {
     id: `1-${index + 1}`, name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
-    heartCost: index < 3 ? Infinity : Math.ceil(foodPoints / 5),
+    heartCost: index < 3 || foodPoints === 0 ? Infinity : Math.ceil(foodPoints / 5),
     brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies, items: entry.items ?? [],
     weapons,
+    ...(entry.events ? { events: entry.events } : {}),
+    ...(entry.goalsGoal ? { goalsGoal: entry.goalsGoal } : {}),
+    ...(entry.activationLimit ? { activationLimit: entry.activationLimit } : {}),
     cutscene: story(index < 10 ? 'garden' : 'workshop', entry.dialogue, cast),
   };
 });
@@ -1209,7 +1406,7 @@ class Game {
       if (!LEVELS[level]) throw new RangeError(`Unknown level: ${level}`);
       this.levelIndex = level;
       this.level = LEVELS[level];
-      this.customEvents = [];
+      this.customEvents = [...(this.level.events ?? [])].sort((a, b) => a.time - b.time);
     }
     this.random = random;
     this.portrait = portrait;
@@ -1724,6 +1921,7 @@ class Game {
       if (ball.x > limits.right) { ball.x = limits.right; ball.vx = -Math.abs(ball.vx); }
       if (ball.y < limits.top) { ball.y = limits.top; ball.vy = Math.abs(ball.vy); }
       if (ball.y > limits.bottom) { ball.y = limits.bottom; ball.vy = -Math.abs(ball.vy); }
+      return limits;
     };
     const actors = [{ ...this.cat, oldX: startX, oldY: startY, kick: true },
       ...this.robots.flatMap(enemy => {
@@ -1791,6 +1989,18 @@ class Game {
             const restitution = actor.kick ? .5 : .8;
             ball.vx -= (1 + restitution) * incoming * normal.x;
             ball.vy -= (1 + restitution) * incoming * normal.y;
+            if (actor.kick) {
+              const limits = contain(ball);
+              const nx = limits.left > faces.left && ball.x - limits.left <= actor.radius ? 1
+                : limits.right < faces.right && limits.right - ball.x <= actor.radius ? -1 : 0;
+              const ny = limits.top > faces.top && ball.y - limits.top <= actor.radius ? 1
+                : limits.bottom < faces.bottom && limits.bottom - ball.y <= actor.radius ? -1 : 0;
+              // Koshi's larger radius cannot get behind a ball wedged between two walls.
+              if (nx && ny) {
+                ball.vx = nx * Math.abs(ball.vx); ball.vy = ny * Math.abs(ball.vy);
+                normal = { x: nx * Math.abs(normal.x), y: ny * Math.abs(normal.y) };
+              }
+            }
           }
           const limit = Math.hypot(ball.vx, ball.vy);
           if (limit > 650) { ball.vx *= 650 / limit; ball.vy *= 650 / limit; }

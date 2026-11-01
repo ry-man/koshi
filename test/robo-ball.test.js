@@ -35,7 +35,7 @@ test('Robo Ball supports custom placements, shields, spawners, previews and guid
   assert.equal(CHARACTERS.ball, 'Robo Ball');
   assert.ok(spawnSymbol({ kind: 'enemy', type: 'ball' }));
   assert.equal(spawnColor({ kind: 'enemy', type: 'ball' }), '#ed852e');
-  assert.ok(LEVELS.every(level => level.enemies.every(([, type]) => type !== 'ball')));
+  assert.ok(LEVELS.slice(0, 19).every(level => level.enemies.every(([, type]) => type !== 'ball')));
   const tutorial = new Tutorial(); tutorial.select(LESSONS.findIndex(lesson => lesson.id === 'ball'));
   assert.ok(tutorial.game.robots.some(enemy => enemy.type === 'ball'));
 });

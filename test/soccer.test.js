@@ -43,7 +43,7 @@ test('soccer is a persistent neutral object, supports scheduled placements and s
   assert.equal(OBJECTS['soccer-ball'].name, 'Soccer Ball');
   assert.ok(spawnSymbol({ kind: 'object', type: 'soccer-ball' }));
   assert.equal(spawnColor({ kind: 'object', type: 'soccer-ball' }), '#f1f3f2');
-  assert.ok(LEVELS.every(level => !level.goalsGoal && level.brickTypes.every(b => b.kind !== 'goal')));
+  assert.ok(LEVELS.slice(0, 19).every(level => !level.goalsGoal && level.brickTypes.every(b => b.kind !== 'goal')));
 });
 
 test('soccer targets validate whole counts, combinations, survival exclusion and immutable goal modifiers', () => {
@@ -167,6 +167,44 @@ test('soccer balls stay inside brick faces at every corner, including escaped ba
         new Map([[enemy, { x: enemy.x - sx * 40, y: enemy.y - sy * 40 }]]));
       inside(item);
       game.robots = []; game.soccerBalls = [];
+    }
+  }
+});
+
+test('Koshi can push stationary balls out of all four corners with real brick steering', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }, { portrait: true, scale: .5 }]) {
+    for (const [sx, sy, inset] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+      .flatMap(([sx, sy]) => [0, 10].map(inset => [sx, sy, inset]))) {
+      const game = arena(options);
+      const regions = brickRegions(game.bricks, game.width, game.height);
+      const side = edge => game.bricks.filter(brick => regions.get(brick.id).edge === edge);
+      const faces = {
+        left: Math.max(...side('left').map(brick => brick.x + brick.w)),
+        right: Math.min(...side('right').map(brick => brick.x)),
+        top: Math.max(...side('top').map(brick => brick.y + brick.h)),
+        bottom: Math.min(...side('bottom').map(brick => brick.y)),
+      };
+      const item = ball(game);
+      item.x = (sx < 0 ? faces.left : faces.right) - sx * (item.radius + inset);
+      item.y = (sy < 0 ? faces.top : faces.bottom) - sy * (item.radius + inset);
+      const corner = { x: item.x, y: item.y };
+      game.cat.x = item.x - sx * 90; game.cat.y = item.y - sy * 90;
+      game.update(.1);
+      assert.equal(item.x, corner.x); assert.equal(item.y, corner.y, 'stationary balls do not escape automatically');
+      const target = side(sx < 0 ? 'left' : 'right')
+        .sort((a, b) => Math.abs(a.y + a.h / 2 - corner.y) - Math.abs(b.y + b.h / 2 - corner.y))[0];
+      const aimX = sx < 0 ? target.x + target.w - 1 : target.x + 1;
+      const aimY = Math.max(target.y, Math.min(target.y + target.h, corner.y + sy * (item.radius + 1)));
+      assert.equal(game.steer(target.id, aimX, aimY), true);
+      for (let i = 0; i < 120; i++) {
+        game.update(1 / 120);
+        assert.ok(item.x >= faces.left + item.radius - 1e-6 && item.x <= faces.right - item.radius + 1e-6);
+        assert.ok(item.y >= faces.top + item.radius - 1e-6 && item.y <= faces.bottom - item.radius + 1e-6);
+      }
+      assert.ok((item.x - corner.x) * -sx > 25 && (item.y - corner.y) * -sy > 25,
+        `ball remains stuck: ${JSON.stringify(options)}, corner ${sx},${sy}, ball ${item.x},${item.y}`);
+      assert.equal(game.hearts, 3);
+      assert.equal(game.goals, 0);
     }
   }
 });

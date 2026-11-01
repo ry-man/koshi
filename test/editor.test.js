@@ -21,13 +21,17 @@ test('campaign editor previews use every real schedule and preserve the original
     assert.equal(preview.goal, campaign.goal);
     assert.equal(preview.killGoal, campaign.killGoal);
     assert.equal(preview.survive, campaign.survive);
+    assert.equal(preview.goalsGoal, campaign.goalsGoal);
+    assert.equal(preview.activationLimit, campaign.activationLimit);
     assert.equal(preview.brickTypes, campaign.brickTypes);
     assert.equal(preview.brickGroups, campaign.brickGroups);
     assert.equal(preview.cutscene, campaign.cutscene);
     assert.equal(preview.events.length,
       campaign.food.reduce((sum, [, method]) => sum + (method === 'S' ? 1 : Number(method.slice(1))), 0)
       + campaign.enemies.reduce((sum, [, , count]) => sum + count, 0)
-      + campaign.items.length + campaign.weapons.length);
+      + campaign.items.length + campaign.weapons.length + (campaign.events?.length ?? 0));
+    for (const event of campaign.events ?? []) assert.ok(preview.events.includes(event));
+    validateCustomLevel({ ...preview, version: 1 });
     assert.equal(JSON.stringify(context.campaignPreview(index)), JSON.stringify(preview), 'representative positions stay stable');
     for (const [kind, schedule] of [['food', campaign.food], ['enemy', campaign.enemies], ['item', campaign.items], ['weapon', campaign.weapons]]) {
       for (const [time, typeOrMethod, typeOrCount, lifetimeOrShield] of schedule) {
@@ -77,7 +81,7 @@ test('campaign play links choose the original game level and malformed links rep
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const start = source.indexOf("if (location.hash.startsWith('#campaign='))");
   const script = source.slice(start, source.indexOf('function layoutOptions()', start));
-  for (const [hash, expected] of [['#campaign=1-19', '18'], ['#campaign=unknown', null], ['#campaign=%', null]]) {
+  for (const [hash, expected] of [['#campaign=1-19', '18'], ['#campaign=1-34', '33'], ['#campaign=unknown', null], ['#campaign=%', null]]) {
     const levelSelect = { value: '0' }, error = { hidden: true }, failures = [];
     const context = vm.createContext({ location: { hash }, LEVELS, levelSelect,
       document: { querySelector: () => error }, console: { error: (...args) => failures.push(args) } });

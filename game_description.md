@@ -61,7 +61,8 @@ red (`boom-time-red`) adds **1**, green (`boom-time-green`) adds **3**, and blue
 These pickups do not add level-clock time. Without an equipped helmet they are
 collected with no effect, and cannot revive an exploded helmet. All variants
 are available in editor placements and item spawners, with optional lifetimes
-and standard pickup effects. Existing campaign content stays unchanged.
+and standard pickup effects. Level 1-34 introduces the helmet and all three
+Boom Time colors; the original 19 levels stay unchanged.
 
 ### Learning Menus
 
@@ -98,11 +99,11 @@ gameplay, pausing a normal attempt or discarding tutorial practice.
 Any level may define an optional cutscene before gameplay. The top two-thirds
 of the screen show the cast interacting against a background matching the
 level's world: a garden path for Levels 1-1 through 1-10 and the Clockwork Pantry
-workshop for Levels 1-11 through 1-19. The bottom third is a retro RPG dialogue box,
+workshop for Levels 1-11 through 1-34. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
 dialogue in the locally bundled Pixelify Sans pixel font on the right.
 Speaker names, scene headings, and controls use the same blocky retro font.
-Koshi, Robo Mouse, Robo Wheel, Robo Ram, Robo Bucket, and Tom the Duck each have a distinct pixel
+Koshi, all seven robot types, and Tom the Duck each have a distinct pixel
 portrait. Gameplay characters reuse their actual drawings; Tom has a dedicated
 full-body robot-duck drawing based on the supplied sketch.
 
@@ -127,7 +128,7 @@ The level editor supports optional scenes with either background, ordered
 dialogue lines, a speaker, and an on-stage cast. Saved JSON can additionally
 set each actor's normalized position per line. Tom is available as a speaker
 and cast member using the character ID `tom`, alongside `koshi`, `mouse`,
-`wheel`, `ram`, and `bucket`. Older custom scenes remain supported.
+`wheel`, `ram`, `bucket`, `ball`, `snake`, and `jackolantern`. Older custom scenes remain supported.
 The editor's Level library also offers every built-in campaign level for
 read-only inspection of bricks, scheduled events, cutscenes, and preview timing.
 Campaign spawn coordinates are representative randomized examples. Editing and
@@ -313,7 +314,7 @@ a source because Koshi does not stop. Midair redirects retain the captured copy.
 pickups do not stack, and a held saw takes priority without consuming the stamp.
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask are available in the editor for
-custom levels, but are not placed in the current built-in campaign.
+custom levels and introduced individually in Levels 1-21 through 1-31.
 Sword icons share the
 weapon colors: brown wood, dark green patinated bronze, silver, and gold.
 Gameplay swords also have thin dark outlines around the blade, guard, and handle.
@@ -331,7 +332,11 @@ It is a neutral object, not an enemy or pickup. Koshi kicks it by bumping into
 it while moving; an off-center bump changes the kick direction. The ball rolls
 and bounces off bricks, enemies and Barrier fences. Boundary gaps and collision
 push-outs cannot send a ball behind the enclosing bricks; escaped balls are
-returned inside. Goal openings still admit scoring shots. Friction reduces its
+returned inside. Goal openings still admit scoring shots.
+When Koshi kicks a ball wedged near two corner walls, the kick and separation
+are directed inward so he can push it back into play without getting behind it.
+Stationary balls do not move on their own, and goal openings remain unaffected.
+Friction reduces its
 speed by 100 game units/second each second until it comes to a complete stop. Kicks
 are capped at 650 units/second; rebounds from enemies preserve 80% of the
 normal relative speed. Balls do not damage enemies or Koshi. Swords, Boost,
@@ -352,7 +357,8 @@ before time runs out. Survival remains exclusive. The editor supports Goals
 and scheduled soccer balls (`kind: "object", type: "soccer-ball"`), including
 ball spawners. Balls have no lifetime or shield. Pause freezes rolling/scoring
 effects; restart clears scores and restores placements. The guide and tutorial
-include soccer. Existing campaign content and objectives remain unchanged.
+include soccer. Level 1-29 requires three goals and supplies five balls; the
+original 19 levels remain unchanged.
 
 ## Enemies
 
@@ -367,8 +373,8 @@ keep expanding. Enemies do not block fire. Sleep freezes the attack and waves;
 fear suppresses stomps and fire damage while it flees. Defeat extinguishes its
 waves. Its nose and mouth dim grey, its antenna breaks in half, then it bursts
 into pieces and fades over 1.2 seconds. It supports shields, swords, Boost,
-editor placements/spawners, custom cutscenes and guide practice. Existing
-campaign levels are unchanged.
+editor placements/spawners, custom cutscenes and guide practice. Level 1-33
+introduces it with Barrier fences; the original 19 levels are unchanged.
 
 **Robo Snake** (`snake`) follows the inner perimeter like a Wheel at 95 game
 units/second. Its four grey segments consist of a red-eyed head with a periodically
@@ -384,7 +390,8 @@ Every segment blocks other enemies and soccer balls and stays inside the bricks,
 with Barrier fences blocking the entire snake. On defeat the four segments fall
 apart and fade over 1.2 seconds while the detached tongue spins away.
 Custom placements snap to the perimeter; editor spawners, portraits, the guide
-and an interactive head-interception lesson support it. Campaign levels stay unchanged.
+and an interactive head-interception lesson support it. Level 1-27 introduces
+head interception; the original 19 levels stay unchanged.
 
 **Robo Ball** (`ball`) is an orange robot basketball with dark grey stripes,
 two beady red eyes and a rectangular mouth whose grey grate resembles teeth.
@@ -394,10 +401,11 @@ It has no pauses, targeting or attacks beyond standard contact damage.
 Shields, swords, Boost, Music Box sleep and Spooky Mask fear work as for other
 robots. When defeated, it shrivels up, its eyes pop into the air, and it fades
 away over 1.1 seconds. Pause freezes this animation. Robo Ball is available in
-the editor, enemy spawn bricks, cutscenes and guide practice; current campaign
-levels are unchanged.
+the editor, enemy spawn bricks, cutscenes and guide practice. Level 1-20 introduces
+its bouncing movement; the original 19 levels are unchanged.
 
-Barrier bricks are an exclusive brick surface available for custom levels.
+Barrier bricks are an exclusive brick surface introduced in Level 1-32 and
+available for custom levels.
 Successfully selecting one extends a dark green semi-transparent fence at
 180 game units per second from the center of its arena-facing surface,
 perpendicular to that surface, until it touches another brick or barrier.
@@ -408,8 +416,8 @@ the brick. Growing fences push enemies toward safe positions inside the
 enclosing bricks, never outside the arena, including at endpoints and corners.
 Pause freezes extension/retraction; restart clears fences. A fence
 disappears when its owner loses the surface, is destroyed, or is absorbed;
-merged owners use their current combined surface center. No campaign placements
-are added.
+merged owners use their current combined surface center. Level 1-33 also uses
+fences to block Jackolantern fire.
 Whenever Koshi loses a heart to an enemy or spikes, he becomes invulnerable to both for one second of game time. For exactly that interval he has an upset face and blinks between red shades. The animation uses the same timer as invulnerability: it ends precisely when he can take damage again. Blocked hits do not extend the timer. Pause freezes both; restart clears both. Contact tracking still requires separation before another hit from the same continuous contact. Protected Koshi can still move, collect items, attack, and be stopped by spikes; falling off the board still ends the attempt.
 
 Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.
@@ -479,7 +487,7 @@ Koshi dies if he either runs out of hearts or if he runs off of the edge of the 
 
 ### World 1: The food rescue
 
-The old five levels are replaced by 19 lessons. The complete level names,
+The old five levels were replaced by 19 lessons, now extended to 34. The complete level names,
 concept order, durations, and victory targets are listed in the
 [campaign table](./README.md#how-to-play-and-interactive-tutorial).
 Food-only, enemy-only, combined, and survival missions all use the same engine rules.
@@ -487,13 +495,17 @@ Food-only, enemy-only, combined, and survival missions all use the same engine r
 Each level introduces one concept in this order: normal red/blue/green bricks,
 Robo Mouse, swords, hearts and heart cost, Crumblers, slime, enemy shields,
 Spikes, Robo Wheels, Springs, Conveyors, Warped bricks, Robo Rams, Boost,
-Spawners, Robo Buckets, Cinder, Toggles, Portals. Returning mechanics are
+Spawners, Robo Buckets, Cinder, Toggles, Portals. The appended lessons introduce
+Robo Ball, Smiley Cookie, Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
+Robo Snake, Magical Sunglasses, Soccer Goal and Ball, Ditto Stamp, Spooky Mask,
+Barrier blocks, Robo Jackolantern, and Boom Helmet with Boom Times.
+Returning mechanics are
 chosen for useful combinations rather than including every earlier brick style.
-Each layout has at most six distinct styles and always retains ordinary steering
-bricks. The 26 boundary segments form 21 starting blocks: 17 standard, three
+The original layouts have at most six distinct styles and always retain ordinary steering
+bricks. Their 26 boundary segments form 21 starting blocks: 17 standard, three
 double (14.3%), and one triple (4.8%). Desktop and portrait use the same groups.
 
-All seven foods appear in each mission. Food patterns use three-item lines,
+The original 19 missions include all seven foods. Food patterns use three-item lines,
 circles, and scattered groups, plus a single hamburger. Level 1-1 has appearances
 at 3, 11, 19, 27, 35, 43, and 51 seconds; later levels distribute their seven
 appearances from 3 seconds through nine seconds before the time limit.
@@ -523,7 +535,7 @@ its 12-enemy-point target must be met using Boost launches, with an extended
 Special-brick introductions provide at least three separate instances away from
 corner segments. Three of four larger starting blocks (75%) use the introduced
 feature: two doubles and one triple; the fourth larger block stays ordinary.
-Returning features remain on separate bricks. The final level uses four portals
+Returning features remain on separate bricks. Level 1-19 uses four portals
 in purple and orange pairs, with three endpoints on larger blocks. All exits
 are clear of walls in desktop and portrait play.
 Enemy waves are larger after the enemy-free first level. Shielded enemies start
@@ -537,7 +549,46 @@ from Tom's robots. The first scene introduces Tom the Duck without showing any
 combat robot. Each campaign scene includes Koshi and at most three enemies
 including Tom; speaking robots take priority in the smaller cast. Each later
 scene uses only enemy types actually in that level, never future enemies.
-The final mission pairs purple Portals with Boost and
-Toggle routes to break Tom's last blockade and reclaim a feast for the world.
+Level 1-19 pairs purple Portals with Boost and Toggle routes to reclaim a feast,
+before Tom reveals the deeper pantry reserves in the new lessons.
+Levels 1-20 through 1-34 each explain their new element in a cutscene and use at
+most five distinct brick styles. Each has three larger blocks: either three
+size-2 bricks or two size-2 bricks and one size-3 brick. Desktop and portrait
+share the same groups. No absent robots appear in the cutscene cast.
+Each added lesson includes two previously introduced special brick mechanics,
+chosen for that challenge rather than accumulating every earlier feature.
+The returning types, enemy counts and sword times are listed in the
+[campaign difficulty table](./README.md#controls-and-rules).
+All added lessons now include robot patrols; existing waves are at least 50%
+larger and include red shields. Food-only and soccer objectives remain unchanged.
+Scheduled swords appear at least ten seconds after the first enemy wave.
+Enemy-score lessons supply the target plus 50% spare attacks (at least five),
+plus one unfinished red-shield hit, rounded up to silver swords.
+The Battery and Saw challenges keep their required dispenser and Boost routes
+instead of adding loose weapons.
+
+The Goal and Barrier introductions have three independent copies, all away
+from corner segments, with large copies among them. These two lessons use only
+green/red plain cooldown bricks so the new type and two returning styles still
+fit the five-style cap. Other new lessons retain blue/green/red plain bricks.
+
+Level 1-22 begins with just 18 seconds and requires 35 food plus 3 enemy points.
+Red, green and blue Stopwatches add 10, 30 and 60 seconds; red starts beside Koshi.
+Level 1-23 requires 12 enemy points with one silver-sword spawner (5 attacks
+per weapon), three Batteries and no other swords or Boost bricks. Its 24 mice
+start arriving at time zero, before the first sword can be reached. Leaving
+and revisiting the spent dispenser with a battery is required to win; four
+total swords offer 20 attacks, including a reserve for shield mistakes.
+Level 1-25 requires 35 food points; three Eggplants can subtract 10 each, with
+enough food remaining to recover from all three mistakes.
+Level 1-26 supplies Saw Blades and three Boost bricks, but no weapons or weapon
+spawners. Preserve Boost routes and use boosted launches to earn 6 enemy points.
+Level 1-29 is food-free: dodge eight mice/wheels and score 3 soccer goals using
+five balls and three wide goals (two size-2 and one size-3), with Spring and
+Conveyor routes. Enemy defeats are optional; defensive swords appear later.
+Level 1-34 starts with 6 helmet charges and requires
+35 food points. Its first blue Boom Time is beside Koshi; red, green and another
+blue appear later. Charges must be collected before the helmet reaches zero.
 Campaign progress uses a new save key; old five-level saves remain untouched
-and cannot skip these new lessons.
+and cannot skip these new lessons. Existing 19-level saves retain all their
+completed levels and resume at 1-20, using the same current save key.

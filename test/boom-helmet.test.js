@@ -26,7 +26,7 @@ test('optional helmet limits validate, preserve old JSON and campaign content, a
   }
   assert.match(levelObjective({ ...blank(), activationLimit: 3 }), /Boom Helmet: 3 activations; reaching zero is fatal/);
   assert.match(levelObjective({ ...blank(), goal: 0, survive: true, activationLimit: 3 }), /Survive.+Boom Helmet/);
-  assert.ok(LEVELS.every(level => level.activationLimit === undefined && level.items.every(([, type]) => !type.startsWith('boom-time'))));
+  assert.ok(LEVELS.slice(0, 19).every(level => level.activationLimit === undefined && level.items.every(([, type]) => !type.startsWith('boom-time'))));
 });
 
 test('helmet arrives only after Start, counts only successful activations including redirects and sunglasses, and freezes on pause', () => {

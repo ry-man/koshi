@@ -46,7 +46,7 @@ test('Jackolantern placements, shields, spawners, previews and guide leave campa
   assert.equal(CHARACTERS.jackolantern, 'Robo Jackolantern');
   assert.ok(spawnSymbol({ kind: 'enemy', type: 'jackolantern' }));
   assert.equal(spawnColor({ kind: 'enemy', type: 'jackolantern' }), '#ed852e');
-  assert.ok(LEVELS.every(level => level.enemies.every(([, type]) => type !== 'jackolantern')));
+  assert.ok(LEVELS.slice(0, 19).every(level => level.enemies.every(([, type]) => type !== 'jackolantern')));
   const tutorial = new Tutorial(); tutorial.select(LESSONS.findIndex(l => l.id === 'jackolantern'));
   assert.ok(tutorial.game.robots.some(enemy => enemy.type === 'jackolantern'));
 });

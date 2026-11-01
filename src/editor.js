@@ -48,7 +48,7 @@ function campaignPreview(index) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
   }, { level: index });
-  const events = [];
+  const events = [...(game.level.events ?? [])];
   const bounds = game.bounds();
   const add = (kind, time, type, point, lifetime, shield) => events.push({
     kind, time, type, x: (point.x - bounds.left) / (bounds.right - bounds.left),

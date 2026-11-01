@@ -27,7 +27,7 @@ test('Barrier validates, rejects conflicting surfaces, and leaves campaign level
   assert.equal(validateCustomLevel(custom).brickTypes[0].barrier, true);
   assert.throws(() => validateCustomLevel({ ...custom, brickTypes: [{ ...custom.brickTypes[0], barrier: 'yes' }] }));
   assert.throws(() => validateCustomLevel({ ...custom, brickTypes: [{ ...custom.brickTypes[0], spikes: true }] }));
-  assert.ok(LEVELS.every(level => level.brickTypes.every(brick => !brick.barrier)));
+  assert.ok(LEVELS.slice(0, 19).every(level => level.brickTypes.every(brick => !brick.barrier)));
 });
 
 for (const options of [{}, { portrait: true, scale: .3 }]) {

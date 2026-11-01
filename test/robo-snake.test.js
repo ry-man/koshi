@@ -25,7 +25,7 @@ test('snake schemas, scheduled spawns and shields initialize four perimeter segm
   game.spawnFromBrick(game.bricks.find(b => b.spawner));
   assert.equal(game.robots[1].type, 'snake'); assert.equal(game.robots[1].defeatPoints, 2);
   assert.equal(CHARACTERS.snake, 'Robo Snake');
-  assert.ok(LEVELS.every(l => l.enemies.every(([, type]) => type !== 'snake')));
+  assert.ok(LEVELS.slice(0, 19).every(l => l.enemies.every(([, type]) => type !== 'snake')));
 });
 
 for (const options of [{}, { portrait: true, scale: .3 }]) {

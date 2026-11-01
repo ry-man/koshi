@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, FOODS, SHIELDS, SWORDS, CONTACT_SURFACES, validateCustomLevel, portalPairIssues } = require('../src/game.js');
+const { Game, LEVELS: CAMPAIGN, FOODS, SHIELDS, SWORDS, CONTACT_SURFACES, validateCustomLevel, portalPairIssues } = require('../src/game.js');
 const { SaveSlots, SAVE_KEY } = require('../src/saves.js');
+const LEVELS = CAMPAIGN.slice(0, 19);
 
 const concepts = [
   'normal bricks', 'robo mouse', 'swords', 'hearts and heart cost', 'crumblers',
@@ -52,7 +53,7 @@ test('the replacement campaign introduces exactly one concept in the requested o
     assert.match(level.cutscene.lines.map(line => line.text).join(' '), /food|meal|breakfast|banana|cheese|lunch|picnic|supper|pretzel|burger|bread/i);
   }
   assert.match(LEVELS[0].cutscene.lines[0].text, /Tom the Duck/);
-  assert.throws(() => new Game(Math.random, { level: LEVELS.length }), RangeError);
+  assert.throws(() => new Game(Math.random, { level: CAMPAIGN.length }), RangeError);
 });
 
 test('new brick introductions feature three non-corner instances and 75% of larger bricks', () => {

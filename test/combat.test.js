@@ -46,11 +46,13 @@ test('new campaign levels require both goals and count the final real sword defe
       assert.equal(hungry.state, 'won');
 
       const timeout = arena({ level, ...options });
+      timeout.update(.01);
       timeout.score = timeout.level.goal;
-      timeout.elapsed = timeout.level.duration - .01;
+      timeout.elapsed = timeout.timeLimit - .01;
       timeout.nextEnemy = timeout.level.enemies.length;
       timeout.nextWeapon = timeout.level.weapons.length;
       timeout.nextEvent = timeout.level.food.length;
+      timeout.nextCustom = timeout.customEvents.length;
       timeout.update(.02);
       assert.equal(timeout.state, 'lost', 'missing defeats must lose at timeout');
     }
