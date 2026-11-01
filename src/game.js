@@ -48,7 +48,7 @@ const SWORDS = {
 };
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
-const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost'];
+const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier'];
 const DITTO_PROPERTIES = ['kind', 'crumbler', 'warped', 'toggle', 'slimeColor', 'conveyorDirection', ...CONTACT_SURFACES];
 
 function dittoProperties(brick) {
@@ -83,7 +83,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
 function validateCutscene(value) {
@@ -449,7 +449,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, weapon: SWORDS, item: ITEMS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true }, weapon: SWORDS, item: ITEMS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
     const result = { time, kind: event.kind, type: event.type, x, y };
@@ -485,7 +485,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
         if (!['clockwise', 'counterclockwise'].includes(entry.conveyorDirection)) fail(`Brick override ${i + 1} has an unknown conveyor direction.`);
         override.conveyorDirection = entry.conveyorDirection;
       }
-      for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor']) {
+      for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor', 'barrier']) {
         if (entry[attribute] === undefined) continue;
         if (typeof entry[attribute] !== 'boolean') fail(`Brick override ${i + 1} ${attribute} must be a boolean.`);
         override[attribute] = entry[attribute];
@@ -505,7 +505,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true }, heart: { heart: true }, item: ITEMS };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true }, heart: { heart: true }, item: ITEMS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
@@ -978,6 +978,90 @@ function makeBricks(portrait = false, scale = 1) {
 }
 
 // Exact swept circle/rectangle contact, including rounded corner contacts.
+function clipFirePolygon(polygon, signedDistance) {
+  const result = [];
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+    const da = signedDistance(a), db = signedDistance(b);
+    if (da >= -1e-9) result.push(a);
+    if ((da >= 0) !== (db >= 0)) {
+      const t = da / (da - db);
+      result.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return result;
+}
+
+function firePoint(wave, side, radius, along) {
+  const [nx, ny] = [[1, 0], [0, 1], [-1, 0], [0, -1]][side];
+  return [wave.x + radius * (nx - ny * along), wave.y + radius * (ny + nx * along)];
+}
+
+function fireIntervals(wave, side) {
+  let start = -1;
+  const live = [];
+  for (const [left, right] of wave.blocked[side]) {
+    if (left > start + 1e-9) live.push([start, left]);
+    start = Math.max(start, right);
+  }
+  if (start < 1 - 1e-9) live.push([start, 1]);
+  return live;
+}
+
+function blockFireWave(wave, parts, previousRadius = 0) {
+  for (let side = 0; side < 4; side++) {
+    const [nx, ny] = [[1, 0], [0, 1], [-1, 0], [0, -1]][side];
+    const intervals = [...wave.blocked[side]];
+    for (const part of parts) {
+      let polygon = [[part.x, part.y], [part.x + part.w, part.y],
+        [part.x + part.w, part.y + part.h], [part.x, part.y + part.h]]
+        .map(([x, y]) => [(x - wave.x) * nx + (y - wave.y) * ny,
+          -(x - wave.x) * ny + (y - wave.y) * nx]);
+      for (const plane of [p => p[0] - p[1], p => p[0] + p[1],
+        p => wave.radius + 3 - p[0], p => p[0] - Math.max(0, previousRadius - 3)]) {
+        polygon = clipFirePolygon(polygon, plane);
+      }
+      if (!polygon.length) continue;
+      if (polygon.some(([out, along]) => Math.abs(out) < 1e-9 && Math.abs(along) < 1e-9)) {
+        intervals.push([-1, 1]); continue;
+      }
+      const angles = polygon.filter(([out]) => out > 1e-9).map(([out, along]) => along / out);
+      if (angles.length) intervals.push([Math.max(-1, Math.min(...angles)), Math.min(1, Math.max(...angles))]);
+    }
+    const merged = [];
+    for (const interval of intervals.sort((a, b) => a[0] - b[0])) {
+      const last = merged[merged.length - 1];
+      if (last && interval[0] <= last[1] + 1e-9) last[1] = Math.max(last[1], interval[1]);
+      else merged.push([...interval]);
+    }
+    wave.blocked[side] = merged;
+  }
+}
+
+function fireTouchesCat(wave, previousRadius, cat, startX, startY) {
+  for (let side = 0; side < 4; side++) {
+    for (const [left, right] of fireIntervals(wave, side)) {
+      const inner = Math.max(0, previousRadius - 3), outer = wave.radius + 3;
+      const polygon = [firePoint(wave, side, inner, left), firePoint(wave, side, outer, left),
+        firePoint(wave, side, outer, right), firePoint(wave, side, inner, right)];
+      for (const triangle of [[polygon[0], polygon[1], polygon[2]], [polygon[0], polygon[2], polygon[3]]]) {
+        const cross = triangle.map(([x, y], i) => {
+          const [endX, endY] = triangle[(i + 1) % 3];
+          return (endX - x) * (cat.y - y) - (endY - y) * (cat.x - x);
+        });
+        const area = (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1])
+          - (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0]);
+        if (Math.abs(area) > 1e-9 && (cross.every(n => n >= 0) || cross.every(n => n <= 0))) return true;
+        if (triangle.some(([x, y], i) => distanceToSegment(cat.x, cat.y, x, y,
+          ...triangle[(i + 1) % 3]) <= cat.radius)) return true;
+        if (Math.abs(area) > 1e-9 && spikeContact(startX, startY, cat.x - startX,
+          cat.y - startY, cat.radius, triangle) <= 1) return true;
+      }
+    }
+  }
+  return false;
+}
+
 function brickContact(x, y, dx, dy, radius, brick) {
   const { x: left, y: top, w, h } = brick;
   const right = left + w, bottom = top + h;
@@ -1115,6 +1199,7 @@ class Game {
     this.dittoStamp = false;
     this.dittoSource = null;
     this.brickStamps = [];
+    this.barriers = [];
     this.spawnerTouching = new Set();
     this.cookieActive = false;
     this.cookieLickUntil = 0;
@@ -1220,6 +1305,11 @@ class Game {
       if (brick.usesLeft !== null) brick.usesLeft--;
     }
     if (brick.warped) this.absorbNeighbor(brick);
+    if (brick.barrier) {
+      const fence = this.barriers.find(fence => fence.id === brick.id);
+      if (fence) fence.extending = !fence.extending;
+      else this.barriers.push({ id: brick.id, length: 0, extending: true });
+    }
     for (const other of this.bricks) {
       if (!this.sunglassesActive && other.toggle && other.absorbedBy === null && (other.usesLeft !== 0 || other.id === id)) {
         other.toggleRemaining = other.toggleRemaining === 0 ? other.toggle : other.toggleRemaining - 1;
@@ -1500,6 +1590,7 @@ class Game {
     this.initializeShield(enemy, event.shield);
     if (event.type === 'ram') this.initializeRam(enemy);
     if (event.type === 'bucket') this.initializeBucket(enemy);
+    if (event.type === 'jackolantern') this.initializeJackolantern(enemy);
     if (event.type === 'wheel') {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
       if (event.y === 0) enemy.distance = event.x * w;
@@ -1527,6 +1618,7 @@ class Game {
       this.initializeShield(enemy, shield);
       if (type === 'ram') this.initializeRam(enemy);
       if (type === 'bucket') this.initializeBucket(enemy);
+      if (type === 'jackolantern') this.initializeJackolantern(enemy);
       if (type === 'wheel') this.placeWheel(enemy);
       items.push(enemy);
     }
@@ -1556,6 +1648,55 @@ class Game {
 
   nextBucketShot() {
     return Math.max(.25, -2 * Math.log(1 - Math.min(this.random(), 1 - Number.EPSILON)));
+  }
+
+  initializeJackolantern(enemy) {
+    enemy.stompTimer = 4;
+    enemy.stompAge = null;
+    enemy.waves = [];
+  }
+
+  updateJackolantern(enemy, seconds, parts, startX, startY) {
+    enemy.waves = enemy.waves.filter(wave => {
+      const previousRadius = wave.radius;
+      wave.radius += 120 * seconds;
+      blockFireWave(wave, parts, previousRadius);
+      if (!enemy.afraid && fireTouchesCat(wave, previousRadius, this.cat, startX, startY)) this.takeDamage();
+      return wave.radius <= Math.hypot(this.width, this.height)
+        && wave.blocked.some((_, side) => fireIntervals(wave, side).length);
+    });
+    if (enemy.afraid) return;
+    if (enemy.stompAge !== null) {
+      enemy.stompAge += seconds;
+      if (enemy.stompAge >= .35) enemy.stompAge = null;
+    }
+    const movingTime = Math.min(seconds, Math.max(0, enemy.stompTimer - .5));
+    if (movingTime > 0) {
+      enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * movingTime;
+      const bounds = this.bounds();
+      enemy.x += Math.cos(enemy.phase) * 32 * movingTime;
+      enemy.y += Math.sin(enemy.phase) * 32 * movingTime;
+      if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+    }
+    enemy.stompTimer -= seconds;
+  }
+
+  releaseJackolanternStomp(enemy, parts) {
+    if (enemy.asleep || enemy.afraid || enemy.stompTimer > 1e-9) return;
+    const wave = { x: enemy.x, y: enemy.y, radius: 0, blocked: [[], [], [], []] };
+    blockFireWave(wave, parts);
+    enemy.waves.push(wave);
+    enemy.stompTimer += 4;
+    enemy.stompAge = 0;
+  }
+
+  fireWaveSegments(wave) {
+    return wave.blocked.flatMap((_, side) => fireIntervals(wave, side).map(([left, right]) => ({
+      from: firePoint(wave, side, wave.radius, left), to: firePoint(wave, side, wave.radius, right),
+    })));
   }
 
   initializeBucket(enemy) {
@@ -1595,6 +1736,7 @@ class Game {
     }
     enemy.bombs = enemy.bombs.filter(bomb => {
       if (bomb.state === 'flying') {
+        this.clearBarrierOverlap(bomb, parts.filter(part => part.barrier));
         let remaining = seconds, bounces = 0;
         while (remaining > 1e-9 && bounces < 4) {
           const dx = bomb.vx * remaining, dy = bomb.vy * remaining;
@@ -1645,6 +1787,33 @@ class Game {
     else { enemy.x = b.left; enemy.y = b.bottom - (d - 2 * w - h); }
   }
 
+  moveBall(enemy, seconds, parts) {
+    let remaining = seconds;
+    const bounds = this.bounds();
+    const obstacles = [...parts,
+      { x: bounds.left - enemy.radius - 1, y: 0, w: 1, h: this.height },
+      { x: bounds.right + enemy.radius, y: 0, w: 1, h: this.height },
+      { x: 0, y: bounds.top - enemy.radius - 1, w: this.width, h: 1 },
+      { x: 0, y: bounds.bottom + enemy.radius, w: this.width, h: 1 }];
+    for (let bounce = 0; remaining > 1e-9 && bounce < 8; bounce++) {
+      const dx = Math.cos(enemy.phase) * 120 * remaining, dy = Math.sin(enemy.phase) * 120 * remaining;
+      let contact = Infinity, obstacle = null;
+      for (const part of obstacles) {
+        const time = brickContact(enemy.x, enemy.y, dx, dy, enemy.radius, part);
+        if (time < contact) { contact = time; obstacle = part; }
+      }
+      if (!obstacle || contact > 1) { enemy.x += dx; enemy.y += dy; break; }
+      enemy.x += dx * contact; enemy.y += dy * contact;
+      const normal = brickNormal(enemy.x, enemy.y, obstacle);
+      if (!normal) break;
+      this.turnEnemyFromContact(enemy, normal.x, normal.y);
+      enemy.x += normal.x * .01; enemy.y += normal.y * .01;
+      remaining *= 1 - contact;
+    }
+    enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+    enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+  }
+
   moveAfraidEnemy(enemy, seconds) {
     const bounds = this.bounds();
     const angle = Math.hypot(enemy.x - this.cat.x, enemy.y - this.cat.y) < 1e-9
@@ -1679,6 +1848,7 @@ class Game {
         const time = brickContact(enemy.x, enemy.y, dx, dy, enemy.radius, part);
         if (time < contact) { contact = time; obstacle = part; }
       }
+
       if (!obstacle || contact > 1) {
         enemy.x += dx; enemy.y += dy;
         break;
@@ -1695,6 +1865,140 @@ class Game {
       enemy.speed *= .78;
       remaining *= 1 - contact;
       bounces++;
+    }
+  }
+
+  barrierSegments() {
+    if (!this.barriers.length) return [];
+    const parts = this.brickParts();
+    const regions = brickRegions(this.bricks, this.width, this.height);
+    return this.barriers.filter(fence => this.bricks[fence.id].barrier
+      && this.bricks[fence.id].absorbedBy === null).map(fence => {
+      const members = parts.filter(part => part.id === fence.id);
+      const left = Math.min(...members.map(part => part.x)), right = Math.max(...members.map(part => part.x + part.w));
+      const top = Math.min(...members.map(part => part.y)), bottom = Math.max(...members.map(part => part.y + part.h));
+      const edge = regions.get(fence.id).edge;
+      const nx = edge === 'left' ? 1 : edge === 'right' ? -1 : 0;
+      const ny = edge === 'top' ? 1 : edge === 'bottom' ? -1 : 0;
+      const x = nx ? nx > 0 ? right : left : (left + right) / 2;
+      const y = ny ? ny > 0 ? bottom : top : (top + bottom) / 2;
+      return { ...fence, x, y, nx, ny, endX: x + nx * fence.length, endY: y + ny * fence.length };
+    });
+  }
+
+  barrierParts() {
+    return this.barrierSegments().filter(fence => fence.length > 1e-9).map(fence => ({
+      id: fence.id, barrier: true,
+      x: Math.min(fence.x, fence.endX) - (fence.ny ? 2 : 0),
+      y: Math.min(fence.y, fence.endY) - (fence.nx ? 2 : 0),
+      w: fence.nx ? fence.length : 4, h: fence.ny ? fence.length : 4,
+    }));
+  }
+
+  updateBarriers(seconds) {
+    if (!this.barriers.length) return;
+    this.barriers = this.barriers.filter(fence => this.bricks[fence.id].barrier
+      && this.bricks[fence.id].absorbedBy === null);
+    const parts = this.brickParts();
+    for (const fence of this.barriers) {
+      if (!fence.extending) { fence.length = Math.max(0, fence.length - 180 * seconds); continue; }
+      const segment = this.barrierSegments().find(segment => segment.id === fence.id);
+      const distance = Math.hypot(this.width, this.height);
+      let limit = distance;
+      for (const part of [...parts, ...this.barrierParts()]) {
+        if (part.id === fence.id) continue;
+        if (segment.x >= part.x && segment.x <= part.x + part.w
+          && segment.y >= part.y && segment.y <= part.y + part.h) {
+          limit = 0;
+          continue;
+        }
+        const contact = brickContact(segment.x, segment.y, segment.nx * distance,
+          segment.ny * distance, 0, part);
+        if (contact <= 1) limit = Math.min(limit, contact * distance);
+      }
+      fence.length = Math.min(limit, fence.length + 180 * seconds);
+    }
+  }
+
+  blockEnemyWithBarriers(enemy, old, parts) {
+    const dx = enemy.x - old.x, dy = enemy.y - old.y;
+    if (!dx && !dy) return;
+    let contact = Infinity, obstacle = null;
+    for (const part of parts) {
+      const time = brickContact(old.x, old.y, dx, dy, enemy.radius, part);
+      if (time < contact) { contact = time; obstacle = part; }
+    }
+
+    if (!obstacle || contact > 1) return;
+    enemy.x = old.x + dx * contact; enemy.y = old.y + dy * contact;
+    const normal = brickNormal(enemy.x, enemy.y, obstacle);
+    if (!normal) return;
+    enemy.x += normal.x * .01; enemy.y += normal.y * .01;
+    const angle = Math.atan2(dy, dx);
+    const incoming = Math.cos(angle) * normal.x + Math.sin(angle) * normal.y;
+    const reflected = Math.atan2(Math.sin(angle) - 2 * incoming * normal.y,
+      Math.cos(angle) - 2 * incoming * normal.x);
+    if (enemy.type === 'wheel') {
+      enemy.distance = old.distance;
+      this.placeWheel(enemy);
+      enemy.barrierDirection = -(enemy.barrierDirection ?? 1);
+      enemy.fleeDirection = -(enemy.fleeDirection ?? 1);
+    } else if (enemy.type === 'ram' && !enemy.afraid) enemy.angle = reflected;
+    else enemy.phase = reflected;
+  }
+
+  clearBarrierOverlap(actor, parts) {
+    const bounds = actor.type && parts.length ? this.bounds() : null;
+    for (const part of parts) {
+      const x = Math.max(part.x, Math.min(part.x + part.w, actor.x));
+      const y = Math.max(part.y, Math.min(part.y + part.h, actor.y));
+      const dx = actor.x - x, dy = actor.y - y, distance = Math.hypot(dx, dy);
+      if (distance >= actor.radius) continue;
+      let nx, ny, depth;
+      if (distance > 1e-9 && (!bounds
+        || (actor.x + dx / distance * (actor.radius - distance + .01) >= bounds.left
+          && actor.x + dx / distance * (actor.radius - distance + .01) <= bounds.right
+          && actor.y + dy / distance * (actor.radius - distance + .01) >= bounds.top
+          && actor.y + dy / distance * (actor.radius - distance + .01) <= bounds.bottom))) {
+        nx = dx / distance; ny = dy / distance; depth = actor.radius - distance;
+      } else {
+        const sides = [
+          { nx: -1, ny: 0, depth: actor.x - part.x + actor.radius },
+          { nx: 1, ny: 0, depth: part.x + part.w - actor.x + actor.radius },
+          { nx: 0, ny: -1, depth: actor.y - part.y + actor.radius },
+          { nx: 0, ny: 1, depth: part.y + part.h - actor.y + actor.radius },
+        ].filter(side => !bounds
+          || (actor.x + side.nx * (side.depth + .01) >= bounds.left
+            && actor.x + side.nx * (side.depth + .01) <= bounds.right
+            && actor.y + side.ny * (side.depth + .01) >= bounds.top
+            && actor.y + side.ny * (side.depth + .01) <= bounds.bottom))
+          .sort((a, b) => a.depth - b.depth);
+        // In a fully enclosed pocket, containment takes priority over separation.
+        if (!sides.length) continue;
+        ({ nx, ny, depth } = sides[0]);
+      }
+      actor.x += nx * (depth + .01); actor.y += ny * (depth + .01);
+      if (actor.type === 'wheel') {
+        const bounds = this.bounds(), w = bounds.right - bounds.left, h = bounds.bottom - bounds.top;
+        if (Math.abs(nx) > Math.abs(ny)) {
+          actor.x = Math.max(bounds.left, Math.min(bounds.right, actor.x));
+          const top = Math.abs(actor.y - bounds.top) < Math.abs(actor.y - bounds.bottom);
+          actor.distance = top ? actor.x - bounds.left : w + h + bounds.right - actor.x;
+        } else {
+          actor.y = Math.max(bounds.top, Math.min(bounds.bottom, actor.y));
+          const left = Math.abs(actor.x - bounds.left) < Math.abs(actor.x - bounds.right);
+          actor.distance = left ? 2 * w + h + bounds.bottom - actor.y : w + actor.y - bounds.top;
+        }
+        this.placeWheel(actor);
+      }
+      if (Number.isFinite(actor.vx) && Number.isFinite(actor.vy)) {
+        const incoming = actor.vx * nx + actor.vy * ny;
+        if (incoming < 0) { actor.vx -= 2 * incoming * nx; actor.vy -= 2 * incoming * ny; }
+      }
+    }
+    if (bounds) {
+      actor.x = Math.max(bounds.left, Math.min(bounds.right, actor.x));
+      actor.y = Math.max(bounds.top, Math.min(bounds.bottom, actor.y));
     }
   }
 
@@ -1890,8 +2194,14 @@ class Game {
       this.collectItem(item);
       this.recordPickup(item, 'item');
     }
-    const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket'].includes(enemy.type)) ? this.brickParts() : [];
-    const previous = new Map(this.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y }]));
+    const fences = this.barrierParts();
+    const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket', 'ball', 'jackolantern'].includes(enemy.type))
+      ? [...this.brickParts(), ...fences] : [];
+    const previous = new Map(this.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y, distance: enemy.distance }]));
+    for (const enemy of this.robots) {
+      this.clearBarrierOverlap(enemy, fences);
+      previous.set(enemy, { x: enemy.x, y: enemy.y, distance: enemy.distance });
+    }
     for (const enemy of this.robots) {
       enemy.age += dt;
       enemy.asleep = this.enemiesSleepUntil > this.elapsed + 1e-9;
@@ -1903,12 +2213,17 @@ class Game {
         if (enemy.type === 'wheel') this.moveAfraidWheel(enemy, dt);
         else this.moveAfraidEnemy(enemy, dt);
         if (enemy.type === 'bucket') this.updateBucket(enemy, dt, parts);
+        if (enemy.type === 'jackolantern') this.updateJackolantern(enemy, dt, parts, startX, startY);
       } else if (enemy.type === 'wheel') {
-        enemy.distance += 95 * dt; this.placeWheel(enemy);
+        enemy.distance += (enemy.barrierDirection ?? 1) * 95 * dt; this.placeWheel(enemy);
       } else if (enemy.type === 'ram') {
         this.updateRam(enemy, dt, parts);
       } else if (enemy.type === 'bucket') {
         this.updateBucket(enemy, dt, parts);
+      } else if (enemy.type === 'ball') {
+        this.moveBall(enemy, dt, parts);
+      } else if (enemy.type === 'jackolantern') {
+        this.updateJackolantern(enemy, dt, parts, startX, startY);
       } else {
         enemy.resting = enemy.age % 6 >= 4.5;
         if (!enemy.resting) {
@@ -1923,6 +2238,11 @@ class Game {
       }
     }
     this.resolveEnemyCollisions(previous);
+    for (const enemy of this.robots) {
+      this.blockEnemyWithBarriers(enemy, previous.get(enemy), fences);
+      this.clearBarrierOverlap(enemy, fences);
+      if (enemy.type === 'jackolantern') this.releaseJackolanternStomp(enemy, parts);
+    }
     for (const enemy of this.robots) {
       const old = previous.get(enemy);
       enemy.fleeMoving = enemy.afraid && !enemy.asleep && Math.hypot(enemy.x - old.x, enemy.y - old.y) > 1e-8;
@@ -1998,7 +2318,7 @@ class Game {
         member.usesLeft = null; member.readyAt = 0;
         member.toggle = null; member.toggleRemaining = 0;
         member.slimed = false; member.springs = false; member.spikes = false;
-        member.conveyor = false; member.portal = null; member.spawner = null; member.boost = false;
+        member.conveyor = false; member.portal = null; member.spawner = null; member.boost = false; member.barrier = false;
         member.hitAt = null; member.hitNormal = null; member.hitPoint = null;
         member.initialOwner = member.id === brick.id ? null : brick.id;
         member.absorbedBy = member.initialOwner;
@@ -2027,6 +2347,7 @@ class Game {
       angle: { top: Math.PI, bottom: 0, left: Math.PI / 2, right: -Math.PI / 2 }[edge],
       fromX: this.cat.x + 33, fromY: this.cat.y - 22, age: 0 });
     if (capturing) return true;
+    this.barriers = this.barriers.filter(fence => fence.id !== brick.id);
     for (const member of this.bricks) {
       if (member.id !== brick.id && member.absorbedBy !== brick.id) continue;
       Object.assign(member, dittoProperties(properties));
@@ -2079,7 +2400,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'mouse' ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'jackolantern' ? 1.2 : enemy.type === 'ball' ? 1.1 : enemy.type === 'mouse' ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -2140,6 +2461,7 @@ class Game {
       this.stuckUntil = 0;
     }
     this.restoreWarps();
+    this.updateBarriers(dt);
     this.prepareSpawns();
     this.spawnCustomEvents();
     while (this.nextEvent < this.level.food.length && this.level.food[this.nextEvent][0] <= this.elapsed + 1e-9) {

@@ -20,7 +20,8 @@ test('all campaign scenes validate and every story character speaks', () => {
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).sort());
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['ball', 'jackolantern'].includes(character)).sort());
+  assert.ok(!speakers.has('ball'), 'new actors do not change existing campaign scenes');
 });
 
 test('Tom commands the campaign in every scene and round-trips as a custom speaker and actor', () => {

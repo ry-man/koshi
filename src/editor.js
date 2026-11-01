@@ -2,14 +2,14 @@
 'use strict';
 
 const { Game, LEVELS, FOODS, ITEMS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
 const storageKey = 'koshi-level-editor-v1';
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true });
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -129,6 +129,7 @@ const SURFACE_ICONS = {
   springs: 'M-22 -12 H22 V-4 H-22 Z M-16 0 L-8 5 L-16 10 L-8 15 M8 0 L16 5 L8 10 L16 15',
   spikes: 'M-24 12 L-16 -12 L-8 12 L0 -12 L8 12 L16 -12 L24 12 Z',
   conveyor: 'M-15 -10 H15 A10 10 0 0 1 15 10 H-15 A10 10 0 0 1 -15 -10 Z M-18 0 H18 M8 -5 L18 0 L8 5',
+  barrier: FENCE,
   crumbler: 'M-22 -12 H22 V12 H-22 Z M-4 -12 L2 -4 L-5 2 L5 12',
   warped: 'M-20 -4 C-24 -22 6 -22 7 -5 S-18 16 -8 1 S19 -12 21 8',
 };
@@ -157,6 +158,10 @@ function picture(value, control) {
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
     svg.setAttribute('viewBox', '-28 -28 56 56'); svg.setAttribute('aria-hidden', 'true');
     path.setAttribute('d', SURFACE_ICONS[value]); svg.append(path); image.append(svg);
+    if (value === 'barrier') {
+      path.setAttribute('fill', 'none'); path.setAttribute('stroke', '#174f36');
+      path.setAttribute('stroke-width', '4'); path.setAttribute('opacity', '.75');
+    }
   } else if (COLORS[value]) {
     image.classList.add('palette-swatch'); image.style.backgroundColor = COLORS[value];
   } else {
@@ -273,7 +278,7 @@ function typeOptions(type, showLifetime) {
   const types = kind === MIXED ? [] : kind === 'food' ? Object.entries(FOODS).map(([key, food]) => [key, `${food.icon} ${food.name} (+${food.value})`])
     : kind === 'weapon' ? Object.entries(SWORDS).map(([key, sword]) => [key, sword.name])
       : kind === 'item' ? Object.entries(ITEMS).map(([key, item]) => [key, item.name])
-        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket']];
+        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern']];
   $('#event-type').replaceChildren(...types.map(([value, name]) => {
     const option = document.createElement('option');
     option.value = value; option.textContent = name;
@@ -295,14 +300,14 @@ function description(event) {
   return event.kind === 'food' ? `${FOODS[event.type].icon} ${FOODS[event.type].name}`
     : event.kind === 'weapon' ? SWORDS[event.type].name
       : event.kind === 'item' ? ITEMS[event.type].name
-        : `${({ mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket' })[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
+        : `${({ mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern' })[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
 }
 
 function icon(event) {
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
-        : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣' })[event.type];
+        : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣', ball: '🏀', jackolantern: '🎃' })[event.type];
 }
 
 function readEvent() {
@@ -463,8 +468,8 @@ function renderBrickInspector(bricks) {
     if (color === MIXED) mixedOption($('#brick-slime-color')); else $('#brick-slime-color').value = color;
   }
   if (!chosen.length) {
-    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-toggle']) $(selector).disabled = true;
-    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-toggle']) $(selector).indeterminate = false;
+    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-toggle']) $(selector).disabled = true;
+    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-toggle']) $(selector).indeterminate = false;
     $('#brick-selection').textContent = 'Select one or more boundary bricks to change their attributes.';
     return;
   }
@@ -934,7 +939,7 @@ function splitBricks() {
     message('Combined bricks split. Each retains the group\'s current attributes.');
   });
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost']) {
+for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier']) {
   $(selector).addEventListener('change', saveBrick);
 }
 $('#combine-bricks').addEventListener('click', combineBricks);
@@ -1113,7 +1118,7 @@ $('#cutscene-form').addEventListener('submit', event => {
           text: row.querySelector('.scene-text').value,
           actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
             const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9 }[checkbox.value], y: .65 }];
+            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5 }[checkbox.value], y: .65 }];
           }),
         })),
       };

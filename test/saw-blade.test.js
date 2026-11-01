@@ -24,7 +24,7 @@ function launch(game, brick) {
   assert.equal(game.cat.vy, 0);
 }
 
-test('saw placements, spawners, optional expiry, campaign placement, and matching curved artwork are wired', () => {
+test('saw placements, spawners, optional expiry, and matching curved artwork are wired without campaign placement', () => {
   const event = { time: 0, kind: 'item', type: 'saw-blade', x: .5, y: .5, lifetime: .1 };
   const custom = { ...level([event]), brickTypes: [
     { edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'item', type: 'saw-blade', lifetime: 2 } },
@@ -38,7 +38,7 @@ test('saw placements, spawners, optional expiry, campaign placement, and matchin
   game.spawnFromBrick(spawner);
   assert.equal(game.items[0].type, 'saw-blade');
   assert.equal(game.items[0].expires, game.elapsed + 2);
-  assert.ok(LEVELS.some(level => level.items.some(([, type]) => type === 'saw-blade')));
+  assert.ok(LEVELS.every(level => !level.items.some(([, type]) => type === 'saw-blade')));
   const symbol = spawnSymbol({ kind: 'item', type: 'saw-blade' });
   assert.equal((symbol.match(/Q/g) || []).length, 12, 'twelve curved teeth');
   assert.equal(ITEMS['saw-blade'].name, 'Saw Blade');

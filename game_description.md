@@ -293,6 +293,45 @@ sword charges. Stopping or successfully selecting another brick ends the
 boost; rejected selections, Spring bounces, and Portal travel do not.
 
 ## Enemies
+
+**Robo Jackolantern** (`jackolantern`) is an orange pumpkin robot with grey
+mechanical eyes, a yellow carved nose and mouth, and an antenna instead of a
+stem. It wanders at 32 game units/second, pauses for a 0.5-second warning, and
+stomps every four seconds. A square ring of fire grows continuously from that
+fixed stomp location at 120 game units/second. Fire contact costs Koshi one
+heart, respecting normal invulnerability. Only bricks and Barrier fences stop
+the waves: intercepted portions disappear permanently, while other portions
+keep expanding. Enemies do not block fire. Sleep freezes the attack and waves;
+fear suppresses stomps and fire damage while it flees. Defeat extinguishes its
+waves. Its nose and mouth dim grey, its antenna breaks in half, then it bursts
+into pieces and fades over 1.2 seconds. It supports shields, swords, Boost,
+editor placements/spawners, custom cutscenes and guide practice. Existing
+campaign levels are unchanged.
+
+**Robo Ball** (`ball`) is an orange robot basketball with dark grey stripes,
+two beady red eyes and a rectangular mouth whose grey grate resembles teeth.
+It bounces around in straight lines at 120 game units per second, rebounding
+from bricks, barriers and other enemies while remaining inside the arena.
+It has no pauses, targeting or attacks beyond standard contact damage.
+Shields, swords, Boost, Music Box sleep and Spooky Mask fear work as for other
+robots. When defeated, it shrivels up, its eyes pop into the air, and it fades
+away over 1.1 seconds. Pause freezes this animation. Robo Ball is available in
+the editor, enemy spawn bricks, cutscenes and guide practice; current campaign
+levels are unchanged.
+
+Barrier bricks are an exclusive brick surface available for custom levels.
+Successfully selecting one extends a dark green semi-transparent fence at
+180 game units per second from the center of its arena-facing surface,
+perpendicular to that surface, until it touches another brick or barrier.
+Selecting it again after its normal cooldown retracts the fence at the same
+speed. Koshi moves through freely; enemies and flying Bucket bombs bounce or
+reverse, and Wheels stay on their boundary route. A matching fence icon marks
+the brick. Growing fences push enemies toward safe positions inside the
+enclosing bricks, never outside the arena, including at endpoints and corners.
+Pause freezes extension/retraction; restart clears fences. A fence
+disappears when its owner loses the surface, is destroyed, or is absorbed;
+merged owners use their current combined surface center. No campaign placements
+are added.
 Whenever Koshi loses a heart to an enemy or spikes, he becomes invulnerable to both for one second of game time. For exactly that interval he has an upset face and blinks between red shades. The animation uses the same timer as invulnerability: it ends precisely when he can take damage again. Blocked hits do not extend the timer. Pause freezes both; restart clears both. Contact tracking still requires separation before another hit from the same continuous contact. Protected Koshi can still move, collect items, attack, and be stopped by spikes; falling off the board still ends the attempt.
 
 Enemies come in multiple types of movement and attack of patterns and must be attacked in different ways.

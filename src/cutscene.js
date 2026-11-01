@@ -94,6 +94,21 @@ function drawPortrait(ctx, character, speaking, time) {
     for (const x of [10, 18]) box('#e64649', x, 13, 4, blink ? 1 : 5);
     box('#303d45', 13, 20, 2, 2); box('#303d45', 17, 20, 2, 2);
     box('#c7353b', 12, 24, 8, talking ? 4 : 2);
+  } else if (character === 'jackolantern') {
+    box('#818c91', 15, 0, 2, 7); box('#c2c9cd', 14, 0, 4, 3);
+    ctx.fillStyle = '#e77d27'; ctx.strokeStyle = '#833719'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(16, 19, 13, 11, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    for (const x of [9, 21]) box('#b8c1c5', x - 3, 13, 6, blink ? 1 : 4);
+    box('#ffd660', 15, 19, 3, 3);
+    box('#ffd660', 8, 24, 16, talking ? 5 : 3);
+    box('#a4461b', 12, 24, 2, 2); box('#a4461b', 19, 25, 2, 2);
+  } else if (character === 'ball') {
+    ctx.fillStyle = '#ed852e'; ctx.strokeStyle = '#383d40'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(16, 16, 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    box('#383d40', 15, 3, 2, 26); box('#383d40', 3, 15, 26, 2);
+    for (const x of [9, 21]) box('#d52932', x, 10, 3, blink ? 1 : 3);
+    box('#383d40', 9, 20, 14, talking ? 7 : 5);
+    for (const x of [10, 13, 16, 19, 22]) box('#9ba4a7', x, 21, 1, 3);
   } else if (character === 'bucket') {
     box('#737d80', 7, 1, 18, 3); box('#737d80', 5, 3, 3, 10); box('#737d80', 24, 3, 3, 10);
     box('#60675f', 4, 11, 24, 5); box('#60675f', 6, 16, 20, 14);
@@ -263,7 +278,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0, base, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);
       if (actor.character === 'tom') drawTom(ctx, time, speaking);

@@ -76,7 +76,7 @@ The title screen includes two learning paths:
   slime color, spring and spike surface, food, healing heart, robot, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
-- **Tutorial** opens 27 interactive practice steps on the real game board:
+- **Tutorial** opens 30 interactive practice steps on the real game board:
   aiming/stopping, redirecting, food, recharge, Crumblers, Warped restoration,
   each of the three slime colors, Springs, mouse/sword combat, wheel interception,
   ram and bucket combat,
@@ -386,7 +386,7 @@ supports precise actor positions and repeated actors:
 ```
 
 Add this optional property to a level object. Themes are `garden` or `workshop`;
-character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, and `tom`. Each is available as both
+character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
@@ -508,7 +508,7 @@ including automatic collection of objects placed over Koshi's starting point.
 ```
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
-`wheel`, `ram`, `bucket`; weapon types are `wood`, `bronze`, `silver`, `gold`.
+`wheel`, `ram`, `bucket`, `ball`, `jackolantern`; weapon types are `wood`, `bronze`, `silver`, `gold`.
 Item types (`kind: "item"`) are `smiley-cookie`, `stopwatch`, `stopwatch-green`, `stopwatch-blue`, `battery`,
 `music-box`, `eggplant`, `saw-blade`, and `magic-sunglasses`. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
@@ -568,6 +568,45 @@ marks the destination transformation.
 Pause freezes the animation; reset clears the item and restores level bricks.
 Timed placements, optional lifetimes and spawn bricks are supported in the editor.
 
+Barrier bricks (`barrier: true`) extend a dark green translucent fence when
+successfully selected, and retract it on the next successful selection. Normal
+cooldowns and selection locks apply. The fence grows at 180 game units/second
+from the center of the arena-facing surface, perpendicular to the brick, until
+it reaches another brick or fence. Retraction uses the same speed. Koshi passes
+through; all enemies and flying Bucket bombs are blocked and bounce or reverse.
+Wheels remain on their perimeter route. Pause freezes fences and restart clears
+them. Fence push-outs choose positions within the enclosing bricks, so enemies
+cannot be pushed outside the arena at fence endpoints or corners.
+Removing the Barrier surface, destroying the brick, or absorbing its owner
+removes its fence; merged owners use their current combined surface center.
+Barrier is an exclusive surface available in the editor, with matching fence
+icons and guide practice. Existing campaign levels are unchanged.
+
+Robo Ball (`ball`) is an orange robot basketball with dark grey seams, two beady
+red eyes and a rectangular mouth with a grey tooth grate. It travels at 120
+board units/second in straight lines, bouncing off enclosing bricks, barriers
+and other enemies without pausing or charging. Music Box puts it to sleep;
+Spooky Mask makes it flee slowly and harmlessly with a scared face and sweat.
+Standard shields, contact damage, swords and Boost attacks apply. Its 1.1-second
+death animation shrivels the ball, pops both eyes into the air, then fades away.
+Pause freezes movement and death animation; restart clears it. Available as an
+editor placement, spawn-brick enemy and cutscene actor, with guide practice.
+No Robo Balls are added to existing campaign levels.
+
+Robo Jackolantern (`jackolantern`) wanders at 32 game units/second, pauses for a
+half-second warning, then stomps every four seconds. Each stomp creates a
+square fire ring centered on the stomp location, expanding continuously at
+120 game units/second. Fire contact costs one heart with normal damage
+invulnerability. Bricks and Barrier fences permanently extinguish only the
+portions they intercept; unblocked portions continue expanding. Other enemies
+do not stop the fire. Sleep freezes stomps and waves; fear freezes the attack
+timer and makes existing waves harmless while the pumpkin flees. Defeating
+the owner extinguishes its waves. The orange pumpkin has grey robotic eyes,
+a yellow carved nose and mouth, and a metal antenna in place of its stem.
+During its 1.2-second defeat animation, the nose and mouth dim grey, the antenna
+snaps in half, and the body bursts into fading pieces. Available in the editor,
+spawn bricks, custom cutscenes and guide practice; campaign levels are unchanged.
+
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom
 levels but are not placed in the built-in campaign.
@@ -616,8 +655,8 @@ Optional `portal` is `"red"`, `"orange"`, `"yellow"`, `"green"`, `"blue"`, or
 bricks after applying all overrides. Optional `boost` is a boolean.
 Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
-`wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`, or
-`bucket`;
+`wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`,
+`bucket`, `ball`, or `jackolantern`;
 `item` uses one of the item types above; `heart` uses type `heart`.
 Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
 counted from each actual spawn; omit it for full-level persistence.

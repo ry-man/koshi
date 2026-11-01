@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, SWORDS, ITEMS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, levelObjective, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots } = globalThis.KoshiSaves;
 
@@ -767,7 +767,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-instruction').textContent = tutorial.lesson.instruction;
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
-  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'ram', 'bucket', 'objectives'].includes(tutorial.lesson.id);
+  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'objectives'].includes(tutorial.lesson.id);
   makeBrickButtons();
   displayedState = null;
   displayedStuck = false;
@@ -819,6 +819,7 @@ function guidePicture(picture, title) {
       kind: type === 'cinder' ? 'cinder' : 'normal',
       portal: type === 'portal' ? 'purple' : null, toggle: type === 'toggle' ? 4 : null,
       toggleRemaining: type === 'toggle' ? 4 : 0, boost: type === 'boost',
+      barrier: type === 'barrier',
       spawner: type === 'spawner' ? { kind: 'enemy', type: 'mouse' } : null };
     decorateBrick(image, brick, [brick]);
     return image;
@@ -1187,6 +1188,7 @@ function render(now) {
   const WIDTH = game.width, HEIGHT = game.height;
   ctx = boardCtx;
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  for (const fence of game.barrierSegments()) drawBarrier(ctx, fence);
   ctx.fillStyle = '#273941';
   for (let x = 60; x < WIDTH; x += 30) for (let y = 60; y < HEIGHT; y += 30) {
     ctx.beginPath(); ctx.arc(x, y, .8, 0, Math.PI * 2); ctx.fill();
@@ -1228,6 +1230,9 @@ function render(now) {
   for (const item of game.weapons) {
     drawSword(item.x, item.y, SWORDS[item.type].color);
     drawObjectLifetime(item);
+  }
+  for (const enemy of game.robots) {
+    for (const wave of enemy.waves ?? []) drawFireWave(game.fireWaveSegments(wave), wave.radius);
   }
   for (const enemy of game.robots) {
     drawRobot(enemy, null, game.enemyDamageProgress(enemy));
@@ -1848,6 +1853,14 @@ function drawRobot(enemy, deathProgress = null, damageProgress = null) {
 function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   ctx.save(); ctx.translate(enemy.x, enemy.y);
   ctx.fillStyle = damageColor ?? '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
+  if (enemy.type === 'jackolantern') {
+    drawRoboJackolantern(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
+  if (enemy.type === 'ball') {
+    drawRoboBall(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
   if (enemy.type === 'bucket') {
     drawRoboBucket(enemy, deathProgress, damageColor);
     ctx.restore();
@@ -2095,10 +2108,137 @@ function drawRoboRam(enemy, deathProgress, damageColor = null) {
   ctx.restore();
 }
 
+function drawFireWave(segments, radius) {
+  ctx.save(); ctx.lineCap = 'butt';
+  for (const [color, width] of [['#bc3824aa', 10], ['#fa762deb', 6], ['#ffe28e', 2]]) {
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath();
+    for (const { from, to } of segments) { ctx.moveTo(...from); ctx.lineTo(...to); }
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#ffb744';
+  for (const { from, to } of segments) {
+    const dx = to[0] - from[0], dy = to[1] - from[1], length = Math.hypot(dx, dy);
+    if (!length) continue;
+    for (let distance = 6; distance < length; distance += 14) {
+      const x = from[0] + dx * distance / length, y = from[1] + dy * distance / length;
+      const height = 4 + Math.sin(radius * .2 + distance) * 2;
+      ctx.beginPath(); ctx.moveTo(x - dy / length * 3, y + dx / length * 3);
+      ctx.lineTo(x + dy / length * height, y - dx / length * height);
+      ctx.lineTo(x + dx / length * 4, y + dy / length * 4); ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawRoboJackolantern(enemy, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  ctx.save();
+  const warning = deathProgress === null && !enemy.afraid && !enemy.asleep
+    && enemy.stompTimer <= .5;
+  const stomp = deathProgress === null && !enemy.afraid && enemy.stompAge !== null
+    && enemy.stompAge !== undefined ? Math.sin(enemy.stompAge / .35 * Math.PI) : 0;
+  ctx.translate(0, warning ? -Math.sin((.5 - enemy.stompTimer) * Math.PI) * 6 : stomp * 3);
+  ctx.scale(1 + stomp * .12, 1 - stomp * .15);
+  if (deathProgress !== null && progress >= .3) {
+    const burst = (progress - .3) / .7;
+    for (let i = 0; i < 9; i++) {
+      const angle = i * Math.PI * 2 / 9;
+      ctx.save(); ctx.translate(Math.cos(angle) * burst * 60,
+        Math.sin(angle) * burst * 40 - burst * 25 + burst * burst * 50);
+      ctx.rotate(angle + burst * (i % 2 ? 5 : -5));
+      ctx.fillStyle = i % 3 === 0 ? '#8c989e' : i % 2 ? '#f39838' : '#c55920';
+      ctx.strokeStyle = '#63361e'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(-6, -7); ctx.lineTo(7, -4); ctx.lineTo(5, 8);
+      ctx.lineTo(-4, 5); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+    ctx.restore(); return;
+  }
+  const pumpkin = ctx.createRadialGradient(-7, -9, 1, 0, 0, 26);
+  pumpkin.addColorStop(0, '#ffb45a'); pumpkin.addColorStop(.5, '#ed852e'); pumpkin.addColorStop(1, '#aa421b');
+  ctx.fillStyle = damageColor ?? pumpkin; ctx.strokeStyle = '#75351b'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, -18);
+  ctx.bezierCurveTo(-29, -28, -28, 23, 0, 20);
+  ctx.bezierCurveTo(28, 23, 29, -28, 0, -18); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#b95621'; ctx.lineWidth = 1.3;
+  for (const side of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(side * 9, -16); ctx.bezierCurveTo(side * 18, -8, side * 18, 10, side * 9, 18); ctx.stroke();
+  }
+  ctx.strokeStyle = '#9ca7ad'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(0, -25); ctx.stroke();
+  ctx.save();
+  if (deathProgress !== null) { ctx.translate(progress * 30, progress * 15); ctx.rotate(progress * 4); }
+  ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(0, -33); ctx.stroke();
+  ctx.fillStyle = '#c3cbd0'; ctx.beginPath(); ctx.arc(0, -34, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  if (enemy.afraid && deathProgress === null) drawScaredFace();
+  else {
+    ctx.fillStyle = '#adb7bc'; ctx.strokeStyle = '#39454c'; ctx.lineWidth = 1.5;
+    for (const side of [-1, 1]) {
+      ctx.beginPath(); ctx.roundRect(side * 9 - 5, -9, 10, 8, 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#505e66'; ctx.fillRect(side * 9 - 2, -7, 3, 4); ctx.fillStyle = '#adb7bc';
+    }
+    ctx.fillStyle = deathProgress === null ? '#ffdf60' : '#626970';
+    ctx.strokeStyle = '#75351b'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(-4, 5); ctx.lineTo(4, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-14, 7); ctx.lineTo(-8, 10); ctx.lineTo(-5, 7);
+    ctx.lineTo(0, 11); ctx.lineTo(5, 7); ctx.lineTo(8, 10); ctx.lineTo(14, 7);
+    ctx.lineTo(9, 16); ctx.lineTo(4, 13); ctx.lineTo(0, 17); ctx.lineTo(-4, 13);
+    ctx.lineTo(-9, 16); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRoboBall(enemy, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  ctx.save();
+  const shrivel = Math.min(1, progress / .55);
+  ctx.translate(0, shrivel * 14);
+  ctx.scale(1 - shrivel * .55, 1 - shrivel * .85);
+  const orange = ctx.createRadialGradient(-7, -9, 1, 0, 0, 23);
+  orange.addColorStop(0, '#ffbf65'); orange.addColorStop(.55, '#ed852e'); orange.addColorStop(1, '#b94e19');
+  ctx.fillStyle = damageColor ?? orange; ctx.strokeStyle = '#383d40'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.save(); ctx.clip(); ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-19, 0); ctx.lineTo(19, 0);
+  ctx.moveTo(0, -19); ctx.lineTo(0, 19);
+  ctx.moveTo(-15, -19); ctx.bezierCurveTo(5, -9, 5, 9, -15, 19);
+  ctx.moveTo(15, -19); ctx.bezierCurveTo(-5, -9, -5, 9, 15, 19); ctx.stroke();
+  ctx.restore();
+  if (enemy.afraid && deathProgress === null) drawScaredFace();
+  else {
+    ctx.fillStyle = '#252b2d'; ctx.fillRect(-10, 5, 20, 9);
+    ctx.strokeStyle = '#9ba4a7'; ctx.lineWidth = 1.2;
+    ctx.strokeRect(-9, 6, 18, 7);
+    ctx.beginPath(); ctx.moveTo(-9, 9.5); ctx.lineTo(9, 9.5);
+    for (let x = -6; x <= 6; x += 4) { ctx.moveTo(x, 6); ctx.lineTo(x, 13); }
+    ctx.stroke();
+    if (deathProgress === null) {
+      for (const x of [-7, 7]) {
+        ctx.fillStyle = '#c82029'; ctx.beginPath(); ctx.arc(x, -6, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff8580'; ctx.beginPath(); ctx.arc(x - .7, -7, .8, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+  if (deathProgress !== null) {
+    for (const side of [-1, 1]) {
+      const x = side * (7 + progress * 17), y = -6 - Math.sin(Math.PI * Math.min(1, progress / .85)) * 40;
+      ctx.fillStyle = '#c82029'; ctx.strokeStyle = '#383d40'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  }
+}
+
 function drawEnemyDeath(enemy) {
   const progress = enemy.deathProgress;
   ctx.save();
-  if (enemy.type === 'mouse') {
+  if (enemy.type === 'jackolantern') {
+    ctx.globalAlpha *= Math.max(0, Math.min(1, (1 - progress) / .4));
+    drawRobot(enemy, progress);
+  } else if (enemy.type === 'ball') {
+    ctx.globalAlpha *= Math.max(0, Math.min(1, (1 - progress) / .4));
+    drawRobot(enemy, progress);
+  } else if (enemy.type === 'mouse') {
     ctx.globalAlpha = Math.max(0, 1 - Math.max(0, progress - .2) / .5);
     drawRobot(enemy, progress);
     if (progress > .2) {

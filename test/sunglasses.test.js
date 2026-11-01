@@ -34,7 +34,7 @@ test('sunglasses placements and spawners round-trip with optional lifetime and c
   assert.equal(game.items[0].type, 'magic-sunglasses');
   assert.equal(game.items[0].expires, game.elapsed + 2);
   assert.ok(visuals.spawnSymbol({ kind: 'item', type: 'magic-sunglasses' }));
-  assert.ok(engine.LEVELS.some(level => level.items.some(([, type]) => type === 'magic-sunglasses')));
+  assert.ok(engine.LEVELS.every(level => !level.items.some(([, type]) => type === 'magic-sunglasses')));
 });
 
 for (const options of [{}, { portrait: true, scale: .3 }]) {

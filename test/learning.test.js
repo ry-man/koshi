@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 9);
-  assert.equal(LESSONS.length, 27);
+  assert.equal(LESSONS.length, 30);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   const tutorial = new Tutorial();
   assert.throws(() => tutorial.select(-1), RangeError);

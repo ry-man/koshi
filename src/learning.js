@@ -68,6 +68,7 @@ const GUIDE = [
       ['Toggle switches', 'The switch resembles a colored pill with a white sliding button and a countdown inside. Red starts at 1, green at 2, blue at 4. Every successful brick activation counts, including the Toggle itself. Initially disabled; at zero it enables. The next successful activation disables it and resets its countdown. Clicking a disabled or cooling brick does not count. Toggle only controls selection: disabled toggles cannot be selected, but their contact surfaces still work.', 'special:toggle'],
       ['Spawning bricks', 'An item-colored icon with a thin dark outline and dark rainbow glow indicates food, a sword, a robot, a heart, or a power-up. Sword colors distinguish brown wood, green patinated bronze, silver, and gold. Touch the brick to spawn exactly one item at a random safe location; clicking alone does nothing. A held Battery can recharge a used spawner on a new touch. Wheels spawn on the inner perimeter. Restart restores spent spawners. Food lifetime is configured in the editor.', 'special:spawner'],
       ['Boost launches', 'When Koshi rests physically against a Boost brick, his wide-open mouth and eyes glow red to signal that his next successful launch travels at twice normal speed. A fireball overlays him and hits robots like a sword without spending equipped sword charges; shielded robots still require multiple hits. The boost ends when he stops or another brick is successfully selected. Failed selections do not cancel it; Spring bounces and Portal travel preserve it. Level 1-14 has no swords: use Boost to fight.', 'special:boost'],
+      ['Barrier fences', 'Successfully selecting a Barrier brick extends a dark green translucent fence from its center, perpendicular to its surface. It grows until it reaches a brick or another fence. Select it again once ready to retract it. Fences block all enemies and Bucket bombs, but Koshi passes through freely. Available for custom levels; the campaign is unchanged.', 'special:barrier'],
       ['Contact is not a selection', 'Slime, Springs, Spikes, Conveyor, Portal, Spawning, and Boost work even on cooling, exhausted, or Toggle-disabled bricks. Contact does not consume cooldowns or C uses. These surfaces replace one another, but can combine with Toggle, Crumbler, and Warped attributes.'],
     ],
   },
@@ -86,6 +87,8 @@ const GUIDE = [
       ['Robo Wheel', 'Wheels roll along the inner perimeter. Intercept them near a wall while armed.', 'enemy:wheel'],
       ['Robo Ram', 'Sleek metal robots with pale curling horns, tiny nostrils, and a red eye-and-mouth display wander slowly, then pause as their eyes sparkle and aim at Koshi. They line up and charge quickly in a straight line. Dodge the rush or catch it with a sword. A ram ricochets off bricks and loses some speed with each bounce.', 'enemy:ram'],
       ['Robo Bucket', 'Buckets wander slowly with waving arms and randomly shoot blue bombs from their mouths. Bombs bounce off bricks and explode after three seconds; only their growing red flame circles can hurt Koshi. Defeat a bucket to squish it flat and pop its bombs.', 'enemy:bucket'],
+      ['Robo Ball', 'An orange robot basketball with dark grey seams, beady red eyes and a rectangular grey tooth grate. It travels in straight lines at 120 board units per second, bouncing off bricks, fences and other enemies. On defeat it shrivels, pops its eyes into the air and fades. Sleep and fear affect it like other robots. Available for custom levels.', 'enemy:ball'],
+      ['Robo Jackolantern', 'An orange pumpkin robot with grey mechanical eyes and an antenna instead of a stem. It wanders slowly, pauses for a half-second warning, and stomps every four seconds. A square fire ring expands from the stomp location at 120 board units per second. Touching it costs one heart. Bricks and barriers extinguish only the blocked portions; the rest keeps growing. Fear prevents stomps and fire damage; sleep freezes it. On defeat its yellow nose and mouth dim grey, its antenna snaps, and the pumpkin bursts into pieces. Available for custom levels.', 'enemy:jackolantern'],
       ['Damage & defeats', 'Unarmed contact costs one heart. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
       ...Object.entries(SWORDS).map(([type, sword]) => [
         sword.name,
@@ -137,6 +140,8 @@ const LESSONS = [
   { id: 'wheel', title: 'Robo Wheel', instruction: 'Aim at the outlined brick to collect a sword and intercept a wheel at the inner perimeter. Unlike a mouse, it keeps rolling along the wall.' },
   { id: 'ram', title: 'Robo Ram', instruction: 'Collect the sword, then watch the ram pause as its eyes sparkle and it aims at Koshi. It lines up before a fast straight charge. Avoid the rush or intercept it while armed; bricks make it ricochet and slow down.' },
   { id: 'bucket', title: 'Robo Bucket', instruction: 'Collect a sword and intercept the bucket. Its blue bombs bounce harmlessly for three seconds before their expanding red flames can hurt you.' },
+  { id: 'ball', title: 'Robo Ball', instruction: 'Collect a sword and intercept the bouncing basketball robot. It rebounds off walls and other enemies; defeat it to see it shrivel and pop its eyes into the air.' },
+  { id: 'jackolantern', title: 'Robo Jackolantern', instruction: 'Collect a sword and intercept the pumpkin robot. Watch its half-second stomp warning: square fire waves grow until blocked by bricks or fences.' },
   { id: 'healing', title: 'Heal with food', instruction: 'You have two hearts and 9 food. Collect the strawberry to reach 10, then head back along your route to collect the healing heart.' },
   { id: 'warnings', title: 'Spawn warnings', instruction: 'Wait for the skull, swirl, and star at 2 seconds. They reveal objects at 3 seconds. Then aim at the outlined brick to collect the snack.' },
   { id: 'pause', title: 'Pause & resume', instruction: 'Press Pause (or Escape), then Resume. The clock, movement, previews, and all brick timers freeze while paused.' },
@@ -145,6 +150,7 @@ const LESSONS = [
   { id: 'toggle', title: 'Toggle switches', instruction: 'The outlined red Toggle starts at 1. Successfully activate another brick to reach zero and enable it. The next successful activation, including the Toggle itself, disables it again.' },
   { id: 'spawner', title: 'Spawning bricks', instruction: 'Aim at the outlined spawning brick and physically touch it. Its rainbow-glowing heart outline turns dark grey as one healing heart appears at a random safe location. Merely clicking is not enough.' },
   { id: 'boost', title: 'Boost launches', instruction: 'Koshi rests against the outlined Boost. Select a brick across the board to launch at double speed in a fireball, defeating the robot on the way. Another successful selection ends the boost.' },
+  { id: 'barrier', title: 'Barrier fences', instruction: 'Select the outlined fence brick to extend its barrier. Koshi passes through, but enemies and bombs cannot. Select it again after its cooldown to retract the fence.' },
   { id: 'spikes', title: 'Spikes', instruction: 'Touch the outlined white Spikes. You lose one heart and stop, even with a sword. Wait against them: they cannot hurt again until you leave and touch them again. Then select another brick to leave.' },
   { id: 'conveyor', title: 'Conveyor belts', instruction: 'Touch the outlined grey Conveyor and watch Koshi ride along its arrows. Then select another brick to move away; you can redirect even while riding. Belts can run clockwise or counterclockwise; larger Warped belts can carry him around corners.' },
   { id: 'cinder', title: 'Cinder blocks', instruction: 'Koshi starts stopped against a grey Cinder block. It is solid but cannot be selected or absorbed, and has no special effects. Tap the outlined brick across the board to leave the Cinder and land safely.' },
@@ -228,12 +234,13 @@ class Tutorial {
     }
     if (id === 'toggle') { this.target.toggle = 1; this.target.toggleRemaining = 1; }
     if (id === 'spawner') this.target.spawner = { kind: 'heart', type: 'heart' };
+    if (id === 'barrier') this.target.barrier = true;
     if (id === 'boost') {
       this.target.boost = true;
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'ram', 'bucket', 'objectives'].includes(id)) {
+    if (['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'objectives'].includes(id)) {
       addSword();
       if (id === 'wheel') {
         const bounds = game.bounds();
@@ -249,6 +256,13 @@ class Tutorial {
         const enemy = { ...along(.8), type: 'bucket', radius: 19, phase: 0, age: 0, touching: false };
         game.initializeBucket(enemy);
         game.robots.push(enemy);
+      } else if (id === 'ball') {
+        game.robots.push({ ...along(.8), type: 'ball', radius: 19, phase: Math.PI,
+          age: 0, touching: false });
+      } else if (id === 'jackolantern') {
+        const enemy = { ...along(.8), type: 'jackolantern', radius: 19, phase: Math.PI,
+          age: 0, touching: false };
+        game.initializeJackolantern(enemy); game.robots.push(enemy);
       } else {
         game.robots.push({ ...along(.8), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
       }
@@ -302,6 +316,8 @@ class Tutorial {
       wheel: game.enemies >= 1,
       ram: game.enemies >= 1,
       bucket: game.enemies >= 1,
+      ball: game.enemies >= 1,
+      jackolantern: game.enemies >= 1,
       healing: game.hearts === 3 && game.score >= 10,
       warnings: this.previewSeen && game.score > 0,
       pause: this.paused && game.state === 'playing',
@@ -310,6 +326,7 @@ class Tutorial {
       toggle: this.target.toggleRemaining === 0,
       spawner: this.target.spawned,
       boost: game.enemies >= 1 && this.actions > 0,
+      barrier: game.barriers.some(fence => fence.id === this.target.id && fence.length > 20),
       spikes: game.hearts === 2 && this.actions > 0 && !game.cat.vx && !game.cat.vy,
       conveyor: this.rideSeen && this.actions >= 2 && this.lastBrick !== this.target.id,
       cinder: this.actions > 0 && !game.cat.vx && !game.cat.vy && Math.hypot(game.cat.x - this.origin.x, game.cat.y - this.origin.y) > 10,

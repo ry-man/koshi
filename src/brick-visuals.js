@@ -3,6 +3,7 @@
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
 const { PORTALS, FOODS, ITEMS, SWORDS, brickShape, brickEnabled } = engine;
 const FLAME = 'M0 20 C-24 16 -22 -6 -10 -12 Q-8 -2 -3 -5 Q7 -14 3 -24 C26 -7 26 16 0 20 Z';
+const FENCE = 'M-22 -6 H22 M-22 6 H22 M-18 -14 V14 M-6 -14 V14 M6 -14 V14 M18 -14 V14';
 const SAW_TEETH = Array.from({ length: 12 }, (_, i) => {
   const angle = i * Math.PI / 6, step = Math.PI / 6;
   const point = (offset, radius) => [Math.cos(angle + offset * step) * radius, Math.sin(angle + offset * step) * radius];
@@ -25,6 +26,8 @@ const SYMBOLS = {
   wheel: 'M19 0 A19 19 0 1 1 -19 0 A19 19 0 1 1 19 0 M12 0 A12 12 0 1 1 -12 0 A12 12 0 1 1 12 0 M-10 -2 H-3 M3 -2 H10 M0 -19 V-23 M19 0 H23 M0 19 V23 M-19 0 H-23',
   ram: 'M-12 -7 C-18 -24 -34 -22 -31 -9 C-30 -2 -23 -1 -23 -7 C-23 -13 -17 -14 -15 -7 M12 -7 C18 -24 34 -22 31 -9 C30 -2 23 -1 23 -7 C23 -13 17 -14 15 -7 M-15 -4 A15 15 0 1 1 15 -4 A15 15 0 1 1 -15 -4 M-9 -5 H-4 M4 -5 H9 M-7 6 H7 L4 11 L0 8 L-4 11 Z',
   bucket: 'M-17 -5 H17 L14 16 Q0 20 -14 16 Z M-19 -6 H19 M-13 -6 C-13 -27 13 -27 13 -6 M-10 5 A4 4 0 1 1 -10 4 M10 5 A4 4 0 1 1 10 4 M-3 13 Q0 9 3 13',
+  ball: 'M19 0 A19 19 0 1 1 -19 0 A19 19 0 1 1 19 0 M0 -19 V19 M-19 0 H19 M-15 -19 C5 -9 5 9 -15 19 M15 -19 C-5 -9 -5 9 15 19 M-7 -9 A3 3 0 1 1 -7 -3 A3 3 0 1 1 -7 -9 M7 -9 A3 3 0 1 1 7 -3 A3 3 0 1 1 7 -9 M-10 5 H10 V14 H-10 Z M-6 5 V14 M-2 5 V14 M2 5 V14 M6 5 V14',
+  jackolantern: 'M0 -18 V-25 M3 -25 A3 3 0 1 1 -3 -25 A3 3 0 1 1 3 -25 M0 -17 C-28 -26 -28 23 0 19 C28 23 28 -26 0 -17 Z M-10 -15 C-18 -4 -18 10 -10 17 M10 -15 C18 -4 18 10 10 17 M-15 -7 H-4 V0 H-15 Z M4 -7 H15 V0 H4 Z M0 0 L-4 6 H4 Z M-14 8 L-8 10 L-5 7 L0 11 L5 7 L8 10 L14 8 L9 16 L4 13 L0 17 L-4 13 L-9 16 Z',
   sword: 'M0 -23 L6 -14 L4 8 H-4 L-6 -14 Z M-10 9 H10 M0 9 V22',
   S: 'M-14 -8 Q-18 7 0 19 Q18 7 14 -8 Z M-14 -8 L-4 -6 L0 -16 L4 -6 L14 -8 M-6 0 L-5 3 M5 4 L4 7',
   P: 'M0 -2 C-20 -32 -30 10 -10 12 C8 16 24 -8 12 -14 C0 -26 -14 6 0 14 C22 26 26 -8 6 -6 M-14 10 L14 -10',
@@ -51,7 +54,7 @@ function spawnSymbol(spawn) {
 function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return SWORDS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
-  if (spawn.kind === 'enemy') return spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
+  if (spawn.kind === 'enemy') return ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   return { S: '#db5560', P: '#bd8749', B: '#e6c654', C: '#e8b84e', L: '#c9966c', F: '#73b9cf', H: '#ca9a53' }[spawn.type];
 }
@@ -61,7 +64,7 @@ function specialLabel(brick) {
     : spawn?.kind === 'weapon' ? SWORDS[spawn.type].name
       : spawn?.kind === 'item' ? ITEMS[spawn.type].name
         : spawn?.type;
-  return `${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}`;
+  return `${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}${brick.barrier ? ', Barrier: selection extends or retracts an enemy and bomb fence' : ''}`;
 }
 function svgNode(tag, attributes = {}) {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -115,7 +118,7 @@ function decorateBrick(button, brick, members) {
     }
   }
   button.dataset.specialVertical = String(vertical);
-  const slots = [brick.spawner || brick.boost ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
+  const slots = [brick.spawner || brick.boost || brick.barrier ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
     brick.warped ? 'warped' : null, brick.toggle ? 'toggle' : null].filter(Boolean);
   const length = slots.reduce((total, slot) => total + (slot === 'toggle' ? 94 : 64), 0);
   const stacked = !vertical && brick.w / brick.h < 2 && brick.toggle && slots.length > 2;
@@ -145,14 +148,16 @@ function decorateBrick(button, brick, members) {
     }
     button.append(cloud);
   }
-  if (brick.spawner || brick.boost) {
+  if (brick.spawner || brick.boost || brick.barrier) {
     symbol = svgNode('svg', { class: `brick-item-symbol${brick.boost ? ' brick-boost-symbol' : ''}`, viewBox: '-28 -28 56 56', 'aria-hidden': 'true' });
-    const d = brick.boost ? FLAME : spawnSymbol(brick.spawner);
+    const d = brick.barrier ? FENCE : brick.boost ? FLAME : spawnSymbol(brick.spawner);
     if (brick.spawner) {
       symbol.style.setProperty('--item-color', spawnColor(brick.spawner));
       symbol.append(svgNode('path', { class: 'item-outline', d }));
     }
-    symbol.append(svgNode('path', { class: 'item-color', d, ...(brick.boost ? { fill: '#f58428', stroke: '#17212a', 'stroke-width': 3 } : {}) }));
+    symbol.append(svgNode('path', { class: 'item-color', d, ...(brick.barrier
+      ? { fill: 'none', stroke: '#174f36', 'stroke-width': 4, opacity: .75 }
+      : brick.boost ? { fill: '#f58428', stroke: '#17212a', 'stroke-width': 3 } : {}) }));
     place(symbol, 'symbol');
   }
   for (const attribute of ['crumbler', 'warped']) {
@@ -229,7 +234,19 @@ function drawBoost(ctx, x, y, time) {
   ctx.stroke(new Path2D(FLAME));
   ctx.restore();
 }
-const api = { FLAME, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+function drawBarrier(ctx, fence) {
+  ctx.save(); ctx.translate(fence.x, fence.y); ctx.rotate(Math.atan2(fence.ny, fence.nx));
+  ctx.strokeStyle = '#174f36'; ctx.fillStyle = '#174f36'; ctx.globalAlpha *= .65;
+  ctx.fillRect(0, -7, fence.length, 14);
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(fence.length, -5);
+  ctx.moveTo(0, 5); ctx.lineTo(fence.length, 5);
+  for (let x = 0; x <= fence.length; x += 12) {
+    ctx.moveTo(x, -10); ctx.lineTo(x, 10);
+  }
+  ctx.stroke(); ctx.restore();
+}
+const api = { FLAME, FENCE, drawBarrier, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();
