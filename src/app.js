@@ -83,6 +83,19 @@ if (location.hash.startsWith('#level=')) {
     message.hidden = false;
   }
 }
+if (location.hash.startsWith('#campaign=')) {
+  try {
+    const id = decodeURIComponent(location.hash.slice(10));
+    const index = LEVELS.findIndex(level => level.id === id);
+    if (index < 0) throw new Error('Game level could not be found.');
+    levelSelect.value = String(index);
+  } catch (failure) {
+    console.error('Campaign level could not be loaded:', failure);
+    const error = document.querySelector('#level-error');
+    error.textContent = `${failure.message} Choose a built-in level from the menu.`;
+    error.hidden = false;
+  }
+}
 
 function layoutOptions() {
   const portrait = window.matchMedia('(max-width: 760px) and (orientation: portrait)').matches;
@@ -1166,6 +1179,7 @@ function drawEnding() {
   drawCat(0, 0, ending.elapsed, null, false, ending.state);
   if (game.sunglassesPickup) drawWornSunglasses({ ...game, cat: { x: 0, y: 0 },
     sunglassesPickup: { ...game.sunglassesPickup, x: 0, y: 0 } });
+  if (game.maskPickup) drawWornMask({ ...game, cat: { x: 0, y: 0 }, maskPickup: { ...game.maskPickup, x: 0, y: 0 } });
   ctx.restore();
 }
 
@@ -1235,6 +1249,7 @@ function render(now) {
   for (const effect of game.brickDestructions) drawBrickDestructionSmoke(effect);
   for (const pickup of game.pickups) drawPickupPop(pickup);
   if (ending?.game === game && ending.state === game.state && !endingMotion.matches) {
+    for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
     drawEnding();
     ctx = boardCtx;
     return;
@@ -1253,6 +1268,15 @@ function render(now) {
   }
   drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
   if (game.sunglassesPickup) drawWornSunglasses(game);
+  if (game.maskPickup) drawWornMask(game);
+  for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
+  if (game.dittoStamp && !game.brickStamps.some(effect => effect.capturing)) {
+    ctx.save();
+    ctx.translate(game.cat.x + 33, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
+    ctx.scale(.65, .65); ctx.rotate(-.2);
+    drawDittoStamp(colors[game.dittoSource?.kind] ?? '#696879');
+    ctx.restore();
+  }
   if (game.batteries > 0) {
     const angle = game.elapsed * 1.8;
     const x = game.cat.x + Math.cos(angle) * 34, y = game.cat.y + Math.sin(angle) * 28;
@@ -1308,6 +1332,129 @@ function drawWornSunglasses(game) {
   ctx.restore();
 }
 
+function drawDittoStamp(ink = '#929399') {
+  ctx.save(); ctx.scale(.8, .8);
+  ctx.strokeStyle = '#6c2814'; ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
+  ctx.fillStyle = ink; ctx.strokeStyle = '#49494e';
+  ctx.beginPath(); ctx.rect(-20, 16, 40, 7); ctx.fill(); ctx.stroke();
+  const wood = ctx.createLinearGradient(-18, -28, 18, 16);
+  wood.addColorStop(0, '#ffc181'); wood.addColorStop(.5, '#ff9a4f'); wood.addColorStop(1, '#e26c2e');
+  ctx.fillStyle = wood; ctx.strokeStyle = '#6c2814'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.roundRect(-22, 3, 44, 13, 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-5, -9);
+  ctx.bezierCurveTo(-18, -14, -15, -32, 0, -32);
+  ctx.bezierCurveTo(15, -32, 18, -14, 5, -9);
+  ctx.lineTo(8, 3); ctx.quadraticCurveTo(0, 6, -8, 3);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.save(); ctx.clip(); ctx.strokeStyle = '#e67e39'; ctx.lineWidth = .9;
+  ctx.beginPath(); ctx.moveTo(-10, -25); ctx.bezierCurveTo(-2, -29, 3, -19, 12, -23);
+  ctx.moveTo(-12, -18); ctx.bezierCurveTo(-3, -23, 4, -13, 11, -17);
+  ctx.moveTo(0, -8); ctx.bezierCurveTo(4, -5, -3, -2, 1, 3); ctx.stroke();
+  ctx.strokeStyle = '#ffdcaa'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-10, -21); ctx.bezierCurveTo(-11, -27, -4, -30, 1, -29);
+  ctx.moveTo(-3, -7); ctx.lineTo(-5, 1); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = '#d46a30'; ctx.lineWidth = .9;
+  ctx.beginPath(); ctx.moveTo(-18, 9); ctx.bezierCurveTo(-7, 5, 3, 13, 18, 8);
+  ctx.moveTo(-15, 13); ctx.bezierCurveTo(-6, 10, 5, 15, 14, 12); ctx.stroke();
+  ctx.strokeStyle = '#ffd095'; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(-19, 6); ctx.lineTo(19, 6); ctx.stroke();
+  ctx.restore();
+}
+
+function drawSpookyMask() {
+  ctx.save();
+  ctx.strokeStyle = '#5b1727'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  ctx.fillStyle = '#ffe9b0';
+  for (const side of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(side * 9, -15);
+    ctx.bezierCurveTo(side * 27, -15, side * 25, -26, side * 20, -31);
+    ctx.quadraticCurveTo(side * 21, -20, side * 14, -21); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  const red = ctx.createLinearGradient(-20, -20, 20, 22);
+  red.addColorStop(0, '#ff7771'); red.addColorStop(.4, '#de3641'); red.addColorStop(1, '#851c32');
+  ctx.fillStyle = red;
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.scale(side, 1);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(16, -8); ctx.lineTo(24, -12);
+    ctx.quadraticCurveTo(25, 0, 19, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#8f2138';
+    ctx.beginPath(); ctx.moveTo(19, -6); ctx.lineTo(22, -8); ctx.lineTo(20, 0); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.beginPath(); ctx.moveTo(-17, -11); ctx.quadraticCurveTo(-23, -5, -20, 4);
+  ctx.quadraticCurveTo(-15, 19, 0, 24); ctx.quadraticCurveTo(15, 19, 22, 4);
+  ctx.quadraticCurveTo(23, -5, 17, -11); ctx.quadraticCurveTo(0, -27, -17, -11); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.scale(side, 1);
+    ctx.fillStyle = '#ffde42'; ctx.beginPath(); ctx.moveTo(3, -5); ctx.lineTo(16, -10);
+    ctx.quadraticCurveTo(17, 2, 5, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#271b18'; ctx.beginPath(); ctx.ellipse(11, -5, 1, 4, .2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#721526'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(3, -7); ctx.lineTo(17, -13); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle = '#ff665a'; ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(-4, 7); ctx.lineTo(5, 7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#381221'; ctx.beginPath(); ctx.moveTo(-15, 8);
+  ctx.quadraticCurveTo(0, 12, 15, 8); ctx.quadraticCurveTo(10, 21, 0, 20);
+  ctx.quadraticCurveTo(-10, 21, -15, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff4cd';
+  for (let i = 0; i < 7; i++) {
+    const x = -12 + i * 4, y = 9 + Math.sin(i / 6 * Math.PI) * 2;
+    ctx.beginPath(); ctx.moveTo(x - 1.8, y); ctx.lineTo(x + 1.8, y); ctx.lineTo(x, y + 5); ctx.closePath(); ctx.fill();
+    if (i > 0 && i < 6) {
+      ctx.beginPath(); ctx.moveTo(x - 1.8, 19); ctx.lineTo(x + 1.8, 19); ctx.lineTo(x, 15); ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawWornMask(game) {
+  const pickup = game.maskPickup;
+  const progress = Math.min(1, pickup.age / .25);
+  const eased = progress * progress * (3 - 2 * progress);
+  ctx.save(); ctx.globalAlpha *= Math.max(0, Math.min(1, (10.5 - pickup.age) / .5));
+  ctx.translate(pickup.x + (game.cat.x - pickup.x) * eased, pickup.y + (game.cat.y - 2 - pickup.y) * eased);
+  ctx.scale(1 - eased * .18, 1 - eased * .18);
+  drawSpookyMask(); ctx.restore();
+}
+
+function drawBrickStamp(effect, game) {
+  const press = Math.max(0, Math.min(1, (effect.age - .18) / .47));
+  ctx.save();
+  ctx.globalAlpha = (1 - press) * .65;
+  ctx.fillStyle = colors[effect.kind];
+  for (const part of effect.members) {
+    ctx.save(); ctx.beginPath(); ctx.rect(part.x, part.y, part.w, part.h); ctx.clip();
+    const radius = Math.hypot(Math.max(Math.abs(part.x - effect.x), Math.abs(part.x + part.w - effect.x)),
+      Math.max(Math.abs(part.y - effect.y), Math.abs(part.y + part.h - effect.y)));
+    ctx.beginPath(); ctx.arc(effect.x, effect.y, press * radius, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff1c9'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+  }
+  const arriving = Math.min(1, effect.age / .18);
+  const returning = Math.max(0, Math.min(1, (effect.age - .3) / .35));
+  const homeX = game ? game.cat.x + 33 : effect.fromX ?? effect.x;
+  const homeY = game ? game.cat.y - 22 : effect.fromY ?? effect.y - 40;
+  const squash = Math.sin(Math.min(1, Math.max(0, (effect.age - .18) / .12)) * Math.PI) * .18;
+  const scale = .65 + arriving * .35 - (effect.capturing ? returning * .35 : 0);
+  const angle = -.2 + ((effect.angle ?? 0) + .2) * arriving * (effect.capturing ? 1 - returning : 1);
+  const offset = 23 * .8 * scale * (1 - squash);
+  const contactX = effect.x + Math.sin(angle) * offset;
+  const contactY = effect.y - Math.cos(angle) * offset;
+  let x = (effect.fromX ?? effect.x) * (1 - arriving) + contactX * arriving;
+  let y = (effect.fromY ?? effect.y - 40) * (1 - arriving) + contactY * arriving;
+  if (effect.capturing) {
+    x += (homeX - x) * returning; y += (homeY - y) * returning;
+  } else y -= returning * 35;
+  ctx.globalAlpha = effect.capturing ? 1 : 1 - returning;
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(scale * (1 + squash), scale * (1 - squash));
+  drawDittoStamp(colors[effect.kind]);
+  ctx.restore();
+}
+
 function drawBrickDestructionSmoke(effect) {
   const progress = Math.min(1, effect.age);
   if (progress >= 1) return;
@@ -1328,7 +1475,7 @@ function drawBrickDestructionSmoke(effect) {
 }
 
 function drawPickupPop(pickup) {
-  if (pickup.type === 'magic-sunglasses') return;
+  if (['magic-sunglasses', 'spooky-mask', 'ditto-stamp'].includes(pickup.type)) return;
   const progress = Math.min(1, pickup.age / .55);
   if (progress >= 1) return;
   ctx.save(); ctx.translate(pickup.x, pickup.y);
@@ -1497,6 +1644,10 @@ function drawGameItem(item) {
     ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.stroke();
   } else if (item.type === 'magic-sunglasses') {
     drawMagicSunglasses(typeof game === 'undefined' ? 0 : game.elapsed);
+  } else if (item.type === 'ditto-stamp') {
+    drawDittoStamp();
+  } else if (item.type === 'spooky-mask') {
+    drawSpookyMask();
   } else if (item.type === 'music-box') {
     ctx.fillStyle = '#613951'; ctx.strokeStyle = '#40283c'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.roundRect(-19, -9, 38, 29, 4); ctx.fill(); ctx.stroke();
@@ -1645,10 +1796,46 @@ function drawMusicStream(game) {
   ctx.restore();
 }
 
+function drawScaredFace() {
+  ctx.save(); ctx.strokeStyle = '#26323b'; ctx.lineWidth = 1.5;
+  for (const x of [-8, 8]) {
+    ctx.fillStyle = '#fff8d9'; ctx.beginPath(); ctx.ellipse(x, -3, 5, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#26323b'; ctx.beginPath(); ctx.ellipse(x, -2, 1.4, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 4, -11); ctx.quadraticCurveTo(x, -15, x + 4, -11); ctx.stroke();
+  }
+  ctx.fillStyle = '#26323b'; ctx.beginPath(); ctx.ellipse(0, 11, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e89da0'; ctx.beginPath(); ctx.ellipse(0, 14, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+const fearSweatDrops = new WeakMap();
+
+function drawFearSweat(enemy) {
+  const cycle = Math.floor(enemy.age * 2);
+  const progress = (enemy.age * 2 - cycle) / .8;
+  if (progress >= 1) return;
+  let drop = fearSweatDrops.get(enemy);
+  if (!drop || drop.cycle !== cycle) {
+    drop = { cycle, direction: Math.random() * Math.PI * 2 };
+    fearSweatDrops.set(enemy, drop);
+  }
+  ctx.save(); ctx.translate(enemy.x, enemy.y);
+  const direction = drop.direction;
+  const distance = (enemy.radius ?? 19) + 3 + progress * 24;
+  ctx.translate(Math.cos(direction) * distance, Math.sin(direction) * distance);
+  ctx.rotate(direction + Math.PI / 2); ctx.globalAlpha *= 1 - progress;
+  ctx.fillStyle = '#8edcff'; ctx.strokeStyle = '#367eaa'; ctx.lineWidth = .5;
+  ctx.beginPath(); ctx.moveTo(0, -2.5);
+  ctx.bezierCurveTo(-2.5, 0, -2, 2.5, 0, 2.5); ctx.bezierCurveTo(2, 2.5, 2.5, 0, 0, -2.5);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
 function drawRobot(enemy, deathProgress = null, damageProgress = null) {
   ctx.save();
   const damageColor = damageProgress === null ? null : Math.floor(damageProgress * 4) % 2 === 0 ? '#dc626b' : '#f2a0a5';
   drawRobotBody(enemy, deathProgress, damageColor);
+  if (enemy.afraid && enemy.fleeMoving && !enemy.asleep && deathProgress === null) drawFearSweat(enemy);
   if (enemy.shield && deathProgress === null) {
     ctx.strokeStyle = SHIELDS[enemy.shield].color;
     ctx.lineWidth = 3;
@@ -1689,6 +1876,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
       ctx.rotate(Math.PI / 5); line([[20, 0], [24, 0]], '#596975', 4);
     }
     ctx.restore(); ctx.fillStyle = damageColor ?? '#b2ca75'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+  }
+  if (enemy.afraid && deathProgress === null) {
+    drawScaredFace();
+    ctx.restore(); return;
   }
   line([[-12,-8],[-4,-4]], '#27353d', 3); line([[12,-8],[4,-4]], '#27353d', 3);
   for (const x of [-8, 8]) {
@@ -1755,6 +1946,10 @@ function drawRoboBucket(enemy, deathProgress, damageColor = null) {
   ctx.fillStyle = damageColor ? '#ffd3d5' : '#e0d59a';
   ctx.beginPath(); ctx.ellipse(0, -10, 19, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#50565a';
+  if (enemy.afraid && deathProgress === null) {
+    ctx.save(); ctx.translate(0, 3); ctx.scale(.85, .85); drawScaredFace(); ctx.restore();
+    ctx.restore(); ctx.restore(); return;
+  }
   for (const x of [-7, 7]) {
     ctx.beginPath(); ctx.arc(x, 0, 4.5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#f2eee0'; ctx.beginPath(); ctx.arc(x - 1, -1.5, 1.3, 0, Math.PI * 2); ctx.fill();
@@ -1860,6 +2055,10 @@ function drawRoboRam(enemy, deathProgress, damageColor = null) {
   ctx.lineTo(6, -15); ctx.lineTo(-6, -15); ctx.closePath(); ctx.fill();
   line([[-11, -11], [-12, 6]], '#e4e9eb', 1.5);
   line([[11, -11], [12, 6]], '#7d8c94', 1.5);
+  if (enemy.afraid && deathProgress === null) {
+    ctx.save(); ctx.translate(0, -3); ctx.scale(.85, .85); drawScaredFace(); ctx.restore();
+    ctx.restore(); return;
+  }
   for (const x of [-7, 7]) {
     const aiming = enemy.state === 'targeting' && deathProgress === null;
     const sparkle = aiming ? .65 + .35 * Math.sin(enemy.stateTime * 16) : 0;
@@ -2000,7 +2199,7 @@ game = createGame();
 saveAttempt(renderSaveSlots);
 makeBrickButtons();
 syncUI();
-if (!location.hash.startsWith('#level=') && location.hash !== '#install') titleScreen.showModal();
+if (!location.hash.startsWith('#level=') && !location.hash.startsWith('#campaign=') && location.hash !== '#install') titleScreen.showModal();
 installBackNavigation();
 new ResizeObserver(resize).observe(board);
 requestAnimationFrame(frame);

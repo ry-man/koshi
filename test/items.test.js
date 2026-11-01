@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, ITEMS, validateCustomLevel } = require('../src/game.js');
+const { Game, ITEMS, LEVELS, validateCustomLevel } = require('../src/game.js');
 
 const level = events => ({
   version: 1, id: 'Item tests', duration: 30, goal: 1000, heartCost: null, brickSet: 1, events,
@@ -15,6 +15,17 @@ function gameWithItem(type, duration = 30) {
   game.start();
   return game;
 }
+
+test('built-in levels have no newly added items, including inside spawn bricks', () => {
+  const removed = new Set(['smiley-cookie', 'stopwatch', 'stopwatch-green', 'stopwatch-blue',
+    'battery', 'music-box', 'eggplant', 'saw-blade', 'magic-sunglasses', 'ditto-stamp', 'spooky-mask']);
+  for (const level of LEVELS) {
+    assert.ok((level.items ?? []).every(([, type]) => !removed.has(type)), level.name);
+    assert.ok((level.events ?? []).every(event => event.kind !== 'item' || !removed.has(event.type)), level.name);
+    assert.ok(level.brickTypes.every(brick => brick.spawner?.kind !== 'item'
+      || !removed.has(brick.spawner.type)), level.name);
+  }
+});
 
 test('all power-up items validate in custom levels and item spawners', () => {
   for (const type of Object.keys(ITEMS)) {

@@ -9,6 +9,8 @@ const SPEED = 420;
 const DAMAGE_DURATION = 1;
 const MUSIC_STREAM_DURATION = 5;
 const SUNGLASSES_DURATION = 10;
+const MASK_DURATION = 10;
+const FEAR_SPEED = 32;
 const COOLDOWNS = { slow: 15, normal: 8, fast: 3 };
 const SLIMES = { blue: { duration: 5, color: '#287dcc' }, green: { duration: 3, color: '#399d24' }, red: { duration: 1, color: '#cd4136' } };
 const FOODS = {
@@ -30,6 +32,8 @@ const ITEMS = {
   eggplant: { name: 'Eggplant (-10 food)', icon: '🍆', color: '#8956aa' },
   'saw-blade': { name: 'Saw Blade', icon: '⚙', color: '#c4cdd5' },
   'magic-sunglasses': { name: 'Magical Sunglasses', icon: '🕶', color: '#d989ff' },
+  'ditto-stamp': { name: 'Ditto Stamp', icon: '▣', color: '#f59a50' },
+  'spooky-mask': { name: 'Spooky Mask', icon: '👹', color: '#d73642' },
 };
 const SCHEDULE = [
   [3, 'L3', 'S', 18], [11, 'L3', 'P', 18], [19, 'C3', 'B', 20],
@@ -45,6 +49,12 @@ const SWORDS = {
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
 const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost'];
+const DITTO_PROPERTIES = ['kind', 'crumbler', 'warped', 'toggle', 'slimeColor', 'conveyorDirection', ...CONTACT_SURFACES];
+
+function dittoProperties(brick) {
+  return Object.fromEntries(DITTO_PROPERTIES.map(key => [key,
+    brick[key] && typeof brick[key] === 'object' ? { ...brick[key] } : brick[key]]));
+}
 
 function brickEnabled(brick) { return !brick.toggle || brick.toggleRemaining === 0; }
 
@@ -167,7 +177,6 @@ const LEVELS = [
   },
   {
     name: 'A hearty harvest', concept: 'hearts and heart cost', duration: 100, goal: 30, killGoal: 4,
-    items: [[12, 'smiley-cookie'], [54, 'eggplant']],
     enemies: [[12,'mouse',3],[35,'mouse',3],[62,'mouse',2]], bricks: [],
     dialogue: [
       ['tom', 'I have stolen the farms\' harvest. My patrol will wear down your three hearts.'],
@@ -178,7 +187,6 @@ const LEVELS = [
   },
   {
     name: 'Cracker causeway', concept: 'crumblers', duration: 100, goal: 35,
-    items: [[40, 'saw-blade']],
     enemies: [[15,'mouse',3],[45,'mouse',3],[75,'mouse',2]],
     bricks: [[4,{ crumbler: 5 }],[9,{ crumbler: 5 }],[16,{ crumbler: 5 }]],
     dialogue: [
@@ -199,7 +207,6 @@ const LEVELS = [
   },
   {
     name: 'Tin-foil picnic', concept: 'enemy shields', duration: 110, killGoal: 8,
-    items: [[34, 'music-box']],
     enemies: [[10,'mouse',4],[28,'mouse',2,'red'],[45,'mouse',3],[64,'mouse',3,'red'],[82,'mouse',2]],
     bricks: [[16,{ slimed: true, slimeColor: 'red' }],[9,{ crumbler: 5 }]],
     dialogue: [
@@ -231,7 +238,6 @@ const LEVELS = [
   },
   {
     name: 'Pancake trampoline', concept: 'springs', duration: 110, goal: 40,
-    items: [[56, 'stopwatch']],
     weapons: [[28,'silver']],
     enemies: [[14,'mouse',3],[35,'wheel',3,'red'],[62,'mouse',3],[85,'wheel',2,'red']],
     bricks: [[4,{ springs: true }],[9,{ springs: true }],[16,{ spikes: true }]],
@@ -284,7 +290,6 @@ const LEVELS = [
   },
   {
     name: 'Snack dispensary', concept: 'spawners', duration: 120, goal: 45, killGoal: 10,
-    items: [[42, 'battery'], [75, 'smiley-cookie']],
     enemies: [[12,'mouse',4],[30,'wheel',3,'red'],[50,'ram',2,'green'],[70,'mouse',3,'green'],[92,'wheel',2]],
     bricks: [[4,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[9,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }],[19,{ boost: true }]],
     dialogue: [
@@ -305,7 +310,6 @@ const LEVELS = [
   },
   {
     name: 'Cinder soup factory', concept: 'cinder', duration: 130, goal: 45, killGoal: 12,
-    items: [[38, 'battery'], [83, 'eggplant']],
     weapons: [[24,'silver'],[48,'silver'],[65,'silver'],[82,'silver'],[105,'silver']],
     enemies: [[12,'bucket',2],[28,'mouse',4,'red'],[45,'wheel',3,'green'],[63,'ram',2],[80,'mouse',3,'green'],[98,'bucket',2,'green'],[115,'wheel',3]],
     bricks: [[4,{ kind: 'cinder' }],[9,{ kind: 'cinder' }],[16,{ boost: true }],[19,{ springs: true }]],
@@ -317,7 +321,6 @@ const LEVELS = [
   },
   {
     name: 'Switchboard supper', concept: 'toggles', duration: 130, killGoal: 14,
-    items: [[44, 'magic-sunglasses']],
     enemies: [[12,'mouse',4],[28,'wheel',3,'green'],[44,'ram',3,'green'],[61,'bucket',2],[78,'mouse',3,'blue'],[96,'wheel',3,'red'],[114,'mouse',4]],
     bricks: [[4,{ toggle: 2 }],[9,{ toggle: 2 }],[16,{ boost: true }],[19,{ conveyor: true }]],
     dialogue: [
@@ -1109,6 +1112,9 @@ class Game {
     this.batteries = 0;
     this.sawStartedAt = null;
     this.brickDestructions = [];
+    this.dittoStamp = false;
+    this.dittoSource = null;
+    this.brickStamps = [];
     this.spawnerTouching = new Set();
     this.cookieActive = false;
     this.cookieLickUntil = 0;
@@ -1118,6 +1124,8 @@ class Game {
     this.sunglassesStart = null;
     this.sunglassesUntil = 0;
     this.sunglassesPickup = null;
+    this.maskUntil = 0;
+    this.maskPickup = null;
     this.healing = [];
     this.spikeTouching = new Set();
     this.conveyorRide = null;
@@ -1168,6 +1176,7 @@ class Game {
   get invulnerable() { return this.invulnerableUntil > this.elapsed + 1e-9; }
   get timeLimit() { return this.level.duration + this.timeBonus; }
   get sunglassesActive() { return this.sunglassesStart !== null && this.elapsed < this.sunglassesUntil - 1e-9; }
+  get maskActive() { return this.maskPickup !== null && this.elapsed < this.maskUntil - 1e-9; }
 
   brickSelectable(brick) {
     return brick.kind !== 'cinder' && brick.absorbedBy === null
@@ -1563,22 +1572,26 @@ class Game {
   }
 
   updateBucket(enemy, seconds, parts) {
-    enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * seconds;
-    enemy.x += Math.cos(enemy.phase) * 32 * seconds;
-    enemy.y += Math.sin(enemy.phase) * 32 * seconds;
-    const bounds = this.bounds();
-    if (enemy.x < bounds.left || enemy.x > bounds.right) {
-      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
-      enemy.phase = Math.PI - enemy.phase;
+    if (!enemy.afraid) {
+      enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * seconds;
+      enemy.x += Math.cos(enemy.phase) * 32 * seconds;
+      enemy.y += Math.sin(enemy.phase) * 32 * seconds;
+      const bounds = this.bounds();
+      if (enemy.x < bounds.left || enemy.x > bounds.right) {
+        enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+        enemy.phase = Math.PI - enemy.phase;
+      }
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) {
+        enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+        enemy.phase = -enemy.phase;
+      }
     }
-    if (enemy.y < bounds.top || enemy.y > bounds.bottom) {
-      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
-      enemy.phase = -enemy.phase;
-    }
-    enemy.shotTimer -= seconds;
-    if (enemy.shotTimer <= 1e-9) {
-      this.fireBucketBomb(enemy);
-      enemy.shotTimer += this.nextBucketShot();
+    if (!enemy.afraid) {
+      enemy.shotTimer -= seconds;
+      if (enemy.shotTimer <= 1e-9) {
+        this.fireBucketBomb(enemy);
+        enemy.shotTimer += this.nextBucketShot();
+      }
     }
     enemy.bombs = enemy.bombs.filter(bomb => {
       if (bomb.state === 'flying') {
@@ -1614,7 +1627,7 @@ class Game {
         bomb.blastAge += seconds;
         bomb.blastRadius = 58 * Math.min(1, bomb.blastAge / .45);
         const touching = Math.hypot(this.cat.x - bomb.x, this.cat.y - bomb.y) <= this.cat.radius + bomb.blastRadius;
-        if (touching && !bomb.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
+        if (!enemy.afraid && touching && !bomb.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
         bomb.touching = touching;
         if (bomb.blastAge >= .9) return false;
       }
@@ -1630,6 +1643,30 @@ class Game {
     else if (d < w + h) { enemy.x = b.right; enemy.y = b.top + d - w; }
     else if (d < 2 * w + h) { enemy.x = b.right - (d - w - h); enemy.y = b.bottom; }
     else { enemy.x = b.left; enemy.y = b.bottom - (d - 2 * w - h); }
+  }
+
+  moveAfraidEnemy(enemy, seconds) {
+    const bounds = this.bounds();
+    const angle = Math.hypot(enemy.x - this.cat.x, enemy.y - this.cat.y) < 1e-9
+      ? enemy.phase : Math.atan2(enemy.y - this.cat.y, enemy.x - this.cat.x);
+    enemy.phase = angle;
+    enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x + Math.cos(angle) * FEAR_SPEED * seconds));
+    enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y + Math.sin(angle) * FEAR_SPEED * seconds));
+    if (enemy.type === 'ram') enemy.facingAngle = rotateToward(enemy.facingAngle, angle - Math.PI / 2, 4.5 * seconds);
+  }
+
+  moveAfraidWheel(enemy, seconds) {
+    const distance = enemy.distance;
+    const candidates = [-1, 1].map(direction => {
+      const probe = { ...enemy, distance: distance + direction * FEAR_SPEED * Math.max(seconds, .05) };
+      this.placeWheel(probe);
+      return { direction, separation: Math.hypot(probe.x - this.cat.x, probe.y - this.cat.y) };
+    });
+    if (Math.abs(candidates[0].separation - candidates[1].separation) > 1e-6) {
+      enemy.fleeDirection = candidates[0].separation > candidates[1].separation ? -1 : 1;
+    }
+    enemy.distance += (enemy.fleeDirection ?? 1) * FEAR_SPEED * seconds;
+    this.placeWheel(enemy);
   }
 
   moveRam(enemy, seconds, parts) {
@@ -1715,13 +1752,13 @@ class Game {
 
   turnEnemyFromContact(enemy, nx, ny) {
     if (enemy.type === 'wheel' || (enemy.type === 'mouse' && enemy.resting)
-      || (enemy.type === 'ram' && enemy.state === 'targeting')) return;
-    const angle = enemy.type === 'ram' ? enemy.angle : enemy.phase;
+      || (!enemy.afraid && enemy.type === 'ram' && enemy.state === 'targeting')) return;
+    const angle = enemy.type === 'ram' && !enemy.afraid ? enemy.angle : enemy.phase;
     const vx = Math.cos(angle), vy = Math.sin(angle);
     const incoming = vx * nx + vy * ny;
     if (incoming >= -1e-9) return;
     const reflected = Math.atan2(vy - 2 * incoming * ny, vx - 2 * incoming * nx);
-    if (enemy.type === 'ram') {
+    if (enemy.type === 'ram' && !enemy.afraid) {
       enemy.angle = reflected;
       if (enemy.state === 'charging') enemy.speed *= .78;
     } else enemy.phase = reflected;
@@ -1858,10 +1895,16 @@ class Game {
     for (const enemy of this.robots) {
       enemy.age += dt;
       enemy.asleep = this.enemiesSleepUntil > this.elapsed + 1e-9;
+      enemy.afraid = this.maskActive;
+      enemy.fleeMoving = false;
       if (enemy.asleep) { enemy.touching = false; continue; }
-      if (enemy.type === 'wheel') {
-        enemy.distance += 95 * dt;
-        this.placeWheel(enemy);
+      if (enemy.afraid) {
+        enemy.resting = false;
+        if (enemy.type === 'wheel') this.moveAfraidWheel(enemy, dt);
+        else this.moveAfraidEnemy(enemy, dt);
+        if (enemy.type === 'bucket') this.updateBucket(enemy, dt, parts);
+      } else if (enemy.type === 'wheel') {
+        enemy.distance += 95 * dt; this.placeWheel(enemy);
       } else if (enemy.type === 'ram') {
         this.updateRam(enemy, dt, parts);
       } else if (enemy.type === 'bucket') {
@@ -1880,6 +1923,11 @@ class Game {
       }
     }
     this.resolveEnemyCollisions(previous);
+    for (const enemy of this.robots) {
+      const old = previous.get(enemy);
+      enemy.fleeMoving = enemy.afraid && !enemy.asleep && Math.hypot(enemy.x - old.x, enemy.y - old.y) > 1e-8;
+      if (enemy.fleeMoving) enemy.fleeTrailAngle = Math.atan2(old.y - enemy.y, old.x - enemy.x);
+    }
     this.robots = this.robots.filter(enemy => {
       const old = previous.get(enemy);
       const distance = distanceToSegment(0, 0, startX - old.x, startY - old.y, this.cat.x - enemy.x, this.cat.y - enemy.y);
@@ -1898,7 +1946,7 @@ class Game {
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
       }
-      if (!enemy.asleep && distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
+      if (!enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
     });
@@ -1923,6 +1971,14 @@ class Game {
     }
     else if (item.type === 'eggplant') this.score = Math.max(0, this.score - 10);
     else if (item.type === 'saw-blade' && this.sawStartedAt === null) this.sawStartedAt = this.elapsed;
+    else if (item.type === 'ditto-stamp' && !this.dittoStamp) {
+      this.dittoStamp = true;
+      this.dittoSource = null;
+    }
+    else if (item.type === 'spooky-mask') {
+      this.maskUntil = this.elapsed + MASK_DURATION;
+      this.maskPickup = { x: item.x ?? this.cat.x, y: item.y ?? this.cat.y, age: 0 };
+    }
     else if (item.type === 'magic-sunglasses') {
       this.sunglassesStart = this.elapsed;
       this.sunglassesUntil = this.elapsed + SUNGLASSES_DURATION;
@@ -1953,10 +2009,53 @@ class Game {
     return true;
   }
 
+  stampBrick(brick, parts) {
+    if (!this.dittoStamp || brick.portal) return false;
+    const capturing = !this.dittoSource;
+    if (capturing && brick.springs) return false;
+    const members = parts.filter(part => part.id === brick.id).map(part => ({ ...part }));
+    const left = Math.min(...members.map(part => part.x));
+    const right = Math.max(...members.map(part => part.x + part.w));
+    const top = Math.min(...members.map(part => part.y));
+    const bottom = Math.max(...members.map(part => part.y + part.h));
+    const edge = brickRegions(this.bricks, this.width, this.height).get(brick.id).edge;
+    if (capturing) this.dittoSource = dittoProperties(brick);
+    const properties = this.dittoSource;
+    if (!capturing) this.brickStamps = this.brickStamps.filter(effect => !effect.capturing);
+    this.brickStamps.push({ id: brick.id, members, kind: properties.kind, capturing,
+      x: (left + right) / 2, y: (top + bottom) / 2,
+      angle: { top: Math.PI, bottom: 0, left: Math.PI / 2, right: -Math.PI / 2 }[edge],
+      fromX: this.cat.x + 33, fromY: this.cat.y - 22, age: 0 });
+    if (capturing) return true;
+    for (const member of this.bricks) {
+      if (member.id !== brick.id && member.absorbedBy !== brick.id) continue;
+      Object.assign(member, dittoProperties(properties));
+      member.readyAt = 0;
+      member.usesLeft = member.crumbler ?? null;
+      member.toggleRemaining = member.toggle ?? 0;
+      member.spawned = false;
+      member.warpUntil = null;
+      member.hitAt = null; member.hitNormal = null; member.hitPoint = null;
+      // Keep the current union, even if its former warp would have split it later.
+      member.initialOwner = member.id === brick.id ? null : brick.id;
+      member.absorbedBy = member.initialOwner;
+    }
+    this.spawnerTouching.delete(brick.id);
+    this.spikeTouching.delete(brick.id);
+    this.dittoStamp = false;
+    this.dittoSource = null;
+    this.brickRevision++;
+    return true;
+  }
+
   updateBrickDestructions(seconds) {
     this.brickDestructions = this.brickDestructions.filter(effect => {
       effect.age += seconds;
       return effect.age < 1 - 1e-9;
+    });
+    this.brickStamps = this.brickStamps.filter(effect => {
+      effect.age += seconds;
+      return effect.age < .65 - 1e-9;
     });
   }
 
@@ -1990,6 +2089,10 @@ class Game {
   }
 
   updatePickups(seconds) {
+    if (this.maskPickup) {
+      this.maskPickup.age += seconds;
+      if (this.maskPickup.age >= MASK_DURATION + .5 - 1e-9) this.maskPickup = null;
+    }
     if (this.sunglassesPickup) {
       this.sunglassesPickup.age += seconds;
       if (this.sunglassesPickup.age >= SUNGLASSES_DURATION + .5) this.sunglassesPickup = null;
@@ -2085,7 +2188,19 @@ class Game {
       }
     }
     const dx = cat.vx * dt, dy = cat.vy * dt;
-    const spikes = this.sawStartedAt === null && (dx || dy || this.spikeTouching.size) ? this.spikeParts(parts) : [];
+    const originalSpikes = this.sawStartedAt === null && (dx || dy || this.spikeTouching.size) ? this.spikeParts(parts) : [];
+    const stampAvailable = Boolean(this.dittoSource && this.dittoStamp);
+    let spikes = originalSpikes;
+    if (stampAvailable && this.sawStartedAt === null) {
+      const margin = cat.radius + 14;
+      spikes = this.bricks.filter(brick => brick.absorbedBy === null
+        && (brick.portal ? brick.spikes : this.dittoSource.spikes)
+        && parts.some(part => part.id === brick.id
+          && part.x <= Math.max(cat.x, cat.x + dx) + margin && part.x + part.w >= Math.min(cat.x, cat.x + dx) - margin
+          && part.y <= Math.max(cat.y, cat.y + dy) + margin && part.y + part.h >= Math.min(cat.y, cat.y + dy) - margin))
+        .flatMap(brick => brickSpikes(parts.filter(part => part.id === brick.id), this.width, this.height).triangles
+          .map(triangle => ({ id: brick.id, triangle })));
+    }
     for (const id of this.spikeTouching) {
       const touching = parts.some(part => part.id === id &&
         Math.hypot(cat.x - Math.max(part.x, Math.min(part.x + part.w, cat.x)),
@@ -2139,14 +2254,20 @@ class Game {
     cat.x = endX; cat.y = endY;
     const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
     const sawing = this.sawStartedAt !== null || collectingSaw;
-    if (!sawing) {
+    const stamping = stampAvailable && contacts.some(part => !this.bricks[part.id].portal);
+    if (!sawing && !stamping) {
       if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
       for (const id of spikeIds) this.spikeTouching.add(id);
     }
     this.combat(dt, startX, startY);
     const sawTarget = contacts.map(part => this.bricks[part.id]).find(brick => brick.kind !== 'cinder');
-    if (sawTarget) this.sawBrick(sawTarget, parts);
-    if (sawing) {
+    const sawed = sawTarget && this.sawBrick(sawTarget, parts);
+    if (!sawed) {
+      const stampTarget = contacts.map(part => this.bricks[part.id]).find(brick => !brick.portal);
+      if (stampTarget) this.stampBrick(stampTarget, parts);
+    }
+    if (sawing || stamping) {
+      for (const part of contacts) if (this.bricks[part.id].spikes) spikeIds.add(part.id);
       for (const id of spikeIds) if (!this.bricks[id].spikes) spikeIds.delete(id);
       if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
       for (const id of spikeIds) this.spikeTouching.add(id);

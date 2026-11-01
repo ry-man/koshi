@@ -8,6 +8,85 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('campaign editor previews use every real schedule and preserve the original game levels', () => {
+  const { LEVELS } = require('../src/game.js');
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const before = JSON.stringify(LEVELS);
+  const context = vm.createContext({ Game });
+  vm.runInContext(source.slice(source.indexOf('function campaignPreview('), source.indexOf('function syncAccess(')), context);
+  for (const [index, campaign] of LEVELS.entries()) {
+    const preview = context.campaignPreview(index);
+    assert.equal(preview.id, campaign.id);
+    assert.equal(preview.duration, campaign.duration);
+    assert.equal(preview.goal, campaign.goal);
+    assert.equal(preview.killGoal, campaign.killGoal);
+    assert.equal(preview.survive, campaign.survive);
+    assert.equal(preview.brickTypes, campaign.brickTypes);
+    assert.equal(preview.brickGroups, campaign.brickGroups);
+    assert.equal(preview.cutscene, campaign.cutscene);
+    assert.equal(preview.events.length,
+      campaign.food.reduce((sum, [, method]) => sum + (method === 'S' ? 1 : Number(method.slice(1))), 0)
+      + campaign.enemies.reduce((sum, [, , count]) => sum + count, 0)
+      + campaign.items.length + campaign.weapons.length);
+    assert.equal(JSON.stringify(context.campaignPreview(index)), JSON.stringify(preview), 'representative positions stay stable');
+    for (const [kind, schedule] of [['food', campaign.food], ['enemy', campaign.enemies], ['item', campaign.items], ['weapon', campaign.weapons]]) {
+      for (const [time, typeOrMethod, typeOrCount, lifetimeOrShield] of schedule) {
+        const type = kind === 'food' ? typeOrCount : typeOrMethod;
+        const matches = preview.events.filter(event => event.kind === kind && event.time === time && event.type === type);
+        assert.ok(matches.length);
+        if (kind === 'food') assert.ok(matches.every(event => event.lifetime === lifetimeOrShield));
+        if (kind === 'enemy' && lifetimeOrShield) assert.ok(matches.every(event => event.shield === lifetimeOrShield));
+      }
+    }
+    assert.ok(preview.events.every(event => Number.isFinite(event.x) && Number.isFinite(event.y)));
+  }
+  assert.equal(JSON.stringify(LEVELS), before);
+});
+
+test('read-only campaign controls lock all write surfaces but leave inspection available', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { disabled: false, hidden: false, setAttribute() {} });
+    return nodes.get(selector);
+  };
+  let locked = true;
+  const accessFields = ['#settings-access', '#cutscene-access', '#inspector-access', '#files-access'];
+  const writeButtons = ['#place-mode', '#new-level'];
+  const board = { dataset: {} };
+  const context = vm.createContext({ $, board, accessFields, writeButtons, readOnly: () => locked, level: { id: '1-19', name: 'Finale' } });
+  vm.runInContext(source.slice(source.indexOf('function syncAccess('), source.indexOf('function selectEditorLevel(')), context);
+  context.syncAccess();
+  for (const selector of [...accessFields, ...writeButtons]) assert.equal($(selector).disabled, true);
+  for (const selector of accessFields) assert.ok(html.includes(`<fieldset id="${selector.slice(1)}"`));
+  assert.equal(board.dataset.readOnly, 'true');
+  assert.equal($('#playtest').textContent, 'Play game level →');
+  for (const selector of ['#editor-level', '#timeline', '#orientation', '#show-all', '#select-mode']) assert.equal($(selector).disabled, false);
+  locked = false; context.syncAccess();
+  for (const selector of [...accessFields, ...writeButtons]) assert.equal($(selector).disabled, false);
+  assert.equal(board.dataset.readOnly, 'false');
+  for (const fn of ['markChanged', 'moveEvent', 'placeAt', 'startPlacement', 'deleteSelected']) {
+    assert.match(source.slice(source.indexOf(`function ${fn}(`)), /^function [^{]+\{\s+if \(readOnly\(\)\) return;/);
+  }
+  assert.ok(source.includes("if (readOnly()) { down.stopPropagation(); return; }"), 'campaign markers cannot be dragged');
+});
+
+test('campaign play links choose the original game level and malformed links report an error', () => {
+  const { LEVELS } = require('../src/game.js');
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = source.indexOf("if (location.hash.startsWith('#campaign='))");
+  const script = source.slice(start, source.indexOf('function layoutOptions()', start));
+  for (const [hash, expected] of [['#campaign=1-19', '18'], ['#campaign=unknown', null], ['#campaign=%', null]]) {
+    const levelSelect = { value: '0' }, error = { hidden: true }, failures = [];
+    const context = vm.createContext({ location: { hash }, LEVELS, levelSelect,
+      document: { querySelector: () => error }, console: { error: (...args) => failures.push(args) } });
+    vm.runInContext(script, context);
+    if (expected) { assert.equal(levelSelect.value, expected); assert.equal(error.hidden, true); }
+    else { assert.equal(error.hidden, false); assert.equal(failures.length, 1); }
+  }
+});
+
 test('enemy shields round-trip in placements and spawners and initialize their full score value', () => {
   for (const shield of [null, 'red', 'green', 'blue']) {
     const source = { ...blank(), events: [{ ...event('enemy', 'ram'), shield }],
@@ -399,7 +478,7 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
     level: blank(), selectedEvents: new Set(), touched: new Set(),
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     selectedList: () => [...context.selectedEvents],
-    mixedOption: () => {}, syncPalettes() {},
+    mixedOption: () => {}, syncPalettes() {}, readOnly: () => false,
     validateDraft: validateCustomLevel, markChanged() {}, setSelection() {}, message() {},
     plural: (count, word) => `${count} ${word}s`,
   });

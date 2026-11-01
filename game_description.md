@@ -96,6 +96,25 @@ dialogue lines, a speaker, and an on-stage cast. Saved JSON can additionally
 set each actor's normalized position per line. Tom is available as a speaker
 and cast member using the character ID `tom`, alongside `koshi`, `mouse`,
 `wheel`, `ram`, and `bucket`. Older custom scenes remain supported.
+The editor's Level library also offers every built-in campaign level for
+read-only inspection of bricks, scheduled events, cutscenes, and preview timing.
+Campaign spawn coordinates are representative randomized examples. Editing and
+draft/import/export actions are disabled; switching back restores custom work.
+The play link launches the original campaign level rather than a custom copy.
+
+Spooky Mask is a red devil face with yellow snake eyes, pointed ears and nose,
+horns and sharp teeth. It moves onto Koshi's head for ten seconds. Enemies show
+scared faces and small sweat drops flying in random directions at two drops per
+second per moving enemy while fleeing his current position at a
+constant slow pace of 32 game units per second within movement bounds. Mice
+do not pause and Rams do not target or charge while afraid. Wheels stay on
+the perimeter and Buckets pause their bomb-throwing timer. Normal movement resumes at expiry.
+The mask has smaller, distinctly outlined ears with dark inner-ear shading.
+Scared enemies do not attack or hurt Koshi on contact. Existing bombs keep
+animating but cannot damage him during fear; attacks and damage resume at expiry.
+Sleep overrides fleeing.
+New enemies are affected too. Another pickup refreshes the duration, pause
+freezes it, and the mask fades after expiry. The editor and spawners support it.
 
 ### Koshi
 Koshi is a circular cat head who is grey with dark grey stripes, a white stripe on his nose, and two pointy ears. He is smiling and has 4 large whiskers poking out from either side of his face.
@@ -246,6 +265,23 @@ lifetimes are optional, with blank meaning they remain until the level ends.
 The timer starts at the actual spawn and freezes on pause, independently of any
 collected power-up or equipped sword duration. Collected food, items, and swords
 briefly enlarge, then shrink and fade with sparkles; expired objects do not.
+Ditto Stamp is an orange wooden stamp shown straight-on from the side, with a
+round knob, wood grain and an even, flat grey rubber pad beneath the wooden base.
+It has no sparkles, background or cast shadow.
+After pickup it follows Koshi until his first stop on a non-Portal brick, then
+presses onto that brick's center to capture its properties and returns beside
+him with matching ink. His next landing presses onto the destination's center
+and copies the captured properties before contact
+effects, preserving destination size and merged shape and refreshing cooldowns,
+Crumbler uses, Toggle counters, spawners and warp timers. Portals do not supply
+or consume copies; merging Warped bricks can be copied. Both presses travel to
+the center and squash against it; a colored ripple shows the transformation.
+Pickup while resting waits for a new landing, and Spring bounces cannot capture
+a source because Koshi does not stop. Midair redirects retain the captured copy. Duplicate
+pickups do not stack, and a held saw takes priority without consuming the stamp.
+Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
+Magical Sunglasses, Ditto Stamp and Spooky Mask are available in the editor for
+custom levels, but are not placed in the current built-in campaign.
 Sword icons share the
 weapon colors: brown wood, dark green patinated bronze, silver, and gold.
 Gameplay swords also have thin dark outlines around the blade, guard, and handle.

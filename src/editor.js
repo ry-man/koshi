@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, FOODS, ITEMS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, SWORDS, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
@@ -29,6 +29,97 @@ let gesture = null;
 let touched = new Set();
 let dirty = false;
 let committed = JSON.stringify(level);
+let campaignIndex = null;
+let customWorkspace = null;
+const readOnly = () => campaignIndex !== null;
+const accessFields = ['#settings-access', '#cutscene-access', '#inspector-access', '#files-access'];
+const writeButtons = ['#place-mode', '#new-level'];
+for (const [index, campaign] of LEVELS.entries()) {
+  const option = document.createElement('option');
+  option.value = String(index);
+  option.textContent = `${campaign.id} - ${campaign.name} (read-only)`;
+  $('#editor-level').append(option);
+}
+
+function campaignPreview(index) {
+  let seed = index + 1;
+  const game = new Game(() => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  }, { level: index });
+  const events = [];
+  const bounds = game.bounds();
+  const add = (kind, time, type, point, lifetime, shield) => events.push({
+    kind, time, type, x: (point.x - bounds.left) / (bounds.right - bounds.left),
+    y: (point.y - bounds.top) / (bounds.bottom - bounds.top),
+    ...(lifetime == null ? {} : { lifetime }), ...(shield == null ? {} : { shield }),
+  });
+  for (const entry of game.level.food) {
+    for (const food of game.createFood(entry)) add('food', entry[0], entry[2], food, entry[3]);
+  }
+  for (const entry of game.level.enemies) {
+    for (const enemy of game.createEnemies(entry)) add('enemy', entry[0], entry[1], enemy, null, entry[3]);
+  }
+  for (const [kind, entries] of [['weapon', game.level.weapons], ['item', game.level.items]]) {
+    for (const [time, type, lifetime] of entries) add(kind, time, type, game.createCollectible(time, type, lifetime), lifetime);
+  }
+  events.sort((a, b) => a.time - b.time);
+  return { ...game.level, heartCost: Number.isFinite(game.level.heartCost) ? game.level.heartCost : null, events };
+}
+
+function syncAccess() {
+  const locked = readOnly();
+  for (const selector of accessFields) $(selector).disabled = locked;
+  for (const selector of writeButtons) $(selector).disabled = locked;
+  board.dataset.readOnly = String(locked);
+  $('#editor-bricks').setAttribute('aria-label', locked ? 'Read-only boundary bricks' : 'Editable boundary bricks');
+  $('#level-access').textContent = locked
+    ? `${level.id} - ${level.name}: read-only game level. Inspect bricks, events, cutscenes and timing; editing, import, export and draft saving are disabled. Your custom work is preserved. Spawn positions are representative; the game randomizes them each run.`
+    : 'Custom levels are editable. Game levels are available for read-only inspection.';
+  $('#board-hint').hidden = locked;
+  $('#playtest').textContent = locked ? 'Play game level →' : 'Playtest →';
+}
+
+function selectEditorLevel() {
+  const value = $('#editor-level').value;
+  if (value !== 'custom' && !readOnly()) {
+    customWorkspace = { level, committed, dirty, placing, selectedEvents, selectedBricks,
+      sceneLines: [...$('#scene-lines').childNodes],
+      sceneFieldsDisabled: $('#scene-fields').disabled,
+      fields: [...document.querySelectorAll('input, select, textarea')].filter(node => node.id !== 'editor-level')
+        .map(node => ({ node, value: node.value, checked: node.checked })) };
+  }
+  if (value === 'custom') {
+    if (!customWorkspace) return;
+    campaignIndex = null;
+    ({ level, committed, dirty, placing, selectedEvents, selectedBricks } = customWorkspace);
+  } else {
+    campaignIndex = Number(value);
+    level = campaignPreview(campaignIndex);
+    placing = false; selectedEvents = new Set(); selectedBricks = new Set();
+    $('#timeline').value = 0;
+  }
+  gesture = null; $('#selection-box').hidden = true;
+  populateSettings(); populateCutscene(); populateEventForm(); updatePlaytest(); render();
+  if (!readOnly()) {
+    $('#scene-lines').replaceChildren(...customWorkspace.sceneLines);
+    $('#scene-fields').disabled = customWorkspace.sceneFieldsDisabled;
+    for (const { node, value: savedValue, checked } of customWorkspace.fields) {
+      if (node.isConnected) { node.value = savedValue; node.checked = checked; }
+    }
+    updateWinCondition(); syncPalettes(); render();
+    customWorkspace = null;
+  }
+  syncAccess();
+  message(readOnly() ? 'Game level opened read-only. Select your custom level to resume editing.' : 'Your custom workspace restored.');
+}
+$('#editor-level').addEventListener('change', () => attempt(selectEditorLevel));
+for (const type of ['click', 'change', 'input', 'submit']) document.addEventListener(type, event => {
+  if (!readOnly() || !event.target.closest('button, input, select, textarea, form')
+    || !event.target.closest([...accessFields, ...writeButtons].join(', '))) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  message('Game levels are read-only. Select your custom level to make changes.', true);
+}, true);
 const MIXED = '';
 const palettes = new Map();
 const COLORS = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', ...PORTALS };
@@ -155,12 +246,14 @@ function attempt(action) {
 }
 
 function markChanged() {
+  if (readOnly()) return;
   dirty = JSON.stringify(level) !== committed;
   updatePlaytest();
 }
 
 function updatePlaytest() {
-  $('#playtest').href = `./index.html#level=${encodeURIComponent(JSON.stringify(level))}`;
+  $('#playtest').href = readOnly() ? `./index.html#campaign=${encodeURIComponent(level.id)}`
+    : `./index.html#level=${encodeURIComponent(JSON.stringify(level))}`;
 }
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -263,7 +356,9 @@ function populateEventForm() {
   if (!multi) for (const [id, fallback] of Object.entries(numbers)) {
     if ($(id).value === '' && (id !== '#event-lifetime' || $('#event-kind').value === 'food')) $(id).value = fallback;
   }
-  $('#inspector-heading').textContent = !items.length ? 'NEW PLACEMENT' : multi ? `EDITING ${items.length} EVENTS` : `EDITING EVENT ${indices[0] + 1}`;
+  $('#inspector-heading').textContent = readOnly() ? !items.length ? 'READ-ONLY GAME LEVEL'
+    : multi ? `VIEWING ${items.length} EVENTS` : `VIEWING EVENT ${indices[0] + 1}`
+    : !items.length ? 'NEW PLACEMENT' : multi ? `EDITING ${items.length} EVENTS` : `EDITING EVENT ${indices[0] + 1}`;
   $('#apply-event').textContent = !items.length ? 'Add event' : multi ? `Apply to ${items.length} events` : 'Apply event changes';
   $('#duplicate-event').disabled = !items.length;
   $('#delete-event').disabled = !items.length;
@@ -406,7 +501,8 @@ function renderBoard() {
   const portrait = $('#orientation').value === 'portrait';
   board.dataset.orientation = portrait ? 'portrait' : 'landscape';
   board.dataset.tool = placing ? 'place' : 'select';
-  previewGame = new Game(Math.random, { portrait, scale: portrait ? board.clientWidth / 600 : 1, customLevel: level, editorPreview: true });
+  previewGame = new Game(Math.random, { portrait, scale: portrait ? board.clientWidth / 600 : 1,
+    ...(readOnly() ? { level: campaignIndex } : { customLevel: level }), editorPreview: true });
   const issues = portalPairIssues(previewGame.bricks);
   $('#portal-warning').hidden = !issues.length;
   $('#portal-warning').textContent = issues.length ? `Unfinished portals: ${issues.join(' ')} You can keep editing and save a draft; fix these before export or playtest.` : '';
@@ -563,16 +659,18 @@ function renderBoard() {
     marker.append(icon(event), label);
     marker.addEventListener('click', click => {
       click.stopPropagation();
-      if (click.detail !== 0) return;
+      if (click.detail !== 0 && !readOnly()) return;
       choose('event', index, isAdditive(click));
       focusMarker(index);
     });
     marker.addEventListener('pointerdown', down => {
+      if (readOnly()) { down.stopPropagation(); return; }
       if (down.button !== 0 || gesture) return;
       down.preventDefault(); down.stopPropagation();
       startGesture(down, { type: 'marker', index });
     });
     marker.addEventListener('keydown', key => {
+      if (readOnly()) return;
       const direction = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] }[key.key];
       if (!direction) return;
       key.preventDefault();
@@ -583,6 +681,7 @@ function renderBoard() {
     });
     markers.append(marker);
   });
+  syncAccess();
 }
 
 function render() {
@@ -593,6 +692,7 @@ function focusMarker(index) { board.querySelector(`.marker[data-index="${index}"
 function focusBrick(key) { board.querySelector(`.editor-brick[data-region="${key}"]`)?.focus({ preventScroll: true }); }
 
 function moveEvent(index, x, y) {
+  if (readOnly()) return;
   const event = level.events[index];
   let point = { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
   if (event.kind === 'enemy' && event.type === 'wheel') point = snapWheel(point.x, point.y);
@@ -607,6 +707,7 @@ function pointerPosition(event) {
 }
 
 function startGesture(event, target) {
+  if (readOnly() && target.type === 'marker') return;
   gesture = { ...target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, additive: isAdditive(event), moved: false };
   if (target.type === 'marker') {
     // Pressing an unselected marker adds it (or replaces the selection) so the drag moves it with the group.
@@ -657,6 +758,7 @@ function boxSelect(event) {
 }
 
 function placeAt(event) {
+  if (readOnly()) return;
   const point = pointerPosition(event);
   if (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) {
     message('Place objects inside the dotted playable area, not on bricks.', true); return;
@@ -716,6 +818,7 @@ board.addEventListener('keydown', event => {
   else if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); selectAll(); }
 });
 function startPlacement() {
+  if (readOnly()) return;
   placing = true; setSelection([], []);
   $('#event-panel').open = true;
   $('#brick-panel').open = false;
@@ -912,6 +1015,7 @@ $('#duplicate-event').addEventListener('click', () => attempt(() => {
   message(`${copies.length === 1 ? 'Event' : `${copies.length} events`} duplicated at the same location and time. Drag the selection or edit its fields.`);
 }));
 function deleteSelected() {
+  if (readOnly()) return;
   const count = selectedEvents.size;
   if (!count) return;
   level.events = level.events.filter((_, index) => !selectedEvents.has(index));
@@ -1077,6 +1181,7 @@ $('#new-level').addEventListener('click', () => {
 $('#playtest').addEventListener('click', event => {
   event.preventDefault();
   attempt(() => {
+    if (readOnly()) { location.href = $('#playtest').href; return; }
     validateCustomLevel(level);
     // The fragment carries the snapshot without requiring storage access or a server.
     committed = JSON.stringify(level); dirty = false;
@@ -1084,7 +1189,7 @@ $('#playtest').addEventListener('click', event => {
   });
 });
 window.addEventListener('beforeunload', event => {
-  if (dirty) { event.preventDefault(); event.returnValue = ''; }
+  if (readOnly() ? customWorkspace?.dirty : dirty) { event.preventDefault(); event.returnValue = ''; }
 });
 
 setupPalettes();

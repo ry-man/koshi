@@ -24,7 +24,12 @@
       <div class="editor-heading"><div><p class="eyebrow">THE DESIGN STUDIO</p><h1>Build the next adventure.</h1></div><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
       <p id="editor-message" role="status" aria-live="polite">Place a snack, set a time, and make a little magic.</p>
       <p id="portal-warning" class="editor-warning" role="status" aria-live="polite" hidden></p>
+      <section class="editor-panel" aria-label="Level library">
+        <label>Level <select id="editor-level"><option value="custom">Your custom level (editable)</option></select></label>
+        <p id="level-access" class="editor-help">Custom levels are editable. Game levels are available for read-only inspection.</p>
+      </section>
       <section class="editor-panel" aria-label="Level settings">
+        <fieldset id="settings-access" class="access-fields">
         <form id="settings-form" class="settings-grid">
           <label>Name <input id="level-name" maxlength="60" required value="My level"></label>
           <label>Duration (seconds) <input id="duration" type="number" min="1" max="3600" step="any" value="60" required></label>
@@ -35,10 +40,12 @@
           <label>Boundary bricks <select id="brick-set"><option value="1">1 slow + 1 fast</option><option value="3">3 slow + 3 fast</option></select></label>
           <button type="submit">Apply settings</button>
         </form>
+        </fieldset>
         <p class="editor-help">Choose survival OR at least one positive score target. When both score targets are set, both must be met before time runs out. Apply settings before playtesting or exporting.</p>
       </section>
       <details class="editor-panel" aria-label="Pre-level cutscene">
         <summary>Optional story cutscene</summary>
+        <fieldset id="cutscene-access" class="access-fields">
         <form id="cutscene-form">
           <label class="inline-label"><input id="scene-enabled" type="checkbox"> Optional pre-level cutscene</label>
           <p class="editor-help">The game clock stays stopped during the scene. Each line has a speaker, dialogue, and on-stage cast. Apply the scene before playtesting or exporting.</p>
@@ -49,6 +56,7 @@
           </fieldset>
           <button type="submit">Apply cutscene</button>
         </form>
+        </fieldset>
       </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
@@ -69,6 +77,7 @@
           <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food, items, and weapons disappear at their expiry. Items and weapons with a blank lifetime remain until the level ends. Enemy spawn markers persist. Wheels snap to the nearest playable edge. Other enemies can be placed anywhere. Positions adapt between layouts.</p>
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
+          <fieldset id="inspector-access" class="access-fields">
           <details id="brick-panel" class="brick-inspector" aria-label="Brick inspector">
             <summary>Bricks &amp; surfaces</summary>
             <p id="brick-selection" class="editor-help">Select a boundary brick to change its cooldown type.</p>
@@ -134,6 +143,7 @@
           <p class="editor-help">Lifetimes start when an object appears. Leave item and weapon lifetimes blank to keep them until the level ends. This does not change an equipped sword's attacks or a collected power-up's duration. Food still requires a lifetime.</p>
           <div class="inspector-actions"><button id="new-event">New event</button><button id="duplicate-event" disabled>Duplicate</button><button id="delete-event" disabled>Delete</button></div>
           </details>
+          </fieldset>
         </section>
       </div>
       <section class="editor-panel" aria-label="Scheduled events">
@@ -142,11 +152,13 @@
         <ol id="event-list"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
       </section>
       <section class="editor-panel" aria-label="Import and export">
+        <fieldset id="files-access" class="access-fields">
         <div class="section-heading"><h2>Take your level with you</h2><div class="file-actions"><button id="save-draft">Save draft</button><button id="load-draft">Load draft</button></div></div>
         <p class="editor-help">JSON is the portable source of truth. Save a draft in this browser, download a file, or paste JSON below. Importing replaces the current level only after validation. Playtest sends a snapshot to the game; use its editor link to return.</p>
         <label for="level-json">Level JSON</label>
         <textarea id="level-json" rows="9" spellcheck="false" placeholder="Generate JSON, or paste an exported level here to import."></textarea>
         <div class="file-actions"><button id="generate-json">Generate JSON</button><button id="import-json">Import JSON</button><button id="download-json">Download JSON</button><label class="file-label">Import file <input id="import-file" type="file" accept=".json,application/json"></label></div>
+        </fieldset>
       </section>
       <noscript><p class="error">Please enable JavaScript to use the level editor.</p></noscript>
     </main>

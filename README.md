@@ -313,6 +313,13 @@ the game makes no requests to external services.
 ## Graphical level editor
 
 Open [editor.html](./editor.html), or choose **Open level editor** in the game.
+The **Level** library lists every built-in game level for read-only inspection.
+Select bricks and scheduled events, scrub the timeline, switch layouts, or read
+the cutscene. Spawn locations are deterministic examples of the game's randomized
+placements, not fixed campaign coordinates. **Play game level** opens the original
+campaign level, not an editable snapshot. Editing, imports, exports, and draft
+saving are disabled while viewing game levels. Select **Your custom level** to
+restore your custom workspace and unsaved work; browsing never overwrites a draft.
 It is a separate page, works by double-clicking the file, and is included in
 the GitHub Pages deployment at `/koshi/editor.html`. No server-side storage
 or build tools are needed.
@@ -538,7 +545,50 @@ A translucent, rectangular star-and-smiling-cat banner slides behind gameplay,
 using the same width as the music-box score, but taking ten seconds to exit.
 The glasses fade from Koshi's face after expiry. Another pickup restarts the
 ten seconds rather than stacking them; pause freezes the effect and visuals.
-They are available in the editor and spawn bricks, and appear in Switchboard Supper.
+They are available in the editor and spawn bricks, but are not placed in the built-in campaign.
+
+Ditto Stamp (`ditto-stamp`) is an orange wooden stamp with a round knob,
+wood-grain lines, a straight-on side view and an even, flat grey rubber pad beneath
+the wooden base, without sparkles,
+a background or a cast shadow.
+After pickup it floats beside Koshi until his first stop on a non-Portal brick.
+It presses onto that brick's center to capture its properties, then returns
+beside Koshi with matching ink. The next landing presses onto the destination's
+center and copies all that source's properties before
+contact effects run, but keeps its own position, size and current merged shape.
+Cooldowns, Crumbler uses, Toggle counters, spawners and warp timers start fresh;
+spawner settings are copied independently. Portals neither supply a copy nor
+consume the stamp. Merging Warped bricks can be copied without copying their
+geometry. Midair redirects and Portal travel retain the captured source.
+Picking up a stamp while already resting waits for a new landing; Spring
+bounces do not capture a source because Koshi does not stop. Extra pickups
+do not stack; a held Saw Blade takes priority and preserves the stamp.
+Both presses travel to the brick center and squash against it; a colored ripple
+marks the destination transformation.
+Pause freezes the animation; reset clears the item and restores level bricks.
+Timed placements, optional lifetimes and spawn bricks are supported in the editor.
+
+Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
+Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom
+levels but are not placed in the built-in campaign.
+
+Spooky Mask (`spooky-mask`) is a shaded red devil face with yellow slit-pupil
+eyes, pointed ears and nose, horns, and many sharp teeth. It flies onto Koshi's
+head for ten seconds, then fades away. All enemies, including new spawns, become
+scared and try to move away from Koshi, with widened eyes, open mouths and flying
+small sweat drops flying in independently random directions while moving,
+at two drops per second per enemy. All afraid enemies flee at a constant slow pace of
+32 game units per second. Mice do not pause and Rams do not target or charge;
+their normal cycles resume after fear ends. Wheels can reverse but stay on
+their perimeter, and Buckets pause their bomb-throwing timer. The mask's small ears
+have distinct dark outlines and inner-ear shading.
+Scared enemies cannot hurt Koshi on contact or throw new bombs. Existing bombs
+keep animating but cannot damage him during fear. Attacks and damage resume after
+expiry. Shields, movement bounds and enemy collisions are unchanged.
+Music Box sleep takes priority over fleeing. Repeat pickups restart the ten
+seconds, pause freezes the effect and visuals, and reset clears it.
+The item supports editor placements, optional ground lifetimes and spawners.
+
 `goal` is the food target and optional `killGoal` is the enemy-defeat target.
 For score objectives, at least one must be positive; both must be reached when
 both are positive. For survival, set `survive: true`, `goal: 0`, and `killGoal: 0`
