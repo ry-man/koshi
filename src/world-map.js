@@ -118,25 +118,30 @@ class WorldMap {
     const objective = document.createElement('p');
     objective.className = 'map-objectives';
     objective.setAttribute('role', 'group');
-    objective.setAttribute('aria-label', 'Win objectives');
+    objective.setAttribute('aria-label', 'Time limit and win objectives');
     objective.title = levelObjective(level);
-    const targets = level.survive
-      ? [['◷', null, `Survive for ${level.duration} seconds`]]
-      : [['🍗', level.goal, 'food points'], ['👾', level.killGoal, 'enemy points'], ['⚽', level.goalsGoal, 'soccer goals']]
-        .filter(([, target]) => target > 0);
-    for (const [symbol, target, name] of targets) {
+    const timeLabel = level.survive ? `Survive for ${level.duration}s` : `Time limit: ${level.duration}s`;
+    const targets = [
+      { symbol: '🕒', value: `${level.duration}s`, label: timeLabel },
+      ...(level.survive ? [] : [
+        { symbol: '🍗', target: level.goal, name: 'food points' },
+        { symbol: '👾', target: level.killGoal, name: 'enemy points' },
+        { symbol: '⚽', target: level.goalsGoal, name: 'soccer goals' },
+      ].filter(({ target }) => target > 0).map(({ symbol, target, name }) => ({
+        symbol, value: String(target), label: `${target} ${name}`,
+      }))),
+    ];
+    for (const { symbol, value, label } of targets) {
       const badge = document.createElement('span'), icon = document.createElement('span');
       badge.className = 'map-objective';
-      badge.title = target === null ? name : `${target} ${name}`;
+      badge.title = label;
       badge.setAttribute('aria-label', badge.title);
       icon.textContent = symbol;
       icon.setAttribute('aria-hidden', 'true');
       badge.append(icon);
-      if (target !== null) {
-        const count = document.createElement('strong');
-        count.textContent = String(target);
-        badge.append(count);
-      }
+      const count = document.createElement('strong');
+      count.textContent = value;
+      badge.append(count);
       objective.append(badge);
     }
     return objective;
@@ -149,8 +154,7 @@ class WorldMap {
     heading.textContent = `Level ${level.number} - ${level.name}`;
     const profile = this.profile(), result = levelStats(profile?.results, level.id);
     const fields = [
-      ['Time to beat', `${level.duration} seconds`],
-      ...(level.activationLimit == null ? [] : [['Moves to beat', `${level.activationLimit} Boom Helmet activations (zero is fatal)`]]),
+      ...(level.activationLimit == null ? [] : [['Moves to beat', `${level.activationLimit} activations`]]),
       ['Best (fastest) win', result.bestTime === null ? 'Not recorded' : `${result.bestTime.toFixed(2)} seconds`],
       ['Fewest moves', result.fewestMoves ?? 'Not recorded'],
       ['Most food points', result.mostFood ?? 'Not recorded'],
@@ -161,25 +165,63 @@ class WorldMap {
     for (const [name, value] of fields) {
       const term = document.createElement('dt'), description = document.createElement('dd');
       term.textContent = name; description.textContent = value;
+      if (name === 'Moves to beat') term.title = 'Zero activations is fatal.';
       stats.append(term, description);
     }
-    const note = document.createElement('p');
-    note.className = 'map-note';
-    note.textContent = profile?.guest
-      ? 'Guest statistics last for this visit only. Quitting does not count.'
-      : 'Only finished attempts count. Earlier saved completions have no recorded statistics. Quitting does not count.';
-    const icons = document.createElement('div');
-    icons.className = 'map-features';
-    icons.setAttribute('aria-label', 'Enemies, blocks and items in this level');
-    for (const feature of levelFeatures(level)) {
-      const icon = document.createElement('span');
-      icon.className = 'map-feature'; icon.title = feature.name;
-      const label = document.createElement('span');
-      label.textContent = feature.name;
-      icon.append(this.picture(feature.picture, feature.name), label);
-      icons.append(icon);
+    const featureHeading = document.createElement('h4');
+    featureHeading.className = 'map-features-heading';
+    featureHeading.textContent = 'Level Features';
+    const featureGroups = document.createElement('div');
+    featureGroups.className = 'map-feature-groups';
+    featureGroups.setAttribute('aria-label', 'Level features by type');
+    const groups = [
+      { id: 'bricks', label: 'Bricks', className: 'map-feature-bricks' },
+      { id: 'enemies', label: 'Enemies', className: 'map-feature-enemies' },
+      { id: 'food', label: 'Food', className: 'map-feature-food' },
+      { id: 'items', label: 'Items / Objects', className: 'map-feature-items' },
+    ];
+    const features = levelFeatures(level);
+    const groupFor = feature => {
+      const [kind, type] = feature.picture.split(':');
+      if (kind === 'enemy') return 'enemies';
+      if (kind === 'food') return 'food';
+      if (['item', 'weapon', 'object', 'heart'].includes(kind) || (kind === 'special' && type === 'boom-helmet')) return 'items';
+      return 'bricks';
+    };
+    for (const group of groups) {
+      const section = document.createElement('section'), heading = document.createElement('h5');
+      section.className = `map-feature-group ${group.className}`;
+      heading.textContent = group.label;
+      const icons = document.createElement('div');
+      icons.className = 'map-features';
+      for (const feature of features.filter(feature => groupFor(feature) === group.id)) {
+        const icon = document.createElement('span');
+        icon.className = 'map-feature'; icon.title = feature.name;
+        const label = document.createElement('span');
+        label.textContent = feature.name;
+        icon.append(this.picture(feature.picture, feature.name), label);
+        icons.append(icon);
+      }
+      if (!icons.children.length) {
+        const empty = document.createElement('p');
+        empty.className = 'map-feature-empty';
+        empty.textContent = 'None';
+        icons.append(empty);
+      }
+      section.append(heading, icons);
+      featureGroups.append(section);
     }
-    this.details.append(heading, objective, stats, note, icons);
+    const featureSection = document.createElement('section');
+    featureSection.className = 'map-feature-section';
+    featureSection.append(featureHeading, featureGroups);
+    const note = profile?.guest ? null : document.createElement('p');
+    if (note) {
+      note.className = 'map-note';
+      note.textContent = 'Only finished attempts count. Earlier saved completions have no recorded statistics. Quitting does not count.';
+    }
+    this.details.append(heading, objective, stats);
+    if (note) this.details.append(note);
+    this.details.append(featureSection);
   }
   draw(nodes, edges, height) {
     this.map.replaceChildren();

@@ -1141,11 +1141,22 @@ function brickConveyor(parts, width, height, travel = 0, direction = 'clockwise'
       teeth += `M${at(-1.5, -2)}L${at(1.5, -2)}L${at(1.5, 3)}L${at(-1.5, 3)}Z`;
     }
   }
-  for (const { ax, ay, dx, dy, length } of edges) {
-    const at = (along, inset) => point(ax + dx * .5 + dx / length * along - dy / length * inset,
-      ay + dy * .5 + dy / length * along + dx / length * inset);
-    arrows += `M${at(sign * 5, 9)}L${at(-sign * 3, 5)}L${at(-sign * 3, 13)}Z`;
-  }
+  const arrowEdge = edges.reduce((longest, edge) => !longest || edge.length > longest.length ? edge : longest, null)
+    ?? { dx: 1, dy: 0, length: 1, thickness: Math.min(w, h) };
+  const centerX = w / 2, centerY = h / 2;
+  const arrowLength = Math.min(Math.min(w, h) * .9, arrowEdge.thickness * .9, arrowEdge.length * .75);
+  const arrowHead = arrowLength * .36;
+  const shaft = arrowLength * .14, head = arrowLength * .34;
+  const directionX = arrowEdge.dx / arrowEdge.length * sign;
+  const directionY = arrowEdge.dy / arrowEdge.length * sign;
+  const arrowPoints = [[-arrowLength / 2, -shaft], [arrowLength / 2 - arrowHead, -shaft],
+    [arrowLength / 2 - arrowHead, -head], [arrowLength / 2, 0],
+    [arrowLength / 2 - arrowHead, head], [arrowLength / 2 - arrowHead, shaft],
+    [-arrowLength / 2, shaft]];
+  arrows = `M${arrowPoints.map(([along, across]) => point(
+    centerX + directionX * along - directionY * across,
+    centerY + directionY * along + directionX * across,
+  )).join('L')}Z`;
   return { belt: shape.path, teeth, arrows };
 }
 

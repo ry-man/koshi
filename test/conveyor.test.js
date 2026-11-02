@@ -250,13 +250,64 @@ test('grey belt geometry wraps the entire perimeter with fine teeth, changes wit
   assert.equal(Math.max(...firstTooth.map(([, y]) => y * parts[0].h)), 3);
   const stylesheet = readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert.match(stylesheet, /\.conveyor-belt \{[^}]*stroke-width: 5px;/);
+  assert.match(stylesheet, /\.conveyor-arrows \{[^}]*stroke-width: 1\.5px;/);
   const moving = brickConveyor(parts, 600, 960, 2);
   const reverse = brickConveyor(parts, 600, 960, -2, 'counterclockwise');
   assert.equal(moving.teeth, reverse.teeth);
   assert.notEqual(rest.teeth, moving.teeth);
   assert.notEqual(rest.arrows, reverse.arrows);
+  const arrow = rest.arrows.slice(1, -1).split('L').map(point => point.split(' ').map(Number));
+  assert.equal(rest.arrows.match(/M/g).length, 1);
+  assert.ok(Math.abs((Math.min(...arrow.map(([x]) => x)) + Math.max(...arrow.map(([x]) => x))) / 2 - .5) < 1e-8);
+  assert.ok(Math.abs((Math.min(...arrow.map(([, y]) => y)) + Math.max(...arrow.map(([, y]) => y))) / 2 - .5) < 1e-8);
+  assert.ok(Math.max(...arrow.map(([x]) => x)) > .62, 'center arrow is enlarged');
+  assert.ok(Math.min(...reverse.arrows.slice(1, -1).split('L').map(point => Number(point.split(' ')[0]))) < .38,
+    'counterclockwise arrow points left');
   for (const geometry of [rest, moving, reverse]) {
     for (const path of Object.values(geometry)) assert.doesNotMatch(path, /NaN|Infinity/);
+  }
+});
+
+test('conveyor arrows follow travel direction on every edge and stay brick-sized around corners', () => {
+  const base = new Game(() => .99);
+  const regions = brickRegions(base.bricks, base.width, base.height);
+  const expected = { top: [-1, 0], right: [0, -1], bottom: [1, 0], left: [0, 1] };
+  for (const [edge, clockwise] of Object.entries(expected)) {
+    const [id] = [...regions].find(([, candidate]) => candidate.edge === edge);
+    const brick = base.bricks[id];
+    const part = { id, x: brick.x, y: brick.y, w: brick.w, h: brick.h, region: brick.region };
+    for (const [direction, sign] of [['clockwise', 1], ['counterclockwise', -1]]) {
+      const geometry = brickConveyor([part], base.width, base.height, 0, direction);
+      const points = geometry.arrows.slice(1, -1).split('L').map(point => {
+        const [x, y] = point.split(' ').map(Number);
+        return [x * part.w - part.w / 2, y * part.h - part.h / 2];
+      });
+      const projection = points.map(([x, y]) => x * clockwise[0] * sign + y * clockwise[1] * sign);
+      assert.ok(projection[3] > 0, `${edge} ${direction} arrow`);
+    }
+  }
+
+  const { game } = setup('top', 'clockwise');
+  const allRegions = brickRegions(game.bricks, game.width, game.height);
+  const top = game.bricks.filter(brick => allRegions.get(brick.id).edge === 'top').sort((a, b) => a.x - b.x);
+  const right = game.bricks.filter(brick => allRegions.get(brick.id).edge === 'right').sort((a, b) => a.y - b.y);
+  const owner = top.at(-1), absorbed = [top.at(-2), right[0], right[1]];
+  owner.conveyor = true;
+  for (const brick of absorbed) brick.absorbedBy = owner.id;
+  const parts = game.brickParts().filter(part => part.id === owner.id);
+  const geometry = brickConveyor(parts, game.width, game.height);
+  const bounds = {
+    x: Math.min(...parts.map(part => part.x)), y: Math.min(...parts.map(part => part.y)),
+    w: Math.max(...parts.map(part => part.x + part.w)) - Math.min(...parts.map(part => part.x)),
+    h: Math.max(...parts.map(part => part.y + part.h)) - Math.min(...parts.map(part => part.y)),
+  };
+  const points = geometry.arrows.slice(1, -1).split('L').map(point => {
+    const [x, y] = point.split(' ').map(Number);
+    return [x * bounds.w, y * bounds.h];
+  });
+  for (const axis of [0, 1]) {
+    const span = Math.max(...points.map(point => point[axis])) - Math.min(...points.map(point => point[axis]));
+    assert.ok(span <= Math.min(owner.w, owner.h) + 1e-6, 'corner arrow stays within brick thickness');
   }
 });
 

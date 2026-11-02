@@ -170,15 +170,33 @@ test('stage shadows align with each character base and stay grounded while speak
     };
     const silent = draw('other'), speaking = draw(character);
     const shadow = speaking.findIndex(op => op[0] === 'ellipse');
-    assert.deepEqual(speaking[shadow].slice(1, 5), [
-      character === 'tom' ? -7 : character === 'snake' ? -48 : 0,
-      base, character === 'snake' ? 68 : 30, 7,
-    ], character);
+    assert.deepEqual(speaking[shadow].slice(1, 5), [character === 'tom' ? -7 : 0, base, character === 'snake' ? 13 : 30, 7], character);
     assert.deepEqual(speaking.slice(0, shadow + 1), silent.slice(0, shadow + 1), 'shadow does not follow speaking bob');
     const bob = speaking.findIndex((op, i) => i > shadow && op[0] === 'translate');
     assert.ok(bob > shadow && bob < speaking.findIndex(op => op[0] === 'draw'), 'only the character bobs above its shadow');
     assert.ok(speaking[bob][2] > 0);
+    if (character === 'snake') {
+      assert.ok(speaking.some(([name, angle]) => name === 'rotate' && angle === Math.PI / 2), 'snake stands upright');
+      assert.ok(speaking.some(([name, x, y]) => name === 'scale' && x === .32 && y === .32), 'snake fits the other actors');
+    }
   }
+});
+
+test('gameplay snake spikes are large white triangles with black outlines', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const calls = [];
+  const ctx = new Proxy({}, {
+    get: (_, name) => (...args) => calls.push([name, ...args]),
+    set: (_, name, value) => { calls.push([name, value]); return true; },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source.slice(source.indexOf('function drawSnakeSpikes('), source.indexOf('function drawSnakeTongue')), context);
+  context.drawSnakeSpikes(19);
+  assert.ok(calls.some(([name, value]) => name === 'fillStyle' && value === '#fff'));
+  assert.ok(calls.some(([name, value]) => name === 'strokeStyle' && value === '#000'));
+  assert.ok(calls.some(([name, value]) => name === 'lineWidth' && value === 1.5));
+  assert.ok(Math.abs(Math.max(...calls.filter(([name]) => name === 'lineTo')
+    .map(([, x, y]) => Math.hypot(x, y))) - 28) < 1e-8);
 });
 
 test('snake portraits are animated and full-size rendering uses world-space helper segments and death snapshots', () => {
@@ -197,12 +215,17 @@ test('snake portraits are animated and full-size rendering uses world-space help
     portraitContext.drawPortrait(ctx, 'snake', speaking, 0);
     return calls;
   };
+  const portraitCalls = portrait(false);
+  assert.ok(portraitCalls.some(([name, x, y, w, h]) =>
+    name === 'fillRect' && x === 24 && [15, 20].includes(y) && w === 4 && h === 4), 'portrait eyes are yellow');
+  assert.ok(portraitCalls.some(([name, x, y, w, h]) =>
+    name === 'fillRect' && x === 25 && [15, 20].includes(y) && w === 1 && h === 4), 'portrait eyes have slit pupils');
   assert.notDeepEqual(portrait(false), portrait(true));
 
   const calls = [];
   const ctx = new Proxy({ globalAlpha: 1 }, {
     get: (target, name) => name in target ? target[name] : (...args) => calls.push([name, ...args]),
-    set: (target, name, value) => { target[name] = value; return true; },
+    set: (target, name, value) => { target[name] = value; calls.push([name, value]); return true; },
   });
   let queries = 0;
   const segments = [0, 1, 2, 3].map(index => ({ x: 100 - index * 38, y: 200, radius: 19, angle: .4, index }));
@@ -215,6 +238,10 @@ test('snake portraits are animated and full-size rendering uses world-space help
   vm.runInContext(app.slice(start, app.indexOf('function drawRobot(enemy', start)), context);
   context.drawSnakeRobot(enemy);
   assert.equal(queries, 1);
+  assert.ok(calls.some(([name, color]) => name === 'fillStyle' && color === '#f4d447'), 'gameplay eyes are yellow');
+  assert.equal(calls.filter(([name, x, y, rx, ry]) =>
+    name === 'ellipse' && x === 8 && [-7, 7].includes(y) && rx === 1 && ry === 2.4).length, 2,
+  'gameplay eyes have black slit pupils');
   assert.ok(calls.some(([name, x, y]) => name === 'translate' && x === 100 && y === 200));
   assert.ok(!calls.some(([name]) => name === 'fillText'), 'snake panels have no letters or words');
   assert.ok(!calls.some(([name]) => name === 'roundRect'), 'plus marking has no rectangular pad behind it');

@@ -236,6 +236,8 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.match(html, /id="title-levels"/);
   assert.match(html, /id="title-help"[^>]+>How to play<\/button>/);
   assert.match(html, /<dialog id="how-to-play"/);
+  assert.match(html, /id="title-tagline">Save the world from evil robots with brute kitty force!</);
+  assert.doesNotMatch(html, /SMALL PAWS\. MIGHTY COURAGE\.|A little cat\. A big appetite\. A world worth saving\./);
   assert.doesNotMatch(html, /field-guide|THE FIELD GUIDE/);
   const controls = html.slice(html.indexOf('<div class="game-controls">'), html.indexOf('<section id="tutorial-panel"'));
   assert.ok(controls, 'game controls share a container');

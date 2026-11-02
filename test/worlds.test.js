@@ -134,9 +134,22 @@ test('two-tier map selects worlds separately, moves Koshi, and reveals only that
   map.selectLevel(LEVELS.at(-1));
   assert.equal(selection.value, '33');
   const details = text(map.details);
-  for (const value of ['2-24', 'The final countdown feast', '35', '100 seconds', 'Moves to beat',
-    '6 Boom Helmet', 'Best (fastest) win', 'Fewest moves', 'Most food points', 'Most enemy points', 'Wins / losses',
-    'Win percentage', 'Quitting does not count']) assert.ok(details.includes(value), value);
+  for (const value of ['2-24', 'The final countdown feast', '35', '🕒 100s', 'Moves to beat',
+    '6 activations', 'Best (fastest) win', 'Fewest moves', 'Most food points', 'Most enemy points', 'Wins / losses',
+    'Win percentage', 'Level Features', 'Bricks', 'Enemies', 'Food', 'Items / Objects']) assert.ok(details.includes(value), value);
+  assert.ok(!details.includes('Time to beat'));
+  assert.ok(!details.includes('Guest statistics'));
+  assert.ok(!details.includes('Quitting does not count'));
+  const styles = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(styles, /\.map-objectives \{[^}]*flex-wrap: nowrap;/);
+  assert.match(styles, /\.map-details dt, \.map-details dd \{ white-space: nowrap; \}/);
+  assert.match(styles, /\.map-features \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  const featureSection = map.details.children.at(-1);
+  assert.equal(featureSection.className, 'map-feature-section');
+  assert.deepEqual(featureSection.children[1].children.map(group => group.className), [
+    'map-feature-group map-feature-bricks', 'map-feature-group map-feature-enemies',
+    'map-feature-group map-feature-food', 'map-feature-group map-feature-items',
+  ]);
   assert.equal(map.map.querySelector('.map-koshi').style.left, '12%');
   assert.equal(map.play.hidden, false);
   fixture.elements.get('#world-map-back').listeners.click();
@@ -165,14 +178,14 @@ test('details show saved outcome statistics, no fabricated legacy bests, and hel
 test('map objectives use accessible icons and positive targets, or only a clock for survival', () => {
   const { map, text } = mapFixture();
   for (const [level, labels, display] of [
-    [{ goal: 20 }, ['20 food points'], '🍗 20'],
-    [{ killGoal: 12 }, ['12 enemy points'], '👾 12'],
-    [{ goalsGoal: 3 }, ['3 soccer goals'], '⚽ 3'],
-    [{ goal: 5, killGoal: 2, goalsGoal: 1 }, ['5 food points', '2 enemy points', '1 soccer goals'], '🍗 5 👾 2 ⚽ 1'],
-    [{ survive: true }, ['Survive for 60 seconds'], '◷'],
+    [{ goal: 20 }, ['Time limit: 60s', '20 food points'], '🕒 60s 🍗 20'],
+    [{ killGoal: 12 }, ['Time limit: 60s', '12 enemy points'], '🕒 60s 👾 12'],
+    [{ goalsGoal: 3 }, ['Time limit: 60s', '3 soccer goals'], '🕒 60s ⚽ 3'],
+    [{ goal: 5, killGoal: 2, goalsGoal: 1 }, ['Time limit: 60s', '5 food points', '2 enemy points', '1 soccer goals'], '🕒 60s 🍗 5 👾 2 ⚽ 1'],
+    [{ survive: true }, ['Survive for 60s'], '🕒 60s'],
   ]) {
     const objective = map.objectives({ duration: 60, goal: 0, killGoal: 0, goalsGoal: 0, ...level });
-    assert.equal(objective.getAttribute('aria-label'), 'Win objectives');
+    assert.equal(objective.getAttribute('aria-label'), 'Time limit and win objectives');
     assert.deepEqual(Array.from(objective.children, badge => badge.getAttribute('aria-label')), labels);
     assert.equal(text(objective).trim().replace(/\s+/g, ' '), display);
     assert.ok(objective.children.every(badge => badge.children[0].getAttribute('aria-hidden') === 'true'));

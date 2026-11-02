@@ -473,8 +473,8 @@ without a scene start immediately as before.
 The upper two-thirds of the viewport show a garden or workshop stage, with
 characters using the same drawings as gameplay. Speakers step forward and
 animate while talking. The lower third holds an animated, 32-by-32 pixel
-portrait on the left and blocky Pixelify Sans dialogue on the right. The same
-pixel font styles speaker names, scene headings, and controls. Koshi, Robo
+portrait on the left and readable Space Grotesk dialogue on the right. The same
+font styles speaker names, scene headings, and controls. Koshi, Robo
 Mouse, Robo Wheel, Robo Ram, Robo Bucket, and Tom the Duck each have their own portrait and stage
 character. Tom's design follows the supplied sketch: a tall metal body, radio
 antenna, slit visor, long duck bill, plated wings, and webbed metal feet.
@@ -737,7 +737,8 @@ snaps in half, and the body bursts into fading pieces. Available in the editor,
 spawn bricks, custom cutscenes and guide practice; Level 2–23 introduces the patrol.
 
 Robo Snake (`snake`) follows the inner perimeter like a Wheel at 95 units/second.
-Its grey head has red eyes and a flicking forked tongue; its three spiked body
+Its grey head has yellow eyes with black slit pupils and a flicking forked tongue;
+its three spiked body
 panels show a grey plus sign, thin oval buttons and unlettered red circular
 buttons, with large symmetric grey shapes and red stripes. The tongue emerges
 from underneath the head shell. Only the head can be damaged.

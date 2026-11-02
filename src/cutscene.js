@@ -129,8 +129,10 @@ function drawPortrait(ctx, character, speaking, time) {
       ctx.fillStyle = '#354149'; ctx.beginPath(); ctx.ellipse(x, 19, 1.7, .7, -.2, 0, Math.PI * 2); ctx.fill();
     }
     box('#d23c48', 3, 20, 2, 2); box('#d23c48', 6, 20, 2, 2);
-    box('#e1444c', 25, 16, 2, blink ? 1 : 3);
-    box('#e1444c', 25, 21, 2, blink ? 1 : 3);
+    for (const y of [15, 20]) {
+      box('#f4d447', 24, y, 4, blink ? 1 : 4);
+      if (!blink) box('#15232d', 25, y, 1, 4);
+    }
     box('#a4afb3', 27, 16, 2, 7);
   } else if (character === 'bucket') {
     box('#737d80', 7, 1, 18, 3); box('#737d80', 5, 3, 3, 10); box('#737d80', 24, 3, 3, 10);
@@ -297,16 +299,25 @@ class CutscenePlayer {
       };
       this.positions.set(key, position);
       const speaking = actor.character === line.speaker;
+      const snake = actor.character === 'snake';
       ctx.save();
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
       const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19 }[actor.character];
-      ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : actor.character === 'snake' ? -48 : 0,
-        base, actor.character === 'snake' ? 68 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
+        base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);
       if (actor.character === 'tom') drawTom(ctx, time, speaking);
-      else this.drawCharacter(ctx, actor.character, time, speaking);
+      else if (snake) {
+        const scale = .32;
+        ctx.save();
+        ctx.translate(0, 19 * (1 - scale));
+        ctx.rotate(Math.PI / 2);
+        ctx.scale(scale, scale);
+        this.drawCharacter(ctx, actor.character, time, speaking);
+        ctx.restore();
+      } else this.drawCharacter(ctx, actor.character, time, speaking);
       ctx.restore();
     });
     drawPortrait(this.portrait.getContext('2d'), line.speaker, typing && !this.paused && !reducedMotion, time);

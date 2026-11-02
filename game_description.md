@@ -161,8 +161,8 @@ of the screen show the cast interacting against a background matching the
 level's world: a garden path for Levels 1-1 through 1-10 and the Clockwork Pantry
 workshop for Levels 2-1 through 2-24. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
-dialogue in the locally bundled Pixelify Sans pixel font on the right.
-Speaker names, scene headings, and controls use the same blocky retro font.
+dialogue in the locally bundled Space Grotesk font on the right. Speaker names,
+scene headings, and controls use the same clear, rounded font.
 Koshi, all seven robot types, and Tom the Duck each have a distinct pixel
 portrait. Gameplay characters reuse their actual drawings; Tom has a dedicated
 full-body robot-duck drawing based on the supplied sketch.
@@ -296,7 +296,7 @@ Many triangular white spikes protrude from the arena-facing edge. Touching their
 
 ### Brick Attributes - Conveyor
 
-A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); arrows show the direction on the arena-facing edge. Landing on that edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors first appear in Level 2-1. Desktop rotates their directions with the bricks.
+A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); a large centered arrow indicates the direction of travel. Landing on the arena-facing edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors first appear in Level 2-1. Desktop rotates their directions with the bricks.
 
 Slimed, Springs, Spikes, Conveyor, Portal, Spawning, and Boost are mutually exclusive: choosing one in the custom-level editor replaces the others. All seven can combine with any cooldown color, Toggle, Crumbler, and Warped. Contact effects work even during cooldown, after Crumbler exhaustion, or while Toggle-disabled; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Slime starts in Level 1-6, Spikes in 1-8, Springs in 1-10, and Conveyors in 2-1. Restart clears spike contacts and restores health.
 
@@ -437,11 +437,13 @@ editor placements/spawners, custom cutscenes and guide practice. Level 2-23
 introduces it with Barrier fences; the original 19 levels are unchanged.
 
 **Robo Snake** (`snake`) follows the inner perimeter like a Wheel at 95 game
-units/second. Its four grey segments consist of a red-eyed head with a periodically
-extended red forked tongue, followed by spiked panels bearing a simple grey plus
-sign, thin oval buttons and unlettered red circular buttons. Large symmetric grey
-shapes and red stripes decorate the segments. The tongue is drawn underneath the
-head shell so it emerges from beneath the top of the head.
+units/second. Its four grey segments consist of a yellow-eyed head with black slit
+pupils and a periodically
+extended red forked tongue, followed by panels with large white spikes outlined
+in black. The panels also feature a simple grey plus, thin oval buttons and
+unlettered red circular buttons. Large symmetric grey shapes and red stripes
+decorate the segments. The tongue is drawn underneath the head shell so it
+emerges from beneath the top of the head.
 Only the head accepts sword or Boost hits and shield downgrades. The three body
 segments always damage Koshi on contact, even during sleep, fear or the snake's
 shield invulnerability; Koshi's usual one-second damage immunity still applies.

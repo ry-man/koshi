@@ -2044,14 +2044,14 @@ function snakeSegmentsForDrawing(enemy) {
 }
 
 function drawSnakeSpikes(radius) {
-  ctx.fillStyle = '#737f87'; ctx.strokeStyle = '#35414a'; ctx.lineWidth = 1;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
   for (let i = 0; i < 8; i++) {
     const angle = i * Math.PI / 4;
-    const inner = radius - 3, outer = radius + 5;
+    const inner = radius - 3, outer = radius + 9;
     ctx.beginPath();
-    ctx.moveTo(Math.cos(angle - .18) * inner, Math.sin(angle - .18) * inner);
+    ctx.moveTo(Math.cos(angle - .25) * inner, Math.sin(angle - .25) * inner);
     ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
-    ctx.lineTo(Math.cos(angle + .18) * inner, Math.sin(angle + .18) * inner);
+    ctx.lineTo(Math.cos(angle + .25) * inner, Math.sin(angle + .25) * inner);
     ctx.closePath(); ctx.fill(); ctx.stroke();
   }
 }
@@ -2101,10 +2101,11 @@ function drawSnakeSegment(segment, enemy, deathProgress, damageColor) {
       ctx.save(); ctx.translate(2, 0); ctx.scale(.7, .7); drawScaredFace(); ctx.restore();
     } else {
       for (const eyeY of [-7, 7]) {
-        ctx.beginPath(); ctx.ellipse(7, eyeY, 5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = deathProgress === null ? '#ed414b' : '#657078';
-        ctx.beginPath(); ctx.ellipse(8, eyeY, 3.2, 2.3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = deathProgress === null ? '#f4d447' : '#657078';
+        ctx.strokeStyle = '#202b32'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(7, eyeY, 4.5, 3.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.fillStyle = '#202b32';
+        ctx.beginPath(); ctx.ellipse(8, eyeY, 1, 2.4, 0, 0, Math.PI * 2); ctx.fill();
       }
     }
   } else if (segment.index === 1) {
