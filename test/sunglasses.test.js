@@ -109,7 +109,7 @@ test('sunglasses and music streams remain independent, repeat pickups restart te
   game.collectItem({ type: 'magic-sunglasses', x: 100, y: 120 });
   game.collectItem({ type: 'music-box' });
   assert.equal(game.sunglassesUntil, 10);
-  assert.equal(game.musicStreamUntil, 5);
+  assert.equal(game.musicStreamUntil, 10);
   game.update(2);
   const age = game.sunglassesPickup.age;
   const elapsed = game.elapsed;
@@ -120,7 +120,7 @@ test('sunglasses and music streams remain independent, repeat pickups restart te
   assert.equal(game.sunglassesStart, elapsed);
   assert.equal(game.sunglassesUntil, elapsed + 10);
   assert.equal(game.sunglassesPickup.age, 0);
-  assert.equal(game.musicStreamUntil, 5, 'refresh does not extend music sleep');
+  assert.equal(game.musicStreamUntil, 10, 'refresh does not extend music sleep');
   game.update(10);
   assert.equal(game.sunglassesActive, false);
   assert.ok(game.sunglassesPickup, 'glasses remain briefly to fade out');
@@ -184,7 +184,7 @@ test('rectangular star/cat banner matches music dimensions but exits after ten s
   const game = arena(), { context, operations } = drawingContext(game);
   game.collectItem({ type: 'magic-sunglasses' });
   game.collectItem({ type: 'music-box' });
-  assert.ok(source.indexOf('drawSunglassesStream(game);') < source.indexOf('for (const food of game.food)'));
+  assert.ok(source.indexOf('drawSunglassesStream(game, streamRows.sunglasses);') < source.indexOf('for (const food of game.food)'));
   context.drawSunglassesStream(game);
   const frame = operations.find(op => op.name === 'strokeRect');
   assert.deepEqual(frame.args, [-18, -26, game.width + 36, 52]);
@@ -212,15 +212,18 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
     toggleAttribute() {},
     querySelector(key) { if (!this.children.has(key)) this.children.set(key, node()); return this.children.get(key); },
   });
-  const button = node(), knob = node(), count = node();
+  const button = node(), knob = node(), count = node(), cinderButton = node(), goalButton = node();
+  const cinder = game.bricks[1], goal = game.bricks[2];
+  cinder.kind = 'cinder'; goal.kind = 'goal';
   const special = { button, knob, count };
   const context = vm.createContext({
     ...engine, ...visuals, game, WORLDS: require('../src/worlds.js').WORLDS, document: { querySelector: () => node() },
-    buttons: [{ brick, members: game.brickParts().filter(part => part.id === brick.id), button, special, usesLeft: brick.usesLeft }],
+    buttons: [{ brick, members: game.brickParts().filter(part => part.id === brick.id), button, special, usesLeft: brick.usesLeft },
+      { brick: cinder, members: [cinder], button: cinderButton }, { brick: goal, members: [goal], button: goalButton }],
     timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
     weaponStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
     displayedStuck: false, displayedState: 'playing', brickRevision: game.brickRevision, tutorial: null, ending: null,
-    syncBrickDestructions() {},
+    syncBrickDestructions() {}, showDialog() {}, status: node(), overlay: node(),
   });
   const start = source.indexOf('function syncUI()');
   vm.runInContext(source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
@@ -230,13 +233,30 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
   assert.equal(button.dataset.deactivated, 'false');
   assert.equal(button.dataset.toggleDisabled, 'false');
   assert.equal(button.style.properties['--cooldown-fill'], '100%');
+  assert.equal(button.dataset.sunglassesGlow, 'true');
+  assert.equal(button.style.properties['--sunglasses-color'], 'hsl(0, 85%, 70%)');
+  for (const immutable of [cinderButton, goalButton]) {
+    assert.equal(immutable.dataset.sunglassesGlow, 'true');
+    assert.equal(immutable.getAttribute('aria-disabled'), 'true', 'glow does not make immutable bricks selectable');
+  }
   assert.equal(knob.getAttribute('cx'), 62);
   assert.equal(count.textContent, '0');
-  game.update(10); context.syncUI();
+  game.update(2); context.syncUI();
+  for (const glowing of [button, cinderButton, goalButton]) {
+    assert.equal(glowing.style.properties['--sunglasses-color'], `hsl(${game.elapsed * 140 % 360}, 85%, 70%)`);
+  }
+  const pausedColor = button.style.properties['--sunglasses-color'];
+  game.pause(); game.update(20); context.syncUI();
+  assert.equal(button.style.properties['--sunglasses-color'], pausedColor);
+  game.resume();
+  game.update(8); context.syncUI();
   assert.equal(button.getAttribute('aria-disabled'), 'true');
   assert.equal(button.dataset.deactivated, 'true');
   assert.equal(button.dataset.toggleDisabled, 'true');
   assert.equal(button.style.properties['--cooldown-fill'], '0%');
+  assert.equal(button.dataset.sunglassesGlow, 'false');
+  assert.equal(cinderButton.dataset.sunglassesGlow, 'false');
+  assert.equal(goalButton.dataset.sunglassesGlow, 'false');
   assert.equal(knob.getAttribute('cx'), 26);
   assert.equal(count.textContent, '2');
 });

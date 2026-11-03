@@ -10,7 +10,7 @@ const storageKey = 'koshi-level-editor-v1';
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true });
 const immutableBrick = kind => ['cinder', 'goal'].includes(kind);
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -280,7 +280,7 @@ function typeOptions(type, showLifetime) {
     : kind === 'weapon' ? Object.entries(SWORDS).map(([key, sword]) => [key, sword.name])
       : kind === 'item' ? Object.entries(ITEMS).map(([key, item]) => [key, item.name])
         : kind === 'object' ? Object.entries(OBJECTS).map(([key, item]) => [key, item.name])
-        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern'], ['snake', 'Robo Snake']];
+        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern'], ['snake', 'Robo Snake'], ['goalie', 'Robo Goalie']];
   $('#event-type').replaceChildren(...types.map(([value, name]) => {
     const option = document.createElement('option');
     option.value = value; option.textContent = name;
@@ -303,7 +303,7 @@ function description(event) {
     : event.kind === 'weapon' ? SWORDS[event.type].name
       : event.kind === 'item' ? ITEMS[event.type].name
         : event.kind === 'object' ? OBJECTS[event.type].name
-        : `${({ mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake' })[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
+        : `${CHARACTERS[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}`;
 }
 
 function icon(event) {
@@ -311,7 +311,7 @@ function icon(event) {
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
         : event.kind === 'object' ? OBJECTS[event.type].icon
-        : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣', ball: '🏀', jackolantern: '🎃', snake: '🐍' })[event.type];
+        : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣', ball: '🏀', jackolantern: '🎃', snake: '🐍', goalie: '⚽' })[event.type];
 }
 
 function readEvent() {
@@ -1131,7 +1131,7 @@ $('#cutscene-form').addEventListener('submit', event => {
           text: row.querySelector('.scene-text').value,
           actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
             const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56 }[checkbox.value], y: .65 }];
+            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56, goalie: .5 }[checkbox.value], y: .65 }];
           }),
         })),
       };

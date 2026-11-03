@@ -103,19 +103,22 @@ test('batteries are stockpiled and recharge one used spawn brick per new touch',
   assert.equal(game.batteries, 0);
 });
 
-test('music box puts current enemies to sleep for five seconds', () => {
+test('music box puts current enemies to sleep for exactly ten seconds', () => {
   const game = gameWithItem('music-box');
   game.items = [];
   game.robots.push(...game.createCustomSpawn({ time: 0, kind: 'enemy', type: 'mouse', x: .2, y: .2 }));
   const enemy = game.robots[0], position = { x: enemy.x, y: enemy.y };
   game.collectItem({ type: 'music-box' });
   assert.equal(game.musicStreamStart, game.elapsed);
-  assert.equal(game.musicStreamUntil, game.elapsed + 5);
+  assert.equal(game.musicStreamUntil, game.elapsed + 10);
   assert.equal(game.enemiesSleepUntil, game.musicStreamUntil);
   game.combat(.1, game.cat.x, game.cat.y);
   assert.equal(enemy.asleep, true);
   assert.deepEqual({ x: enemy.x, y: enemy.y }, position);
-  game.elapsed = 5;
+  game.elapsed = 9.99;
+  game.combat(.1, game.cat.x, game.cat.y);
+  assert.equal(enemy.asleep, true);
+  game.elapsed = 10;
   game.combat(.1, game.cat.x, game.cat.y);
   assert.equal(enemy.asleep, false);
 });
@@ -138,15 +141,15 @@ test('music notation streams behind play objects and reaches its offscreen end a
     },
   });
   const context = vm.createContext({ ctx });
-  assert.ok(source.indexOf('drawMusicStream(game);') < source.indexOf('for (const food of game.food)'), 'the score is painted behind the pickups and characters');
+  assert.ok(source.indexOf('drawMusicStream(game, streamRows.music);') < source.indexOf('for (const food of game.food)'), 'the score is painted behind the pickups and characters');
   vm.runInContext(source.slice(source.indexOf('function drawMusicStream('), source.indexOf('function drawRobot(')), context);
-  const game = { width: 960, height: 600, musicStreamStart: 10, musicStreamUntil: 15, elapsed: 10 };
+  const game = { width: 960, height: 600, musicStreamStart: 10, musicStreamUntil: 20, elapsed: 10 };
   context.drawMusicStream(game);
   assert.ok(operations.some(([name, alpha]) => name === 'stroke' && alpha === .25), 'staff is translucent');
   assert.ok(operations.some(([name]) => name === 'fill'), 'notation is drawn on the music staff');
   assert.deepEqual(operations.filter(([name]) => name === 'translate')[0], ['translate', -0, 300]);
   operations.length = 0;
-  game.elapsed = 12.5;
+  game.elapsed = 15;
   context.drawMusicStream(game);
   assert.deepEqual(operations.filter(([name]) => name === 'translate')[0], ['translate', -498, 300]);
   operations.length = 0;
@@ -168,7 +171,7 @@ test('music box artwork includes a winding lever, shaded sides, and a larger out
     },
     set(target, name, value) { target[name] = value; return true; },
   });
-  const context = vm.createContext({ ctx });
+  const context = vm.createContext({ ctx, ITEMS });
   vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
   context.drawGameItem({ x: 0, y: 0, type: 'music-box' });
   assert.ok(operations.some(([name, ...args]) => name === 'fill' && args.includes('#613951')), 'box sides have a deep shadow');
@@ -332,7 +335,7 @@ test('eggplant uses depth shading without penalty text, and sparkle pops grow th
     },
   });
 
-  const context = vm.createContext({ ctx, FOODS: require('../src/game.js').FOODS, SWORDS: require('../src/game.js').SWORDS,
+  const context = vm.createContext({ ctx, ITEMS, FOODS: require('../src/game.js').FOODS, SWORDS: require('../src/game.js').SWORDS,
     FOOD_COLORS: { H: '#f7d26d' },
     drawSword: (...args) => operations.push(['sword', ...args]) });
   vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
@@ -372,7 +375,7 @@ test('battery artwork has a grey positive terminal, shaded yellow top, and dark 
       return (...args) => operations.push({ name, args, fill: target.fillStyle });
     },
   });
-  const context = vm.createContext({ ctx });
+  const context = vm.createContext({ ctx, ITEMS });
   vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
   context.drawGameItem({ x: 0, y: 0, type: 'battery' });
   assert.equal(gradients.length, 3, 'body and terminal have separate depth gradients');

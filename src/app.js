@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, SWORDS, ITEMS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, levelObjective, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawGoal } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
@@ -666,6 +666,8 @@ function syncUI() {
   syncBrickDestructions();
   for (const item of buttons) {
     const { brick, button, members } = item;
+    button.dataset.sunglassesGlow = String(game.sunglassesActive);
+    button.style.setProperty('--sunglasses-color', `hsl(${game.elapsed * 140 % 360}, 85%, 70%)`);
     if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
       item.usesLeft = brick.usesLeft;
       const wear = 1 - brick.usesLeft / brick.crumbler;
@@ -1366,6 +1368,7 @@ function drawGoalSpark(ctx, effect) {
 function drawEnding() {
   const pose = endingPose(ending, game.width, game.height);
   ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(pose.rotation); ctx.scale(pose.scale, pose.scale);
+  drawWornCape(game, 0, 0);
   drawCat(0, 0, ending.elapsed, null, false, ending.state);
   if (game.sunglassesPickup) drawWornSunglasses({ ...game, cat: { x: 0, y: 0 },
     sunglassesPickup: { ...game.sunglassesPickup, x: 0, y: 0 } });
@@ -1373,6 +1376,25 @@ function drawEnding() {
   if (game.boomHelmet && !game.boomHelmet.exploded) drawBoomHelmet(game, 0, 0);
   ctx.restore();
   if (game.boomHelmet?.exploded) drawBoomHelmet(game);
+}
+
+function powerupStreamRows(game) {
+  const ended = ['won', 'lost'].includes(game.state);
+  const active = [
+    ['music', game.musicStreamStart, game.musicStreamUntil, game.musicPickup],
+    ['sunglasses', game.sunglassesStart, game.sunglassesUntil, game.sunglassesPickup],
+    ['cape', game.capeStart, game.capeUntil, game.capePickup],
+    ['mask', game.maskUntil - 10, game.maskUntil, game.maskPickup],
+  ].filter(([, start, until, pickup]) => start != null && until > start
+    && (ended ? pickup && pickup.age < until - start - 1e-9 : game.elapsed < until - 1e-9));
+  return Object.fromEntries(active.map(([type], index) =>
+    [type, game.height / 2 + (index - (active.length - 1) / 2) * 64]));
+}
+
+function robotDrawOrder(robots) {
+  const goalies = robots.filter(enemy => enemy.type === 'goalie').sort((a, b) => a.y - b.y);
+  let index = 0;
+  return robots.map(enemy => enemy.type === 'goalie' ? goalies[index++] : enemy);
 }
 
 function render(now) {
@@ -1386,8 +1408,11 @@ function render(now) {
   }
   ctx.strokeStyle = '#9dbb9e09'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
-  drawMusicStream(game);
-  drawSunglassesStream(game);
+  const streamRows = powerupStreamRows(game);
+  drawMusicStream(game, streamRows.music);
+  drawSunglassesStream(game, streamRows.sunglasses);
+  drawCapeStream(game, streamRows.cape);
+  drawMaskStream(game, streamRows.mask);
   ctx.font = '10px "DM Sans", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#79918d44';
   ctx.fillText('K O S H I ’ S   Q U E S T', WIDTH / 2, HEIGHT - 67);
   const trajectory = game.trajectory();
@@ -1425,14 +1450,14 @@ function render(now) {
   for (const enemy of game.robots) {
     for (const wave of enemy.waves ?? []) drawFireWave(game.fireWaveSegments(wave), wave.radius);
   }
-  for (const enemy of game.robots) {
+  for (const enemy of robotDrawOrder(game.robots)) {
     drawRobot(enemy, null, game.enemyDamageProgress(enemy));
     if (enemy.asleep) {
       ctx.save(); ctx.fillStyle = '#d7c3ff'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('Z z', enemy.x + 19, enemy.y - enemy.radius - 6); ctx.restore();
     }
   }
-  for (const enemy of game.enemyDeaths) drawEnemyDeath(enemy);
+  for (const enemy of robotDrawOrder(game.enemyDeaths)) drawEnemyDeath(enemy);
   for (const enemy of game.robots) for (const bomb of enemy.bombs ?? []) drawBomb(bomb);
   for (const pickup of game.pickups.filter(pickup => pickup.kind === 'food')) {
     const age = pickup.age;
@@ -1446,7 +1471,8 @@ function render(now) {
   if (goalBricks.length) {
     const parts = game.brickParts();
     for (const brick of goalBricks) {
-      drawGoal(ctx, parts.filter(part => part.id === brick.id));
+      drawGoal(ctx, parts.filter(part => part.id === brick.id),
+        game.sunglassesActive ? `hsl(${game.elapsed * 140 % 360}, 85%, 70%)` : null);
     }
   }
   for (const ball of game.soccerBalls ?? []) drawSoccerBall(ctx, ball);
@@ -1471,6 +1497,7 @@ function render(now) {
     ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
+  drawWornCape(game, game.cat.x, game.cat.y);
   drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
   if (game.sunglassesPickup) drawWornSunglasses(game);
   if (game.maskPickup) drawWornMask(game);
@@ -1481,6 +1508,17 @@ function render(now) {
     ctx.translate(game.cat.x + 33, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
     ctx.scale(.65, .65); ctx.rotate(-.2);
     drawDittoStamp(colors[game.dittoSource?.kind] ?? '#696879');
+    ctx.restore();
+  }
+  if (game.paintBrush) {
+    ctx.save();
+    ctx.translate(game.cat.x - 34, game.cat.y - 18 + Math.sin(game.elapsed * 3) * 3);
+    ctx.save(); ctx.scale(.7, .7); ctx.rotate(-.3);
+    drawPaintbrush(ctx, ITEMS[game.paintBrush.type]); ctx.restore();
+    ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 3;
+    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.strokeText(String(game.paintBrush.uses), 0, 29);
+    ctx.fillText(String(game.paintBrush.uses), 0, 29);
     ctx.restore();
   }
   if (game.batteries > 0) {
@@ -1865,7 +1903,9 @@ function drawSword(x, y, color) {
 
 function drawGameItem(item) {
   ctx.save(); ctx.translate(item.x, item.y);
-  if (item.type === 'smiley-cookie') {
+  if (ITEMS[item.type]?.brush) {
+    drawPaintbrush(ctx, ITEMS[item.type]);
+  } else if (item.type === 'smiley-cookie') {
     ctx.fillStyle = '#c78d50'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff8ec'; ctx.beginPath(); ctx.arc(0, 0, 15.5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#c84a54';
@@ -1929,6 +1969,8 @@ function drawGameItem(item) {
     ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.stroke();
   } else if (item.type === 'magic-sunglasses') {
     drawMagicSunglasses(typeof game === 'undefined' ? 0 : game.elapsed);
+  } else if (item.type === 'kitty-cape') {
+    drawKittyCape(typeof game === 'undefined' ? 0 : game.elapsed);
   } else if (item.type === 'ditto-stamp') {
     drawDittoStamp();
   } else if (item.type === 'spooky-mask') {
@@ -1959,6 +2001,61 @@ function drawGameItem(item) {
   ctx.restore();
 }
 
+function drawKittyCape(time) {
+  ctx.save();
+  const sway = Math.sin(time * 8) * 2;
+  const fabric = ctx.createLinearGradient(-18, -18, 20, 22);
+  fabric.addColorStop(0, '#b5d77c'); fabric.addColorStop(1, '#45634d');
+  ctx.fillStyle = fabric; ctx.strokeStyle = '#273d37'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-10, -18); ctx.quadraticCurveTo(0, -12, 10, -18);
+  ctx.lineTo(23 + sway, 20); ctx.quadraticCurveTo(10, 15, sway, 22);
+  ctx.quadraticCurveTo(-10, 15, -23 + sway, 20); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-10, -18); ctx.quadraticCurveTo(0, -28, 10, -18); ctx.stroke();
+  ctx.strokeStyle = '#d3ef8b80';
+  ctx.beginPath(); ctx.moveTo(-6, -10); ctx.lineTo(-13 + sway, 12);
+  ctx.moveTo(6, -10); ctx.lineTo(13 + sway, 12); ctx.stroke();
+  ctx.fillStyle = '#ead182'; ctx.beginPath(); ctx.arc(0, -15, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawWornCape(game, x, y) {
+  if (!game.capePickup) return;
+  ctx.save(); ctx.translate(x, y + 19);
+  drawKittyCape(game.capePickup.age);
+  ctx.restore();
+}
+
+function drawCapeStream(game, y = game.height / 2) {
+  const elapsed = ['won', 'lost'].includes(game.state)
+    ? game.capeStart + (game.capePickup?.age ?? (game.capeUntil - game.capeStart)) : game.elapsed;
+  if (game.capeStart === null || elapsed >= game.capeUntil - 1e-9) return;
+  const duration = game.capeUntil - game.capeStart;
+  if (duration <= 0) return;
+  const progress = Math.max(0, Math.min(1, (elapsed - game.capeStart) / duration));
+  ctx.save(); ctx.globalAlpha = .25;
+  ctx.translate(-progress * (game.width + 36), y);
+  ctx.strokeStyle = '#b5d77c'; ctx.fillStyle = '#eadd87'; ctx.lineWidth = 1.4;
+  ctx.strokeRect(-18, -26, game.width + 36, 52);
+  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+    ctx.save(); ctx.translate(x, 0);
+    if (index % 2 === 0) {
+      ctx.beginPath(); ctx.moveTo(-11, -4); ctx.lineTo(-12, -17); ctx.lineTo(-3, -10);
+      ctx.lineTo(3, -10); ctx.lineTo(12, -17); ctx.lineTo(11, -4);
+      ctx.arc(0, 0, 12, -.35, Math.PI + .35); ctx.closePath(); ctx.stroke();
+      for (const eye of [-5, 5]) {
+        ctx.beginPath(); ctx.arc(eye, -2, 1.3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.beginPath(); ctx.moveTo(-5, 3); ctx.quadraticCurveTo(0, 10, 5, 3); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.moveTo(3, -19); ctx.lineTo(-10, 2); ctx.lineTo(-1, 2);
+      ctx.lineTo(-5, 19); ctx.lineTo(11, -5); ctx.lineTo(2, -5);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function drawMagicSunglasses(time, sparkles = true) {
   ctx.save();
   ctx.fillStyle = '#152530'; ctx.strokeStyle = `hsl(${time * 140 % 360}, 85%, 70%)`; ctx.lineWidth = 3;
@@ -1983,7 +2080,7 @@ function drawMagicSunglasses(time, sparkles = true) {
   ctx.restore();
 }
 
-function drawSunglassesStream(game) {
+function drawSunglassesStream(game, y = game.height / 2) {
   const elapsed = ['won', 'lost'].includes(game.state)
     ? game.sunglassesStart + (game.sunglassesPickup?.age ?? (game.sunglassesUntil - game.sunglassesStart)) : game.elapsed;
   if (game.sunglassesStart === null || elapsed >= game.sunglassesUntil) return;
@@ -1991,7 +2088,7 @@ function drawSunglassesStream(game) {
   if (duration <= 0) return;
   const progress = Math.max(0, Math.min(1, (elapsed - game.sunglassesStart) / duration));
   ctx.save(); ctx.globalAlpha = .25;
-  ctx.translate(-progress * (game.width + 36), game.height / 2);
+  ctx.translate(-progress * (game.width + 36), y);
   ctx.strokeStyle = `hsl(${game.elapsed * 70 % 360}, 80%, 80%)`;
   ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.4;
   ctx.strokeRect(-18, -26, game.width + 36, 52);
@@ -2019,15 +2116,53 @@ function drawSunglassesStream(game) {
   ctx.restore();
 }
 
-function drawMusicStream(game) {
-  if (game.musicStreamStart === null || game.elapsed >= game.musicStreamUntil) return;
+function drawMaskStream(game, y = game.height / 2) {
+  if (!game.maskPickup) return;
+  const duration = 10;
+  const age = ['won', 'lost'].includes(game.state) ? game.maskPickup.age : game.elapsed - (game.maskUntil - duration);
+  if (age >= duration - 1e-9) return;
+  const progress = Math.max(0, Math.min(1, age / duration));
+  ctx.save(); ctx.globalAlpha = .25;
+  ctx.translate(-progress * (game.width + 36), y);
+  ctx.strokeStyle = '#f3b5c5'; ctx.fillStyle = '#f3b5c5'; ctx.lineWidth = 1.4;
+  ctx.strokeRect(-18, -26, game.width + 36, 52);
+  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+    ctx.save(); ctx.translate(x, 0);
+    ctx.beginPath();
+    if (index % 2 === 0) {
+      ctx.moveTo(-12, 17); ctx.lineTo(-12, -3);
+      ctx.arc(0, -3, 12, Math.PI, 0); ctx.lineTo(12, 17);
+      ctx.lineTo(6, 12); ctx.lineTo(0, 17); ctx.lineTo(-6, 12); ctx.closePath(); ctx.stroke();
+      for (const eye of [-4, 4]) {
+        ctx.beginPath(); ctx.ellipse(eye, -3, 2, 3, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.beginPath(); ctx.ellipse(0, 7, 3, 4, 0, 0, Math.PI * 2); ctx.stroke();
+    } else {
+      ctx.moveTo(-11, -5); ctx.lineTo(-14, -20); ctx.lineTo(-4, -12);
+      ctx.quadraticCurveTo(0, -15, 4, -12); ctx.lineTo(14, -20); ctx.lineTo(11, -5);
+      ctx.quadraticCurveTo(15, 11, 0, 19); ctx.quadraticCurveTo(-15, 11, -11, -5);
+      ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-9, -4); ctx.lineTo(-3, -1);
+      ctx.moveTo(9, -4); ctx.lineTo(3, -1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-8, 6); ctx.lineTo(-4, 12); ctx.lineTo(0, 7);
+      ctx.lineTo(4, 12); ctx.lineTo(8, 6); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawMusicStream(game, y = game.height / 2) {
+  const elapsed = ['won', 'lost'].includes(game.state)
+    ? game.musicStreamStart + (game.musicPickup?.age ?? (game.musicStreamUntil - game.musicStreamStart)) : game.elapsed;
+  if (game.musicStreamStart === null || elapsed >= game.musicStreamUntil - 1e-9) return;
   const duration = game.musicStreamUntil - game.musicStreamStart;
   if (duration <= 0) return;
-  const progress = Math.max(0, Math.min(1, (game.elapsed - game.musicStreamStart) / duration));
+  const progress = Math.max(0, Math.min(1, (elapsed - game.musicStreamStart) / duration));
   const travel = game.width + 36;
   ctx.save();
   ctx.globalAlpha = .25;
-  ctx.translate(-progress * travel, game.height / 2);
+  ctx.translate(-progress * travel, y);
   ctx.strokeStyle = '#e6e3ff';
   ctx.fillStyle = '#e6e3ff';
   ctx.lineWidth = 1.4;
@@ -2249,6 +2384,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   }
   ctx.save(); ctx.translate(enemy.x, enemy.y);
   ctx.fillStyle = damageColor ?? '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
+  if (enemy.type === 'goalie') {
+    drawRoboGoalie(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
   if (enemy.type === 'jackolantern') {
     drawRoboJackolantern(enemy, deathProgress, damageColor);
     ctx.restore(); return;
@@ -2308,6 +2447,93 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
     ctx.restore();
   } else line([[-6,11],[0,7],[6,11]], '#27353d', 2);
   ctx.restore();
+}
+
+function drawRoboGoalie(enemy, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  const embarrassed = deathProgress !== null && progress >= .35;
+  const burst = deathProgress === null ? 0 : Math.max(0, (progress - .65) / .35);
+  ctx.save(); ctx.globalAlpha *= 1 - Math.min(1, burst * 2);
+  const shell = ctx.createLinearGradient(-18, -24, 19, 24);
+  shell.addColorStop(0, damageColor ?? (embarrassed ? '#ffc0d8' : '#e1e8ed'));
+  shell.addColorStop(1, damageColor ?? (embarrassed ? '#e85c9c' : '#8496a6'));
+  const egg = () => {
+    ctx.beginPath(); ctx.moveTo(0, -27);
+    ctx.bezierCurveTo(19, -27, 26, 0, 19, 18);
+    ctx.bezierCurveTo(12, 36, -12, 36, -19, 18);
+    ctx.bezierCurveTo(-26, 0, -19, -27, 0, -27); ctx.closePath();
+  };
+  ctx.fillStyle = shell; ctx.strokeStyle = '#354651'; ctx.lineWidth = 1.5;
+  egg(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#576c7b'; ctx.lineWidth = 1.5;
+  for (const x of [-9, 0, 9]) {
+    ctx.beginPath(); ctx.moveTo(x * .6, -26); ctx.lineTo(x * 1.3, -37 - (x === 0 ? 2 : 0)); ctx.stroke();
+    ctx.fillStyle = embarrassed ? '#ff95c5' : '#e8c561';
+    ctx.beginPath(); ctx.arc(x * 1.3, -37 - (x === 0 ? 2 : 0), 1.8, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = '#647c8d'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(-10, 7, 20, 13, 3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-4, 12); ctx.lineTo(4, 12);
+  ctx.moveTo(-4, 16); ctx.lineTo(4, 16); ctx.stroke();
+  for (const x of [-14, 14]) {
+    ctx.beginPath(); ctx.arc(x, 4, 1.5, 0, Math.PI * 2); ctx.stroke();
+  }
+  const shirtFall = deathProgress === null ? 0 : Math.min(1, progress / .35);
+  ctx.save(); ctx.translate(0, shirtFall * 48);
+  ctx.globalAlpha *= Math.max(0, 1 - Math.max(0, (progress - .2) / .2));
+  ctx.save(); egg(); ctx.clip();
+  ctx.fillStyle = '#27a6b0'; ctx.fillRect(-25, -1, 50, 35);
+  for (const x of [-18, -6, 6, 18]) {
+    ctx.fillStyle = '#f5cf5c'; ctx.fillRect(x, -1, 5, 35);
+    ctx.fillStyle = '#de5275'; ctx.fillRect(x + 5, -1, 4, 35);
+  }
+  ctx.fillStyle = '#263b61'; ctx.fillRect(-25, -1, 50, 5);
+  ctx.fillStyle = '#fff0af'; ctx.strokeStyle = '#263b61'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(11, 9, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#263b61';
+  ctx.beginPath(); ctx.moveTo(11, 5.5); ctx.lineTo(13, 8); ctx.lineTo(12, 11);
+  ctx.lineTo(9, 11); ctx.lineTo(8, 8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff0af';
+  ctx.beginPath(); ctx.moveTo(-15, 10); ctx.lineTo(-11, 5); ctx.lineTo(-7, 10); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+  ctx.fillStyle = '#26353d';
+  for (const x of [-8, 8]) {
+    if (embarrassed) {
+      ctx.strokeStyle = '#26353d'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(x - 3, -10); ctx.lineTo(x, -7); ctx.lineTo(x + 3, -10); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.ellipse(x, -11, 2.5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (enemy.afraid && deathProgress === null) {
+    ctx.strokeStyle = '#26353d'; ctx.beginPath(); ctx.arc(0, 19, 3, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.fillStyle = shell; ctx.strokeStyle = '#354651'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-3, -9); ctx.bezierCurveTo(-4, -4, -9, 7, -5, 11);
+  ctx.quadraticCurveTo(0, 16, 6, 10); ctx.bezierCurveTo(9, 6, 3, -4, 3, -9);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (embarrassed) {
+    ctx.fillStyle = '#f02d8780';
+    for (const x of [-13, 13]) {
+      ctx.beginPath(); ctx.ellipse(x, -1, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+  if (burst > 0) {
+    ctx.save(); ctx.globalAlpha *= 1 - burst;
+    for (const [color, size] of [['#e95c4e', 1], ['#ffb55c', .7], ['#fff2b9', .4]]) {
+      ctx.fillStyle = color; ctx.beginPath();
+      ctx.arc(0, 0, (8 + Math.sin(burst * Math.PI) * 32) * size, 0, Math.PI * 2); ctx.fill();
+    }
+    for (let i = 0; i < 10; i++) {
+      const angle = i * Math.PI / 5;
+      ctx.save(); ctx.translate(Math.cos(angle) * burst * 58, Math.sin(angle) * burst * 58);
+      ctx.rotate(angle + burst * 4); ctx.fillStyle = i % 2 ? '#b7c7d1' : '#ff8fc1';
+      ctx.fillRect(-3, -2, 6, 4); ctx.restore();
+    }
+    ctx.restore();
+  }
 }
 
 function drawRoboBucket(enemy, deathProgress, damageColor = null) {
@@ -2628,7 +2854,9 @@ function drawRoboBall(enemy, deathProgress = null, damageColor = null) {
 function drawEnemyDeath(enemy) {
   const progress = enemy.deathProgress;
   ctx.save();
-  if (enemy.type === 'snake') {
+  if (enemy.type === 'goalie') {
+    drawRobot(enemy, progress);
+  } else if (enemy.type === 'snake') {
     ctx.globalAlpha *= Math.max(0, 1 - progress);
     drawRobot(enemy, progress);
   } else if (enemy.type === 'jackolantern') {

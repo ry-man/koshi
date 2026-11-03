@@ -44,6 +44,48 @@ test('saw placements, spawners, optional expiry, and matching curved artwork are
   assert.equal(ITEMS['saw-blade'].name, 'Saw Blade');
 });
 
+test('random saw spawns share stamp and brush clearance, while explicit placements stay at their markers', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = arena(options);
+    game.bricks[0].warped = 10;
+    game.absorbNeighbor(game.bricks[0]);
+    game.random = () => 0;
+    const check = saw => {
+      for (const part of game.brickParts()) {
+        const distance = Math.hypot(
+          saw.x - Math.max(part.x, Math.min(part.x + part.w, saw.x)),
+          saw.y - Math.max(part.y, Math.min(part.y + part.h, saw.y)));
+        assert.ok(distance >= 27 + game.cat.radius * 4, 'same clearance as stamps and brushes for every brick part');
+      }
+    };
+    check(game.createCollectible(2, 'saw-blade', 5));
+    const brick = game.bricks.find(brick => brick.absorbedBy === null);
+    brick.spawner = { kind: 'item', type: 'saw-blade', lifetime: 3 };
+    game.spawnFromBrick(brick);
+    check(game.items[0]);
+    assert.equal(game.items[0].expires, game.elapsed + 3);
+
+    const event = [2, 'saw-blade', 5];
+    const reserved = { ...game.pointFromRelative(0, 0), type: 'saw-blade', born: 2, expires: 7, lifetime: 5 };
+    game.pendingSpawns.set(event, { kind: 'item', time: 2, items: [reserved] });
+    assert.equal(game.takeSpawn(event, () => assert.fail('must reuse reserved saw'))[0], reserved);
+    check(reserved);
+    assert.equal(reserved.expires, 7);
+    const safePosition = { x: reserved.x, y: reserved.y };
+    game.pendingSpawns.set(event, { kind: 'item', time: 2, items: [reserved] });
+    game.random = () => assert.fail('safe reserved positions must not be rerolled');
+    game.takeSpawn(event, () => assert.fail('must reuse reserved saw'));
+    assert.deepEqual({ x: reserved.x, y: reserved.y }, safePosition);
+
+    const placement = { time: 2, kind: 'item', type: 'saw-blade', x: 0, y: 0 };
+    const [explicit] = game.createCustomSpawn(placement);
+    game.pendingSpawns.set(placement, { kind: 'item', time: 2, items: [explicit] });
+    game.takeSpawn(placement, () => assert.fail('must reuse explicit saw'));
+    assert.deepEqual({ x: explicit.x, y: explicit.y }, game.pointFromRelative(0, 0));
+    assert.equal(game.stampSpawnClear(explicit), false);
+  }
+});
+
 for (const options of [{}, { portrait: true, scale: .3 }]) {
   for (const surface of ['plain', 'slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost']) {
     test(`saw converts ${surface} on first contact without firing its effect in ${options.portrait ? 'portrait' : 'desktop'}`, () => {
@@ -185,7 +227,7 @@ test('saw rendering instantly grows twelve matching teeth and spins at full spee
   });
   const game = arena();
   const growths = [];
-  const context = vm.createContext({ ctx, game, traceSawBlade(ctx, radius, growth = 1) {
+  const context = vm.createContext({ ctx, game, ITEMS, traceSawBlade(ctx, radius, growth = 1) {
     growths.push(growth);
     traceSawBlade(ctx, radius, growth);
   } });

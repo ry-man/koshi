@@ -7,8 +7,10 @@ const DURATION = 60;
 const GOAL = 20;
 const SPEED = 420;
 const DAMAGE_DURATION = 1;
-const MUSIC_STREAM_DURATION = 5;
+const MUSIC_STREAM_DURATION = 10;
 const SUNGLASSES_DURATION = 10;
+const CAPE_DURATION = 10;
+const CAPE_SPEED_MULTIPLIER = 2;
 const MASK_DURATION = 10;
 const FEAR_SPEED = 32;
 const DITTO_STAMP_RADIUS = 27;
@@ -33,14 +35,28 @@ const ITEMS = {
   eggplant: { name: 'Eggplant (-10 food)', icon: '🍆', color: '#8956aa' },
   'saw-blade': { name: 'Saw Blade', icon: '⚙', color: '#c4cdd5' },
   'magic-sunglasses': { name: 'Magical Sunglasses', icon: '🕶', color: '#d989ff' },
+  'kitty-cape': { name: 'Kitty Cape', icon: '⚡', color: '#b5d77c' },
   'ditto-stamp': { name: 'Ditto Stamp', icon: '▣', color: '#f59a50' },
   'spooky-mask': { name: 'Spooky Mask', icon: '👹', color: '#d73642' },
   'boom-time-red': { name: 'Red Boom Time (+1)', icon: '💣', color: '#d94a4a', counts: 1 },
   'boom-time-green': { name: 'Green Boom Time (+3)', icon: '💣', color: '#399d4a', counts: 3 },
   'boom-time-blue': { name: 'Blue Boom Time (+8)', icon: '💣', color: '#287dcc', counts: 8 },
 };
+for (const [brush, name, paintUses] of [['pencil', 'Thin Paintbrush', 1], ['wide', 'Wide Paintbrush', 3], ['roller', 'Paint Roller', 5]]) {
+  for (const [paintColor, paintKind, color] of [['red', 'fast', '#df8c81'], ['green', 'normal', '#83bca1'], ['blue', 'slow', '#7eacdb']]) {
+    ITEMS[`paint-${brush}-${paintColor}`] = {
+      name: `${paintColor[0].toUpperCase() + paintColor.slice(1)} ${name}`, icon: '🖌',
+      color, brush, paintKind, paintUses,
+    };
+  }
+}
 const OBJECTS = { 'soccer-ball': { name: 'Soccer Ball', icon: '⚽', color: '#f1f3f2' } };
+function needsBrickSpawnClearance(type) {
+  return type === 'ditto-stamp' || type === 'saw-blade' || Boolean(ITEMS[type]?.paintUses);
+}
 const SOCCER_FRICTION = 100;
+const GOALIE_SPEED = 67.5;
+const GOALIE_MAX_SPEED = 135;
 const SCHEDULE = [
   [3, 'L3', 'S', 18], [11, 'L3', 'P', 18], [19, 'C3', 'B', 20],
   [27, 'L3', 'C', 20], [35, 'C3', 'L', 20], [43, 'R3', 'F', 17],
@@ -106,7 +122,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
 function validateCutscene(value) {
@@ -677,7 +693,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
     if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
@@ -737,7 +753,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
@@ -1480,6 +1496,8 @@ class Game {
     this.dittoStamp = false;
     this.dittoSource = null;
     this.brickStamps = [];
+    this.paintBrush = null;
+    this.paintTouching = new Set();
     this.barriers = [];
     this.spawnerTouching = new Set();
     this.cookieActive = false;
@@ -1487,9 +1505,14 @@ class Game {
     this.enemiesSleepUntil = 0;
     this.musicStreamStart = null;
     this.musicStreamUntil = 0;
+    this.musicPickup = null;
     this.sunglassesStart = null;
     this.sunglassesUntil = 0;
     this.sunglassesPickup = null;
+    this.capeStart = null;
+    this.capeUntil = 0;
+    this.capePickup = null;
+    this.capeFlightMultiplier = 1;
     this.maskUntil = 0;
     this.maskPickup = null;
     this.healing = [];
@@ -1544,6 +1567,18 @@ class Game {
   get timeLimit() { return this.level.duration + this.timeBonus; }
   get sunglassesActive() { return this.sunglassesStart !== null && this.elapsed < this.sunglassesUntil - 1e-9; }
   get maskActive() { return this.maskPickup !== null && this.elapsed < this.maskUntil - 1e-9; }
+  get capeActive() { return this.capeStart !== null && this.elapsed < this.capeUntil - 1e-9; }
+
+  setCapeSpeed(multiplier) {
+    if (this.conveyorRide) {
+      this.capeFlightMultiplier = 1;
+      return;
+    }
+    const ratio = multiplier / this.capeFlightMultiplier;
+    this.cat.vx *= ratio;
+    this.cat.vy *= ratio;
+    this.capeFlightMultiplier = multiplier;
+  }
 
   brickSelectable(brick) {
     return !['cinder', 'goal'].includes(brick.kind) && brick.absorbedBy === null
@@ -1578,7 +1613,7 @@ class Game {
     const distance = Math.hypot(dx, dy);
     if (!distance) return false;
     const boost = this.boostReady;
-    const speed = SPEED * (boost ? 2 : 1);
+    const speed = SPEED * (boost ? 2 : 1) * (this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
     const vx = dx / distance * speed, vy = dy / distance * speed;
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
     if (this.spikeParts(parts).some(({ triangle }) =>
@@ -1601,6 +1636,7 @@ class Game {
     this.boosted = boost;
     this.cat.vx = vx;
     this.cat.vy = vy;
+    this.capeFlightMultiplier = this.capeActive ? CAPE_SPEED_MULTIPLIER : 1;
     this.conveyorRide = null;
     this.target = { x, y };
     this.moves++;
@@ -1718,13 +1754,14 @@ class Game {
     const destination = this.bricks.find(other => other.id !== brick.id && other.portal === brick.portal && other.absorbedBy === null);
     if (!destination) return false;
     const exit = this.portalExit(destination, parts);
-    const speed = Math.hypot(this.cat.vx, this.cat.vy) || SPEED;
+    const speed = Math.hypot(this.cat.vx, this.cat.vy) || SPEED * this.capeFlightMultiplier;
     this.cat.x = exit.x; this.cat.y = exit.y;
     this.cat.vx = exit.nx * speed; this.cat.vy = exit.ny * speed;
     this.portalUntil = this.elapsed + .2;
     this.portalArrival = destination.id;
     this.portalTrips++;
     this.conveyorRide = null;
+    this.setCapeSpeed(this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
     this.target = null;
     return true;
   }
@@ -1821,7 +1858,9 @@ class Game {
     const items = pending ? pending.items : create(event);
     if (Array.isArray(event)) {
       for (const item of items) {
-        if (item.type === 'ditto-stamp' && !this.stampSpawnClear(item)) Object.assign(item, this.randomStampPoint());
+        if (needsBrickSpawnClearance(item.type) && !this.stampSpawnClear(item)) {
+          Object.assign(item, this.randomStampPoint());
+        }
       }
     }
     return items;
@@ -1917,6 +1956,7 @@ class Game {
     if (event.type === 'ram') this.initializeRam(enemy);
     if (event.type === 'bucket') this.initializeBucket(enemy);
     if (event.type === 'jackolantern') this.initializeJackolantern(enemy);
+    if (event.type === 'goalie') this.initializeGoalie(enemy);
     if (['wheel', 'snake'].includes(event.type)) {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
       if (event.y === 0) enemy.distance = event.x * w;
@@ -1928,7 +1968,7 @@ class Game {
     return [enemy];
   }
 
-  createCollectible(time, type, lifetime, point = type === 'ditto-stamp' ? this.randomStampPoint() : this.randomPoint()) {
+  createCollectible(time, type, lifetime, point = needsBrickSpawnClearance(type) ? this.randomStampPoint() : this.randomPoint()) {
     return { ...point, type, ...(lifetime == null ? {} : { born: time, lifetime, expires: time + lifetime }) };
   }
 
@@ -2105,6 +2145,7 @@ class Game {
     if (this.enemySpawnClear(enemy)) return;
     if (!['wheel', 'snake'].includes(enemy.type)) {
       Object.assign(enemy, this.randomPoint(point => this.enemySpawnClear({ ...enemy, ...point })));
+      if (enemy.type === 'goalie') enemy.goaliePushPriority = enemy.y;
       return;
     }
     const b = this.bounds(), perimeter = 2 * (b.right - b.left + b.bottom - b.top);
@@ -2125,6 +2166,7 @@ class Game {
       if (type === 'ram') this.initializeRam(enemy);
       if (type === 'bucket') this.initializeBucket(enemy);
       if (type === 'jackolantern') this.initializeJackolantern(enemy);
+      if (type === 'goalie') this.initializeGoalie(enemy);
       if (['wheel', 'snake'].includes(type)) this.placeWheel(enemy);
       this.ensureEnemySpawnClear(enemy);
       items.push(enemy);
@@ -2136,6 +2178,94 @@ class Game {
     enemy.shield = shield ?? null;
     enemy.defeatPoints = shield ? SHIELDS[shield].hits : 1;
     enemy.invulnerableUntil = 0;
+  }
+
+  goalieArea(enemy) {
+    const regions = brickRegions(this.bricks, this.width, this.height);
+    const goals = goalTiles(this.brickParts().filter(part => this.bricks[part.id].kind === 'goal'));
+    const areas = goals.map(part => {
+      const edge = regions.get(part.sourceId ?? part.afterId ?? part.id).edge;
+      const vertical = edge === 'left' || edge === 'right';
+      const inward = edge === 'left' || edge === 'top' ? 1 : -1;
+      const face = vertical ? part.x + (inward > 0 ? part.w : 0) : part.y + (inward > 0 ? part.h : 0);
+      const start = vertical ? part.y : part.x, length = vertical ? part.h : part.w;
+      const margin = Math.min(enemy.radius, length / 2);
+      return { id: part.id, vertical, inward, face, normal: face + inward * (enemy.radius + 3),
+        start: start + margin, end: start + length - margin };
+    });
+    const distance = area => {
+      const along = Math.max(area.start, Math.min(area.end, area.vertical ? enemy.y : enemy.x));
+      return Math.hypot(enemy.x - (area.vertical ? area.normal : along),
+        enemy.y - (area.vertical ? along : area.normal));
+    };
+    return areas.find(area => area.id === enemy.goalId)
+      ?? areas.reduce((best, area) => !best || distance(area) < distance(best) ? area : best, null);
+  }
+
+  placeGoalie(enemy, area, along) {
+    along = Math.max(area.start, Math.min(area.end, along));
+    enemy.goalId = area.id;
+    enemy.x = area.vertical ? area.normal : along;
+    enemy.y = area.vertical ? along : area.normal;
+  }
+
+  initializeGoalie(enemy) {
+    enemy.radius = 23;
+    enemy.goaliePushPriority = enemy.y;
+  }
+
+  moveGoalie(enemy, dt) {
+    const area = this.goalieArea(enemy);
+    if (!area) return;
+    const along = area.vertical ? enemy.y : enemy.x;
+    let target = (area.start + area.end) / 2, earliest = Infinity;
+    let nearbyTarget = target, nearest = 240;
+    for (const ball of this.soccerBalls) {
+      const ballAlong = area.vertical ? ball.y : ball.x;
+      const ballNormal = area.vertical ? ball.x : ball.y;
+      const distance = Math.hypot(ballNormal - area.normal,
+        ballAlong - Math.max(area.start, Math.min(area.end, ballAlong)));
+      if (distance < nearest && (ballNormal - area.face) * area.inward >= 0) {
+        const speed = Math.hypot(ball.vx, ball.vy);
+        const lookahead = Math.min(.6, speed / SOCCER_FRICTION);
+        const travelTime = speed ? lookahead - SOCCER_FRICTION * lookahead * lookahead / (2 * speed) : 0;
+        nearbyTarget = ballAlong + (area.vertical ? ball.vy : ball.vx) * travelTime;
+        nearest = distance;
+      }
+      const velocity = area.vertical ? ball.vx : ball.vy;
+      if (velocity * area.inward >= -1e-9) continue;
+      const normal = area.vertical ? ball.x : ball.y;
+      const time = (area.normal - normal) / velocity;
+      const stoppingTime = Math.hypot(ball.vx, ball.vy) / SOCCER_FRICTION;
+      const intercept = (area.vertical ? ball.y : ball.x) + (area.vertical ? ball.vy : ball.vx) * time;
+      if (time < 0 || time > stoppingTime / 2 || time >= earliest
+        || intercept < area.start - enemy.radius || intercept > area.end + enemy.radius) continue;
+      target = Math.max(area.start, Math.min(area.end, intercept));
+      earliest = time;
+    }
+    if (earliest === Infinity && nearest < 240) target = nearbyTarget;
+    if (enemy.afraid) {
+      const catAlong = area.vertical ? this.cat.y : this.cat.x;
+      target = catAlong <= along ? area.end : area.start;
+    }
+    const sway = Math.min(5, (area.end - area.start) / 2);
+    target = Math.max(area.start + sway, Math.min(area.end - sway, target))
+      + Math.sin((enemy.age + dt) * 3) * sway;
+    const speed = enemy.afraid ? FEAR_SPEED : GOALIE_SPEED;
+    const targetX = area.vertical ? area.normal : target;
+    const targetY = area.vertical ? target : area.normal;
+    const dx = targetX - enemy.x, dy = targetY - enemy.y;
+    const distance = Math.hypot(dx, dy);
+    const step = distance ? Math.min(1, speed * dt / distance) : 0;
+    enemy.goalId = area.id;
+    enemy.x += dx * step;
+    enemy.y += dy * step;
+  }
+
+  defeatEnemy(enemy, awardPoints = true) {
+    if (awardPoints) this.enemies += enemy.defeatPoints ?? 1;
+    this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
+      bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
   }
 
   enemyDamageProgress(enemy) {
@@ -2646,7 +2776,26 @@ class Game {
       enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
     };
     const aPerimeter = ['wheel', 'snake'].includes(a.type), bPerimeter = ['wheel', 'snake'].includes(b.type);
-    if (aPerimeter && bPerimeter) {
+    if (a.type === 'goalie' && b.type === 'goalie') {
+      const leader = (a.goaliePushPriority ?? a.y) >= (b.goaliePushPriority ?? b.y) ? a : b;
+      const yielding = leader === a ? b : a;
+      const sign = yielding === a ? 1 : -1;
+      yielding.x += nx * overlap * sign;
+      yielding.y += ny * overlap * sign;
+      clamp(yielding);
+      const radius = a.radius + b.radius + 1e-7;
+      if (Math.hypot(a.x - b.x, a.y - b.y) < radius) {
+        const area = this.goalieArea(yielding);
+        if (area) {
+          const tangent = area.vertical ? yielding.y - leader.y : yielding.x - leader.x;
+          const clearance = Math.sqrt(Math.max(0, radius * radius - tangent * tangent));
+          if (area.vertical) yielding.x = leader.x + area.inward * clearance;
+          else yielding.y = leader.y + area.inward * clearance;
+          clamp(yielding);
+        }
+      }
+      return;
+    } else if (aPerimeter && bPerimeter) {
       const perimeter = 2 * (bounds.right - bounds.left + bounds.bottom - bounds.top);
       const ahead = ((b.distance - a.distance) % perimeter + perimeter) % perimeter;
       const behind = ahead > 0 && ahead < perimeter / 2 ? a : b;
@@ -2714,6 +2863,8 @@ class Game {
     for (let i = 0; i < this.robots.length; i++) {
       for (let j = i + 1; j < this.robots.length; j++) {
         const a = this.robots[i], b = this.robots[j], oldA = previous.get(a), oldB = previous.get(b);
+        // Goalie priority preserves the leader's full step; overlap resolution moves only the yielding guard.
+        if (a.type === 'goalie' && b.type === 'goalie') continue;
         const x = oldA.x - oldB.x, y = oldA.y - oldB.y, radius = a.radius + b.radius;
         const dx = a.x - b.x - x, dy = a.y - b.y - y;
         const length = dx * dx + dy * dy, incoming = x * dx + y * dy;
@@ -2862,13 +3013,18 @@ class Game {
       this.collectItem(item);
       this.recordPickup(item, 'item');
     }
+    this.robots = this.robots.filter(enemy => {
+      if (enemy.type !== 'goalie' || this.goalieArea(enemy)) return true;
+      this.defeatEnemy(enemy, false);
+      return false;
+    });
     const fences = this.barrierParts();
     const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket', 'ball', 'jackolantern'].includes(enemy.type))
       ? [...this.brickParts(), ...fences] : [];
     const previous = new Map(this.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y, distance: enemy.distance }]));
     for (const enemy of this.robots) {
       if (enemy.type !== 'snake') this.clearBarrierOverlap(enemy, fences);
-      previous.set(enemy, { x: enemy.x, y: enemy.y, distance: enemy.distance });
+      if (enemy.type !== 'goalie') previous.set(enemy, { x: enemy.x, y: enemy.y, distance: enemy.distance });
     }
     for (const enemy of this.robots) {
       enemy.age += dt;
@@ -2876,7 +3032,9 @@ class Game {
       enemy.afraid = this.maskActive;
       enemy.fleeMoving = false;
       if (enemy.asleep) { enemy.touching = false; continue; }
-      if (enemy.afraid) {
+      if (enemy.type === 'goalie') {
+        this.moveGoalie(enemy, dt);
+      } else if (enemy.afraid) {
         enemy.resting = false;
         if (['wheel', 'snake'].includes(enemy.type)) this.moveAfraidWheel(enemy, dt);
         else this.moveAfraidEnemy(enemy, dt);
@@ -2917,6 +3075,16 @@ class Game {
     }
     for (const enemy of this.robots) {
       const old = previous.get(enemy);
+      if (enemy.type === 'goalie') {
+        const dx = enemy.x - old.x, dy = enemy.y - old.y;
+        const distance = Math.hypot(dx, dy);
+        const limit = enemy.asleep ? 0 : GOALIE_MAX_SPEED * dt;
+        // Bound the complete step, including every collision and barrier push-out.
+        if (distance > limit) {
+          enemy.x = old.x + dx * limit / distance;
+          enemy.y = old.y + dy * limit / distance;
+        }
+      }
       enemy.fleeMoving = enemy.afraid && !enemy.asleep && Math.hypot(enemy.x - old.x, enemy.y - old.y) > 1e-8;
       if (enemy.fleeMoving) enemy.fleeTrailAngle = Math.atan2(old.y - enemy.y, old.x - enemy.x);
     }
@@ -2939,16 +3107,14 @@ class Game {
             enemy.shield = SHIELDS[enemy.shield].next;
             enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
           } else {
-            this.enemies += enemy.defeatPoints ?? 1;
-            this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
-              bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
+            this.defeatEnemy(enemy);
             return false;
           }
         }
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
       }
-      if (!enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
+      if (enemy.type !== 'goalie' && !enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
     });
@@ -2961,7 +3127,9 @@ class Game {
   }
 
   collectItem(item) {
-    if (item.type === 'smiley-cookie') {
+    if (ITEMS[item.type]?.paintUses) {
+      this.paintBrush = { type: item.type, uses: ITEMS[item.type].paintUses };
+    } else if (item.type === 'smiley-cookie') {
       this.cookieActive = true;
       this.cookieLickUntil = 0;
     } else if (ITEMS[item.type]?.seconds) this.timeBonus += ITEMS[item.type].seconds;
@@ -2972,6 +3140,7 @@ class Game {
     else if (item.type === 'music-box') {
       this.musicStreamStart = this.elapsed;
       this.musicStreamUntil = this.elapsed + MUSIC_STREAM_DURATION;
+      this.musicPickup = { age: 0 };
       this.enemiesSleepUntil = this.musicStreamUntil;
     }
     else if (item.type === 'eggplant') this.score = Math.max(0, this.score - 10);
@@ -2988,6 +3157,12 @@ class Game {
       this.sunglassesStart = this.elapsed;
       this.sunglassesUntil = this.elapsed + SUNGLASSES_DURATION;
       this.sunglassesPickup = { x: item.x ?? this.cat.x, y: item.y ?? this.cat.y, age: 0 };
+    }
+    else if (item.type === 'kitty-cape') {
+      this.setCapeSpeed(CAPE_SPEED_MULTIPLIER);
+      this.capeStart = this.elapsed;
+      this.capeUntil = this.elapsed + CAPE_DURATION;
+      this.capePickup = { age: 0 };
     }
   }
 
@@ -3012,6 +3187,24 @@ class Game {
     this.sawStartedAt = null;
     this.brickRevision++;
     return true;
+  }
+
+  paintBricks(contacts, sawed) {
+    for (const id of new Set(contacts.map(part => part.id))) {
+      if (this.paintTouching.has(id)) continue;
+      this.paintTouching.add(id);
+      const brick = this.bricks[id];
+      if (!this.paintBrush || sawed || ['cinder', 'goal'].includes(brick.kind)) continue;
+      const paint = ITEMS[this.paintBrush.type];
+      if (brick.kind === paint.paintKind) continue;
+      for (const member of this.bricks) {
+        if (member.id !== id && member.absorbedBy !== id) continue;
+        member.kind = paint.paintKind;
+        member.readyAt = 0;
+      }
+      this.brickRevision++;
+      if (--this.paintBrush.uses === 0) this.paintBrush = null;
+    }
   }
 
   stampBrick(brick, parts) {
@@ -3085,7 +3278,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : enemy.type === 'ball' ? 1.1 : enemy.type === 'mouse' ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : enemy.type === 'ball' ? 1.1 : enemy.type === 'mouse' ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -3095,6 +3288,10 @@ class Game {
   }
 
   updatePickups(seconds) {
+    if (this.musicPickup) {
+      this.musicPickup.age += seconds;
+      if (this.musicPickup.age >= MUSIC_STREAM_DURATION - 1e-9) this.musicPickup = null;
+    }
     if (this.boomHelmet) this.boomHelmet.age += seconds;
     if (this.maskPickup) {
       this.maskPickup.age += seconds;
@@ -3103,6 +3300,10 @@ class Game {
     if (this.sunglassesPickup) {
       this.sunglassesPickup.age += seconds;
       if (this.sunglassesPickup.age >= SUNGLASSES_DURATION + .5) this.sunglassesPickup = null;
+    }
+    if (this.capePickup) {
+      this.capePickup.age += seconds;
+      if (this.capePickup.age >= CAPE_DURATION - 1e-9) this.capePickup = null;
     }
     this.pickups = this.pickups.filter(pickup => {
       pickup.age += seconds;
@@ -3140,7 +3341,9 @@ class Game {
     this.updatePickups(dt);
     this.updateBrickDestructions(dt);
     const sunglassesWereActive = this.sunglassesActive;
+    const capeWasActive = this.capeActive;
     this.elapsed = Math.min(this.timeLimit, this.elapsed + dt);
+    if (capeWasActive && !this.capeActive) this.setCapeSpeed(1);
     if (sunglassesWereActive && !this.sunglassesActive) {
       for (const brick of this.bricks) brick.readyAt = Math.min(brick.readyAt, this.sunglassesUntil);
     }
@@ -3194,10 +3397,18 @@ class Game {
         const remaining = Math.max(0, sign > 0 ? edge.length - edge.along : edge.along);
         const speed = Math.min(CONVEYOR_SPEED, remaining / dt);
         cat.vx = edge.tx * sign * speed; cat.vy = edge.ty * sign * speed;
+        this.capeFlightMultiplier = 1;
         rideEnd = remaining <= CONVEYOR_SPEED * dt + 1e-9;
       }
     }
     const dx = cat.vx * dt, dy = cat.vy * dt;
+    for (const id of this.paintTouching) {
+      if (!parts.some(part => part.id === id && Math.hypot(
+        cat.x - Math.max(part.x, Math.min(part.x + part.w, cat.x)),
+        cat.y - Math.max(part.y, Math.min(part.y + part.h, cat.y))) <= cat.radius + 1e-6)) {
+        this.paintTouching.delete(id);
+      }
+    }
     const originalSpikes = this.sawStartedAt === null && (dx || dy || this.spikeTouching.size) ? this.spikeParts(parts) : [];
     const stampAvailable = Boolean(this.dittoSource && this.dittoStamp);
     let spikes = originalSpikes;
@@ -3284,6 +3495,7 @@ class Game {
       const stampTarget = contacts.map(part => this.bricks[part.id]).find(brick => !brick.portal && brick.kind !== 'goal');
       if (stampTarget) this.stampBrick(stampTarget, parts);
     }
+    this.paintBricks(contacts, sawed);
     if (sawing || stamping) {
       for (const part of contacts) if (this.bricks[part.id].spikes) spikeIds.add(part.id);
       for (const id of spikeIds) if (!this.bricks[id].spikes) spikeIds.delete(id);

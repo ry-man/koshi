@@ -292,7 +292,7 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
     assert.ok(fireball.some(op => op[0] === 'fill' && op.at(-2) === color));
   }
   assert.ok(!fireball.some(op => op[0] === 'scale'));
-  assert.match(source, /for \(const enemy of game\.enemyDeaths\) drawEnemyDeath\(enemy\)/);
+  assert.match(source, /for \(const enemy of robotDrawOrder\(game\.enemyDeaths\)\) drawEnemyDeath\(enemy\)/);
 });
 
 test('gold has unlimited defeats for 15 seconds and pause freezes its timer', () => {

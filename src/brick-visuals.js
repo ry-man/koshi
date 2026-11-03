@@ -31,6 +31,7 @@ const SYMBOLS = {
   ball: 'M19 0 A19 19 0 1 1 -19 0 A19 19 0 1 1 19 0 M0 -19 V19 M-19 0 H19 M-15 -19 C5 -9 5 9 -15 19 M15 -19 C-5 -9 -5 9 15 19 M-7 -9 A3 3 0 1 1 -7 -3 A3 3 0 1 1 -7 -9 M7 -9 A3 3 0 1 1 7 -3 A3 3 0 1 1 7 -9 M-10 5 H10 V14 H-10 Z M-6 5 V14 M-2 5 V14 M2 5 V14 M6 5 V14',
   snake: 'M-25 5 A7 7 0 1 1 -11 5 A7 7 0 1 1 -25 5 M-16 -2 V12 M-12 5 H-20 M-13 5 C-9 -3 -1 -3 3 5 M-5 -3 A8 8 0 1 1 -5 13 A8 8 0 1 1 -5 -3 M3 5 C7 -3 14 -5 19 -3 M11 -4 A9 9 0 1 1 11 14 A9 9 0 1 1 11 -4 M15 -3 H18 M15 1 H18 M19 -1 L24 -4 M19 3 L24 6',
   jackolantern: 'M0 -18 V-25 M3 -25 A3 3 0 1 1 -3 -25 A3 3 0 1 1 3 -25 M0 -17 C-28 -26 -28 23 0 19 C28 23 28 -26 0 -17 Z M-10 -15 C-18 -4 -18 10 -10 17 M10 -15 C18 -4 18 10 10 17 M-15 -7 H-4 V0 H-15 Z M4 -7 H15 V0 H4 Z M0 0 L-4 6 H4 Z M-14 8 L-8 10 L-5 7 L0 11 L5 7 L8 10 L14 8 L9 16 L4 13 L0 17 L-4 13 L-9 16 Z',
+  goalie: 'M0 -22 C20 -22 26 28 0 28 C-26 28 -20 -22 0 -22 Z M-6 -22 L-11 -31 M0 -22 V-33 M6 -22 L11 -31 M-9 -9 A2 2 0 1 0 -9 -8 M9 -9 A2 2 0 1 0 9 -8 M-3 -8 C-4 0 -9 9 -3 11 C9 14 6 2 3 -8 M-19 0 H-7 M7 0 H19 M-12 3 V21 M-4 14 V26 M4 14 V26 M12 3 V21 M8 7 A4 4 0 1 0 16 7 A4 4 0 1 0 8 7 M-15 8 L-10 3 L-6 8 Z',
   sword: 'M0 -23 L6 -14 L4 8 H-4 L-6 -14 Z M-10 9 H10 M0 9 V22',
   S: 'M-14 -8 Q-18 7 0 19 Q18 7 14 -8 Z M-14 -8 L-4 -6 L0 -16 L4 -6 L14 -8 M-6 0 L-5 3 M5 4 L4 7',
   P: 'M0 -2 C-20 -32 -30 10 -10 12 C8 16 24 -8 12 -14 C0 -26 -14 6 0 14 C22 26 26 -8 6 -6 M-14 10 L14 -10',
@@ -47,20 +48,75 @@ const SYMBOLS = {
   eggplant: 'M-8 -14 C4 -27 25 -11 18 5 C12 20 -6 22 -17 10 C-28 -3 -17 -19 -7 -16 L-14 -24 L-4 -21 L0 -28 L4 -19 L15 -22 L8 -14',
   'saw-blade': `${SAW_BLADE} M7 0 A7 7 0 1 1 -7 0 A7 7 0 1 1 7 0`,
   'magic-sunglasses': 'M-23 -7 H-4 V2 Q-13 14 -22 2 Z M4 -7 H23 L22 2 Q13 14 4 2 Z M-4 -3 Q0 -7 4 -3 M-23 -7 L-27 -11 M23 -7 L27 -11',
+  'kitty-cape': 'M-10 -18 Q0 -12 10 -18 L23 20 Q10 15 0 22 Q-10 15 -23 20 Z M-10 -18 Q0 -28 10 -18 M-6 -10 L-13 12 M6 -10 L13 12',
   'ditto-stamp': 'M-20 16 H20 V23 H-20 Z M-20 3 H20 Q22 3 22 5 V14 Q22 16 20 16 H-20 Q-22 16 -22 14 V5 Q-22 3 -20 3 Z M-5 -8 C-18 -12 -15 -28 0 -28 C15 -28 18 -12 5 -8 L8 3 Q0 6 -8 3 Z M-18 9 C-7 5 3 13 18 8 M-15 13 C-6 10 5 15 14 12',
+  'paint-pencil': 'M-3 23 H3 L4 -9 H-4 Z M-4 -9 H4 V-15 H-4 Z M-4 -15 Q0 -20 0 -25 Q5 -21 4 -15 Z',
+  'paint-wide': 'M-4 23 H4 V0 H-4 Z M-14 0 H14 V-8 H-14 Z M-14 -8 V-25 L14 -15 V-8 Z M-14 -20 L14 -10 M-9 -17 V-9 M-3 -15 V-9 M3 -13 V-9 M9 -11 V-9 M-14 -25 Q-19 -21 -17 -17 Q-14 -15 -12 -20',
+  'paint-roller': 'M-18 -20 H18 V-7 H-18 Z M18 -14 H22 V0 H0 V8 M-4 8 H4 V25 H-4 Z M-10 -7 Q-14 2 -10 4 Q-6 2 -10 -7 M10 -7 Q6 3 10 5 Q14 3 10 -7',
   'spooky-mask': 'M-16 -12 Q-26 -25 -20 -30 L-7 -17 M16 -12 Q26 -25 20 -30 L7 -17 M-16 -8 L-24 -12 Q-25 0 -19 4 Z M16 -8 L24 -12 Q25 0 19 4 Z M-17 -10 Q-23 -5 -20 4 Q-14 23 0 25 Q14 23 20 4 Q23 -5 17 -10 Q0 -25 -17 -10 Z M-15 -8 L-3 -3 L-13 0 Z M15 -8 L3 -3 L13 0 Z M0 -3 L-4 7 L4 7 Z M-13 9 L-9 17 L-5 10 L0 19 L5 10 L9 17 L13 9 Z',
 };
 
 function spawnSymbol(spawn) {
   return SYMBOLS[spawn.kind === 'weapon' ? 'sword' : spawn.kind === 'heart' ? 'heart'
     : spawn.kind === 'item' && BOOM_TIME_TYPES.has(spawn.type) ? 'boom-time'
-      : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch' : spawn.type];
+      : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch'
+        : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}` : spawn.type];
+}
+
+function drawPaintbrush(ctx, item) {
+  ctx.save();
+  ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  const box = (x, y, w, h, color, radius = 1) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(x, y, w, h, radius); ctx.fill(); ctx.stroke();
+  };
+  const drip = (x, y, length) => {
+    ctx.fillStyle = item.color; ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x - 4, y + length, x, y + length);
+    ctx.quadraticCurveTo(x + 4, y + length, x, y);
+    ctx.fill(); ctx.stroke();
+  };
+  if (item.brush === 'pencil') {
+    box(-3, -9, 6, 32, '#bb884c');
+    box(-4, -15, 8, 7, '#c4cdd5');
+    ctx.fillStyle = item.color; ctx.beginPath(); ctx.moveTo(-4, -15);
+    ctx.quadraticCurveTo(0, -20, 0, -25); ctx.quadraticCurveTo(5, -21, 4, -15);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else if (item.brush === 'wide') {
+    box(-4, -1, 8, 24, '#bb884c', 3);
+    ctx.fillStyle = '#e1c894'; ctx.beginPath();
+    ctx.moveTo(-14, -8); ctx.lineTo(-14, -25); ctx.lineTo(14, -15); ctx.lineTo(14, -8);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#9d804e'; ctx.lineWidth = 1;
+    for (const x of [-9, -3, 3, 9]) {
+      ctx.beginPath(); ctx.moveTo(x, -19 + (x + 14) * 10 / 28); ctx.lineTo(x, -9); ctx.stroke();
+    }
+    ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5;
+    ctx.fillStyle = item.color; ctx.beginPath();
+    ctx.moveTo(-14, -25); ctx.lineTo(14, -15); ctx.lineTo(14, -10); ctx.lineTo(-14, -20);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-14, -25);
+    ctx.quadraticCurveTo(-19, -21, -17, -17);
+    ctx.quadraticCurveTo(-14, -15, -12, -20);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    box(-14, -8, 28, 8, '#c4cdd5');
+  } else if (item.brush === 'roller') {
+    ctx.strokeStyle = '#c4cdd5'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(16, -14); ctx.lineTo(22, -14);
+    ctx.lineTo(22, 0); ctx.lineTo(0, 0); ctx.lineTo(0, 9); ctx.stroke();
+    ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5;
+    box(-4, 8, 8, 17, '#bb884c', 3);
+    box(-18, -20, 36, 13, item.color, 4);
+    drip(-10, -7, 11); drip(10, -7, 12);
+    ctx.strokeStyle = '#fff8e6'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-13, -17); ctx.lineTo(13, -17); ctx.stroke();
+  }
+  ctx.restore();
 }
 function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return SWORDS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
-    : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
+    : spawn.type === 'goalie' ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   if (spawn.kind === 'object') return OBJECTS[spawn.type].color;
   return { S: '#db5560', P: '#bd8749', B: '#e6c654', C: '#e8b84e', L: '#c9966c', F: '#73b9cf', H: '#ca9a53' }[spawn.type];
@@ -311,14 +367,15 @@ function goalLines(part) {
   return { frame, mesh };
 }
 
-function drawGoal(ctx, members) {
+function drawGoal(ctx, members, glowColor = null) {
   ctx.save();
+  if (glowColor) { ctx.shadowColor = glowColor; ctx.shadowBlur = 12; }
   for (const part of goalTiles(members)) {
     const { frame, mesh } = goalLines(part);
     ctx.fillStyle = '#20392c'; ctx.fillRect(part.x, part.y, part.w, part.h);
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = .8; ctx.stroke(new Path2D(mesh));
+    ctx.strokeStyle = glowColor ?? '#ffffff'; ctx.lineWidth = .8; ctx.stroke(new Path2D(mesh));
     ctx.strokeStyle = '#79878d'; ctx.lineWidth = 4; ctx.stroke(new Path2D(frame));
-    ctx.strokeStyle = '#dce4e7'; ctx.lineWidth = 2; ctx.stroke(new Path2D(frame));
+    ctx.strokeStyle = glowColor ?? '#dce4e7'; ctx.lineWidth = 2; ctx.stroke(new Path2D(frame));
   }
   ctx.restore();
 }
@@ -349,7 +406,7 @@ function drawSoccerBall(ctx, ball) {
   }
   ctx.restore();
 }
-const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

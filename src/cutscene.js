@@ -134,6 +134,20 @@ function drawPortrait(ctx, character, speaking, time) {
       if (!blink) box('#15232d', 25, y, 1, 4);
     }
     box('#a4afb3', 27, 16, 2, 7);
+  } else if (character === 'goalie') {
+    for (const x of [10, 15, 20]) {
+      box('#7b8e9c', x, 1, 1, 6); box('#e8c561', x, 0, 2, 2);
+    }
+    box('#354651', 9, 6, 14, 24); box('#354651', 5, 11, 22, 15);
+    box('#c2ced7', 10, 7, 12, 22); box('#a5b5c1', 6, 12, 20, 13);
+    box('#27a6b0', 6, 19, 20, 7); box('#27a6b0', 10, 26, 12, 3);
+    for (const x of [7, 13, 19]) {
+      box('#f5cf5c', x, 19, 2, 8); box('#de5275', x + 2, 19, 2, 8);
+    }
+    box('#263b61', 6, 18, 20, 2);
+    box('#fff0af', 21, 21, 3, 3); box('#263b61', 22, 22, 1, 1);
+    for (const x of [10, 20]) box('#26353d', x, 12, 2, blink ? 1 : 3);
+    box('#354651', 14, 14, 5, 9); box('#d2dde4', 15, 14, 3, talking ? 9 : 7);
   } else if (character === 'bucket') {
     box('#737d80', 7, 1, 18, 3); box('#737d80', 5, 3, 3, 10); box('#737d80', 24, 3, 3, 10);
     box('#60675f', 4, 11, 24, 5); box('#60675f', 6, 16, 20, 14);
@@ -304,7 +318,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);

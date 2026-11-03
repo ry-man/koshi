@@ -168,7 +168,9 @@ test('sleep takes priority, new spawns fear Koshi, pause freezes, repeat pickups
   assert.equal(enemy.afraid, true); assert.equal(enemy.fleeMoving, false);
   game.pause(); const pausedAt = game.elapsed;
   game.update(20); assert.equal(game.elapsed, pausedAt);
-  game.resume(); game.update(4.1); assert.equal(enemy.asleep, false);
+  game.resume(); game.update(8.99); assert.equal(enemy.asleep, true);
+  game.collectItem({ type: 'spooky-mask' });
+  game.update(.02); assert.equal(enemy.asleep, false);
   const fresh = game.createEnemies([game.elapsed, 'mouse', 1])[0];
   game.robots = [fresh]; game.update(.01); assert.equal(fresh.afraid, true);
   game.collectItem({ type: 'spooky-mask' });

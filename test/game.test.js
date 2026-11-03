@@ -112,9 +112,10 @@ test('aiming draws a subtle transparent dotted line and an exact red outlined ta
   game.target = { x: 927.25, y: 274.75 };
   const context = vm.createContext({
     game, boardCtx: makeContext('board'), actorCtx: makeContext('actors'), ctx: null, trail: [], ending: null,
-    drawCat() {}, drawMusicStream() {}, drawSunglassesStream() {}, line(points, color, width) { lines.push({ points, color, width }); },
+    drawCat() {}, drawWornCape() {}, drawMusicStream() {}, drawSunglassesStream() {}, drawCapeStream() {}, drawMaskStream() {},
+    line(points, color, width) { lines.push({ points, color, width }); },
   });
-  vm.runInContext(app.slice(app.indexOf('function render(now)'), app.indexOf('\nfunction drawSpawnCue')), context);
+  vm.runInContext(app.slice(app.indexOf('function powerupStreamRows('), app.indexOf('\nfunction drawSpawnCue')), context);
   context.render(0);
   assert.deepEqual(dashes, [[5, 7], []]);
   assert.equal(lines.length, 1);
@@ -146,13 +147,13 @@ test('soccer goal artwork, ball sprites, and score sparks are drawn on the actor
   const boardCtx = makeContext(), actorCtx = makeContext(), calls = [];
   const context = vm.createContext({
     game, boardCtx, actorCtx, ctx: null, trail: [], ending: null, endingMotion: { matches: true },
-    drawCat() {}, drawMusicStream() {}, drawSunglassesStream() {}, drawBarrier() {}, line() {},
+    drawCat() {}, drawWornCape() {}, drawMusicStream() {}, drawSunglassesStream() {}, drawCapeStream() {}, drawMaskStream() {}, drawBarrier() {}, line() {},
     drawGoal(ctx, members) { calls.push(['goal', ctx, members.some(part => part.id === goal.id)]); },
     drawSoccerBall(ctx, ball) { calls.push(['ball', ctx, ball]); },
     drawGoalSpark(ctx, effect) { calls.push(['spark', ctx, effect]); },
     drawBrickDestructionSmoke() {}, drawPickupPop() {},
   });
-  vm.runInContext(app.slice(app.indexOf('function render(now)'), app.indexOf('\nfunction drawSpawnCue')), context);
+  vm.runInContext(app.slice(app.indexOf('function powerupStreamRows('), app.indexOf('\nfunction drawSpawnCue')), context);
   context.render(0);
   assert.deepEqual(calls.map(([type, layer]) => [type, layer === actorCtx]), [
     ['goal', true], ['ball', true], ['spark', true],

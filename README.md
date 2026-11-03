@@ -145,7 +145,7 @@ The title screen includes two learning paths:
 - **How to play** opens an eight-topic walkthrough of movement and controls,
   cooldown colors, Cinder blocks, larger groups, Crumblers/Warped combinations,
   all seven contact surfaces and Toggle switches, every food and healing
-  item, all seven robots and all swords, spawn warnings, and current objectives.
+  item, all eight robots and all swords, spawn warnings, and current objectives.
   Labeled pictures show every cooldown brick, Crumbler/Warped combination,
   slime color, spring and spike surface, food, healing heart, robot, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
@@ -521,7 +521,7 @@ supports precise actor positions and repeated actors:
 ```
 
 Add this optional property to a level object. Themes are `garden` or `workshop`;
-character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, and `tom`. Each is available as both
+character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
@@ -643,9 +643,9 @@ including automatic collection of objects placed over Koshi's starting point.
 ```
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
-`wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`; weapon types are `wood`, `bronze`, `silver`, `gold`.
+`wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`; weapon types are `wood`, `bronze`, `silver`, `gold`.
 Item types (`kind: "item"`) are `smiley-cookie`, `stopwatch`, `stopwatch-green`, `stopwatch-blue`, `battery`,
-`music-box`, `eggplant`, `saw-blade`, and `magic-sunglasses`. `brickSet` is 1
+`music-box`, `eggplant`, `saw-blade`, `magic-sunglasses`, and `kitty-cape`. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
 Neutral objects use `kind: "object", type: "soccer-ball"` and persist until
 scored or the level ends; they have no lifetime or shield.
@@ -671,6 +671,50 @@ contacts preserve the saw. Saw pickups do not stack, and restart clears the
 power and restores the original bricks. Pause freezes the transformation and
 destruction animation. The item also appears in Cracker Causeway.
 
+Robo Goalie (`goalie`) is an egg-shaped robot with three hair antennas, a long
+metal nose, and a colorful striped soccer jersey with badges. He spawns at normal
+enemy locations (or the custom placement marker), then travels toward the nearest
+Goal brick at 67.5 board units per second instead of teleporting into position.
+If his goal is removed, he travels from his current position to the nearest
+remaining goal. Once there, he moves across its mouth at the same speed,
+intercepting incoming soccer balls rather than chasing Koshi. He also tracks
+nearby balls within 240 units, anticipating up to 0.6 seconds of their rolling
+motion. A gentle five-unit side-to-side sway keeps him moving around his
+defensive target, or the goal center when no ball is nearby.
+Overlapping goalies draw from top to bottom, so the lowest on screen is in front;
+their defeat animations use the same ordering.
+Crowded goalies yield instead of cancelling each other's movement. A stable
+push priority uses their spawn screen height (lower on screen first, spawn order
+breaks ties), so the leading goalie keeps moving while lower-priority guards are
+pushed aside, or inward from the goal when the boundary blocks sideways yielding.
+Total movement, including collision pushes, is capped at 135 board units per
+second. Crowded or overlapping guards separate gradually instead of jumping;
+sleeping goalies cannot be displaced.
+He cannot hurt Koshi, but swords and Boost
+defeat him; optional shields and enemy-point awards work normally.
+Music Box stops him; Spooky Mask makes him retreat along his goal at 32 units
+per second. His jersey falls off on defeat, exposing a plain robot shell,
+then he blushes pink and explodes in a 1.8-second animation. Without any Goal
+brick he immediately dies without awarding points. Goalies support custom
+placements, spawn bricks, preview icons and cutscene actors. Campaign levels
+and spawn schedules are unchanged.
+
+Music Box (`music-box`) puts enemies to sleep for ten seconds, with a scrolling
+musical score for the whole effect. Another pickup refreshes ten seconds.
+Pause freezes the sleep and animation; restart clears both.
+Simultaneous Music Box, Magical Sunglasses, Kitty Cape and Spooky Mask banners
+occupy separate, vertically spaced rows so their graphics do not overlap.
+
+Kitty Cape (`kitty-cape`) is a green cape matching Koshi's title-screen cape.
+It doubles Koshi's movement speed immediately for ten seconds, including
+current flight, redirects, spring bounces, and portal travel. Boost launches
+double that speed again; conveyor rides retain their normal pace.
+A translucent rectangle of cat heads and lightning bolts scrolls behind
+gameplay and exits when the power ends. Another pickup refreshes ten seconds
+without stacking speed. Pause freezes the effect and animation; restart clears
+both. Available in custom-level placements and item spawners with optional
+ground lifetimes; built-in campaign levels are unchanged.
+
 Magical Sunglasses (`magic-sunglasses`) have sparkling, color-cycling frames.
 They fly onto Koshi's face and bypass cooldowns, Toggle locks, and exhausted
 Crumblers for ten seconds; cinder and absorbed bricks remain unselectable.
@@ -679,7 +723,9 @@ Toggle counters. All brick cooldowns are completed when the effect ends;
 Toggle locks and exhausted Crumblers resume their stored state.
 Contact effects (including slime) still apply.
 A translucent, rectangular star-and-smiling-cat banner slides behind gameplay,
-using the same width as the music-box score, but taking ten seconds to exit.
+using the same width and ten-second duration as the music-box score.
+All bricks glow in the same cycling colors as the glasses, including cinder
+and goals; their selection rules and contact properties remain unchanged.
 The glasses fade from Koshi's face after expiry. Another pickup restarts the
 ten seconds rather than stacking them; pause freezes the effect and visuals.
 They are available in the editor and spawn bricks, and introduced in Level 2–18.
@@ -704,6 +750,30 @@ Both presses travel to the brick center and squash against it; a colored ripple
 marks the destination transformation.
 Pause freezes the animation; reset clears the item and restores level bricks.
 Timed placements, optional lifetimes and spawn bricks are supported in the editor.
+
+Paintbrushes are available in three shapes, each in red, green and blue:
+`paint-pencil-{color}` (thin pencil-like brush with paint on its tip, 1 use),
+`paint-wide-{color}` (angled bristles with painted tips and a small downward drip
+from the longest bristles, 3 uses), and
+`paint-roller-{color}` (soaked, dripping roller, 5 uses).
+The next eligible brick contacts change the brick's cooldown type: red is Fast
+(3 seconds), green is Normal (8 seconds), and blue is Slow (15 seconds).
+Painting makes the brick ready but preserves all other attributes, spent
+Crumbler/Toggle/spawner state, and merged geometry. Matching-color contacts
+do not activate the brush, spend uses, or refresh the brick's cooldown.
+Goal and Cinder contacts
+do not spend paint. Spring bounces and Portal contacts count; staying against
+a brick does not spend repeated uses. Another brush replaces the held brush
+and remaining uses. A Saw Blade takes priority without using paint; Ditto Stamp
+acts before paint. The held brush and remaining count appear beside Koshi.
+Random placements, reserved spawns, and item spawners use the same brick
+clearance as Ditto Stamp; explicit editor markers retain their positions.
+Saw Blades use this same clearance for random spawns and spawners, including
+rechecking reserved positions when they appear; explicit Saw Blade markers
+also retain their positions.
+Optional on-screen lifetimes are supported. Brushes are custom-level/editor
+items only; campaign levels are unchanged. Restart clears paint and restores
+the original bricks.
 
 Barrier bricks (`barrier: true`) extend a dark green translucent fence when
 successfully selected, and retract it on the next successful selection. Normal
@@ -759,6 +829,10 @@ Level 2–17 introduces head interception; the original 19 levels remain unchang
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom
 levels and receive dedicated introductions in Levels 2–11 through 2–21.
+
+Spooky Mask also shows a translucent scrolling banner of ghosts and demon
+heads for its ten-second fear effect, on a separate row from other active
+power-up banners. Pause freezes it; it exits at expiry.
 
 Spooky Mask (`spooky-mask`) is a shaded red devil face with yellow slit-pupil
 eyes, pointed ears and nose, horns, and many sharp teeth. It flies onto Koshi's
@@ -876,7 +950,7 @@ bricks after applying all overrides. Optional `boost` is a boolean.
 Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
 `wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`,
-`bucket`, `ball`, `jackolantern`, or `snake`;
+`bucket`, `ball`, `jackolantern`, `snake`, or `goalie`;
 `item` uses one of the item types above; `heart` uses type `heart`.
 Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
 counted from each actual spawn; omit it for full-level persistence.

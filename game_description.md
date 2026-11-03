@@ -129,6 +129,50 @@ are available in editor placements and item spawners, with optional lifetimes
 and standard pickup effects. Level 2-24 introduces the helmet and all three
 Boom Time colors; the original 19 levels stay unchanged.
 
+**Kitty Cape** (`kitty-cape`) matches the green cape in the title artwork.
+Pickup immediately doubles Koshi's movement speed for **10 seconds**, including
+current flight and redirects. Spring bounces and portals preserve the faster
+flight; Boost launches double it again, while conveyors keep their normal pace.
+A translucent scrolling rectangle of cat heads and lightning bolts remains
+behind gameplay throughout the effect and exits at expiry. Repeat pickups
+refresh the ten seconds without stacking speed. Pause freezes the power and
+animation; restart clears both. The cape supports custom-level placements,
+optional ground lifetimes, and item spawners, without changing campaign levels.
+
+Music Box sleep and its scrolling score last **10 seconds**; another pickup
+refreshes the timer. Spooky Mask shows a scrolling banner of ghosts and demon
+heads throughout its ten-second fear effect. Simultaneous timed power-up
+banners use separate, vertically spaced rows, including Music Box, Magical
+Sunglasses, Kitty Cape and Spooky Mask. Pause freezes all timers and graphics;
+restart clears them. Magical Sunglasses make all bricks glow in the same
+cycling colors as the frames, without changing cinder or goal selection rules.
+
+**Robo Goalie** (`goalie`) is an egg-shaped mechanical robot with three hair
+antennas, a long metal nose, and a colorful striped soccer jersey with badges.
+He spawns at a normal enemy location or his custom placement marker and moves
+toward the nearest Goal brick at 67.5 units/second. If that goal is removed, he
+travels toward the nearest remaining goal without teleporting. Once in position,
+he slides across its mouth, trying to intercept incoming soccer balls.
+Overlapping goalies and their defeat animations are drawn in ascending screen
+height order, with the lowest on screen in front. Crowded guards use stable
+spawn-height push priority (lower on screen first, spawn order breaks ties):
+the leading guard keeps moving and pushes other goalies aside. A guard blocked
+by the boundary yields inward instead of trapping the leader. Total movement,
+including all collision pushes, is capped at 135 units/second, so overlaps resolve
+gradually rather than jumping in one frame. Sleeping goalies remain stationary.
+He proactively tracks
+nearby balls within 240 units and predicts up to 0.6 seconds of rolling motion,
+accounting for friction. He gently oscillates five units around his defensive
+target, or around the goal center when no balls are nearby. Incoming scoring
+threats take priority over nearby balls. He never damages Koshi, but swords and Boost
+can defeat him, with normal optional shields and enemy-point awards. Music Box
+stops him; Spooky Mask makes him retreat along the goal at 32 units/second.
+His jersey falls down, revealing a plain mechanical shell; he turns pink with
+embarrassment and explodes, over 1.8 seconds. Pause freezes the animation.
+Without a Goal brick he immediately dies with no enemy-point award. He supports
+custom placements, enemy spawners, editor icons and custom cutscene actors.
+Built-in level content and schedules are unchanged.
+
 ### Learning Menus
 
 The title screen offers **How to play** and **Tutorial**.
@@ -168,7 +212,7 @@ workshop for Levels 2-1 through 2-24. The bottom third is a retro RPG dialogue b
 with the speaking character's animated pixel-art head on the left and typed
 dialogue in the locally bundled Space Grotesk font on the right. Speaker names,
 scene headings, and controls use the same clear, rounded font.
-Koshi, all seven robot types, and Tom the Duck each have a distinct pixel
+Koshi, all eight robot types, and Tom the Duck each have a distinct pixel
 portrait. Gameplay characters reuse their actual drawings; Tom has a dedicated
 full-body robot-duck drawing based on the supplied sketch.
 
@@ -193,7 +237,7 @@ The level editor supports optional scenes with either background, ordered
 dialogue lines, a speaker, and an on-stage cast. Saved JSON can additionally
 set each actor's normalized position per line. Tom is available as a speaker
 and cast member using the character ID `tom`, alongside `koshi`, `mouse`,
-`wheel`, `ram`, `bucket`, `ball`, `snake`, and `jackolantern`. Older custom scenes remain supported.
+`wheel`, `ram`, `bucket`, `ball`, `snake`, `jackolantern`, and `goalie`. Older custom scenes remain supported.
 The editor's Level library also offers every built-in campaign level for
 read-only inspection of bricks, scheduled events, cutscenes, and preview timing.
 Campaign spawn coordinates are representative randomized examples. Editing and
@@ -369,6 +413,9 @@ It has no sparkles, background or cast shadow.
 Random Ditto Stamp spawns leave at least two Koshi diameters of empty space
 between the stamp's edge and every brick, including merged brick surfaces.
 Explicit editor placements keep their chosen positions.
+Random Saw Blade spawns and spawners use the same clearance as Ditto Stamps
+and paintbrushes. Reserved random positions are rechecked at appearance and
+rerolled only if unsafe; explicit Saw Blade placements keep their markers.
 Random enemy spawns never overlap Koshi, including perimeter enemies and the
 full Robo-Snake body. Reserved random enemy previews are rechecked when the
 enemy appears; only an unsafe position is rerolled. Enemy spawners use the same
@@ -387,6 +434,25 @@ pickups do not stack, and a held saw takes priority without consuming the stamp.
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask are available in the editor for
 custom levels and introduced individually in Levels 2-11 through 2-21.
+Paintbrushes come in red, green and blue, in three shapes: a thin pencil-like
+brush with paint on its tip (1 brick contact), a wide brush with angled bristles
+and painted tips, with a small downward drip only from the longest bristles,
+leaving the bristles near the handle clean (3 contacts),
+and a soaked, dripping paint roller (5 contacts). Their item IDs are
+`paint-pencil-{color}`, `paint-wide-{color}`, and `paint-roller-{color}`.
+They change the next eligible brick contacts to the matching cooldown:
+red/Fast (3s), green/Normal (8s), blue/Slow (15s), making the brick ready while
+preserving other attributes, spent state, and merged geometry.
+Matching-color contacts neither activate the brush nor spend uses or refresh
+cooldowns. Goal and Cinder contacts do not spend uses. Springs and Portals count, but
+continuous contact does not. New brush pickups replace the held brush and uses.
+The brush floats beside Koshi with its remaining count. Saw Blade takes priority;
+Ditto Stamp acts before paint. Random and reserved spawns and item spawners
+use Ditto Stamp's clearance from all brick parts; explicit editor placements
+keep their markers. Optional lifetimes are supported. Pause freezes gameplay,
+and restart clears paint and restores bricks. All nine are available for custom
+levels and spawners without changing the built-in campaign.
+
 Sword icons share the
 weapon colors: brown wood, dark green patinated bronze, silver, and gold.
 Gameplay swords also have thin dark outlines around the blade, guard, and handle.
