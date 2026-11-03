@@ -51,6 +51,7 @@ const weaponRemaining = document.querySelector('#weapon-remaining');
 const colors = { normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99', goal: '#4d9475' };
 let lastTime = null;
 let displayedState = null;
+let displayedTurret = false;
 let ending = null;
 const endingMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let toastUntil = 0;
@@ -427,6 +428,15 @@ function makeBrickButtons() {
       }
     }
     button.addEventListener('click', event => {
+      if (game.activeTurret) {
+        if (event.detail !== 0) return;
+        const bounds = board.getBoundingClientRect();
+        const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
+        const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
+        game.fireTurretAt(x, y);
+        syncUI();
+        return;
+      }
       if (game.state !== 'playing' || brick.kind === 'goal' || brick.kind === 'cinder') return;
       const bounds = board.getBoundingClientRect();
       const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
@@ -489,6 +499,17 @@ function makeBrickButtons() {
   });
   for (const ghost of destructionVisuals.values()) container.append(ghost);
 }
+
+board.addEventListener('click', event => {
+  if (event.detail === 0 || game.state !== 'playing' || !game.activeTurret) return;
+  const bounds = board.getBoundingClientRect();
+  const x = (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
+  const y = (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
+  const fired = game.fireTurretAt(x, y);
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (fired) syncUI();
+}, true);
 
 function syncBrickDestructions() {
   for (const [effect, ghost] of destructionVisuals) {
@@ -650,6 +671,19 @@ function syncUI() {
   const batteryLabel = `Batteries: ${game.batteries}`;
   document.querySelector('#battery-count').textContent = `🔋 ${game.batteries}`;
   document.querySelector('#battery-status').setAttribute('aria-label', batteryLabel);
+  const gameCanvas = document.querySelector('#canvas');
+  const turret = game.activeTurret;
+  const wasInTurret = displayedTurret;
+  displayedTurret = Boolean(turret);
+  if (!turret && wasInTurret && game.state === 'playing' && !stuck) {
+    document.querySelector('#game-status').textContent = 'Click a brick to move. Change course anytime.';
+  }
+  if (turret) {
+    document.querySelector('#game-status').textContent = 'Tap or click a point to aim and fire. Watch the red arc on the turret.';
+    gameCanvas.setAttribute('aria-label', `Inside ${turret.type} turret. ${turret.shotsRemaining} shots remain; the red arc shows time remaining. Click or tap a point to aim and fire.`);
+  } else {
+    gameCanvas.setAttribute('aria-label', 'Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center. In a turret, click or tap to aim and fire.');
+  }
   if (tutorial) updateTutorial();
   pause.disabled = !['playing', 'paused'].includes(game.state);
   const pauseLabel = game.state === 'paused' ? 'Resume' : 'Pause';
@@ -989,6 +1023,7 @@ function guidePicture(picture, title) {
       portal: type === 'portal' ? 'purple' : null, toggle: type === 'toggle' ? 4 : null,
       toggleRemaining: type === 'toggle' ? 4 : 0, boost: type === 'boost',
       barrier: type === 'barrier',
+      turret: type === 'turret' ? 'laser' : null,
       spawner: type === 'spawner' ? { kind: 'enemy', type: 'mouse' } : null };
     decorateBrick(image, brick, [brick]);
     return image;
@@ -1397,6 +1432,157 @@ function robotDrawOrder(robots) {
   return robots.map(enemy => enemy.type === 'goalie' ? goalies[index++] : enemy);
 }
 
+function turretDomeRotation(turret) {
+  return Math.atan2(turret.direction.y, turret.direction.x) - Math.PI / 2;
+}
+
+function drawTurretBase(context, turret, opacity = 1) {
+  context.save();
+  context.globalAlpha *= opacity;
+  const radius = turret.domeRadius;
+  const rotation = turretDomeRotation(turret);
+  context.translate(turret.anchor.x, turret.anchor.y);
+  context.rotate(rotation);
+  context.fillStyle = 'rgba(61, 150, 214, .42)';
+  context.strokeStyle = '#a8dcf4';
+  context.lineWidth = 3;
+  context.beginPath();
+  context.moveTo(radius, 0);
+  context.arc(0, 0, radius, 0, Math.PI);
+  context.closePath();
+  context.fill();
+  context.stroke();
+  context.restore();
+
+  const barrelBase = {
+    x: turret.anchor.x + turret.direction.x * radius,
+    y: turret.anchor.y + turret.direction.y * radius,
+  };
+  const barrelEnd = {
+    x: barrelBase.x + turret.aim.x * 36,
+    y: barrelBase.y + turret.aim.y * 36,
+  };
+  context.save();
+  context.globalAlpha *= opacity;
+  context.lineCap = 'round';
+  context.strokeStyle = '#29343b';
+  context.lineWidth = 17;
+  context.beginPath(); context.moveTo(barrelBase.x, barrelBase.y); context.lineTo(barrelEnd.x, barrelEnd.y); context.stroke();
+  context.strokeStyle = '#8b969d';
+  context.lineWidth = 10;
+  context.beginPath(); context.moveTo(barrelBase.x, barrelBase.y); context.lineTo(barrelEnd.x, barrelEnd.y); context.stroke();
+  context.fillStyle = '#c4cbd0';
+  context.beginPath(); context.arc(barrelEnd.x, barrelEnd.y, 5, 0, Math.PI * 2); context.fill();
+  context.restore();
+}
+
+function drawTurretReadout(context, turret, opacity = 1) {
+  const side = { x: turret.direction.y, y: -turret.direction.x };
+  const x = turret.anchor.x + turret.direction.x * 26 + side.x * 16;
+  const y = turret.anchor.y + turret.direction.y * 26 + side.y * 16;
+  context.save();
+  context.globalAlpha *= opacity;
+  context.fillStyle = '#142532dd';
+  context.strokeStyle = '#c6e8f7';
+  context.lineWidth = 2;
+  context.beginPath(); context.arc(x, y, 13, 0, Math.PI * 2); context.fill(); context.stroke();
+  context.fillStyle = '#fff';
+  context.font = 'bold 15px sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(String(turret.shotsRemaining), x, y + .5);
+  context.restore();
+}
+
+function drawTurretTimer(context, turret, opacity = 1) {
+  const fraction = Math.max(0, Math.min(1, turret.remaining / 10));
+  if (!fraction) return;
+  context.save();
+  context.globalAlpha *= opacity;
+  context.translate(turret.anchor.x, turret.anchor.y);
+  context.rotate(turretDomeRotation(turret));
+  context.beginPath();
+  context.moveTo(turret.domeRadius, 0);
+  context.arc(0, 0, turret.domeRadius, 0, Math.PI * fraction);
+  context.strokeStyle = '#ff4545';
+  context.lineWidth = 6;
+  context.lineCap = 'round';
+  context.shadowColor = '#ff3030';
+  context.shadowBlur = 9;
+  context.stroke();
+  context.restore();
+}
+
+function drawTurretOnscreenCounter(context, turret, opacity = 1) {
+  drawTurretReadout(context, turret, opacity);
+  drawTurretTimer(context, turret, opacity);
+}
+
+function drawClippedToTurret(context, turret, draw) {
+  context.save();
+  const rotation = turretDomeRotation(turret);
+  context.translate(turret.anchor.x, turret.anchor.y);
+  context.rotate(rotation);
+  context.beginPath();
+  context.moveTo(turret.domeRadius, 0);
+  context.arc(0, 0, turret.domeRadius, 0, Math.PI);
+  context.closePath();
+  context.clip();
+  context.rotate(-rotation);
+  context.translate(-turret.anchor.x, -turret.anchor.y);
+  draw();
+  context.restore();
+}
+
+function drawTurretRim(context, turret, opacity = 1) {
+  context.save();
+  context.globalAlpha *= opacity;
+  context.translate(turret.anchor.x, turret.anchor.y);
+  context.rotate(turretDomeRotation(turret));
+  context.beginPath();
+  context.moveTo(turret.domeRadius, 0);
+  context.arc(0, 0, turret.domeRadius, 0, Math.PI);
+  context.closePath();
+  context.strokeStyle = '#d1d8dc';
+  context.lineWidth = 3;
+  context.stroke();
+  context.restore();
+}
+
+function drawTurretEffects(context) {
+  for (const projectile of game.turretProjectiles) {
+    context.save();
+    context.shadowColor = '#ff453a';
+    context.shadowBlur = 18;
+    context.fillStyle = '#ff5142';
+    context.beginPath(); context.arc(projectile.x, projectile.y, 7, 0, Math.PI * 2); context.fill();
+    context.fillStyle = '#ffd27d';
+    context.beginPath(); context.arc(projectile.x - 2, projectile.y - 2, 2.5, 0, Math.PI * 2); context.fill();
+    context.restore();
+  }
+  for (const effect of game.turretEffects) {
+    const progress = effect.age / (effect.type === 'laser' ? .18 : .42);
+    context.save();
+    context.globalAlpha *= 1 - progress;
+    if (effect.type === 'laser') {
+      context.lineCap = 'round';
+      context.shadowColor = '#ff3434'; context.shadowBlur = 20;
+      context.strokeStyle = '#ff3434'; context.lineWidth = 10;
+      context.beginPath(); context.moveTo(effect.start.x, effect.start.y); context.lineTo(effect.end.x, effect.end.y); context.stroke();
+      context.shadowBlur = 0;
+      context.strokeStyle = '#fff4dc'; context.lineWidth = 3;
+      context.beginPath(); context.moveTo(effect.start.x, effect.start.y); context.lineTo(effect.end.x, effect.end.y); context.stroke();
+    } else {
+      const radius = 12 + progress * 75;
+      context.fillStyle = '#ff693c55';
+      context.beginPath(); context.arc(effect.x, effect.y, radius, 0, Math.PI * 2); context.fill();
+      context.strokeStyle = '#ffb35a'; context.lineWidth = 3 * (1 - progress);
+      context.beginPath(); context.arc(effect.x, effect.y, radius * .7, 0, Math.PI * 2); context.stroke();
+    }
+    context.restore();
+  }
+}
+
 function render(now) {
   const WIDTH = game.width, HEIGHT = game.height;
   ctx = boardCtx;
@@ -1498,7 +1684,24 @@ function render(now) {
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
   drawWornCape(game, game.cat.x, game.cat.y);
-  drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
+  for (const turret of game.turretFades) {
+    const opacity = Math.max(0, 1 - turret.age / .4);
+    drawTurretBase(ctx, turret, opacity);
+    drawTurretRim(ctx, turret, opacity);
+    drawTurretOnscreenCounter(ctx, turret, opacity);
+  }
+  if (game.activeTurret) drawTurretBase(ctx, game.activeTurret);
+  if (game.activeTurret) {
+    const drawSeatedKoshi = () => {
+      drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
+    };
+    if (game.activeTurret.entry) drawSeatedKoshi();
+    else drawClippedToTurret(ctx, game.activeTurret, drawSeatedKoshi);
+  } else {
+    drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
+  }
+  if (game.activeTurret) drawTurretRim(ctx, game.activeTurret);
+  if (game.activeTurret) drawTurretOnscreenCounter(ctx, game.activeTurret);
   if (game.sunglassesPickup) drawWornSunglasses(game);
   if (game.maskPickup) drawWornMask(game);
   if (game.boomHelmet) drawBoomHelmet(game);
@@ -1549,6 +1752,7 @@ function render(now) {
     ctx.restore();
   }
   if (game.weapon) drawSword(game.cat.x + 30, game.cat.y - 20, SWORDS[game.weapon.type].color);
+  drawTurretEffects(ctx);
   ctx = boardCtx;
 }
 
@@ -2377,6 +2581,35 @@ function drawRobot(enemy, deathProgress = null, damageProgress = null) {
   ctx.restore();
 }
 
+function drawRoboKoshi(enemy, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  ctx.save();
+  if (deathProgress !== null) {
+    ctx.globalAlpha *= Math.max(0, 1 - progress);
+    ctx.translate(progress * 12, progress * progress * 18);
+    ctx.rotate(progress * 1.4);
+    ctx.scale(Math.max(.01, 1 - progress * .65), Math.max(.01, 1 - progress * .8));
+  }
+  ctx.fillStyle = damageColor ?? '#454d52'; ctx.strokeStyle = '#b3bec3'; ctx.lineWidth = 2;
+  for (const side of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(side * 7, -13); ctx.lineTo(side * 22, -30);
+    ctx.lineTo(side * 19, -6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#aab4b9'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(0, -31); ctx.stroke();
+  ctx.fillStyle = '#69747a'; ctx.fillRect(-4, -34, 8, 4);
+  ctx.fillStyle = deathProgress !== null && progress > .6 ? '#733b3e' : '#f02f39';
+  ctx.shadowColor = '#ff1d2b'; ctx.shadowBlur = deathProgress === null ? 8 : 0;
+  for (const x of [-10, 10]) ctx.fillRect(x - 3.5, -6, 7, 7);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#aab4b9';
+  ctx.beginPath(); ctx.moveTo(-5, 5); ctx.lineTo(5, 5); ctx.lineTo(0, 9); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#242a2d'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-7, 12); ctx.lineTo(7, 12); ctx.stroke();
+  ctx.restore();
+}
+
 function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   if (enemy.type === 'snake') {
     drawSnakeRobot(enemy, deathProgress, damageColor);
@@ -2386,6 +2619,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   ctx.fillStyle = damageColor ?? '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
   if (enemy.type === 'goalie') {
     drawRoboGoalie(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
+  if (enemy.type === 'robo-koshi') {
+    drawRoboKoshi(enemy, deathProgress, damageColor);
     ctx.restore(); return;
   }
   if (enemy.type === 'jackolantern') {
@@ -2854,7 +3091,24 @@ function drawRoboBall(enemy, deathProgress = null, damageColor = null) {
 function drawEnemyDeath(enemy) {
   const progress = enemy.deathProgress;
   ctx.save();
-  if (enemy.type === 'goalie') {
+  if (enemy.type === 'robo-koshi') {
+    drawRobot(enemy, progress);
+    if (progress > .12) {
+      const smoke = Math.min(1, (progress - .12) / .88);
+      ctx.save(); ctx.translate(enemy.x, enemy.y);
+      ctx.globalAlpha = Math.sin(Math.PI * smoke) * .85;
+      for (let i = 0; i < 9; i++) {
+        const angle = i * Math.PI * 2 / 9;
+        const drift = smoke * (24 + i % 3 * 7);
+        ctx.fillStyle = i % 2 ? '#7f898e' : '#c1c9cc';
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * drift, Math.sin(angle) * drift - smoke * 13,
+          4 + smoke * (5 + i % 3 * 2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  } else if (enemy.type === 'goalie') {
     drawRobot(enemy, progress);
   } else if (enemy.type === 'snake') {
     ctx.globalAlpha *= Math.max(0, 1 - progress);

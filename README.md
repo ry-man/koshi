@@ -144,7 +144,7 @@ The title screen includes two learning paths:
 
 - **How to play** opens an eight-topic walkthrough of movement and controls,
   cooldown colors, Cinder blocks, larger groups, Crumblers/Warped combinations,
-  all seven contact surfaces and Toggle switches, every food and healing
+  all nine contact surfaces and Toggle switches, every food and healing
   item, all eight robots and all swords, spawn warnings, and current objectives.
   Labeled pictures show every cooldown brick, Crumbler/Warped combination,
   slime color, spring and spike surface, food, healing heart, robot, and sword.
@@ -826,6 +826,14 @@ Its 1.2-second death scatters and fades the segments and spins the tongue away.
 Available in custom placements, spawn bricks, cutscenes and tutorial practice;
 Level 2–17 introduces head interception; the original 19 levels remain unchanged.
 
+Robo Koshi (`robo-koshi`) is a dark-grey robotic copy of Koshi with red square
+eyes and one antenna. It waits one second after spawning, then moves at Koshi's
+420-unit/second base speed to the position Koshi occupied at spawn. After
+arriving, it replays Koshi's recorded path, trailing by the one-second wait plus
+the time it took to reach that position. Its 1.1-second death animation shrinks
+and fades the head amid extra smoke puffs. Available in custom placements,
+spawn bricks and cutscenes; no built-in campaign levels are changed.
+
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom
 levels and receive dedicated introductions in Levels 2–11 through 2–21.
@@ -954,8 +962,20 @@ Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
 `item` uses one of the item types above; `heart` uses type `heart`.
 Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
 counted from each actual spawn; omit it for full-level persistence.
-These three surfaces are mutually exclusive with
-one another and with Slimed/Springs/Spikes/Conveyor.
+Portal, Spawner, Boost, and Turret each replace any other contact surface,
+including Slimed/Springs/Spikes/Conveyor.
+Optional `turret` is `"fireball"`, `"laser"`, or `null`. Touching a turret
+brick moves Koshi into its inward-facing, translucent blue protective dome;
+click or tap a point to aim and fire. The turret displays shots remaining, and
+a red arc around the dome shrinks over its 10-second duration. Keyboard players
+can focus a boundary brick and press Enter to fire toward its center. A turret
+allows three shots or 10 seconds, whichever comes first, then fades and releases
+Koshi. Fireball turrets launch glowing explosive
+shots that damage nearby enemies; laser turrets hit every enemy along a
+straight line. Neither turret affects pickups. Each brick works once per
+attempt; touching it again with a Battery recharges it. Turrets replace other
+contact surfaces and can combine with cooldown color, Crumbler, Warped and
+Toggle attributes.
 Optional `toggle` is `1` (red), `2` (green), or `4` (blue), or `null` to remove it; it combines
 with any contact surface, cooldown kind, Crumbler, and Warped.
 Omitted attributes leave earlier overlapping attribute edits unchanged. For example:

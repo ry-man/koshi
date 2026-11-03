@@ -104,6 +104,7 @@
             <label><input id="brick-spawner" type="checkbox" disabled> Spawning</label>
             <label><input id="brick-boost" type="checkbox" disabled> Boost</label>
             <label><input id="brick-barrier" type="checkbox" disabled> Barrier</label>
+            <label><input id="brick-turret" type="checkbox" disabled> Turret</label>
             </div>
             <label>Selections before deactivation <input id="brick-uses" type="number" min="1" max="100000" step="1" value="5" disabled></label>
             <label>Warp duration (seconds) <input id="brick-warp-seconds" type="number" min="0.1" max="3600" step="any" value="15" disabled></label>
@@ -114,8 +115,9 @@
             <label>Spawning item<select id="brick-spawn-item" disabled></select></label>
             <label>Spawned object lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" placeholder="Until level ends" disabled></label>
             <label>Spawned enemy shield<select id="brick-spawn-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
+            <label>Turret type<select id="brick-turret-type" disabled><option value="fireball">Fireball</option><option value="laser">Laser</option></select></label>
             <details class="inspector-help"><summary>Mechanics &amp; reset</summary>
-              <p class="editor-help">Changes apply immediately to selected bricks. Contact surfaces replace one another; modifiers can combine with any surface. Crumbler counts selections; Warped absorbs neighbors temporarily. Slime holds Koshi; Springs reflect him; Spikes hurt; Conveyor carries; Boost launches from rest at double speed.</p>
+              <p class="editor-help">Changes apply immediately to selected bricks. Contact surfaces replace one another; modifiers can combine with any surface. Crumbler counts selections; Warped absorbs neighbors temporarily. Slime holds Koshi; Springs reflect him; Spikes hurt; Conveyor carries; Boost launches from rest at double speed. Turrets protect Koshi while he aims and fires three shots, then return him to play after 10 seconds.</p>
               <p class="editor-help">Set portals one brick at a time or in groups. Each used color must have exactly two bricks before playtest or export. Warnings do not prevent editing or saving drafts. Recoloring or removing an endpoint does not change its partner.</p>
               <p class="editor-help">Toggles start disabled: red 1, green 2, blue 4. Every successful activation counts, including the Toggle itself. At zero it enables; the next activation resets it. Failed clicks do not count.</p>
               <p class="editor-help">Spawners glow through dark rainbow colors until physical contact spawns one item, then turn dark grey. Clicking alone does not spawn. Restart restores the charge.</p>

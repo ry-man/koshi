@@ -10,7 +10,7 @@ const storageKey = 'koshi-level-editor-v1';
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true });
 const immutableBrick = kind => ['cinder', 'goal'].includes(kind);
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -131,6 +131,7 @@ const SURFACE_ICONS = {
   spikes: 'M-24 12 L-16 -12 L-8 12 L0 -12 L8 12 L16 -12 L24 12 Z',
   conveyor: 'M-15 -10 H15 A10 10 0 0 1 15 10 H-15 A10 10 0 0 1 -15 -10 Z M-18 0 H18 M8 -5 L18 0 L8 5',
   barrier: FENCE,
+  turret: 'M-22 13 A22 22 0 0 1 22 13 M-3 0 H19 V-7 H5 M23 -7 H29',
   crumbler: 'M-22 -12 H22 V12 H-22 Z M-4 -12 L2 -4 L-5 2 L5 12',
   warped: 'M-20 -4 C-24 -22 6 -22 7 -5 S-18 16 -8 1 S19 -12 21 8',
 };
@@ -192,7 +193,7 @@ function setupPalettes() {
   }
   for (const [container, attributes] of [['surface-palette', ['plain', ...CONTACT_SURFACES]], ['attribute-palette', ['crumbler', 'warped', 'toggle']]]) {
     for (const attribute of attributes) {
-      const name = { plain: 'Plain', slimed: 'Slime', spawner: 'Spawner' }[attribute] ?? attribute[0].toUpperCase() + attribute.slice(1);
+      const name = { plain: 'Plain', slimed: 'Slime', spawner: 'Spawner', turret: 'Turret' }[attribute] ?? attribute[0].toUpperCase() + attribute.slice(1);
       const button = choiceButton(attribute, name, 'surface', () => {
         if (attribute === 'plain') {
           saveBrick({ target: { id: 'brick-plain' } });
@@ -280,7 +281,7 @@ function typeOptions(type, showLifetime) {
     : kind === 'weapon' ? Object.entries(SWORDS).map(([key, sword]) => [key, sword.name])
       : kind === 'item' ? Object.entries(ITEMS).map(([key, item]) => [key, item.name])
         : kind === 'object' ? Object.entries(OBJECTS).map(([key, item]) => [key, item.name])
-        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern'], ['snake', 'Robo Snake'], ['goalie', 'Robo Goalie']];
+        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern'], ['snake', 'Robo Snake'], ['goalie', 'Robo Goalie'], ['robo-koshi', 'Robo Koshi']];
   $('#event-type').replaceChildren(...types.map(([value, name]) => {
     const option = document.createElement('option');
     option.value = value; option.textContent = name;
@@ -458,6 +459,10 @@ function renderBrickInspector(bricks) {
   $('#brick-spawn-shield').disabled = inert || !shields.length;
   if (shields.length && common(shields) === MIXED) mixedOption($('#brick-spawn-shield'));
   else $('#brick-spawn-shield').value = shields[0] ?? 'none';
+  const turrets = chosen.map(brick => brick.turret).filter(Boolean);
+  $('#brick-turret-type').disabled = inert || !turrets.length;
+  $('#brick-turret-type').value = turrets.length && common(turrets) === MIXED ? '' : turrets[0] ?? 'laser';
+  if ($('#brick-turret-type').parentElement) $('#brick-turret-type').parentElement.hidden = !turrets.length || inert;
   $('#brick-kind').querySelector('option[value=""]')?.remove();
   $('#brick-slime-color').querySelector('option[value=""]')?.remove();
   $('#brick-slime-color').disabled = inert || !chosen.some(brick => brick.slimed);
@@ -472,8 +477,8 @@ function renderBrickInspector(bricks) {
     if (color === MIXED) mixedOption($('#brick-slime-color')); else $('#brick-slime-color').value = color;
   }
   if (!chosen.length) {
-    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-toggle']) $(selector).disabled = true;
-    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-toggle']) $(selector).indeterminate = false;
+    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-toggle']) $(selector).disabled = true;
+    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-toggle']) $(selector).indeterminate = false;
     $('#brick-selection').textContent = 'Select one or more boundary bricks to change their attributes.';
     return;
   }
@@ -843,7 +848,7 @@ function brickEntry(brick, region) {
   return { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null,
     slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs),
     spikes: Boolean(brick.spikes), conveyor: Boolean(brick.conveyor), conveyorDirection: brick.conveyorDirection ?? 'clockwise',
-    portal: brick.portal ?? null, toggle: brick.toggle ?? null, spawner: brick.spawner ? { ...brick.spawner } : null, boost: Boolean(brick.boost) };
+    portal: brick.portal ?? null, toggle: brick.toggle ?? null, spawner: brick.spawner ? { ...brick.spawner } : null, boost: Boolean(brick.boost), turret: brick.turret ?? null };
 }
 function saveBrick(event) {
   attempt(() => {
@@ -856,10 +861,11 @@ function saveBrick(event) {
     const entries = targets.flatMap(({ brick, region }) => {
       const entry = brickEntry(brick, region);
       if (immutableBrick(brick.kind) && id !== 'brick-kind') throw new Error('Cinder and Goal bricks cannot have modifiers or contact surfaces. Change the brick type first.');
-      if (id === 'brick-plain') for (const attribute of CONTACT_SURFACES) entry[attribute] = ['portal', 'spawner'].includes(attribute) ? null : false;
+      if (id === 'brick-plain') for (const attribute of CONTACT_SURFACES) entry[attribute] = ['portal', 'spawner', 'turret'].includes(attribute) ? null : false;
       if (id === 'brick-conveyor-direction' && $('#brick-conveyor-direction').value !== MIXED) entry.conveyorDirection = $('#brick-conveyor-direction').value;
       if (id === 'brick-slime-color' && $('#brick-slime-color').value !== MIXED) entry.slimeColor = $('#brick-slime-color').value;
       if (id === 'brick-kind' && $('#brick-kind').value !== MIXED) entry.kind = $('#brick-kind').value;
+      if (id === 'brick-turret-type' && $('#brick-turret-type').value !== MIXED && $('#brick-turret-type').value) entry.turret = $('#brick-turret-type').value;
       if (id === 'brick-crumbler') entry.crumbler = $('#brick-crumbler').checked ? entry.crumbler ?? number('#brick-uses') ?? 5 : null;
       if (id === 'brick-uses' && entry.crumbler && number('#brick-uses') !== null) entry.crumbler = number('#brick-uses');
       if (id === 'brick-warped') entry.warped = $('#brick-warped').checked ? entry.warped ?? number('#brick-warp-seconds') ?? 15 : null;
@@ -881,9 +887,10 @@ function saveBrick(event) {
         else if (entry.spawner.kind === 'food') throw new Error('Food needs a lifetime in seconds.');
         else delete entry.spawner.lifetime;
       }
-      const editedSurface = id === 'brick-portal-color' ? 'portal' : id === 'brick-spawn-item' ? 'spawner' : null;
+      const editedSurface = id === 'brick-portal-color' ? 'portal' : id === 'brick-spawn-item' ? 'spawner'
+        : id === 'brick-turret-type' ? 'turret' : null;
       if (editedSurface && entry[editedSurface]) {
-        for (const other of CONTACT_SURFACES) if (other !== editedSurface) entry[other] = ['portal', 'spawner'].includes(other) ? null : false;
+        for (const other of CONTACT_SURFACES) if (other !== editedSurface) entry[other] = ['portal', 'spawner', 'turret'].includes(other) ? null : false;
       }
       if (CONTACT_SURFACES.map(attribute => `brick-${attribute}`).includes(id)) {
         const attribute = id.slice(6);
@@ -893,9 +900,10 @@ function saveBrick(event) {
           entry.spawner = $('#brick-spawner').checked ? { kind, type, ...(kind === 'food' ? { lifetime: number('#brick-spawn-lifetime') ?? 15 } : {}) } : null;
           if (entry.spawner && ['item', 'weapon'].includes(kind) && number('#brick-spawn-lifetime') !== null) entry.spawner.lifetime = number('#brick-spawn-lifetime');
           if (entry.spawner?.kind === 'enemy') entry.spawner.shield = $('#brick-spawn-shield').value === 'none' || !$('#brick-spawn-shield').value ? null : $('#brick-spawn-shield').value;
-        } else entry[attribute] = $(`#${id}`).checked;
+        } else if (attribute === 'turret') entry.turret = $(`#${id}`).checked ? $('#brick-turret-type').value || 'laser' : null;
+        else entry[attribute] = $(`#${id}`).checked;
         if (entry[attribute]) {
-          for (const other of CONTACT_SURFACES) if (other !== attribute) entry[other] = ['portal', 'spawner'].includes(other) ? null : false;
+          for (const other of CONTACT_SURFACES) if (other !== attribute) entry[other] = ['portal', 'spawner', 'turret'].includes(other) ? null : false;
         }
       }
       if (immutableBrick(entry.kind)) for (const attribute of Object.keys(entry)) if (!['edge', 'start', 'end', 'kind'].includes(attribute)) delete entry[attribute];
@@ -943,7 +951,7 @@ function splitBricks() {
     message('Combined bricks split. Each retains the group\'s current attributes.');
   });
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier']) {
+for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type']) {
   $(selector).addEventListener('change', saveBrick);
 }
 $('#combine-bricks').addEventListener('click', combineBricks);

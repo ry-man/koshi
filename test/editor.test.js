@@ -94,6 +94,40 @@ test('campaign play links choose the original game level and malformed links rep
   }
 });
 
+test('editor saves turret variants and preserves contact-surface exclusivity', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', checked: false,
+      querySelector: () => null, replaceChildren() {} });
+    return nodes.get(selector);
+  };
+  const regionKey = region => `${region.edge}:${region.start}:${region.end}`;
+  const context = vm.createContext({ $, Game, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
+    CONTACT_SURFACES: require('../src/game.js').CONTACT_SURFACES, MIXED: '',
+    immutableBrick: kind => ['cinder', 'goal'].includes(kind),
+    common: values => values.every(value => value === values[0]) ? values[0] : '',
+    validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true }),
+    attempt: action => action(), markChanged() {}, renderBoard() {}, setSelection() {}, message() {},
+  });
+  vm.runInContext(source.slice(source.indexOf('function brickEntry('), source.indexOf('function splitBricks(')), context);
+  const level = blank(), game = new Game(() => .5, { customLevel: level });
+  const brick = game.bricks[0], region = brickEditRegions(game.bricks).get(brick.id);
+  context.level = level; context.previewGame = game; context.selectedBricks = new Set([regionKey(region)]);
+  $('#brick-turret').checked = true;
+  $('#brick-turret-type').value = 'fireball';
+  context.saveBrick({ target: { id: 'brick-turret' } });
+  assert.equal(context.level.brickTypes[0].turret, 'fireball');
+  $('#brick-turret-type').value = 'laser';
+  context.saveBrick({ target: { id: 'brick-turret-type' } });
+  assert.equal(context.level.brickTypes[0].turret, 'laser');
+  $('#brick-springs').checked = true;
+  context.saveBrick({ target: { id: 'brick-springs' } });
+  assert.equal(context.level.brickTypes[0].turret, null);
+  assert.equal(context.level.brickTypes[0].springs, true);
+  assert.equal(new Game(() => .5, { customLevel: context.level }).bricks[brick.id].springs, true);
+});
+
 test('enemy shields round-trip in placements and spawners and initialize their full score value', () => {
   for (const shield of [null, 'red', 'green', 'blue']) {
     const source = { ...blank(), events: [{ ...event('enemy', 'ram'), shield }],

@@ -76,7 +76,7 @@ test('weapon display shows a colored icon and only remaining attacks or seconds'
   const game = { elapsed: 2, weapon: null };
   const batteryCount = { textContent: '' };
   const batteryStatus = { setAttribute() {} };
-  const context = vm.createContext({ game, SWORDS, weaponIcon, weaponRemaining, weaponStatus,
+  const context = vm.createContext({ game, SWORDS, weaponIcon, weaponRemaining, weaponStatus, displayedTurret: false,
     document: { querySelector(selector) { return selector === '#battery-count' ? batteryCount : batteryStatus; } } });
   for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 5], ['gold', Infinity]]) {
     game.weapon = { type, uses, expires: 17 };

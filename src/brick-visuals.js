@@ -32,6 +32,7 @@ const SYMBOLS = {
   snake: 'M-25 5 A7 7 0 1 1 -11 5 A7 7 0 1 1 -25 5 M-16 -2 V12 M-12 5 H-20 M-13 5 C-9 -3 -1 -3 3 5 M-5 -3 A8 8 0 1 1 -5 13 A8 8 0 1 1 -5 -3 M3 5 C7 -3 14 -5 19 -3 M11 -4 A9 9 0 1 1 11 14 A9 9 0 1 1 11 -4 M15 -3 H18 M15 1 H18 M19 -1 L24 -4 M19 3 L24 6',
   jackolantern: 'M0 -18 V-25 M3 -25 A3 3 0 1 1 -3 -25 A3 3 0 1 1 3 -25 M0 -17 C-28 -26 -28 23 0 19 C28 23 28 -26 0 -17 Z M-10 -15 C-18 -4 -18 10 -10 17 M10 -15 C18 -4 18 10 10 17 M-15 -7 H-4 V0 H-15 Z M4 -7 H15 V0 H4 Z M0 0 L-4 6 H4 Z M-14 8 L-8 10 L-5 7 L0 11 L5 7 L8 10 L14 8 L9 16 L4 13 L0 17 L-4 13 L-9 16 Z',
   goalie: 'M0 -22 C20 -22 26 28 0 28 C-26 28 -20 -22 0 -22 Z M-6 -22 L-11 -31 M0 -22 V-33 M6 -22 L11 -31 M-9 -9 A2 2 0 1 0 -9 -8 M9 -9 A2 2 0 1 0 9 -8 M-3 -8 C-4 0 -9 9 -3 11 C9 14 6 2 3 -8 M-19 0 H-7 M7 0 H19 M-12 3 V21 M-4 14 V26 M4 14 V26 M12 3 V21 M8 7 A4 4 0 1 0 16 7 A4 4 0 1 0 8 7 M-15 8 L-10 3 L-6 8 Z',
+  'robo-koshi': 'M-7 -13 L-22 -30 L-19 -5 M7 -13 L22 -30 L19 -5 M0 -22 V-33 M0 -34 A3 3 0 1 1 0 -28 M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-14 -7 H-7 V1 H-14 Z M7 -7 H14 V1 H7 Z M-5 5 L0 9 L5 5 M-7 12 H7',
   sword: 'M0 -23 L6 -14 L4 8 H-4 L-6 -14 Z M-10 9 H10 M0 9 V22',
   S: 'M-14 -8 Q-18 7 0 19 Q18 7 14 -8 Z M-14 -8 L-4 -6 L0 -16 L4 -6 L14 -8 M-6 0 L-5 3 M5 4 L4 7',
   P: 'M0 -2 C-20 -32 -30 10 -10 12 C8 16 24 -8 12 -14 C0 -26 -14 6 0 14 C22 26 26 -8 6 -6 M-14 10 L14 -10',
@@ -115,7 +116,7 @@ function drawPaintbrush(ctx, item) {
 function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return SWORDS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
-  if (spawn.kind === 'enemy') return ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
+  if (spawn.kind === 'enemy') return spawn.type === 'robo-koshi' ? '#454d52' : ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
     : spawn.type === 'goalie' ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   if (spawn.kind === 'object') return OBJECTS[spawn.type].color;
@@ -129,7 +130,7 @@ function specialLabel(brick) {
         : spawn?.kind === 'object' ? OBJECTS[spawn.type].name
         : spawn?.kind === 'enemy' ? CHARACTERS[spawn.type]
         : spawn?.type;
-  return `${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}${brick.barrier ? ', Barrier: selection extends or retracts an enemy and bomb fence' : ''}`;
+  return `${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}${brick.barrier ? ', Barrier: selection extends or retracts an enemy and bomb fence' : ''}${brick.turret ? `, ${brick.turret} turret` : ''}`;
 }
 function svgNode(tag, attributes = {}) {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -196,7 +197,7 @@ function decorateBrick(button, brick, members) {
     }
   }
   button.dataset.specialVertical = String(vertical);
-  const slots = [brick.spawner || brick.boost || brick.barrier ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
+  const slots = [brick.spawner || brick.boost || brick.barrier || brick.turret ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
     brick.warped ? 'warped' : null, brick.toggle ? 'toggle' : null].filter(Boolean);
   const length = slots.reduce((total, slot) => total + (slot === 'toggle' ? 94 : 64), 0);
   const stacked = !vertical && brick.w / brick.h < 2 && brick.toggle && slots.length > 2;
@@ -226,11 +227,12 @@ function decorateBrick(button, brick, members) {
     }
     button.append(cloud);
   }
-  if (brick.spawner || brick.boost || brick.barrier) {
+  if (brick.spawner || brick.boost || brick.barrier || brick.turret) {
     const boomTime = brick.spawner?.kind === 'item' && BOOM_TIME_TYPES.has(brick.spawner.type);
     symbol = svgNode('svg', { class: `brick-item-symbol${brick.boost ? ' brick-boost-symbol' : ''}`,
       viewBox: boomTime ? '-28 -40 56 68' : '-28 -28 56 56', 'aria-hidden': 'true' });
-    const d = brick.barrier ? FENCE : brick.boost ? FLAME : spawnSymbol(brick.spawner);
+    const d = brick.turret ? 'M-22 13 A22 22 0 0 1 22 13'
+      : brick.barrier ? FENCE : brick.boost ? FLAME : spawnSymbol(brick.spawner);
     if (brick.spawner) {
       symbol.style.setProperty('--item-color', spawnColor(brick.spawner));
       if (boomTime) {
@@ -253,8 +255,22 @@ function decorateBrick(button, brick, members) {
       } else {
         symbol.append(svgNode('path', { class: 'item-outline', d }));
       }
+    } else if (brick.turret) {
+      symbol.style.setProperty('--item-color', brick.turret === 'laser' ? '#e85252' : '#ff703a');
+      symbol.append(svgNode('path', { class: 'item-outline', d }));
+      symbol.append(svgNode('path', { class: 'turret-barrel', d: 'M-4 0 H7 V-7 H21',
+        fill: 'none', stroke: '#59636a', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+      symbol.append(svgNode('path', { d: 'M-4 0 H7 V-7 H21', fill: 'none', stroke: '#aeb7bd',
+        'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+      if (brick.turret === 'laser') {
+        symbol.append(svgNode('path', { class: 'turret-shot', d: 'M23 -7 H29',
+          fill: 'none', stroke: '#ff4545', 'stroke-width': 4, 'stroke-linecap': 'round' }));
+      } else {
+        symbol.append(svgNode('circle', { class: 'turret-shot', cx: 27, cy: -7, r: 5,
+          fill: '#ff5547', stroke: '#9d2925', 'stroke-width': 2 }));
+      }
     }
-    if (!boomTime) {
+    if (!boomTime && !brick.turret) {
       symbol.append(svgNode('path', { class: 'item-color', d, ...(brick.barrier
         ? { fill: 'none', stroke: '#174f36', 'stroke-width': 4, opacity: .75 }
         : brick.boost ? { fill: '#f58428', stroke: '#17212a', 'stroke-width': 3 } : {}) }));
@@ -307,7 +323,7 @@ function updateBrick(visual, brick, elapsed, sunglassesActive = false) {
     if (visual.vertical) visual.count.setAttribute('transform', `rotate(-90 ${x} 26)`);
   }
   if (visual.symbol) {
-    visual.symbol.dataset.spawnReady = String(Boolean(brick.spawner && !brick.spawned));
+    visual.symbol.dataset.spawnReady = String(Boolean((brick.spawner || brick.turret) && !brick.spawned));
     visual.symbol.style.opacity = brick.boost ? '.8' : '1';
     if (brick.spawner?.type === 'magic-sunglasses') visual.symbol.style.setProperty('--item-color', `hsl(${elapsed * 140 % 360}, 85%, 70%)`);
   }

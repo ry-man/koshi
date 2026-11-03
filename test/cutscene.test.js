@@ -20,8 +20,9 @@ test('all campaign scenes validate and every story character speaks', () => {
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => character !== 'goalie').sort());
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['goalie', 'robo-koshi'].includes(character)).sort());
   assert.ok(!speakers.has('goalie'), 'custom-only goalie does not change campaign scenes');
+  assert.ok(!speakers.has('robo-koshi'), 'custom-only Robo Koshi does not change campaign scenes');
   const originalSpeakers = new Set(LEVELS.slice(0, 19).flatMap(level => level.cutscene.lines.map(line => line.speaker)));
   for (const character of ['ball', 'jackolantern', 'snake']) assert.ok(!originalSpeakers.has(character), 'new actors do not change original campaign scenes');
 });

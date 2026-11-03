@@ -57,6 +57,12 @@ function needsBrickSpawnClearance(type) {
 const SOCCER_FRICTION = 100;
 const GOALIE_SPEED = 67.5;
 const GOALIE_MAX_SPEED = 135;
+const TURRET_DURATION = 10;
+const TURRET_SHOTS = 3;
+const TURRET_ENTRY_DURATION = .24;
+const TURRET_FIREBALL_SPEED = 520;
+const TURRET_BLAST_RADIUS = 117;
+const TURRET_DOME_RADIUS = 56;
 const SCHEDULE = [
   [3, 'L3', 'S', 18], [11, 'L3', 'P', 18], [19, 'C3', 'B', 20],
   [27, 'L3', 'C', 20], [35, 'C3', 'L', 20], [43, 'R3', 'F', 17],
@@ -70,7 +76,7 @@ const SWORDS = {
 };
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
-const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier'];
+const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'turret'];
 const DITTO_PROPERTIES = ['kind', 'crumbler', 'warped', 'toggle', 'slimeColor', 'conveyorDirection', ...CONTACT_SURFACES];
 
 function dittoProperties(brick) {
@@ -109,20 +115,20 @@ function applyBrickTypes(bricks, entries = []) {
       brick.kind = entry.kind;
       if (['cinder', 'goal'].includes(brick.kind)) {
         for (const attribute of ['crumbler', 'warped', 'toggle']) brick[attribute] = null;
-        for (const attribute of CONTACT_SURFACES) brick[attribute] = ['portal', 'spawner'].includes(attribute) ? null : false;
+        for (const attribute of CONTACT_SURFACES) brick[attribute] = ['portal', 'spawner', 'turret'].includes(attribute) ? null : false;
         continue;
       }
       for (const attribute of ['crumbler', 'warped', 'slimeColor', 'conveyorDirection', 'toggle', ...CONTACT_SURFACES]) {
         if (entry[attribute] === undefined) continue;
         brick[attribute] = entry[attribute] && typeof entry[attribute] === 'object' ? { ...entry[attribute] } : entry[attribute];
         if (CONTACT_SURFACES.includes(attribute) && entry[attribute]) {
-          for (const other of CONTACT_SURFACES) if (other !== attribute) brick[other] = ['portal', 'spawner'].includes(other) ? null : false;
+          for (const other of CONTACT_SURFACES) if (other !== attribute) brick[other] = ['portal', 'spawner', 'turret'].includes(other) ? null : false;
         }
       }
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
 function validateCutscene(value) {
@@ -693,7 +699,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
     if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
@@ -742,6 +748,10 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
         if (entry.portal !== null && (typeof entry.portal !== 'string' || !Object.hasOwn(PORTALS, entry.portal))) fail(`Brick override ${i + 1} has an unknown portal color.`);
         override.portal = entry.portal;
       }
+      if (entry.turret !== undefined) {
+        if (entry.turret !== null && !['fireball', 'laser'].includes(entry.turret)) fail(`Brick override ${i + 1} has an unknown turret type.`);
+        override.turret = entry.turret;
+      }
       if (entry.toggle !== undefined) {
         if (entry.toggle !== null && ![1, 2, 4].includes(entry.toggle)) fail(`Brick override ${i + 1} toggle must require 1, 2, or 4 clicks.`);
         override.toggle = entry.toggle;
@@ -753,7 +763,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
@@ -843,6 +853,18 @@ function snapWheel(x, y) {
   const distances = [x, 1 - x, y, 1 - y];
   const edge = distances.indexOf(Math.min(...distances));
   return { x: edge === 0 ? 0 : edge === 1 ? 1 : x, y: edge === 2 ? 0 : edge === 3 ? 1 : y };
+}
+
+function turretGeometry(brick, width, height, catRadius = 21) {
+  const edge = brickRegions([brick], width, height).get(brick.id).edge;
+  const direction = { top: { x: 0, y: 1 }, right: { x: -1, y: 0 },
+    bottom: { x: 0, y: -1 }, left: { x: 1, y: 0 } }[edge];
+  const anchor = edge === 'top' ? { x: brick.x + brick.w / 2, y: brick.y + brick.h }
+    : edge === 'bottom' ? { x: brick.x + brick.w / 2, y: brick.y }
+      : edge === 'left' ? { x: brick.x + brick.w, y: brick.y + brick.h / 2 }
+        : { x: brick.x, y: brick.y + brick.h / 2 };
+  const center = { x: anchor.x + direction.x * catRadius, y: anchor.y + direction.y * catRadius };
+  return { edge, anchor, center, direction, domeRadius: TURRET_DOME_RADIUS };
 }
 
 function brickEditRegions(bricks) {
@@ -1481,6 +1503,8 @@ class Game {
     this.bricks = makeBricks(this.portrait, this.scale);
     this.brickRevision = 0;
     this.cat = { x: this.width / 2, y: this.height / 2, radius: 21, vx: 0, vy: 0 };
+    this.catHistory = [{ time: 0, x: this.cat.x, y: this.cat.y }];
+    this.tickStart = null;
     this.target = null;
     this.stuckUntil = 0;
     this.stuckColor = 'green';
@@ -1500,6 +1524,10 @@ class Game {
     this.paintTouching = new Set();
     this.barriers = [];
     this.spawnerTouching = new Set();
+    this.activeTurret = null;
+    this.turretFades = [];
+    this.turretProjectiles = [];
+    this.turretEffects = [];
     this.cookieActive = false;
     this.cookieLickUntil = 0;
     this.enemiesSleepUntil = 0;
@@ -1590,7 +1618,7 @@ class Game {
   }
 
   takeDamage() {
-    if (this.state !== 'playing' || this.hearts <= 0 || this.invulnerable) return false;
+    if (this.state !== 'playing' || this.hearts <= 0 || this.invulnerable || this.activeTurret) return false;
     this.hearts--;
     this.tookDamage = true;
     this.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
@@ -1605,7 +1633,7 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick)) return false;
+    if (this.state !== 'playing' || this.activeTurret || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick)) return false;
     const parts = this.brickParts();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
@@ -1715,7 +1743,11 @@ class Game {
   spawnFromBrick(brick) {
     const spawn = brick.spawner;
     brick.spawned = true;
-    if (spawn.kind === 'enemy') this.robots.push(...this.createEnemies([this.elapsed, spawn.type, 1, spawn.shield]));
+    if (spawn.kind === 'enemy') {
+      const enemies = this.createEnemies([this.elapsed, spawn.type, 1, spawn.shield]);
+      for (const enemy of enemies) this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
+      this.robots.push(...enemies);
+    }
     else if (spawn.kind === 'heart') this.healing.push(this.randomPoint());
     else if (spawn.kind === 'weapon') this.weapons.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
     else if (spawn.kind === 'item') this.items.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
@@ -1732,6 +1764,149 @@ class Game {
       this.batteries--;
     }
     if (!brick.spawned) this.spawnFromBrick(brick);
+  }
+
+  touchTurret(brick) {
+    if (this.activeTurret || this.spawnerTouching.has(brick.id)) return;
+    this.spawnerTouching.add(brick.id);
+    if (brick.spawned && this.batteries > 0) {
+      brick.spawned = false;
+      this.batteries--;
+    }
+    if (brick.spawned) return;
+    brick.spawned = true;
+    const geometry = turretGeometry(brick, this.width, this.height, this.cat.radius);
+    this.activeTurret = {
+      brickId: brick.id, type: brick.turret, ...geometry,
+      aim: geometry.direction, remaining: TURRET_DURATION, shotsRemaining: TURRET_SHOTS,
+      entry: { from: { x: this.cat.x, y: this.cat.y }, elapsed: 0 },
+    };
+    this.cat.vx = 0;
+    this.cat.vy = 0;
+    this.target = null;
+    this.boosted = false;
+    this.conveyorRide = null;
+  }
+
+  exitTurret() {
+    if (!this.activeTurret) return;
+    const turret = this.activeTurret;
+    this.turretFades.push({ ...turret, age: 0 });
+    this.cat.vx = 0;
+    this.cat.vy = 0;
+    this.target = null;
+    this.activeTurret = null;
+    for (const enemy of this.robots) enemy.touching = false;
+  }
+
+  fireTurretAt(x, y) {
+    const turret = this.activeTurret;
+    if (this.state !== 'playing' || !turret || !Number.isFinite(x) || !Number.isFinite(y)
+      || turret.entry || turret.shotsRemaining <= 0) return false;
+    const dx = x - turret.center.x, dy = y - turret.center.y, distance = Math.hypot(dx, dy);
+    const direction = distance > 1e-9 ? { x: dx / distance, y: dy / distance } : turret.direction;
+    turret.aim = direction;
+    turret.shotsRemaining--;
+    const start = {
+      x: turret.anchor.x + turret.direction.x * turret.domeRadius + direction.x * 34,
+      y: turret.anchor.y + turret.direction.y * turret.domeRadius + direction.y * 34,
+    };
+    if (turret.type === 'laser') {
+      const distances = [
+        direction.x > 0 ? (this.width - start.x) / direction.x : direction.x < 0 ? -start.x / direction.x : Infinity,
+        direction.y > 0 ? (this.height - start.y) / direction.y : direction.y < 0 ? -start.y / direction.y : Infinity,
+      ];
+      const range = Math.max(0, Math.min(...distances));
+      const end = { x: start.x + direction.x * range, y: start.y + direction.y * range };
+      for (const enemy of [...this.robots]) {
+        if (distanceToSegment(enemy.x, enemy.y, start.x, start.y, end.x, end.y) <= enemy.radius + 3) {
+          this.damageTurretEnemy(enemy);
+        }
+      }
+      this.turretEffects.push({ type: 'laser', start, end, age: 0 });
+    } else {
+      const target = { x, y };
+      const travel = Math.hypot(target.x - start.x, target.y - start.y);
+      if (travel < 1e-9) this.detonateTurretFireball(start);
+      else this.turretProjectiles.push({ x: start.x, y: start.y, target,
+        direction, remaining: travel, age: 0 });
+    }
+    if (turret.shotsRemaining === 0) this.exitTurret();
+    return true;
+  }
+
+  damageTurretEnemy(enemy) {
+    if (this.enemyDamageProgress(enemy) !== null || !this.robots.includes(enemy)) return;
+    if (enemy.shield) {
+      enemy.shield = SHIELDS[enemy.shield].next;
+      enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
+    } else {
+      this.defeatEnemy(enemy);
+      this.robots = this.robots.filter(candidate => candidate !== enemy);
+    }
+  }
+
+  detonateTurretFireball(point) {
+    this.turretEffects.push({ type: 'fireball', x: point.x, y: point.y, age: 0 });
+    for (const enemy of [...this.robots]) {
+      if (Math.hypot(enemy.x - point.x, enemy.y - point.y) <= TURRET_BLAST_RADIUS + enemy.radius) {
+        this.damageTurretEnemy(enemy);
+      }
+    }
+  }
+
+  updateTurrets(seconds) {
+    this.turretFades = this.turretFades.filter(turret => {
+      turret.age += seconds;
+      return turret.age < .4;
+    });
+    this.turretEffects = this.turretEffects.filter(effect => {
+      effect.age += seconds;
+      return effect.age < (effect.type === 'laser' ? .18 : .42);
+    });
+    this.turretProjectiles = this.turretProjectiles.filter(projectile => {
+      projectile.age += seconds;
+      const distance = Math.min(projectile.remaining, TURRET_FIREBALL_SPEED * seconds);
+      const end = { x: projectile.x + projectile.direction.x * distance,
+        y: projectile.y + projectile.direction.y * distance };
+      let hit = null, hitDistance = Infinity;
+      for (const enemy of this.robots) {
+        if (distanceToSegment(enemy.x, enemy.y, projectile.x, projectile.y, end.x, end.y) > enemy.radius + 6) continue;
+        const along = Math.max(0, (enemy.x - projectile.x) * projectile.direction.x
+          + (enemy.y - projectile.y) * projectile.direction.y);
+        if (along < hitDistance) { hit = enemy; hitDistance = along; }
+      }
+      if (hit) {
+        const impact = { x: projectile.x + projectile.direction.x * Math.min(distance, hitDistance),
+          y: projectile.y + projectile.direction.y * Math.min(distance, hitDistance) };
+        this.detonateTurretFireball(impact);
+        return false;
+      }
+      projectile.x = end.x;
+      projectile.y = end.y;
+      projectile.remaining -= distance;
+      if (projectile.remaining <= 1e-9) {
+        this.detonateTurretFireball(projectile.target);
+        return false;
+      }
+      return true;
+    });
+    if (this.activeTurret) {
+      const turret = this.activeTurret;
+      let activeSeconds = seconds;
+      if (turret.entry) {
+        const remainingEntry = TURRET_ENTRY_DURATION - turret.entry.elapsed;
+        const entryStep = Math.min(seconds, remainingEntry);
+        turret.entry.elapsed += entryStep;
+        const progress = Math.min(1, turret.entry.elapsed / TURRET_ENTRY_DURATION);
+        this.cat.x = turret.entry.from.x + (turret.center.x - turret.entry.from.x) * progress;
+        this.cat.y = turret.entry.from.y + (turret.center.y - turret.entry.from.y) * progress;
+        activeSeconds -= entryStep;
+        if (progress >= 1) delete turret.entry;
+      }
+      if (!turret.entry) turret.remaining = Math.max(0, turret.remaining - activeSeconds);
+      if (!turret.entry && turret.remaining <= 1e-9) this.exitTurret();
+    }
   }
 
   portalExit(brick, parts = this.brickParts()) {
@@ -1942,7 +2117,12 @@ class Game {
       const event = this.customEvents[this.nextCustom++];
       const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items
         : event.kind === 'object' ? this.soccerBalls : this.robots;
-      target.push(...this.takeSpawn(event, entry => this.createCustomSpawn(entry)));
+      const items = this.takeSpawn(event, entry => this.createCustomSpawn(entry));
+      if (event.kind === 'enemy') {
+        const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
+        for (const enemy of items) this.initializeRoboKoshi(enemy, spawn.time, spawn);
+      }
+      target.push(...items);
     }
   }
 
@@ -1953,6 +2133,7 @@ class Game {
     if (event.kind === 'object') return [this.createSoccerBall(point)];
     const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
     this.initializeShield(enemy, event.shield);
+    this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
     if (event.type === 'ram') this.initializeRam(enemy);
     if (event.type === 'bucket') this.initializeBucket(enemy);
     if (event.type === 'jackolantern') this.initializeJackolantern(enemy);
@@ -2131,7 +2312,11 @@ class Game {
 
   spawnEnemies(event) {
     const enemies = this.takeSpawn(event, entry => this.createEnemies(entry));
-    for (const enemy of enemies) this.ensureEnemySpawnClear(enemy);
+    for (const enemy of enemies) {
+      this.ensureEnemySpawnClear(enemy);
+      const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
+      this.initializeRoboKoshi(enemy, spawn.time, spawn);
+    }
     this.robots.push(...enemies);
   }
 
@@ -2169,9 +2354,72 @@ class Game {
       if (type === 'goalie') this.initializeGoalie(enemy);
       if (['wheel', 'snake'].includes(type)) this.placeWheel(enemy);
       this.ensureEnemySpawnClear(enemy);
+      this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       items.push(enemy);
     }
     return items;
+  }
+
+  initializeRoboKoshi(enemy, time, point) {
+    if (enemy.type !== 'robo-koshi') return;
+    enemy.roboSpawnTime = time;
+    enemy.roboOrigin = { x: point.x, y: point.y };
+    enemy.roboPhase = 'waiting';
+    enemy.roboDelay = null;
+    enemy.roboPathTarget = null;
+  }
+
+  catPositionAt(time) {
+    const history = this.catHistory;
+    if (time <= history[0].time) return history[0];
+    for (let i = 1; i < history.length; i++) {
+      const after = history[i];
+      if (time > after.time) continue;
+      const before = history[i - 1], span = after.time - before.time;
+      const progress = span ? (time - before.time) / span : 1;
+      return {
+        x: before.x + (after.x - before.x) * progress,
+        y: before.y + (after.y - before.y) * progress,
+      };
+    }
+    return history[history.length - 1];
+  }
+
+  recordCatPosition() {
+    const latest = this.catHistory[this.catHistory.length - 1];
+    if (latest.time === this.elapsed) Object.assign(latest, { x: this.cat.x, y: this.cat.y });
+    else this.catHistory.push({ time: this.elapsed, x: this.cat.x, y: this.cat.y });
+    const needed = this.robots.filter(enemy => enemy.type === 'robo-koshi').map(enemy =>
+      enemy.roboPhase === 'following' ? this.elapsed - enemy.roboDelay : enemy.roboSpawnTime);
+    const cutoff = needed.length ? Math.min(...needed) : this.elapsed - 10;
+    while (this.catHistory.length > 2 && this.catHistory[1].time < cutoff) this.catHistory.shift();
+  }
+
+  moveRoboKoshi(enemy, dt) {
+    const now = this.elapsed, stepStart = now - dt, waitUntil = enemy.roboSpawnTime + 1;
+    if (now < waitUntil - 1e-9) return;
+    const movementStart = Math.max(stepStart, waitUntil);
+    const movementTime = Math.max(0, now - movementStart);
+    if (enemy.roboPhase !== 'following') {
+      const dx = enemy.roboOrigin.x - enemy.x, dy = enemy.roboOrigin.y - enemy.y;
+      const distance = Math.hypot(dx, dy), travel = SPEED * movementTime;
+      if (distance > travel + 1e-9) {
+        if (distance) {
+          enemy.x += dx / distance * travel;
+          enemy.y += dy / distance * travel;
+        }
+        enemy.roboPhase = 'approaching';
+        return;
+      }
+      enemy.x = enemy.roboOrigin.x;
+      enemy.y = enemy.roboOrigin.y;
+      enemy.roboPhase = 'following';
+      enemy.roboDelay = movementStart + (distance ? distance / SPEED : 0) - enemy.roboSpawnTime;
+    }
+    const target = this.catPositionAt(now - enemy.roboDelay);
+    enemy.x = target.x;
+    enemy.y = target.y;
+    enemy.roboPathTarget = { x: target.x, y: target.y };
   }
 
   initializeShield(enemy, shield) {
@@ -3032,7 +3280,9 @@ class Game {
       enemy.afraid = this.maskActive;
       enemy.fleeMoving = false;
       if (enemy.asleep) { enemy.touching = false; continue; }
-      if (enemy.type === 'goalie') {
+      if (enemy.type === 'robo-koshi') {
+        this.moveRoboKoshi(enemy, dt);
+      } else if (enemy.type === 'goalie') {
         this.moveGoalie(enemy, dt);
       } else if (enemy.afraid) {
         enemy.resting = false;
@@ -3075,6 +3325,10 @@ class Game {
     }
     for (const enemy of this.robots) {
       const old = previous.get(enemy);
+      if (enemy.roboPathTarget) {
+        enemy.x = enemy.roboPathTarget.x;
+        enemy.y = enemy.roboPathTarget.y;
+      }
       if (enemy.type === 'goalie') {
         const dx = enemy.x - old.x, dy = enemy.y - old.y;
         const distance = Math.hypot(dx, dy);
@@ -3100,7 +3354,7 @@ class Game {
         }
       }
       const distance = distanceToSegment(0, 0, startX - old.x, startY - old.y, this.cat.x - enemy.x, this.cat.y - enemy.y);
-      if ((this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
+      if (!this.activeTurret && (this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
         if (this.enemyDamageProgress(enemy) === null) {
           if (!this.boosted && Number.isFinite(this.weapon.uses) && --this.weapon.uses === 0) this.weapon = null;
           if (enemy.shield) {
@@ -3114,7 +3368,8 @@ class Game {
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
       }
-      if (enemy.type !== 'goalie' && !enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius && !enemy.touching && this.enemyDamageProgress(enemy) === null) this.takeDamage();
+      if (enemy.type !== 'goalie' && !enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius
+        && (!enemy.touching || enemy.type === 'robo-koshi') && this.enemyDamageProgress(enemy) === null) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
     });
@@ -3278,7 +3533,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : enemy.type === 'ball' ? 1.1 : enemy.type === 'mouse' ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -3336,6 +3591,7 @@ class Game {
   }
 
   tick(dt) {
+    this.tickStart = { time: this.elapsed, x: this.cat.x, y: this.cat.y };
     this.updateEnemyDeaths(dt);
     this.updateGoalEffects(dt);
     this.updatePickups(dt);
@@ -3384,6 +3640,8 @@ class Game {
     for (const brick of this.bricks) {
       if (brick.spawner && brick.absorbedBy === null
         && parts.some(part => part.id === brick.id && this.touchingPart(part))) this.touchSpawner(brick);
+      if (brick.turret && brick.absorbedBy === null
+        && parts.some(part => part.id === brick.id && this.touchingPart(part))) this.touchTurret(brick);
     }
     const ride = this.conveyorRide;
     let rideEnd = false;
@@ -3489,6 +3747,7 @@ class Game {
       for (const id of spikeIds) this.spikeTouching.add(id);
     }
     this.combat(dt, startX, startY);
+    this.updateTurrets(dt);
     const sawTarget = contacts.map(part => this.bricks[part.id]).find(brick => !['cinder', 'goal'].includes(brick.kind));
     const sawed = sawTarget && this.sawBrick(sawTarget, parts);
     if (!sawed) {
@@ -3505,6 +3764,7 @@ class Game {
     for (const id of new Set(contacts.map(part => part.id))) {
       const brick = this.bricks[id];
       if (brick.spawner) this.touchSpawner(brick);
+      if (brick.turret) this.touchTurret(brick);
     }
     const portal = contacts.map(part => this.bricks[part.id]).find(brick => brick.portal);
     const teleported = portal && this.travelPortal(portal, parts);
@@ -3551,11 +3811,13 @@ class Game {
       this.elapsed = this.timeLimit;
       this.state = this.level.survive ? 'won' : 'lost';
     }
+    this.recordCatPosition();
+    this.tickStart = null;
   }
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, OBJECTS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, OBJECTS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

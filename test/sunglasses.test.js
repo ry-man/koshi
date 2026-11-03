@@ -222,7 +222,7 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
       { brick: cinder, members: [cinder], button: cinderButton }, { brick: goal, members: [goal], button: goalButton }],
     timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
     weaponStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
-    displayedStuck: false, displayedState: 'playing', brickRevision: game.brickRevision, tutorial: null, ending: null,
+    displayedStuck: false, displayedState: 'playing', displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
     syncBrickDestructions() {}, showDialog() {}, status: node(), overlay: node(),
   });
   const start = source.indexOf('function syncUI()');

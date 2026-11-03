@@ -141,7 +141,7 @@ test('Cinder validates and clears inherited effects without accepting new modifi
   for (const patch of [
     { crumbler: 5 }, { warped: 10 }, { toggle: 2 },
     ...CONTACT_SURFACES.map(attribute => ({ [attribute]: attribute === 'portal' ? 'red'
-      : attribute === 'spawner' ? { kind: 'heart', type: 'heart' } : true })),
+      : attribute === 'spawner' ? { kind: 'heart', type: 'heart' } : attribute === 'turret' ? 'laser' : true })),
   ]) assert.throws(() => validateCustomLevel({ ...level(), brickTypes: [{ ...region, kind: 'cinder', ...patch }] }), /Cinder/);
 });
 
@@ -199,7 +199,8 @@ test('special brick attributes validate, round-trip, copy independently and requ
     assert.throws(() => validateCustomLevel({ ...level(), brickTypes: bricks.slice(0, count).map(brick => ({ ...brick.region, kind: 'normal', portal: 'red' })) }), /exactly two/);
   }
   for (const other of CONTACT_SURFACES.filter(surface => surface !== 'boost')) {
-    const value = other === 'portal' ? 'red' : other === 'spawner' ? { kind: 'heart', type: 'heart' } : true;
+    const value = other === 'portal' ? 'red' : other === 'spawner' ? { kind: 'heart', type: 'heart' }
+      : other === 'turret' ? 'laser' : true;
     assert.throws(() => validateCustomLevel({ ...level(), brickTypes: [{ ...bricks[0].region, kind: 'normal', boost: true, [other]: value }] }), /combine/);
   }
   for (const color of Object.keys(PORTALS)) assert.doesNotThrow(() => validateCustomLevel({ ...level(), brickTypes: bricks.slice(0, 2).map(brick => ({ ...brick.region, kind: 'normal', portal: color })) }));
@@ -361,14 +362,15 @@ test('a Toggle activation advances its counter even when using the last Crumbler
   assert.equal(brick.toggleRemaining, 1);
 });
 
-test('Toggle state only gates selection and all seven contact surfaces remain active', () => {
+test('Toggle state only gates selection and all nine contact surfaces remain active', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
     for (const surface of CONTACT_SURFACES) {
       const outcomes = [];
       for (const disabled of [false, true]) {
         const game = arena(options), brick = edgeBrick(game, 'right');
         brick.toggle = 2; brick.toggleRemaining = disabled ? 2 : 0;
-        brick[surface] = surface === 'portal' ? 'red' : surface === 'spawner' ? { kind: 'heart', type: 'heart' } : true;
+        brick[surface] = surface === 'portal' ? 'red' : surface === 'spawner' ? { kind: 'heart', type: 'heart' }
+          : surface === 'turret' ? 'laser' : true;
         if (surface === 'portal') {
           const destination = edgeBrick(game, 'left');
           destination.portal = 'red';
