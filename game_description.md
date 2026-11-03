@@ -38,8 +38,13 @@ level map inside the last-played level's world, with that level selected.
 The last-played field is saved when the briefing's Start is pressed, even
 if the player later abandons the attempt; this does not record a win or loss.
 Legacy saves without that field use their first unfinished level.
-After a win's celebration, the level map opens automatically and Koshi moves
-from the completed level to the next stop. At world boundaries the next world's
+After a win's celebration, a results popup compares completion time, food,
+enemy points and soccer goals with previous records in a grid labeled This Run
+and Record. Game-interface icons identify each metric. New records highlight
+the value in gold with a smiling-cat marker and an explanatory legend. A
+damage-free win awards a gold star, with an indicator if it was acquired on
+an earlier run. Continue opens the level map and Koshi moves from the completed
+level to the next stop. At world boundaries the next world's
 map includes the completed level as an entry connector. At the final level
 Koshi remains on the completed stop. Golden flags wave on completed levels
 and fully completed worlds; reduced motion disables waving and movement.
@@ -55,8 +60,8 @@ special-world levels are included in this two-world demonstration.
 
 Completed attempts save their results to the active campaign slot. Quitting,
 leaving or restarting before a result counts as neither a win nor a loss.
-Only wins contribute to fastest time; both outcomes contribute to highest
-point scores. Guest results last for the current visit. Older saves preserve
+Only wins contribute to fastest time; both outcomes contribute to highest food,
+enemy and soccer-goal scores. Guest results last for the current visit. Older saves preserve
 completed levels, but have no historical times, scores or attempt counts;
 unrecorded values are shown explicitly. Stable internal level IDs and existing
 campaign links are retained, while displayed numbers reflect the new worlds.
@@ -292,7 +297,7 @@ Some bricks have oozy slime only on the center-facing edge which Koshi touches, 
 Some bricks have a brown wooden platform with grain, a highlighted edge, and a clear dark outline only on the arena-facing edge, like slime, including the inner rim of warped groups. The platform is slightly thick and overhangs the brick toward the arena. The editor uses the same graphic. When Koshi lands on this brick, he bounces off immediately, reflecting his incoming direction about the contact surface without changing speed (including rounded corners). The platform compresses and rebounds slightly, revealing tiny springs underneath only during the bounce. At rest no coils are visible.
 
 ### Brick Attribute - Spikes
-Many triangular white spikes protrude from the arena-facing edge. Touching their tips or sides stops Koshi and costs one heart, even while armed. Staying against them does not repeatedly damage him; separating and touching them again can. Losing the last heart ends the attempt. The editor previews the same spikes used for collision in play.
+Many triangular white spikes line the arena-facing edge. The brick body is recessed by the spike depth, so the body and spikes together occupy the same thickness as a non-spike brick; their tips do not extend farther into the arena. This also applies to merged bricks. Touching their tips or sides stops Koshi and costs one heart, even while armed. Staying against them does not repeatedly damage him; separating and touching them again can. Losing the last heart ends the attempt. The editor previews the same spikes used for collision in play.
 
 ### Brick Attributes - Conveyor
 
@@ -361,6 +366,13 @@ briefly enlarge, then shrink and fade with sparkles; expired objects do not.
 Ditto Stamp is an orange wooden stamp shown straight-on from the side, with a
 round knob, wood grain and an even, flat grey rubber pad beneath the wooden base.
 It has no sparkles, background or cast shadow.
+Random Ditto Stamp spawns leave at least two Koshi diameters of empty space
+between the stamp's edge and every brick, including merged brick surfaces.
+Explicit editor placements keep their chosen positions.
+Random enemy spawns never overlap Koshi, including perimeter enemies and the
+full Robo-Snake body. Reserved random enemy previews are rechecked when the
+enemy appears; only an unsafe position is rerolled. Enemy spawners use the same
+rule, while explicit editor enemy placements keep their chosen positions.
 After pickup it follows Koshi until his first stop on a non-Portal brick, then
 presses onto that brick's center to capture its properties and returns beside
 him with matching ink. His next landing presses onto the destination's center

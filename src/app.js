@@ -4,7 +4,7 @@
 const { Game, LEVELS, SWORDS, ITEMS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, brickEnabled, validateCustomLevel, levelObjective, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawGoal } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
-const { SaveSlots } = globalThis.KoshiSaves;
+const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
 
 let game;
@@ -174,14 +174,30 @@ function saveResult() {
   if (tutorial || game.customLevel || recordedAttempts.has(game)) return;
   if (!['won', 'lost'].includes(game.state)) return;
   recordedAttempts.add(game);
-  const result = { levelId: game.level.id, outcome: game.state, time: game.elapsed, food: game.score, enemy: game.enemies, moves: game.moves };
+  const result = {
+    levelId: game.level.id, outcome: game.state, time: game.elapsed, food: game.score, enemy: game.enemies,
+    goals: game.goals ?? 0, moves: game.moves,
+    damageFree: game.state === 'won' && !game.tookDamage,
+  };
+  const previousStats = levelStats(runSave ? activeSave?.slot.results : guestProfile.results, game.level.id);
+  const summary = {
+    result,
+    previousStats,
+    newRecords: {
+      time: previousStats.bestTime === null || result.time < previousStats.bestTime,
+      food: previousStats.mostFood === null || result.food > previousStats.mostFood,
+      enemy: previousStats.mostEnemies === null || result.enemy > previousStats.mostEnemies,
+      goals: previousStats.mostGoals === null || result.goals > previousStats.mostGoals,
+    },
+  };
   if (!runSave) {
     guestProfile.results[attemptId] = result;
     if (game.state === 'won' && !guestProfile.completed.includes(game.level.id)) guestProfile.completed.push(game.level.id);
-    return;
+    return summary;
   }
   pendingSaves.push({ ...runSave, attemptId, result });
   saveAttempt(flushSaves);
+  return summary;
 }
 
 function continueSave(index, id, fresh = false) {
@@ -328,8 +344,9 @@ function makeBrickButtons() {
   buttons = game.bricks.filter(brick => brick.absorbedBy === null).map(brick => {
     const members = parts.filter(part => part.id === brick.id);
     const merged = members.length > 1;
-    const outlined = merged || brick.crumbler || brick.slimed || brick.springs;
+    const outlined = merged || brick.crumbler || brick.slimed || brick.springs || brick.spikes;
     const part = outlined ? brickShape(members, Boolean(brick.crumbler)) : members[0];
+    const body = brick.spikes ? brickSpikes(members, game.width, game.height, Boolean(brick.crumbler)).body : part;
     const recharge = brickRecharge(members, game.bricks, game.perimeter, game.width, game.height);
     const button = document.createElement('button');
     button.className = 'brick';
@@ -356,6 +373,7 @@ function makeBrickButtons() {
     } else {
       button.style.setProperty('--recharge-direction', `to ${recharge[0].direction}`);
     }
+    if (brick.spikes) button.style.clipPath = body.roundedClipPath;
     if (outlined) {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
@@ -364,7 +382,7 @@ function makeBrickButtons() {
       svg.setAttribute('preserveAspectRatio', 'none');
       svg.setAttribute('aria-hidden', 'true');
       const path = document.createElementNS(ns, 'path');
-      path.setAttribute('d', part.roundedPath);
+      path.setAttribute('d', body.roundedPath);
       path.setAttribute('vector-effect', 'non-scaling-stroke');
       svg.append(path);
       button.append(svg);
@@ -503,6 +521,60 @@ function showDialog(kicker, title, text, label, icon) {
   play.focus({ preventScroll: true });
 }
 
+function showCompletionResults(summary) {
+  const dialog = document.querySelector('#level-results');
+  const heading = document.querySelector('#level-results-heading');
+  const star = document.querySelector('#level-results-star');
+  const previousStar = document.querySelector('#level-results-star-prior');
+  const rows = document.querySelector('#level-results-rows tbody');
+  const recordLegend = document.querySelector('#level-results-record-legend');
+  heading.textContent = `Level ${game.level.number ?? game.level.id} complete`;
+  star.hidden = !summary.result.damageFree;
+  previousStar.hidden = !summary.result.damageFree || !summary.previousStats.goldStar;
+  rows.replaceChildren();
+  const metrics = [
+    { key: 'time', label: '🕒', labelText: 'Completion time', current: summary.result.time.toFixed(2),
+      record: summary.previousStats.bestTime, format: value => value.toFixed(2) },
+    { key: 'food', label: '🍗', labelText: 'Food points', current: summary.result.food,
+      record: summary.previousStats.mostFood, format: value => value },
+    { key: 'enemy', label: '👾', labelText: 'Enemy points', current: summary.result.enemy,
+      record: summary.previousStats.mostEnemies, format: value => value },
+    { key: 'goals', label: '⚽', labelText: 'Soccer goals', current: summary.result.goals,
+      record: summary.previousStats.mostGoals, format: value => value },
+  ];
+  let hasNewRecord = false;
+  for (const metric of metrics) {
+    const row = document.createElement('tr'), label = document.createElement('th');
+    const current = document.createElement('td'), record = document.createElement('td');
+    const isNewRecord = summary.newRecords[metric.key];
+    row.className = `level-result-row${isNewRecord ? ' new-record' : ''}`;
+    label.scope = 'row';
+    label.setAttribute('aria-label', metric.labelText);
+    label.textContent = metric.label;
+    const colon = document.createElement('span');
+    colon.className = 'level-results-label-colon';
+    colon.textContent = ':';
+    label.append(colon);
+    current.textContent = metric.current;
+    record.textContent = metric.record === null ? '—' : metric.format(metric.record);
+    if (isNewRecord) {
+      hasNewRecord = true;
+      const marker = document.createElement('span');
+      marker.className = 'new-record-marker';
+      marker.textContent = '😺';
+      marker.setAttribute('aria-label', 'New record');
+      const target = summary.newRecords[metric.key] ? current : record;
+      target.insertBefore(marker, target.firstChild);
+    }
+    row.append(label, current, record);
+    rows.append(row);
+  }
+  recordLegend.hidden = !hasNewRecord;
+  overlay.hidden = true;
+  dialog.showModal();
+  document.querySelector('#level-results-continue').focus({ preventScroll: true });
+}
+
 function syncUI() {
   const stuck = game.stuckUntil > game.elapsed + 1e-9;
   if (stuck !== displayedStuck) {
@@ -522,7 +594,7 @@ function syncUI() {
   const fraction = survive ? Math.min(1, game.elapsed / DURATION)
     : Math.min(1, GOAL > 0 ? game.score / GOAL : 1, killGoal > 0 ? game.enemies / killGoal : 1,
       goalsGoal > 0 ? soccerGoals / goalsGoal : 1);
-  timer.innerHTML = Number.isFinite(DURATION) ? `◷ ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '◷ ∞';
+  timer.innerHTML = Number.isFinite(DURATION) ? `🕒 ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '🕒 ∞';
   timer.setAttribute('aria-label', Number.isFinite(DURATION)
     ? `${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))} seconds remaining` : 'Unlimited time');
   foodCount.innerHTML = `🍗 ${game.score}${foodTarget ? ` <span>/ ${GOAL}</span>` : ''}`;
@@ -597,7 +669,7 @@ function syncUI() {
     if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
       item.usesLeft = brick.usesLeft;
       const wear = 1 - brick.usesLeft / brick.crumbler;
-      const shape = brickShape(members, true, wear);
+      const shape = brick.spikes ? brickSpikes(members, game.width, game.height, true, wear).body : brickShape(members, true, wear);
       button.style.clipPath = shape.clipPath;
       button.style.setProperty('--crumbler-wear', wear);
       for (const path of button.querySelectorAll('.brick-outline path')) path.setAttribute('d', shape.roundedPath);
@@ -637,15 +709,19 @@ function syncUI() {
   if (ending?.game !== game || ending?.state !== game.state) ending = null;
   if (['won', 'lost'].includes(game.state) && !ending) {
     ending = { game, state: game.state, elapsed: 0, duration: game.state === 'won' ? 2.4 : 1.8 };
-    if (!tutorial) saveResult();
+    if (!tutorial) ending.summary = saveResult();
     overlay.hidden = true;
     toast.textContent = '';
     status.textContent = game.state === 'won' ? 'Level complete! Koshi is celebrating.' : 'Koshi needs another try.';
   }
   if (ending && !endingMotion.matches && ending.elapsed < ending.duration) return;
-  if (game.state === 'won' && !tutorial && !game.customLevel && !ending.mapReturned) {
-    ending.mapReturned = true;
-    openLevelPicker({ insideWorld: true, level: game.levelIndex, advance: true });
+  if (ending?.resultsShown && !ending.mapReturned) return;
+  if (game.state === 'won' && !tutorial && !game.customLevel && !ending.resultsShown) {
+    ending.resultsShown = true;
+    displayedState = game.state;
+    status.textContent = 'Level complete! Review your results, then continue to the map.';
+    toast.textContent = 'Level complete!';
+    showCompletionResults(ending.summary);
     return;
   }
   if (displayedState === game.state) return;
@@ -783,6 +859,14 @@ const worldMap = new globalThis.KoshiWorldMap({
   picture: guidePicture,
   custom: () => customLevel,
 });
+const levelResultsDialog = document.querySelector('#level-results');
+levelResultsDialog.addEventListener('cancel', event => event.preventDefault());
+function continueFromCompletion() {
+  levelResultsDialog.close();
+  if (ending?.game === game) ending.mapReturned = true;
+  openLevelPicker({ insideWorld: true, level: game.levelIndex, advance: true });
+}
+document.querySelector('#level-results-continue').addEventListener('click', continueFromCompletion);
 function dismissTitle() {
   if (!game.customLevel) {
     openLevelPicker();
@@ -922,7 +1006,7 @@ function guidePicture(picture, title) {
     const crumbler = type.includes('crumbler');
     const warped = type.includes('warped');
     const brick = { id: 0, x: 18, y: 22, w: 124, h: 28, region: { edge: 'top', start: 0, end: 1 } };
-    const shape = brickShape([brick], crumbler, crumbler ? .4 : 0);
+    const shape = type === 'spikes' ? brickSpikes([brick], 600, 960).body : brickShape([brick], crumbler, crumbler ? .4 : 0);
     ctx.save(); ctx.translate(brick.x, brick.y); ctx.scale(brick.w, brick.h);
     ctx.fillStyle = colors[type] ?? colors.normal;
     ctx.fill(new Path2D(shape.path));

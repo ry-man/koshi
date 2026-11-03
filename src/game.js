@@ -11,6 +11,7 @@ const MUSIC_STREAM_DURATION = 5;
 const SUNGLASSES_DURATION = 10;
 const MASK_DURATION = 10;
 const FEAR_SPEED = 32;
+const DITTO_STAMP_RADIUS = 27;
 const COOLDOWNS = { slow: 15, normal: 8, fast: 3 };
 const SLIMES = { blue: { duration: 5, color: '#287dcc' }, green: { duration: 3, color: '#399d24' }, red: { duration: 1, color: '#cd4136' } };
 const FOODS = {
@@ -832,12 +833,13 @@ function brickEditRegions(bricks) {
   return new Map(bricks.map(brick => [brick.id, brick.region]));
 }
 
-function brickShape(parts, crumbly = false, wear = 0) {
+function brickShape(parts, crumbly = false, wear = 0, bounds = null) {
   wear = crumbly ? Math.max(0, Math.min(1, wear)) : 0;
   const coordinates = axis => [...new Set(parts.flatMap(part =>
     [part[axis], part[axis] + part[axis === 'x' ? 'w' : 'h']].map(value => Math.round(value * 1e6) / 1e6)))].sort((a, b) => a - b);
   const xs = coordinates('x'), ys = coordinates('y');
-  const x = xs[0], y = ys[0], w = xs.at(-1) - x, h = ys.at(-1) - y;
+  const x = bounds?.x ?? xs[0], y = bounds?.y ?? ys[0];
+  const w = bounds?.w ?? xs.at(-1) - x, h = bounds?.h ?? ys.at(-1) - y;
   const edges = new Map();
   const edge = (a, b) => {
     const reverse = `${b}:${a}`;
@@ -1040,7 +1042,18 @@ function brickSpring(parts, width, height, compression = 0) {
   return { platform, coils, grain, highlight };
 }
 
-function brickSpikes(parts, width, height) {
+function spikeBrickBody(part, width, height) {
+  const edge = brickRegions([part], width, height).get(part.id).edge;
+  const depth = Math.min(14, (['top', 'bottom'].includes(edge) ? part.h : part.w) * .6);
+  const body = { ...part };
+  if (edge === 'top') body.h -= depth;
+  if (edge === 'bottom') { body.y += depth; body.h -= depth; }
+  if (edge === 'left') body.w -= depth;
+  if (edge === 'right') { body.x += depth; body.w -= depth; }
+  return body;
+}
+
+function brickSpikes(parts, width, height, crumbly = false, wear = 0) {
   const { x, y, w, h, edges } = brickInnerEdges(parts, width, height);
   const triangles = [];
   for (const { ax, ay, dx, dy, length, thickness } of edges) {
@@ -1048,11 +1061,12 @@ function brickSpikes(parts, width, height) {
     const depth = Math.min(14, thickness * .6);
     const at = (t, offset) => [x + ax + dx * t + dy / length * offset, y + ay + dy * t - dx / length * offset];
     for (let i = 0; i < count; i++) {
-      triangles.push([at(i / count, 0), at((i + .5) / count, depth), at((i + 1) / count, 0)]);
+      triangles.push([at(i / count, -depth), at((i + .5) / count, 0), at((i + 1) / count, -depth)]);
     }
   }
   const path = triangles.map(triangle => `M${triangle.map(([px, py]) => `${(px - x) / w} ${(py - y) / h}`).join('L')}Z`).join('');
-  return { path, triangles };
+  const body = brickShape(parts.map(part => spikeBrickBody(part, width, height)), crumbly, wear, { x, y, w, h });
+  return { path, triangles, body };
 }
 
 const CONVEYOR_SPEED = 85;
@@ -1308,7 +1322,7 @@ function fireTouchesCat(wave, previousRadius, cat, startX, startY) {
 }
 
 function brickContact(x, y, dx, dy, radius, brick) {
-  const { x: left, y: top, w, h } = brick;
+  const { x: left, y: top, w, h } = brick.collisionBody ?? brick;
   const right = left + w, bottom = top + h;
   const hits = [];
   const side = (t, position, min, max) => {
@@ -1373,7 +1387,8 @@ function spikeContact(x, y, dx, dy, radius, triangle) {
     const a = dx * dx + dy * dy, ox = x - ax, oy = y - ay;
     const b = 2 * (ox * dx + oy * dy), c = ox * ox + oy * oy - radius * radius;
     const discriminant = b * b - 4 * a * c;
-    if (a > 0 && b < 0 && discriminant >= 0) {
+    // Grazing a tip along the normal brick boundary must not stop movement.
+    if (a > 0 && b < 0 && discriminant > a * 1e-7) {
       const t = (-b - Math.sqrt(discriminant)) / (2 * a);
       if (t >= -1e-9 && t <= 1) contact = Math.min(contact, Math.max(0, t));
     }
@@ -1442,6 +1457,7 @@ class Game {
     this.activationsRemaining = this.level.activationLimit ?? null;
     this.boomHelmet = null;
     this.hearts = 3;
+    this.tookDamage = false;
     this.invulnerableUntil = 0;
     this.nextEvent = 0;
     this.food = [];
@@ -1541,6 +1557,7 @@ class Game {
   takeDamage() {
     if (this.state !== 'playing' || this.hearts <= 0 || this.invulnerable) return false;
     this.hearts--;
+    this.tookDamage = true;
     this.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
     return true;
   }
@@ -1610,10 +1627,12 @@ class Game {
       if (right > left) parts.push({ id: owner(a), afterId: a.id, x: left, y: Math.min(a.y + a.h, b.y + b.h), w: right - left, h: top - Math.min(a.y + a.h, b.y + b.h) });
       else if (bottom > top) parts.push({ id: owner(a), afterId: a.id, x: Math.min(a.x + a.w, b.x + b.w), y: top, w: left - Math.min(a.x + a.w, b.x + b.w), h: bottom - top });
     }
-    return parts;
+    return parts.map(part => this.bricks[part.id].spikes
+      ? { ...part, collisionBody: spikeBrickBody(part, this.width, this.height) } : part);
   }
 
   touchingPart(part) {
+    part = part.collisionBody ?? part;
     return Math.hypot(this.cat.x - Math.max(part.x, Math.min(part.x + part.w, this.cat.x)),
       this.cat.y - Math.max(part.y, Math.min(part.y + part.h, this.cat.y))) <= this.cat.radius + 1e-6;
   }
@@ -1799,7 +1818,13 @@ class Game {
   takeSpawn(event, create) {
     const pending = this.pendingSpawns.get(event);
     this.pendingSpawns.delete(event);
-    return pending ? pending.items : create(event);
+    const items = pending ? pending.items : create(event);
+    if (Array.isArray(event)) {
+      for (const item of items) {
+        if (item.type === 'ditto-stamp' && !this.stampSpawnClear(item)) Object.assign(item, this.randomStampPoint());
+      }
+    }
+    return items;
   }
 
   spawn(event) {
@@ -1840,9 +1865,32 @@ class Game {
     };
   }
 
-  randomPoint() {
+  randomPoint(isSafe = null) {
     const b = this.bounds();
-    return { x: b.left + this.random() * (b.right - b.left), y: b.top + this.random() * (b.bottom - b.top) };
+    for (let attempt = 0; attempt < 64; attempt++) {
+      const point = { x: b.left + this.random() * (b.right - b.left), y: b.top + this.random() * (b.bottom - b.top) };
+      if (!isSafe || isSafe(point)) return point;
+    }
+    // A deterministic fallback also handles constant random sources without hanging.
+    for (let row = 0; row <= 16; row++) {
+      for (let column = 0; column <= 16; column++) {
+        const point = this.pointFromRelative(column / 16, row / 16);
+        if (isSafe(point)) return point;
+      }
+    }
+    throw new RangeError('No safe random spawn location is available.');
+  }
+
+  stampSpawnClear(point, parts = this.brickParts()) {
+    const clearance = DITTO_STAMP_RADIUS + this.cat.radius * 4;
+    return parts.every(part => Math.hypot(
+      point.x - Math.max(part.x, Math.min(part.x + part.w, point.x)),
+      point.y - Math.max(part.y, Math.min(part.y + part.h, point.y))) >= clearance);
+  }
+
+  randomStampPoint() {
+    const parts = this.brickParts();
+    return this.randomPoint(point => this.stampSpawnClear(point, parts));
   }
 
   pointFromRelative(x, y) {
@@ -1880,7 +1928,7 @@ class Game {
     return [enemy];
   }
 
-  createCollectible(time, type, lifetime, point = this.randomPoint()) {
+  createCollectible(time, type, lifetime, point = type === 'ditto-stamp' ? this.randomStampPoint() : this.randomPoint()) {
     return { ...point, type, ...(lifetime == null ? {} : { born: time, lifetime, expires: time + lifetime }) };
   }
 
@@ -2042,7 +2090,30 @@ class Game {
   }
 
   spawnEnemies(event) {
-    this.robots.push(...this.takeSpawn(event, entry => this.createEnemies(entry)));
+    const enemies = this.takeSpawn(event, entry => this.createEnemies(entry));
+    for (const enemy of enemies) this.ensureEnemySpawnClear(enemy);
+    this.robots.push(...enemies);
+  }
+
+  enemySpawnClear(enemy) {
+    const parts = enemy.type === 'snake' ? this.snakeSegments(enemy) : [enemy];
+    return parts.every(part => Math.hypot(part.x - this.cat.x, part.y - this.cat.y)
+      > this.cat.radius + part.radius + (part.index ? 5 : 0));
+  }
+
+  ensureEnemySpawnClear(enemy) {
+    if (this.enemySpawnClear(enemy)) return;
+    if (!['wheel', 'snake'].includes(enemy.type)) {
+      Object.assign(enemy, this.randomPoint(point => this.enemySpawnClear({ ...enemy, ...point })));
+      return;
+    }
+    const b = this.bounds(), perimeter = 2 * (b.right - b.left + b.bottom - b.top);
+    for (let attempt = 0; attempt < 128; attempt++) {
+      enemy.distance = (attempt < 64 ? this.random() : (attempt - 64) / 64) * perimeter;
+      this.placeWheel(enemy);
+      if (this.enemySpawnClear(enemy)) return;
+    }
+    throw new RangeError('No safe perimeter enemy spawn location is available.');
   }
 
   createEnemies([, type, count, shield]) {
@@ -2055,6 +2126,7 @@ class Game {
       if (type === 'bucket') this.initializeBucket(enemy);
       if (type === 'jackolantern') this.initializeJackolantern(enemy);
       if (['wheel', 'snake'].includes(type)) this.placeWheel(enemy);
+      this.ensureEnemySpawnClear(enemy);
       items.push(enemy);
     }
     return items;
@@ -3156,11 +3228,13 @@ class Game {
           // The center follows the union's radius-expanded rim, including corner clearance.
           continue;
         }
-        const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, brick);
+        const effectiveSpikes = this.sawStartedAt === null && (stampAvailable && !this.bricks[brick.id].portal
+          ? this.dittoSource.spikes : this.bricks[brick.id].spikes);
+        const body = effectiveSpikes ? spikeBrickBody(brick, this.width, this.height) : brick;
+        const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, { ...brick, collisionBody: body });
         if (t < contact - 1e-9) { contact = t; contacts = [brick]; }
         else if (t <= contact + 1e-9 && t <= 1) contacts.push(brick);
       }
-      const bodyContact = contact, bodyContacts = [...contacts];
       for (const spike of spikes) {
         const t = spikeContact(cat.x, cat.y, dx, dy, cat.radius, spike.triangle);
         if (t < contact - 1e-9) { contact = t; contacts = [spike]; }
@@ -3170,8 +3244,14 @@ class Game {
         && (item.expires == null || item.expires > this.elapsed + 1e-9)
         && distanceToSegment(item.x, item.y, cat.x, cat.y, cat.x + dx * contact, cat.y + dy * contact) <= cat.radius + 14);
       if (collectingSaw) {
-        contact = bodyContact;
-        contacts = bodyContacts;
+        contact = 1;
+        contacts = [];
+        for (const brick of parts) {
+          if (this.conveyorRide?.id === brick.id) continue;
+          const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, { ...brick, collisionBody: null });
+          if (t < contact - 1e-9) { contact = t; contacts = [brick]; }
+          else if (t <= contact + 1e-9 && t <= 1) contacts.push(brick);
+        }
       }
     }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;

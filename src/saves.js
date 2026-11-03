@@ -7,7 +7,10 @@ const SLOT_COUNT = 3;
 function validateResult(result, levelIds) {
   if (!result || !levelIds.includes(result.levelId) || !['won', 'lost'].includes(result.outcome)
     || !['time', 'food', 'enemy'].every(key => Number.isFinite(result[key]) && result[key] >= 0)
-    || (result.moves !== undefined && (!Number.isSafeInteger(result.moves) || result.moves < 0))) {
+    || (result.moves !== undefined && (!Number.isSafeInteger(result.moves) || result.moves < 0))
+    || (result.goals !== undefined && (!Number.isSafeInteger(result.goals) || result.goals < 0))
+    || (result.damageFree !== undefined && (typeof result.damageFree !== 'boolean'
+      || (result.damageFree && result.outcome !== 'won')))) {
     throw new Error('Invalid completed level result.');
   }
 }
@@ -16,14 +19,17 @@ function levelStats(results, levelId) {
   const attempts = Object.values(results ?? {}).filter(result => result.levelId === levelId);
   const wins = attempts.filter(result => result.outcome === 'won');
   const moveRecords = wins.filter(result => result.moves !== undefined);
+  const goalRecords = attempts.filter(result => result.goals !== undefined);
   return {
     wins: wins.length, losses: attempts.length - wins.length,
+    goldStar: wins.some(result => result.damageFree === true),
     winPercent: attempts.length ? wins.length / attempts.length * 100 : null,
     lossPercent: attempts.length ? (attempts.length - wins.length) / attempts.length * 100 : null,
     bestTime: wins.length ? Math.min(...wins.map(result => result.time)) : null,
     fewestMoves: moveRecords.length ? Math.min(...moveRecords.map(result => result.moves)) : null,
     mostFood: attempts.length ? Math.max(...attempts.map(result => result.food)) : null,
     mostEnemies: attempts.length ? Math.max(...attempts.map(result => result.enemy)) : null,
+    mostGoals: goalRecords.length ? Math.max(...goalRecords.map(result => result.goals)) : null,
   };
 }
 
@@ -113,7 +119,7 @@ class SaveSlots {
     slot.results ??= {};
     if (Object.hasOwn(slot.results, attemptId)) {
       const previous = slot.results[attemptId];
-      if (['levelId', 'outcome', 'time', 'food', 'enemy', 'moves'].some(key => previous[key] !== result[key])) {
+      if (['levelId', 'outcome', 'time', 'food', 'enemy', 'moves', 'goals', 'damageFree'].some(key => previous[key] !== result[key])) {
         throw new Error('This attempt already has a different saved result.');
       }
       return slot;

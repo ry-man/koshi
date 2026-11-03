@@ -524,6 +524,7 @@ function renderBoard() {
     const members = parts.filter(part => part.id === brick.id);
     const merged = members.length > 1;
     const shape = brickShape(members, Boolean(brick.crumbler));
+    const body = brick.spikes ? brickSpikes(members, previewGame.width, previewGame.height, Boolean(brick.crumbler)).body : shape;
     const element = document.createElement('button');
     const key = regionKey(regions.get(brick.id));
     const displayedEdge = displayedRegions.get(brick.id).edge;
@@ -548,8 +549,9 @@ function renderBoard() {
     element.style.cssText = `left:${shape.x / previewGame.width * 100}%;top:${shape.y / previewGame.height * 100}%;width:${shape.w / previewGame.width * 100}%;height:${shape.h / previewGame.height * 100}%;--brick-color:${{ normal: '#83bca1', slow: '#7eacdb', fast: '#df8c81', cinder: '#969b99', goal: '#f1f3f2' }[brick.kind]};background-color:var(--brick-fill, var(--brick-color))`;
     if (brick.crumbler || merged) element.style.clipPath = shape.roundedClipPath;
     if (merged) element.classList.add('editor-brick-merged');
+    if (brick.spikes) element.style.clipPath = body.roundedClipPath;
     const special = decorateBrick(element, brick, members);
-    if (brick.slimed || brick.springs || merged) {
+    if (brick.slimed || brick.springs || brick.spikes || merged) {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
       svg.classList.add('brick-outline');
@@ -557,7 +559,7 @@ function renderBoard() {
       svg.setAttribute('preserveAspectRatio', 'none');
       svg.setAttribute('aria-hidden', 'true');
       const path = document.createElementNS(ns, 'path');
-      path.setAttribute('d', shape.roundedPath);
+      path.setAttribute('d', body.roundedPath);
       path.setAttribute('vector-effect', 'non-scaling-stroke');
       svg.append(path);
       element.append(svg);

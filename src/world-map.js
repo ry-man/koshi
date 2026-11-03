@@ -85,12 +85,14 @@ class WorldMap {
     const levels = [...(departure ? [departure] : []), ...worldLevels(world)];
     const rows = Math.ceil(levels.length / 4);
     const height = rows * 100 + 50;
+    const profile = this.profile();
     const nodes = levels.map((level, i) => {
       const row = Math.floor(i / 4), column = row % 2 ? 3 - i % 4 : i % 4;
       return { id: level.id, label: level.number, x: 12 + column * 25,
         y: (row * 100 + 80) / height * 100, theme: world.theme,
         subtitle: level === departure ? `From World ${level.worldId}` : null,
-        completed: this.profile()?.completed.includes(level.id),
+        completed: profile?.completed.includes(level.id),
+        goldStar: levelStats(profile?.results, level.id).goldStar,
         action: () => {
           if (level === departure) {
             this.selection.value = String(LEVELS.indexOf(level));
@@ -150,9 +152,18 @@ class WorldMap {
     this.selection.value = String(LEVELS.indexOf(level));
     this.mark(level.id);
     this.details.replaceChildren();
-    const heading = document.createElement('h3'), objective = this.objectives(level), stats = document.createElement('dl');
-    heading.textContent = `Level ${level.number} - ${level.name}`;
+    const heading = document.createElement('header'), title = document.createElement('h3');
+    const objective = this.objectives(level), stats = document.createElement('dl');
+    heading.className = 'map-level-heading';
+    title.textContent = `Level ${level.number} - ${level.name}`;
     const profile = this.profile(), result = levelStats(profile?.results, level.id);
+    const star = document.createElement('span');
+    star.className = `map-star${result.goldStar ? ' map-star-earned' : ''}`;
+    star.textContent = result.goldStar ? '★' : '☆';
+    star.title = result.goldStar ? 'Gold star earned: completed without taking damage' : 'Gold star not earned: complete without taking damage';
+    star.setAttribute('role', 'img');
+    star.setAttribute('aria-label', star.title);
+    heading.append(title, star);
     const fields = [
       ...(level.activationLimit == null ? [] : [['Moves to beat', `${level.activationLimit} activations`]]),
       ['Best (fastest) win', result.bestTime === null ? 'Not recorded' : `${result.bestTime.toFixed(2)} seconds`],
@@ -245,7 +256,7 @@ class WorldMap {
       button.dataset.node = node.id; button.dataset.theme = node.theme;
       button.style.left = `${node.x}%`; button.style.top = `${node.y}%`;
       button.setAttribute('aria-pressed', 'false');
-      button.setAttribute('aria-label', `${node.label}${node.subtitle ? ` - ${node.subtitle}` : ''}${node.completed ? ', completed' : ''}`);
+      button.setAttribute('aria-label', `${node.label}${node.subtitle ? ` - ${node.subtitle}` : ''}${node.completed ? ', completed' : ''}${node.goldStar ? ', gold star earned' : ''}`);
       const name = document.createElement('strong'); name.textContent = node.label;
       button.append(name);
       if (node.subtitle && this.view === 'worlds') {
@@ -268,6 +279,13 @@ class WorldMap {
         const flag = document.createElement('span'), cloth = document.createElement('span');
         flag.className = 'completion-flag'; flag.setAttribute('aria-hidden', 'true');
         cloth.className = 'flag-cloth'; flag.append(cloth); button.append(flag);
+      }
+      if (node.goldStar) {
+        const star = document.createElement('span');
+        star.className = 'map-node-star';
+        star.textContent = '★';
+        star.setAttribute('aria-hidden', 'true');
+        button.append(star);
       }
       button.addEventListener('click', node.action); this.map.append(button);
     }

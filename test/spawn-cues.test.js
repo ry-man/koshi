@@ -13,6 +13,59 @@ const placements = time => [
 ];
 const point = ({ x, y }) => ({ x, y });
 
+test('random enemies avoid Koshi, including the entire snake, with constant random sources', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    for (const type of ['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'snake']) {
+      const game = new Game(() => .5, options);
+      if (['wheel', 'snake'].includes(type)) {
+        const probe = { distance: (game.bounds().right - game.bounds().left + game.bounds().bottom - game.bounds().top) };
+        game.placeWheel(probe);
+        Object.assign(game.cat, probe);
+      }
+      const enemies = game.createEnemies([0, type, 3]);
+      assert.equal(enemies.length, 3);
+      for (const enemy of enemies) {
+        const parts = type === 'snake' ? game.snakeSegments(enemy) : [enemy];
+        for (const part of parts) assert.ok(Math.hypot(part.x - game.cat.x, part.y - game.cat.y)
+          > game.cat.radius + part.radius + (part.index ? 5 : 0), `${type} overlaps Koshi`);
+        if (['wheel', 'snake'].includes(type)) {
+          const expected = { distance: enemy.distance };
+          game.placeWheel(expected);
+          assert.deepEqual(point(enemy), point(expected));
+        }
+      }
+    }
+  }
+});
+
+test('random enemies recheck reserved positions at appearance without moving explicit placements', () => {
+  for (const type of ['mouse', 'wheel', 'snake']) {
+    const game = new Game(() => .3);
+    const event = [2, type, 1];
+    const [reserved] = game.createEnemies(event);
+    game.pendingSpawns.set(event, { kind: 'enemy', time: 2, items: [reserved] });
+    Object.assign(game.cat, point(reserved));
+    game.spawnEnemies(event);
+    assert.equal(game.robots.length, 1);
+    assert.ok(game.enemySpawnClear(game.robots[0]));
+    assert.equal(game.pendingSpawns.size, 0);
+  }
+  const game = new Game(() => .5, { customLevel: custom([
+    { time: 0, kind: 'enemy', type: 'mouse', x: .5, y: .5 },
+  ]) });
+  game.start();
+  assert.deepEqual(point(game.robots[0]), point(game.cat));
+});
+
+test('enemy spawners avoid Koshi immediately on contact', () => {
+  const game = new Game(() => .5);
+  const brick = game.bricks[0];
+  brick.spawner = { kind: 'enemy', type: 'mouse' };
+  game.spawnFromBrick(brick);
+  assert.ok(game.enemySpawnClear(game.robots[0]));
+  assert.equal(brick.spawned, true);
+});
+
 test('custom previews begin exactly one second before spawning and reserve exact positions in both layouts', () => {
   for (const options of [{}, { portrait: true, scale: .4 }]) {
     const game = new Game(() => .3, { ...options, customLevel: custom(placements(2)) });

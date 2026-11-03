@@ -100,6 +100,22 @@
         <button id="save-close" class="title-secondary" type="button">Back to menu</button>
       </div>
     </dialog>
+    <dialog id="level-results" class="install-dialog level-results" aria-labelledby="level-results-heading">
+      <h2 id="level-results-heading"></h2>
+      <section id="level-results-star" class="level-results-star" aria-live="polite" hidden>
+        <span aria-hidden="true">★</span>
+        <p>Gold Star awarded for damageless run!</p>
+        <small id="level-results-star-prior" hidden>(already acquired in prior run)</small>
+      </section>
+      <table id="level-results-rows" class="level-results-rows">
+        <thead><tr><th scope="col" aria-label="Statistic"></th><th scope="col">This Run</th><th scope="col">Record</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p id="level-results-record-legend" class="level-results-record-legend" hidden>😺 = New Record!</p>
+      <div class="save-actions">
+        <button id="level-results-continue" class="primary" type="button">Continue to map →</button>
+      </div>
+    </dialog>
     <main>
       <header class="masthead">
         <div class="masthead-links">
@@ -117,7 +133,7 @@
         <button id="save-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
         <div class="game-controls">
           <div class="loadout">
-            <div class="stat timer-stat"><span class="stat-label">TIME LEFT</span><strong id="timer" aria-label="60 seconds remaining">◷ 60<span>s</span></strong></div>
+            <div class="stat timer-stat"><span class="stat-label">TIME LEFT</span><strong id="timer" aria-label="60 seconds remaining">🕒 60<span>s</span></strong></div>
             <div class="level-status"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div>
           </div>
           <div class="game-toolbar">

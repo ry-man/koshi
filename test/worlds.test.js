@@ -167,12 +167,47 @@ test('details show saved outcome statistics, no fabricated legacy bests, and hel
   map.open(); map.showWorld(WORLDS[0]); map.selectLevel(LEVELS[0]);
   let details = text(map.details);
   for (const value of ['12.25 seconds', '25', '5', '1 / 1', '50.0%']) assert.ok(details.includes(value), value);
+  assert.ok(!details.includes('Damage-free gold star'));
+  assert.equal(map.details.children[0].children[1].textContent, '☆');
+  assert.equal(map.details.children[0].children[1].getAttribute('aria-label'), 'Gold star not earned: complete without taking damage');
   assert.doesNotMatch(details, /Win \/ loss percentages|50\.0% \/ /);
   assert.match(details, /Fewest moves\s+7\b/);
   assert.ok(!details.includes('Moves to beat'));
   map.selectLevel(LEVELS[1]); details = text(map.details);
   assert.ok(details.includes('0 / 0'));
   assert.ok(details.includes('Not recorded'));
+
+  const earned = mapFixture({
+    completed: [LEVELS[0].id],
+    results: { first: { ...result, damageFree: true } },
+  });
+  earned.map.open(); earned.map.showWorld(WORLDS[0]); earned.map.selectLevel(LEVELS[0]);
+  assert.equal(earned.map.details.children[0].children[1].textContent, '★');
+  assert.equal(earned.map.details.children[0].children[1].className, 'map-star map-star-earned');
+  assert.doesNotMatch(earned.text(earned.map.details), /Damage-free gold star/);
+});
+
+test('earned gold stars appear at the bottom-left of only their level-map nodes', () => {
+  const { map } = mapFixture({
+    completed: [LEVELS[0].id, LEVELS[1].id],
+    results: {
+      clean: { levelId: LEVELS[0].id, outcome: 'won', time: 12, food: 20, enemy: 0, damageFree: true },
+      damaged: { levelId: LEVELS[1].id, outcome: 'won', time: 12, food: 20, enemy: 0, damageFree: false },
+    },
+  });
+  map.open();
+  map.showWorld(WORLDS[0]);
+  const nodes = map.map.querySelectorAll('.map-node');
+  const earned = nodes.find(node => node.dataset.node === LEVELS[0].id);
+  const unearned = nodes.find(node => node.dataset.node === LEVELS[1].id);
+  assert.equal(earned.children.at(-1).className, 'map-node-star');
+  assert.equal(earned.children.at(-1).textContent, '★');
+  assert.equal(earned.children.at(-1).getAttribute('aria-hidden'), 'true');
+  assert.match(earned.getAttribute('aria-label'), /gold star earned/);
+  assert.equal(unearned.children.some(child => child.className === 'map-node-star'), false);
+  assert.doesNotMatch(unearned.getAttribute('aria-label'), /gold star earned/);
+  const styles = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(styles, /\.map-node-star \{[^}]*left: -8px; bottom: -8px;/);
 });
 
 test('map objectives use accessible icons and positive targets, or only a clock for survival', () => {

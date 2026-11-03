@@ -36,6 +36,44 @@ function depart(game, source, target) {
   aim(game, target);
 }
 
+test('random stamps leave two Koshi widths beyond their artwork from every brick part', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = arena(options);
+    game.bricks[0].warped = 10;
+    game.absorbNeighbor(game.bricks[0]);
+    game.random = () => 0;
+    const check = stamp => {
+      for (const part of game.brickParts()) {
+        const distance = Math.hypot(stamp.x - Math.max(part.x, Math.min(part.x + part.w, stamp.x)),
+          stamp.y - Math.max(part.y, Math.min(part.y + part.h, stamp.y)));
+        assert.ok(distance - 27 >= game.cat.radius * 4);
+      }
+    };
+    check(game.createCollectible(2, 'ditto-stamp', 5));
+    const brick = game.bricks.find(brick => brick.absorbedBy === null);
+    brick.spawner = { kind: 'item', type: 'ditto-stamp', lifetime: 3 };
+    game.spawnFromBrick(brick);
+    check(game.items[0]);
+    assert.equal(game.items[0].expires, game.elapsed + 3);
+
+    const event = [2, 'ditto-stamp', 5];
+    const reserved = { ...game.pointFromRelative(0, 0), type: 'ditto-stamp', born: 2, expires: 7, lifetime: 5 };
+    game.pendingSpawns.set(event, { kind: 'item', time: 2, items: [reserved] });
+    const [stamp] = game.takeSpawn(event, () => assert.fail('must consume the reserved stamp'));
+    check(stamp);
+    assert.equal(stamp.expires, 7);
+    assert.equal(game.pendingSpawns.size, 0);
+  }
+});
+
+test('explicit Ditto Stamp placements are not relocated away from bricks', () => {
+  const game = arena();
+  const expected = game.pointFromRelative(0, 0);
+  const [stamp] = game.createCustomSpawn({ time: 0, kind: 'item', type: 'ditto-stamp', x: 0, y: 0 });
+  assert.deepEqual({ x: stamp.x, y: stamp.y }, expected);
+  assert.equal(game.stampSpawnClear(stamp), false);
+});
+
 test('Ditto Stamp placements and spawners support optional lifetimes and shared artwork', () => {
   const custom = { ...level([{ time: 0, kind: 'item', type: 'ditto-stamp', x: .5, y: .5, lifetime: 2 }]),
     brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal',

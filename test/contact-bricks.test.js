@@ -355,6 +355,21 @@ test('white spike geometry and collision agree on every edge in both layouts', (
       const [a, tip, b] = triangle;
       const depth = Math.hypot(tip[0] - (a[0] + b[0]) / 2, tip[1] - (a[1] + b[1]) / 2);
       assert.ok(depth > 0 && depth <= 14 + 1e-8);
+      for (const triangle of geometry.triangles) {
+        for (const [x, y] of triangle) {
+          assert.ok(x >= brick.x - 1e-6 && x <= brick.x + brick.w + 1e-6);
+          assert.ok(y >= brick.y - 1e-6 && y <= brick.y + brick.h + 1e-6);
+        }
+        const [, spikeTip] = triangle;
+        const face = { top: brick.y + brick.h, bottom: brick.y, left: brick.x + brick.w, right: brick.x }[edge];
+        assert.ok(Math.abs(spikeTip[['top', 'bottom'].includes(edge) ? 1 : 0] - face) < 1e-6);
+      }
+      const body = game.brickParts().find(part => part.id === id).collisionBody;
+      assert.ok(body);
+      assert.ok(Math.abs((['top', 'bottom'].includes(edge) ? body.h : body.w) + depth
+        - (['top', 'bottom'].includes(edge) ? brick.h : brick.w)) < 1e-6);
+      for (const key of ['x', 'y', 'w', 'h']) assert.ok(Math.abs(geometry.body[key] - brick[key]) < 1e-6,
+        'body artwork uses the full footprint coordinate system');
       assert.ok(Math.hypot(tip[0] - game.width / 2, tip[1] - game.height / 2)
         < Math.hypot((a[0] + b[0]) / 2 - game.width / 2, (a[1] + b[1]) / 2 - game.height / 2));
       brick.readyAt = 50;
@@ -392,6 +407,29 @@ test('white spike geometry and collision agree on every edge in both layouts', (
   }
 });
 
+test('Koshi can travel along the normal brick boundary past spike tips on all four edges', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const base = new Game(() => .99, options);
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+      const candidates = [...brickRegions(base.bricks, base.width, base.height)].filter(([, region]) => region.edge === edge);
+      const id = candidates[Math.floor(candidates.length / 2)][0];
+      const game = setup('spikes', options, id), brick = game.bricks[id];
+      const normal = { top: [0, 1], bottom: [0, -1], left: [1, 0], right: [-1, 0] }[edge];
+      const horizontal = normal[0] === 0;
+      game.cat.x = horizontal ? brick.x + brick.w * .25 : (normal[0] > 0 ? brick.x + brick.w : brick.x) + normal[0] * game.cat.radius;
+      game.cat.y = horizontal ? (normal[1] > 0 ? brick.y + brick.h : brick.y) + normal[1] * game.cat.radius : brick.y + brick.h * .25;
+      game.cat.vx = horizontal ? SPEED : 0;
+      game.cat.vy = horizontal ? 0 : SPEED;
+      const start = horizontal ? game.cat.x : game.cat.y;
+      game.update(.04);
+      assert.ok(Math.abs((horizontal ? game.cat.x : game.cat.y) - start - SPEED * .04) < 1e-6,
+        `${options.portrait ? 'portrait' : 'desktop'} ${edge} boundary blocked`);
+      assert.equal(game.hearts, 3, 'tangential movement should not hit a protruding spike');
+      assert.equal(horizontal ? game.cat.vx : game.cat.vy, SPEED);
+    }
+  }
+});
+
 test('spike sides stop oblique motion before the brick body and blocked launches consume nothing', () => {
   const game = setup('spikes'), brick = game.bricks[0];
   const triangle = brickSpikes([brick], game.width, game.height).triangles[2];
@@ -423,6 +461,13 @@ test('warped spike groups cover connecting gaps and restore absorbed surfaces', 
     const parts = game.brickParts().filter(part => part.id === owner.id);
     const bridge = parts.find(part => part.sourceId === undefined);
     const triangles = brickSpikes(parts, game.width, game.height).triangles;
+    for (const triangle of triangles) {
+      for (const [x, y] of triangle) assert.ok(parts.some(part => x >= part.x - 1e-6 && x <= part.x + part.w + 1e-6
+        && y >= part.y - 1e-6 && y <= part.y + part.h + 1e-6), 'merged spikes stay within the original footprint');
+    }
+    for (const part of parts) {
+      assert.ok(part.collisionBody.w <= part.w && part.collisionBody.h <= part.h);
+    }
     const bridgeSpike = triangles.find(([, tip]) => options.portrait
       ? tip[0] >= bridge.x && tip[0] <= bridge.x + bridge.w
       : tip[1] >= bridge.y && tip[1] <= bridge.y + bridge.h);

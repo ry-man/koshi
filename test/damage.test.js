@@ -24,6 +24,7 @@ test('damage feedback and invulnerability share an exact one-second deadline', (
   assert.equal(game.damageProgress, null);
   assert.equal(game.takeDamage(), true);
   assert.equal(game.hearts, 2);
+  assert.equal(game.tookDamage, true);
   assert.equal(game.invulnerableUntil, 1);
   assert.equal(game.damageProgress, 0);
   game.update(.25);
@@ -49,6 +50,7 @@ test('damage feedback and invulnerability share an exact one-second deadline', (
   assert.ok(Math.abs(game.invulnerableUntil - 2) < 1e-8);
   game.reset();
   assert.equal(game.invulnerableUntil, 0);
+  assert.equal(game.tookDamage, false);
   assert.equal(game.invulnerable, false);
   assert.equal(game.damageProgress, null);
   assert.equal(game.takeDamage(), false, 'ready scenes cannot take damage');

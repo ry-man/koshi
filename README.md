@@ -53,7 +53,11 @@ and enemy points, win/loss totals, and win percentage (wins divided by finished
 attempts; quits are excluded). Objectives use food, enemy and soccer-goal icons
 with their numerical targets, or just a clock for survival. Small labeled illustrations
 show the enemies, blocks, foods, weapons and items actually included, including
-spawner contents. **Play level** starts that selection; **All worlds** zooms out.
+spawner contents. Each level detail shows a gold star at the top right when any
+win was completed without taking damage; otherwise it shows the empty outline.
+The star remains earned when the level is replayed, and earned stars also appear
+at the bottom-left of their level stops on the zoomed-in map. **Play level**
+starts that selection; **All worlds** zooms out.
 The map window and its map/details panes keep a consistent viewport-relative
 size regardless of the number of stops or preview icons; longer content scrolls
 inside its pane. Level numbers stay on one line. **All worlds** sits beside
@@ -62,8 +66,11 @@ Back to menu or Escape cancels without changing the current gameplay level.
 Mouse, touch and keyboard activation are supported, with reduced-motion support.
 Level selection remains unrestricted for practice.
 New games must select a world and then a level before gameplay. After the
-victory celebration, the game automatically returns to the level map and
-Koshi walks from the completed stop to the next level. Crossing a world
+victory celebration, a results popup compares completion time, food, enemy
+points and soccer goals with the previous records in a two-column grid.
+New records highlight the value in gold with a smiling-cat marker; a legend
+explains the marker. A damage-free win awards the gold star. Continue opens the level map, and Koshi
+walks from the completed stop to the next level. Crossing a world
 boundary shows the previous world's completed stop as an entry connector on
 the next world's map. Play still requires **Play level** and the briefing's
 **Start**. After the final level, Koshi stays on that completed stop. Retrying
@@ -105,7 +112,8 @@ requires confirmation and erases only that slot. **Play as guest** disables
 saving for the current session. Custom levels and tutorials never change
 campaign saves. Quitting, restarting or leaving before a result counts as neither
 a win nor a loss. Guest statistics are kept only for the current page visit.
-Fastest times use wins only; highest point scores use all completed attempts.
+Fastest times use wins only; highest food, enemy and soccer-goal scores use all
+finished attempts.
 **Fewest moves** is the smallest successful brick-selection count in a win,
 including mid-flight redirects and Magical Sunglasses selections. Failed clicks,
 passive travel, Spring bounces, Portal arrivals and physical brick contacts

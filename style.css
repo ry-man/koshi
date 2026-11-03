@@ -72,6 +72,28 @@ body:has(#cutscene[open]) { overflow: hidden; }
 .install-help li + li { margin-top: 6px; }
 .install-dialog details { margin-bottom: 16px; font-size: 12px; }
 .install-dialog summary { cursor: pointer; color: var(--muted); font-weight: 700; letter-spacing: 1px; }
+.level-results { width: min(560px, calc(100vw - 24px)); }
+.level-results h2 { margin: 0 0 12px; text-align: center; }
+.level-results-star { display: grid; justify-items: center; gap: 4px; margin: 0 0 16px; text-align: center; }
+.level-results-star[hidden] { display: none; }
+.level-results-star > span { color: #ffd34e; font-size: 76px; line-height: 1; text-shadow: 0 0 10px #ffd34e88, 0 0 28px #ffbd3e66; animation: results-star-shine 1.8s ease-in-out infinite alternate; }
+.level-results-star p { margin: 0; color: #ffe18a; font-size: 16px; font-weight: 700; }
+.level-results-star small { color: var(--muted); font-size: 12px; }
+.level-results-rows { width: 100%; margin: 0 0 8px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.level-results-rows th, .level-results-rows td { padding: 9px 6px; border-bottom: 1px solid #ffffff16; }
+.level-results-rows thead th { color: var(--muted); font-size: 12px; font-weight: 600; text-align: right; }
+.level-results-rows thead th:first-child { width: 52px; border-right: 1px solid #ffffff30; text-align: left; }
+.level-results-rows tbody th { width: 52px; border-right: 1px solid #ffffff30; color: var(--muted); font-size: 20px; font-weight: 500; text-align: left; }
+.level-results-label-colon { margin-left: 5px; color: var(--text); font-size: 24px; font-weight: 700; }
+.level-results-rows td { text-align: right; white-space: nowrap; }
+.level-result-row.new-record { color: #ffe18a; text-shadow: 0 0 10px #ffd34e66; }
+.new-record-marker { margin-right: 6px; font-size: 14px; text-shadow: none; }
+.level-results-record-legend { margin: 0 0 18px; color: #ffe18a; font-size: 12px; text-align: right; }
+.level-results-record-legend[hidden] { display: none; }
+.level-results .save-actions { justify-content: center; }
+.level-results .primary { margin: 0; }
+@keyframes results-star-shine { from { transform: scale(.96); } to { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .level-results-star > span { animation: none; } }
 .install-checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
 .install-checks li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px; border-radius: 6px; background: #ffffff08; }
 .install-checks li::before { content: '·'; color: var(--muted); }
@@ -240,10 +262,14 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 .map-node[aria-pressed="true"] { outline: 3px solid #ffdc75; outline-offset: 3px; }
 .completion-flag { position: absolute; right: -9px; top: -22px; width: 25px; height: 30px; border-left: 3px solid #e8dfc7; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
 .flag-cloth { display: block; width: 24px; height: 17px; background: #e8b94e; clip-path: polygon(0 0, 100% 10%, 80% 50%, 100% 90%, 0 100%); transform-origin: left center; animation: flag-wave 1.4s ease-in-out infinite alternate; }
+.map-node-star { position: absolute; left: -8px; bottom: -8px; color: #ffd34e; font-size: 20px; line-height: 1; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
 @keyframes flag-wave { from { transform: perspective(70px) rotateY(-25deg) skewY(-6deg); } to { transform: perspective(70px) rotateY(25deg) skewY(6deg); } }
 .map-koshi { position: absolute; width: 46px; height: 46px; transform: translate(-50%, calc(-100% - 27px)); pointer-events: none; transition: left .35s ease, top .35s ease; filter: drop-shadow(0 3px 2px #0008); }
 .map-details { min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: 16px; background: #ffffff06; border: 1px solid #ffffff15; border-radius: 12px; }
+.map-level-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .map-details h3 { margin: 0; }
+.map-star { flex: none; color: #829096; font-size: 30px; line-height: 1; }
+.map-star-earned { color: #ffd34e; }
 .map-objectives { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; }
 .map-objective { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; white-space: nowrap; }
 .map-objective strong { font-size: 13px; white-space: nowrap; }
