@@ -2,7 +2,7 @@
 'use strict';
 
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { LEVELS, FOODS, ITEMS, SWORDS, CHARACTERS } = engine;
+const { LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS } = engine;
 
 const WORLDS = [
   { id: '1', name: 'Garden Path', theme: 'garden', special: false, next: ['2'] },
@@ -32,9 +32,10 @@ function nextLevelIndex(index, worlds = WORLDS, levels = LEVELS) {
 
 function levelFeatures(level) {
   const features = new Map();
-  const add = (picture, name) => features.set(picture, { picture, name });
+  const titleCase = name => String(name).replace(/\b[a-z]/g, letter => letter.toUpperCase());
+  const add = (picture, name) => features.set(picture, { picture, name: titleCase(name) });
   const event = (kind, type) => {
-    const catalog = { food: FOODS, item: ITEMS, weapon: SWORDS, enemy: CHARACTERS };
+    const catalog = { food: FOODS, item: ITEMS, object: OBJECTS, weapon: SWORDS, enemy: CHARACTERS };
     add(`${kind}:${type}`, kind === 'enemy' ? CHARACTERS[type]
       : catalog[kind]?.[type]?.name ?? (type === 'soccer-ball' ? 'Soccer ball' : type));
   };
@@ -46,15 +47,19 @@ function levelFeatures(level) {
   const index = LEVELS.indexOf(level);
   const bricks = index === -1 ? level.brickTypes ?? [] : new engine.Game(() => .5, { level: index }).bricks;
   for (const brick of bricks.filter(brick => brick.absorbedBy == null)) {
-    if (brick.kind) add(`${brick.kind === 'goal' ? 'special' : 'brick'}:${brick.kind}`, `${brick.kind} block`);
-    for (const key of ['crumbler', 'warped']) if (brick[key]) add(`brick:${key}`, `${key} brick`);
-    for (const key of ['spikes', 'springs', 'conveyor', 'boost', 'toggle', 'portal', 'spawner', 'barrier']) {
-      if (brick[key]) add(`${['spikes', 'springs', 'conveyor'].includes(key) ? 'brick' : 'special'}:${key}`, `${key} block`);
+    if (brick.kind) {
+      const kind = ['normal', 'slow', 'fast'].includes(brick.kind) ? 'normal' : brick.kind;
+      add(`${kind === 'goal' ? 'special' : 'brick'}:${kind}`,
+        kind === 'normal' ? 'Steering Brick' : `${kind} Brick`);
     }
-    if (brick.slimed) add(`slime:${brick.slimeColor ?? 'green'}`, `${brick.slimeColor ?? 'green'} slime`);
+    for (const key of ['crumbler', 'warped']) if (brick[key]) add(`brick:${key}`, `${key} Brick`);
+    for (const key of ['spikes', 'springs', 'conveyor', 'boost', 'toggle', 'portal', 'spawner', 'barrier']) {
+      if (brick[key]) add(`${['spikes', 'springs', 'conveyor'].includes(key) ? 'brick' : 'special'}:${key}`, `${key} Brick`);
+    }
+    if (brick.slimed) add('slime:green', 'Slime');
     if (brick.spawner) event(brick.spawner.kind, brick.spawner.type);
   }
-  if (Number.isFinite(level.heartCost)) add('heart:heart', 'Healing heart');
+  if (Number.isFinite(level.heartCost)) add('heart:heart', 'Healing Heart');
   if (level.activationLimit != null) add('special:boom-helmet', 'Boom Helmet');
   return [...features.values()];
 }

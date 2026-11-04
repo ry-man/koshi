@@ -50,7 +50,12 @@ for (const [brush, name, paintUses] of [['pencil', 'Thin Paintbrush', 1], ['wide
     };
   }
 }
-const OBJECTS = { 'soccer-ball': { name: 'Soccer Ball', icon: '⚽', color: '#f1f3f2' } };
+const OBJECTS = {
+  'soccer-ball': { name: 'Soccer Ball', icon: '⚽', color: '#f1f3f2' },
+  'bumper-red': { name: 'Red Bumper', icon: '🔴', color: '#d94a4a', bumper: true, speedMultiplier: 1.25 },
+  'bumper-green': { name: 'Green Bumper', icon: '🟢', color: '#399d4a', bumper: true, speedMultiplier: 1 },
+  'bumper-blue': { name: 'Blue Bumper', icon: '🔵', color: '#287dcc', bumper: true, speedMultiplier: .75 },
+};
 function needsBrickSpawnClearance(type) {
   return type === 'ditto-stamp' || type === 'saw-blade' || Boolean(ITEMS[type]?.paintUses);
 }
@@ -128,7 +133,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
 function validateCutscene(value) {
@@ -699,7 +704,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
     if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
@@ -763,7 +768,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
@@ -1047,11 +1052,11 @@ function brickSlime(parts, width, height) {
   return path;
 }
 
-function brickSpring(parts, width, height, compression = 0) {
+function brickSpring(parts, width, height, compression = 0, depthScale = 1) {
   const { w, h, edges } = brickInnerEdges(parts, width, height);
   let platform = '', coils = '', grain = '', highlight = '';
   for (const { ax, ay, dx, dy, length, thickness } of edges) {
-    const depth = Math.min(10, thickness * .32);
+    const depth = Math.min(10, thickness * .32) * depthScale;
     const overhang = 3;
     const travel = Math.min(5, thickness * .18) * compression;
     const at = (t, inset) => `${(ax + dx * t - dy / length * inset) / w} ${(ay + dy * t + dx / length * inset) / h}`;
@@ -1491,6 +1496,7 @@ class Game {
     this.enemies = 0;
     this.goals = 0;
     this.soccerBalls = [];
+    this.bumpers = [];
     this.goalEffects = [];
     this.activationsRemaining = this.level.activationLimit ?? null;
     this.boomHelmet = null;
@@ -1534,6 +1540,10 @@ class Game {
     this.musicStreamStart = null;
     this.musicStreamUntil = 0;
     this.musicPickup = null;
+    this.snailCooldownFreezeUntil = 0;
+    this.snailStreamStart = null;
+    this.snailStreamUntil = 0;
+    this.snailStreamAge = 0;
     this.sunglassesStart = null;
     this.sunglassesUntil = 0;
     this.sunglassesPickup = null;
@@ -1647,7 +1657,8 @@ class Game {
     if (this.spikeParts(parts).some(({ triangle }) =>
       spikeContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, triangle) <= 1e-9)) return false;
     if (!this.sunglassesActive) {
-      brick.readyAt = this.elapsed + COOLDOWNS[brick.kind];
+      brick.readyAt = this.elapsed + COOLDOWNS[brick.kind]
+        + Math.max(0, this.snailCooldownFreezeUntil - this.elapsed);
       if (brick.usesLeft !== null) brick.usesLeft--;
     }
     if (brick.warped) this.absorbNeighbor(brick);
@@ -1751,7 +1762,11 @@ class Game {
     else if (spawn.kind === 'heart') this.healing.push(this.randomPoint());
     else if (spawn.kind === 'weapon') this.weapons.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
     else if (spawn.kind === 'item') this.items.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
-    else if (spawn.kind === 'object') this.soccerBalls.push(this.createSoccerBall(this.randomPoint()));
+    else if (spawn.kind === 'object') {
+      const point = this.randomPoint();
+      if (OBJECTS[spawn.type].bumper) this.bumpers.push(this.createBumper(point, spawn.type));
+      else this.soccerBalls.push(this.createSoccerBall(point));
+    }
     else this.food.push({ ...this.randomPoint(), id: this.foodId++, type: spawn.type,
       born: this.elapsed, lifetime: spawn.lifetime, expires: this.elapsed + spawn.lifetime });
   }
@@ -2116,7 +2131,7 @@ class Game {
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
       const event = this.customEvents[this.nextCustom++];
       const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items
-        : event.kind === 'object' ? this.soccerBalls : this.robots;
+        : event.kind === 'object' ? OBJECTS[event.type].bumper ? this.bumpers : this.soccerBalls : this.robots;
       const items = this.takeSpawn(event, entry => this.createCustomSpawn(entry));
       if (event.kind === 'enemy') {
         const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
@@ -2130,7 +2145,8 @@ class Game {
     const point = this.pointFromRelative(event.x, event.y);
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
     if (event.kind === 'weapon' || event.kind === 'item') return [this.createCollectible(event.time, event.type, event.lifetime, point)];
-    if (event.kind === 'object') return [this.createSoccerBall(point)];
+    if (event.kind === 'object') return [OBJECTS[event.type].bumper
+      ? this.createBumper(point, event.type) : this.createSoccerBall(point)];
     const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
     this.initializeShield(enemy, event.shield);
     this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
@@ -2155,6 +2171,10 @@ class Game {
 
   createSoccerBall(point) {
     return { ...point, type: 'soccer-ball', radius: 16, vx: 0, vy: 0, angle: 0 };
+  }
+
+  createBumper(point, type) {
+    return { ...point, type, radius: 24, hitAt: -Infinity, hitNormal: null };
   }
 
   goalEntry(ball, dx, dy, part, edge) {
@@ -2514,6 +2534,18 @@ class Game {
     if (awardPoints) this.enemies += enemy.defeatPoints ?? 1;
     this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
       bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
+    if (enemy.type === 'robo-snail') this.freezeBrickCooldowns();
+  }
+
+  freezeBrickCooldowns() {
+    const freezeUntil = Math.max(this.elapsed, this.snailCooldownFreezeUntil) + 20;
+    for (const brick of this.bricks) {
+      if (brick.readyAt > this.elapsed + 1e-9) brick.readyAt += 20;
+    }
+    this.snailCooldownFreezeUntil = freezeUntil;
+    this.snailStreamStart = this.elapsed;
+    this.snailStreamUntil = freezeUntil;
+    this.snailStreamAge = 0;
   }
 
   enemyDamageProgress(enemy) {
@@ -2893,6 +2925,31 @@ class Game {
       enemy.barrierDirection = -(enemy.barrierDirection ?? 1);
       enemy.fleeDirection = -(enemy.fleeDirection ?? 1);
     } else if (enemy.type === 'ram' && !enemy.afraid) enemy.angle = reflected;
+    else enemy.phase = reflected;
+  }
+
+  blockEnemyWithBumpers(enemy, old) {
+    const dx = enemy.x - old.x, dy = enemy.y - old.y;
+    if (!dx && !dy) return;
+    let contact = Infinity, bumper = null;
+    for (const obstacle of this.bumpers) {
+      const time = circleContact(old.x - obstacle.x, old.y - obstacle.y, dx, dy,
+        enemy.radius + obstacle.radius);
+      if (time < contact) { contact = time; bumper = obstacle; }
+    }
+    if (!bumper || contact > 1) return;
+    const x = old.x + dx * contact, y = old.y + dy * contact;
+    const distance = Math.hypot(x - bumper.x, y - bumper.y);
+    const normal = distance > 1e-9 ? { x: (x - bumper.x) / distance, y: (y - bumper.y) / distance }
+      : { x: -dx / Math.hypot(dx, dy), y: -dy / Math.hypot(dx, dy) };
+    const angle = enemy.type === 'ram' && !enemy.afraid ? enemy.angle : enemy.phase;
+    const incoming = Math.cos(angle) * normal.x + Math.sin(angle) * normal.y;
+    if (incoming >= -1e-9) return;
+    enemy.x = bumper.x + normal.x * (enemy.radius + bumper.radius + .01);
+    enemy.y = bumper.y + normal.y * (enemy.radius + bumper.radius + .01);
+    const reflected = Math.atan2(Math.sin(angle) - 2 * incoming * normal.y,
+      Math.cos(angle) - 2 * incoming * normal.x);
+    if (enemy.type === 'ram' && !enemy.afraid) enemy.angle = reflected;
     else enemy.phase = reflected;
   }
 
@@ -3300,6 +3357,15 @@ class Game {
         this.moveBall(enemy, dt, parts);
       } else if (enemy.type === 'jackolantern') {
         this.updateJackolantern(enemy, dt, parts, startX, startY);
+      } else if (enemy.type === 'robo-snail') {
+        enemy.resting = false;
+        enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * dt;
+        enemy.x += Math.cos(enemy.phase) * 85 * dt;
+        enemy.y += Math.sin(enemy.phase) * 85 * dt;
+        if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+        if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+        enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+        enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
       } else {
         enemy.resting = enemy.age % 6 >= 4.5;
         if (!enemy.resting) {
@@ -3339,6 +3405,7 @@ class Game {
           enemy.y = old.y + dy * limit / distance;
         }
       }
+      this.blockEnemyWithBumpers(enemy, old);
       enemy.fleeMoving = enemy.afraid && !enemy.asleep && Math.hypot(enemy.x - old.x, enemy.y - old.y) > 1e-8;
       if (enemy.fleeMoving) enemy.fleeTrailAngle = Math.atan2(old.y - enemy.y, old.x - enemy.x);
     }
@@ -3533,7 +3600,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : enemy.type === 'ram' ? .9 : enemy.type === 'bucket' ? .9 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -3543,6 +3610,7 @@ class Game {
   }
 
   updatePickups(seconds) {
+    if (this.snailStreamStart !== null) this.snailStreamAge += seconds;
     if (this.musicPickup) {
       this.musicPickup.age += seconds;
       if (this.musicPickup.age >= MUSIC_STREAM_DURATION - 1e-9) this.musicPickup = null;
@@ -3601,7 +3669,9 @@ class Game {
     this.elapsed = Math.min(this.timeLimit, this.elapsed + dt);
     if (capeWasActive && !this.capeActive) this.setCapeSpeed(1);
     if (sunglassesWereActive && !this.sunglassesActive) {
-      for (const brick of this.bricks) brick.readyAt = Math.min(brick.readyAt, this.sunglassesUntil);
+      if (this.snailCooldownFreezeUntil <= this.elapsed + 1e-9) {
+        for (const brick of this.bricks) brick.readyAt = Math.min(brick.readyAt, this.sunglassesUntil);
+      }
     }
     if (this.stuckUntil && this.stuckUntil <= this.elapsed + 1e-9) {
       this.releasedAt = this.stuckUntil;
@@ -3690,6 +3760,7 @@ class Game {
     }
     let contact = 1;
     let contacts = [];
+    let bumperContacts = [];
     let collectingSaw = false;
     if (dx || dy) {
       for (const brick of parts) {
@@ -3709,6 +3780,16 @@ class Game {
         if (t < contact - 1e-9) { contact = t; contacts = [spike]; }
         else if (t <= contact + 1e-9 && t <= 1) contacts.push(spike);
       }
+      let bumperTime = Infinity;
+      for (const bumper of this.bumpers) {
+        const time = circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius);
+        if (time < bumperTime) bumperTime = time;
+      }
+      if (bumperTime < contact - 1e-9) { contact = bumperTime; contacts = []; }
+      if (bumperTime <= contact + 1e-9 && bumperTime <= 1) {
+        bumperContacts = this.bumpers.filter(bumper =>
+          Math.abs(circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius) - bumperTime) <= 1e-9);
+      }
       collectingSaw = this.items.some(item => item.type === 'saw-blade'
         && (item.expires == null || item.expires > this.elapsed + 1e-9)
         && distanceToSegment(item.x, item.y, cat.x, cat.y, cat.x + dx * contact, cat.y + dy * contact) <= cat.radius + 14);
@@ -3720,6 +3801,19 @@ class Game {
           const t = brickContact(cat.x, cat.y, dx, dy, cat.radius, { ...brick, collisionBody: null });
           if (t < contact - 1e-9) { contact = t; contacts = [brick]; }
           else if (t <= contact + 1e-9 && t <= 1) contacts.push(brick);
+        }
+      }
+      if (collectingSaw || bumperTime < contact - 1e-9) {
+        bumperContacts = [];
+        bumperTime = Infinity;
+        for (const bumper of this.bumpers) {
+          const time = circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius);
+          if (time < bumperTime) bumperTime = time;
+        }
+        if (bumperTime < contact - 1e-9) { contact = bumperTime; contacts = []; }
+        if (bumperTime <= contact + 1e-9 && bumperTime <= 1) {
+          bumperContacts = this.bumpers.filter(bumper =>
+            Math.abs(circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius) - bumperTime) <= 1e-9);
         }
       }
     }
@@ -3796,6 +3890,28 @@ class Game {
         }
       }
       this.target = null;
+    }
+    if (bumperContacts.length && !teleported) {
+      for (const bumper of bumperContacts) {
+        let nx = cat.x - bumper.x, ny = cat.y - bumper.y;
+        let distance = Math.hypot(nx, ny);
+        if (distance < 1e-9) {
+          const speed = Math.hypot(cat.vx, cat.vy) || 1;
+          nx = -cat.vx / speed; ny = -cat.vy / speed;
+          distance = 1;
+        }
+        nx /= distance; ny /= distance;
+        const incoming = cat.vx * nx + cat.vy * ny;
+        if (incoming >= -1e-9) continue;
+        Object.assign(cat, reflectVelocity(cat.vx, cat.vy, { x: nx, y: ny }));
+        const multiplier = OBJECTS[bumper.type].speedMultiplier;
+        cat.vx *= multiplier; cat.vy *= multiplier;
+        cat.x = bumper.x + nx * (cat.radius + bumper.radius + .01);
+        cat.y = bumper.y + ny * (cat.radius + bumper.radius + .01);
+        bumper.hitAt = this.elapsed;
+        bumper.hitNormal = { x: nx, y: ny };
+        this.target = null;
+      }
     }
     if (rideEnd && !this.conveyorEdge(ride.id, parts)) {
       this.conveyorRide = null;

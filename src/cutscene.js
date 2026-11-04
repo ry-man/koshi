@@ -134,6 +134,15 @@ function drawPortrait(ctx, character, speaking, time) {
       if (!blink) box('#15232d', 25, y, 1, 4);
     }
     box('#a4afb3', 27, 16, 2, 7);
+  } else if (character === 'robo-snail') {
+    box('#314443', 13, 9, 17, 18); box('#777f80', 15, 8, 14, 17);
+    box('#826345', 16, 10, 5, 5); box('#a17a4c', 21, 15, 7, 5);
+    box('#404749', 19, 13, 5, 2); box('#404749', 23, 17, 2, 4);
+    box('#4d9658', 3, 21, 17, 7); box('#79c96c', 4, 17, 12, 9);
+    box('#47784b', 6, 9, 2, 9); box('#47784b', 13, 8, 2, 10);
+    box('#ed3139', 4, 6, 6, 6); box('#ed3139', 11, 5, 6, 6);
+    box('#26353d', 8, 24, 7, talking ? 3 : 1);
+    if (talking) box('#edf2e8', 9, 24, 5, 1);
   } else if (character === 'goalie') {
     for (const x of [10, 15, 20]) {
       box('#7b8e9c', x, 1, 1, 6); box('#e8c561', x, 0, 2, 2);

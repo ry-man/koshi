@@ -30,8 +30,9 @@ than bypassing selection. Custom-level playtest links and the
 offline and direct-file play.
 Every level opens with a clear objectives popup and a large **Start** button;
 the level clock and objects remain frozen until Start is pressed. The HUD puts
-**Time left** at the top left, replacing the in-game logo. The tracker row is
-**Koshi's Health**, **Food**, **Enemies**, **Weapon**, **Batteries**, **Goals**.
+**Time left** inset at the top left, replacing the in-game logo. The evenly
+spaced tracker row is **Koshi's Health**, **Food**, **Enemies**, **Batteries**,
+**Goals**. An equipped sword appears beside Koshi with its remaining hit count.
 Moving between the main menu, story scenes, and gameplay uses a horizontal
 black sawtooth wipe: cover the old phase, change screens while fully black,
 then sweep onward to reveal the new phase. Tutorial entry/exit uses the same
@@ -56,23 +57,27 @@ show the enemies, blocks, foods, weapons and items actually included, including
 spawner contents. Each level detail shows a gold star at the top right when any
 win was completed without taking damage; otherwise it shows the empty outline.
 The star remains earned when the level is replayed, and earned stars also appear
-at the bottom-left of their level stops on the zoomed-in map. **Play level**
-starts that selection; **All worlds** zooms out.
+at the bottom-left of their level stops on the zoomed-in map. **Play Level**
+starts that selection; **World Select** returns to world selection.
 The map window and its map/details panes keep a consistent viewport-relative
 size regardless of the number of stops or preview icons; longer content scrolls
-inside its pane. Level numbers stay on one line. **All worlds** sits beside
-**Back to menu** in the bottom action bar with matching styling.
+inside its pane. Level numbers stay on one line. **World Select** and
+**Skip cutscene** share the bottom action bar with **Play Level** when a level
+is selected; **Back to menu** appears there on the world-selection view.
+When a level with a cutscene is selected, **Skip cutscene** replaces **Back to
+menu**. Cutscenes play on first visits and default to skipped after being
+viewed; restarting a level does not replay its cutscene.
 Back to menu or Escape cancels without changing the current gameplay level.
 Mouse, touch and keyboard activation are supported, with reduced-motion support.
 Level selection remains unrestricted for practice.
 New games must select a world and then a level before gameplay. After the
 victory celebration, a results popup compares completion time, food, enemy
-points and soccer goals with the previous records in a two-column grid.
+points, soccer goals and moves with the previous records.
 New records highlight the value in gold with a smiling-cat marker; a legend
 explains the marker. A damage-free win awards the gold star. Continue opens the level map, and Koshi
 walks from the completed stop to the next level. Crossing a world
 boundary shows the previous world's completed stop as an entry connector on
-the next world's map. Play still requires **Play level** and the briefing's
+the next world's map. Play still requires **Play Level** and the briefing's
 **Start**. After the final level, Koshi stays on that completed stop. Retrying
 a loss or restarting the same level still opens its briefing directly.
 Completed levels and fully completed worlds display waving golden flags;
@@ -98,7 +103,7 @@ Open **Save slots** from the title screen or in-game **Menu**. There are **three
 slots**, each with an owner name (1-32 characters). **Create & play** starts a
 new campaign at world selection. **Continue** opens the level map inside the
 world of the last level actually started, with that level selected, including
-if it was lost, replayed or abandoned. No level starts until **Play level**
+if it was lost, replayed or abandoned. No level starts until **Play Level**
 and the briefing's **Start** are pressed; attempts always start fresh.
 After finishing all 34 levels, the slot shows **Campaign complete** and still
 offers **Continue** to revisit the map.
@@ -272,7 +277,7 @@ the board; phones keep compact controls above it without scrolling away from pla
 - **Restart** starts a fresh attempt of the selected level.
   Victory automatically returns to the level map and moves Koshi to the next
   stop through both main worlds, ending at Level 2–24.
-  The world map can also start any level directly; choose it and press **Play level**.
+  The world map can also start any level directly; choose it and press **Play Level**.
 
 | Level | Name | New concept | Time | Win condition |
 |-------|------|-------------|------|---------------|
@@ -420,7 +425,7 @@ share one row above the stats. The level is centered in the space between the
 logo and toolbar. Save-status text stays in the menu, not on the gameplay HUD;
 save errors and retry controls remain visible. Time, weapon, food, enemies, and health are centered
 in equally spaced columns. **Menu → Choose a level** opens a popup with a level
-selector and **Play level** button. **Back to menu** or Escape cancels without
+selector and **Play Level** button. **Back to menu** or Escape cancels without
 changing the current level; no dropdown appears on the main menu itself.
 Extra mission copy and footer
 are hidden on phones so the page cannot scroll away from play. Landscape phones
@@ -432,8 +437,8 @@ bottom to left, and left to top. Brick IDs, cooldown types, Crumbler limits,
 and Warped attributes follow each brick through the rotation. Brick dimensions adapt to the screen;
 some bricks are narrower than 44px on small phones to keep the count fixed.
 Toolbar buttons retain at least 44px touch targets.
-The **WEAPON** display shows a sword icon in its weapon color and the remaining
-attack count, or seconds with an **s** for the gold sword. A dash means no weapon.
+An equipped sword appears beside Koshi with its remaining hit count. Timed
+swords show seconds with an **s**; no sword appears when none is equipped.
 Level 1–1 has one slow and one fast segment; later levels start with three of
 each before special-brick overrides and grouping. Food patterns stay
 inside the playable area. Instructions are available through **Menu → How to play**.
@@ -643,12 +648,16 @@ including automatic collection of objects placed over Koshi's starting point.
 ```
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
-`wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`; weapon types are `wood`, `bronze`, `silver`, `gold`.
+`wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
+`robo-koshi`, `robo-snail`; weapon types are `wood`, `bronze`, `silver`, `gold`.
 Item types (`kind: "item"`) are `smiley-cookie`, `stopwatch`, `stopwatch-green`, `stopwatch-blue`, `battery`,
 `music-box`, `eggplant`, `saw-blade`, `magic-sunglasses`, and `kitty-cape`. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
-Neutral objects use `kind: "object", type: "soccer-ball"` and persist until
-scored or the level ends; they have no lifetime or shield.
+Objects use `kind: "object"` and have no lifetime or shield. Soccer balls
+persist until scored or the level ends. Custom levels can also place red,
+green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
+stay fixed and bounce Koshi and enemies away. Red increases Koshi's speed by
+25%, green preserves it, and blue reduces it by 25%.
 Duration is 1–3600 seconds, food/enemy/soccer goals are whole numbers from 0 to 100000,
 heart costs are positive integers up to
 100000, and a level supports up to 2000 events. Appearance times must be
@@ -833,6 +842,15 @@ arriving, it replays Koshi's recorded path, trailing by the one-second wait plus
 the time it took to reach that position. Its 1.1-second death animation shrinks
 and fades the head amid extra smoke puffs. Available in custom placements,
 spawn bricks and cutscenes; no built-in campaign levels are changed.
+
+Robo Snail (`robo-snail`) is a green, continuously wandering enemy that moves
+slightly faster than Robo Mouse. Its blocky grey-and-brown spiral shell sits
+behind two antennae with red square eyes and a rigid frown. When defeated, its
+antennae shrink, its body retreats into its shell, and the shell splits and fades
+over 0.9 seconds. Defeating it freezes all brick cooldowns for 20 seconds and
+shows a scrolling slug-and-turtle ribbon; bricks hit during the freeze begin
+their cooldowns after the freeze ends. Available in custom placements, spawn
+bricks and cutscenes; no built-in campaign levels are changed.
 
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom

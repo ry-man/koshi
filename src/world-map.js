@@ -6,7 +6,7 @@ const { WORLDS, worldLevels, levelFeatures, nextLevelIndex } = globalThis.KoshiW
 const { levelStats } = globalThis.KoshiSaves;
 
 class WorldMap {
-  constructor({ selection, profile, picture, custom }) {
+  constructor({ selection, profile, picture, custom, cutsceneViewed = () => false }) {
     this.selection = selection;
     this.profile = profile;
     this.picture = picture;
@@ -16,6 +16,10 @@ class WorldMap {
     this.heading = document.querySelector('#level-picker-heading');
     this.back = document.querySelector('#world-map-back');
     this.play = document.querySelector('#level-picker-play');
+    this.close = document.querySelector('#level-picker-close');
+    this.skipCutscene = document.querySelector('#skip-cutscene');
+    this.skipCutsceneOption = document.querySelector('#skip-cutscene-option');
+    this.cutsceneViewed = cutsceneViewed;
     this.back.addEventListener('click', () => {
       this.open();
       this.map.querySelector('[aria-pressed="true"]').focus({ preventScroll: true });
@@ -54,6 +58,7 @@ class WorldMap {
         this.selection.value = 'custom';
         this.details.replaceChildren(this.objectives(custom));
         this.play.hidden = false;
+        this.setCutsceneOption(custom);
         for (const node of this.map.querySelectorAll('.map-node')) node.setAttribute('aria-pressed', 'false');
         this.map.querySelector('.map-koshi').hidden = true;
       });
@@ -68,6 +73,7 @@ class WorldMap {
     this.world = world;
     this.mark(world.id);
     this.play.hidden = true;
+    this.setCutsceneOption(null);
     const levels = worldLevels(world), completed = this.profile()?.completed ?? [];
     this.details.replaceChildren();
     const heading = document.createElement('h3'), text = document.createElement('p');
@@ -151,6 +157,7 @@ class WorldMap {
   selectLevel(level) {
     this.selection.value = String(LEVELS.indexOf(level));
     this.mark(level.id);
+    this.setCutsceneOption(level);
     this.details.replaceChildren();
     const heading = document.createElement('header'), title = document.createElement('h3');
     const objective = this.objectives(level), stats = document.createElement('dl');
@@ -210,7 +217,7 @@ class WorldMap {
         icon.className = 'map-feature'; icon.title = feature.name;
         const label = document.createElement('span');
         label.textContent = feature.name;
-        icon.append(this.picture(feature.picture, feature.name), label);
+        icon.append(this.picture(feature.picture, feature.name, group.id === 'bricks'), label);
         icons.append(icon);
       }
       if (!icons.children.length) {
@@ -233,6 +240,12 @@ class WorldMap {
     this.details.append(heading, objective, stats);
     if (note) this.details.append(note);
     this.details.append(featureSection);
+  }
+  setCutsceneOption(level) {
+    const hasCutscene = Boolean(level?.cutscene);
+    this.skipCutsceneOption.hidden = !hasCutscene;
+    this.skipCutscene.checked = hasCutscene && this.cutsceneViewed(level.id);
+    this.close.hidden = hasCutscene;
   }
   draw(nodes, edges, height) {
     this.map.replaceChildren();

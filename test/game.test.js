@@ -63,37 +63,28 @@ test('moves count successful steering and mid-flight redirects, not invalid clic
   assert.equal(game.moves, 0);
 });
 
-test('weapon display shows a colored icon and only remaining attacks or seconds', () => {
+test('weapon status announces remaining attacks or seconds and the sword badge shows the count', () => {
   const { SWORDS } = require('../src/game.js');
   const root = path.resolve(__dirname, '..');
   const app = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
-  const body = app.slice(app.indexOf('  const weaponCount ='), app.indexOf('  if (tutorial) updateTutorial();'));
+  const body = app.slice(app.indexOf('  const weaponCount ='), app.indexOf('  const batteryLabel ='));
   assert.ok(body.length > 0);
   const display = `{${body}}`;
-  const weaponIcon = { style: {}, toggleAttribute(name, value) { this[name] = value; } };
-  const weaponRemaining = { textContent: '' };
-  const weaponStatus = { getAttribute() { return this.label; }, setAttribute(name, value) { this.label = value; } };
+  const weaponStatus = { textContent: '' };
   const game = { elapsed: 2, weapon: null };
-  const batteryCount = { textContent: '' };
-  const batteryStatus = { setAttribute() {} };
-  const context = vm.createContext({ game, SWORDS, weaponIcon, weaponRemaining, weaponStatus, displayedTurret: false,
-    document: { querySelector(selector) { return selector === '#battery-count' ? batteryCount : batteryStatus; } } });
+  const context = vm.createContext({ game, SWORDS, weaponStatus });
   for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 5], ['gold', Infinity]]) {
     game.weapon = { type, uses, expires: 17 };
     vm.runInContext(display, context);
-    assert.equal(weaponRemaining.textContent, type === 'gold' ? '15s' : String(uses));
-    assert.equal(weaponIcon.hidden, false);
-    assert.equal(weaponIcon.style.color, SWORDS[type].color);
-    assert.match(weaponStatus.label, new RegExp(`${SWORDS[type].name}, ${type === 'gold' ? '15 seconds' : `${uses} attacks`} remaining`));
+    assert.match(weaponStatus.textContent, new RegExp(`${SWORDS[type].name}, ${type === 'gold' ? '15 seconds' : `${uses} attacks`} remaining`));
   }
   game.elapsed = 5.2;
   vm.runInContext(display, context);
-  assert.equal(weaponRemaining.textContent, '12s');
+  assert.match(weaponStatus.textContent, /12 seconds remaining/);
   game.weapon = null;
   vm.runInContext(display, context);
-  assert.equal(weaponRemaining.textContent, '—');
-  assert.equal(weaponIcon.hidden, true);
-  assert.equal(weaponStatus.label, 'Weapon: no sword equipped');
+  assert.equal(weaponStatus.textContent, 'Weapon: no sword equipped');
+  assert.match(app, /drawSword\(swordX, swordY, color\)[\s\S]*const label = `\$\{remaining\}\$\{timedWeapon \? 's' : ''\}`/);
 });
 
 test('aiming draws a subtle transparent dotted line and an exact red outlined target above bricks', () => {
@@ -252,13 +243,16 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.match(html, /<dialog id="level-picker"[^>]+aria-labelledby="level-picker-heading"[\s\S]*?<select id="level-select"[\s\S]*?<\/dialog>/);
   assert.match(html, /id="title-levels"[^>]+aria-haspopup="dialog"/);
   assert.match(html, /class="pause-bars"><rect[^>]+\/><rect[^>]+\/>/);
-  assert.ok(!controls.includes('id="weapon-status"'), 'weapon belongs to the stat row');
   const hud = html.slice(html.indexOf('<div class="hud">'), html.indexOf('<div class="objective">'));
-  assert.match(hud, /id="weapon-status"/);
+  assert.ok(!hud.includes('weapon-status'), 'weapon status is announced without taking up HUD space');
   assert.deepEqual([...hud.matchAll(/<span class="stat-label">([^<]+)<\/span>/g)].map(([, label]) => label),
-    ["KOSHI'S HEALTH", 'FOOD', 'ENEMIES', 'WEAPON', 'BATTERIES', 'GOALS']);
+    ["KOSHI'S HEALTH", 'FOOD', 'ENEMIES', 'BATTERIES', 'GOALS']);
+  assert.match(html, /id="weapon-status" class="visually-hidden"[^>]+role="status"/);
   assert.ok(hud.includes('id="goal-count"'));
   assert.ok(!hud.includes('id="timer"'), 'time is shown in the top-left control row');
+  assert.match(styles, /\.hud \{ display: grid; grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
+  assert.match(styles, /\.timer-stat \{ padding: 6px 0 0 10px;/);
+  assert.match(styles, /\.tutorial-active \.hud \{ display: grid; grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
   const mobileHud = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
   assert.match(mobileHud, /\.stat-label \{ font-size: 8px;/);
   assert.match(mobileHud, /\.stat\.lives \.stat-label \{ max-width: 62px;[\s\S]*?font-size: 8px;[\s\S]*?white-space: normal;/);
@@ -271,6 +265,50 @@ test('title screen provides accessible artwork and explicit game entry without e
   for (const color of ['#83bca1', '#7eacdb', '#df8c81']) assert.ok(artwork.includes(color));
   assert.doesNotMatch(artwork, /<(?:script|image)\b|\bhref=/);
   assert.ok(readFileSync(path.join(root, 'sw.js'), 'utf8').includes("'./icons/title-scene.svg'"));
+});
+
+test('viewed cutscenes persist and restarting the level skips the scene', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const helpers = source.slice(source.indexOf('function reportCutsceneStorageError('), source.indexOf('\nfunction saveAttempt('));
+  const stored = new Map(), messages = [];
+  const context = vm.createContext({
+    viewedCutscenes: new Set(),
+    localStorage: {
+      getItem(key) { return stored.get(key) ?? null; },
+      setItem(key, value) { stored.set(key, value); },
+    },
+    document: { querySelector() { return { textContent: '', hidden: true }; } },
+    console: { error(...args) { messages.push(args); } },
+  });
+  vm.runInContext(helpers, context);
+  assert.equal(context.isCutsceneViewed('1-1'), false);
+  context.markCutsceneViewed('1-1');
+  assert.equal(context.isCutsceneViewed('1-1'), true);
+  context.viewedCutscenes.clear();
+  assert.equal(context.isCutsceneViewed('1-1'), true, 'the viewed state survives a reload');
+  assert.equal(messages.length, 0);
+
+  const begin = source.slice(source.indexOf('function begin()'), source.indexOf('\nfunction startLevel()'));
+  const dialog = () => ({ open: true, close() { this.open = false; } });
+  const skipCutscene = { checked: false };
+  let opened = 0, briefings = 0;
+  Object.assign(context, {
+    phaseTransition: { run(action) { action(); } },
+    titleScreen: dialog(), saveDialog: dialog(), levelPicker: dialog(),
+    skipCutscene, activeSave: null, tutorial: null,
+    createGame() { return { level: { id: '1-1', number: '1-1', cutscene: {} }, customLevel: false }; },
+    makeAttemptId() { return 'attempt'; }, updateSaveProfile() {}, makeBrickButtons() {},
+    displayedState: null, trail: [], toast: { textContent: '' }, lastTime: null,
+    resize() {}, syncUI() {}, overlay: { hidden: false },
+    cutscene: { open() { opened++; } }, showLevelBriefing() { briefings++; },
+  });
+  vm.runInContext(begin, context);
+  context.begin();
+  assert.equal(opened, 1, 'the first visit opens its cutscene');
+  skipCutscene.checked = true;
+  context.begin();
+  assert.equal(opened, 1, 'the retry does not repeat the viewed cutscene');
+  assert.equal(briefings, 1, 'skipping still presents the level briefing');
 });
 
 test('Start on a level briefing begins the existing level instead of rebuilding it', () => {
@@ -371,6 +409,7 @@ test('level popup commits only on Play and cancellation restores selection and m
   const context = vm.createContext({
     document: { querySelector: element }, titleScreen, levelSelect, saveDialog: element('#save-slots'), autoPause() {},
     guidePicture() {}, guestProfile: {}, customLevel: null,
+    isCutsceneViewed() { return false; },
     KoshiWorldMap: class { open() {} },
     begin() { starts++; element('#level-picker').close(); },
   });

@@ -23,6 +23,9 @@ function traceSawBlade(ctx, radius, growth = 1) {
 }
 const SYMBOLS = {
   'soccer-ball': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M0 -8 L8 -2 L5 7 H-5 L-8 -2 Z M0 -8 V-20 M8 -2 L19 -6 M5 7 L12 16 M-5 7 L-12 16 M-8 -2 L-19 -6',
+  'bumper-red': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0 M2 0 A2 2 0 1 1 -2 0 A2 2 0 1 1 2 0',
+  'bumper-green': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0 M2 0 A2 2 0 1 1 -2 0 A2 2 0 1 1 2 0',
+  'bumper-blue': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0 M2 0 A2 2 0 1 1 -2 0 A2 2 0 1 1 2 0',
   heart: 'M0 16 C-32 -4 -12 -26 0 -12 C12 -26 32 -4 0 16 Z',
   mouse: 'M-12 -10 A7 7 0 1 1 -19 -17 M12 -10 A7 7 0 1 0 19 -17 M16 0 A16 16 0 1 1 -16 0 A16 16 0 1 1 16 0 M-10 -2 H-3 M3 -2 H10 M-6 9 L0 5 L6 9',
   wheel: 'M19 0 A19 19 0 1 1 -19 0 A19 19 0 1 1 19 0 M12 0 A12 12 0 1 1 -12 0 A12 12 0 1 1 12 0 M-10 -2 H-3 M3 -2 H10 M0 -19 V-23 M19 0 H23 M0 19 V23 M-19 0 H-23',
@@ -177,8 +180,8 @@ function decorateBrick(button, brick, members) {
     face.append(svgNode('rect', { x: 1, y: 1, width: 98, height: 56, rx: 3, fill: '#969b99', stroke: '#404946', 'stroke-width': 2 }));
     face.append(svgNode('path', { d: 'M4 53 V4 H96 M7 8 H93', fill: 'none', stroke: '#c1c5bf', 'stroke-width': 2 }));
     for (const x of [13, 56]) {
-      face.append(svgNode('rect', { x, y: 12, width: 31, height: 33, rx: 2, fill: '#343d3a', stroke: '#717a75', 'stroke-width': 3 }));
-      face.append(svgNode('path', { d: `M${x + 3} 42 V16 H${x + 28}`, fill: 'none', stroke: '#202b27', 'stroke-width': 3 }));
+      face.append(svgNode('rect', { x, y: 12, width: 31, height: 33, rx: 2, fill: '#1b2623', stroke: '#626d68', 'stroke-width': 3 }));
+      face.append(svgNode('path', { d: `M${x + 3} 42 V16 H${x + 28}`, fill: 'none', stroke: '#aeb6b0', 'stroke-width': 2 }));
     }
     face.append(svgNode('path', { d: 'M7 22h2 M48 16h3 M48 38h2 M89 29h3 M21 51h3 M66 7h2 M74 51h3', fill: 'none', stroke: '#626c65', 'stroke-width': 1.5 }));
     if (members.length > 1) {
@@ -188,7 +191,10 @@ function decorateBrick(button, brick, members) {
         const tile = svgNode('svg', { x: (part.x - shape.x) / shape.w, y: (part.y - shape.y) / shape.h,
           width: part.w / shape.w, height: part.h / shape.h, viewBox: part.h > part.w ? '0 0 58 100' : '0 0 100 58', preserveAspectRatio: 'none' });
         const detail = svgNode('g', part.h > part.w ? { transform: 'translate(58 0) rotate(90)' } : {});
-        for (const x of [13, 56]) detail.append(svgNode('rect', { x, y: 12, width: 31, height: 33, rx: 2, fill: '#343d3a', stroke: '#717a75', 'stroke-width': 3 }));
+        for (const x of [13, 56]) {
+          detail.append(svgNode('rect', { x, y: 12, width: 31, height: 33, rx: 2, fill: '#1b2623', stroke: '#626d68', 'stroke-width': 3 }));
+          detail.append(svgNode('path', { d: `M${x + 3} 42 V16 H${x + 28}`, fill: 'none', stroke: '#aeb6b0', 'stroke-width': 2 }));
+        }
         tile.append(detail); concrete.append(tile);
       }
       button.append(concrete);
@@ -422,7 +428,29 @@ function drawSoccerBall(ctx, ball) {
   }
   ctx.restore();
 }
-const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+
+function drawBumper(ctx, bumper, time = 0) {
+  const radius = bumper.radius ?? 24;
+  const color = OBJECTS[bumper.type]?.color ?? '#399d4a';
+  const pulse = Number.isFinite(bumper.hitAt) ? Math.max(0, 1 - (time - bumper.hitAt) / .2) : 0;
+  const compression = Math.sin(pulse * Math.PI) * .06;
+  const shake = Math.sin(pulse * Math.PI * 6) * pulse * 1.2;
+  ctx.save();
+  ctx.translate(bumper.x + (bumper.hitNormal?.x ?? 0) * shake,
+    bumper.y + (bumper.hitNormal?.y ?? 0) * shake);
+  ctx.scale(1 + compression, 1 - compression);
+  const face = ctx.createRadialGradient(-radius * .35, -radius * .4, 1, 0, 0, radius);
+  face.addColorStop(0, '#ffffff38'); face.addColorStop(.7, color); face.addColorStop(1, '#17232c');
+  ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fillStyle = face; ctx.fill(); ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = '#f6f7ef'; ctx.lineWidth = 2.2;
+  for (const ring of [.72, .43, .14]) {
+    ctx.beginPath(); ctx.arc(0, 0, radius * ring, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawBumper, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

@@ -11,11 +11,13 @@ const worlds = require('../src/worlds.js');
 const { WORLDS, worldLevels, nextLevelIndex, levelFeatures } = worlds;
 const saveApi = require('../src/saves.js');
 
-test('All worlds shares the bottom action bar and styling with Back to menu', () => {
+test('World Select shares the bottom action bar and styling with the level menu action', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const picker = html.slice(html.indexOf('<dialog id="level-picker"'), html.indexOf('<dialog id="save-slots"'));
   const actions = picker.slice(picker.indexOf('<div class="save-actions">'));
   assert.match(actions, /id="world-map-back" class="title-secondary"[\s\S]*id="level-picker-close" class="title-secondary"/);
+  assert.match(actions, /id="world-map-back"[^>]*>World Select<\/button>/);
+  assert.match(actions, /id="skip-cutscene-option"[^>]*>[\s\S]*id="skip-cutscene" type="checkbox"[\s\S]*Skip cutscene/);
   assert.doesNotMatch(picker.slice(0, picker.indexOf('</header>')), /world-map-back/);
 });
 
@@ -62,6 +64,8 @@ test('map icons describe actual schedules, placed events and spawner contents, w
     const features = levelFeatures(level);
     assert.equal(new Set(features.map(feature => feature.picture)).size, features.length);
     assert.ok(features.every(feature => typeof feature.name === 'string' && feature.name.length));
+    assert.ok(features.every(feature => feature.name === feature.name.replace(/\b[a-z]/g, letter => letter.toUpperCase())));
+    assert.ok(features.every(feature => !/\bblock\b/i.test(feature.name)));
     for (const [, , type] of level.food) assert.ok(features.some(feature => feature.picture === `food:${type}`));
     for (const [, type] of level.enemies) assert.ok(features.some(feature => feature.picture === `enemy:${type}`));
     for (const entry of level.events ?? []) assert.ok(features.some(feature => feature.picture === `${entry.kind}:${entry.type}`));
@@ -70,10 +74,12 @@ test('map icons describe actual schedules, placed events and spawner contents, w
     }
     const kinds = [...new Set(new engine.Game(() => .5, { level: LEVELS.indexOf(level) }).bricks
       .filter(brick => brick.absorbedBy == null).map(brick => brick.kind))];
-    for (const kind of ['normal', 'slow', 'fast', 'cinder', 'goal']) {
+    for (const kind of ['cinder', 'goal']) {
       assert.equal(features.some(feature => feature.picture === `${kind === 'goal' ? 'special' : 'brick'}:${kind}`),
         kinds.includes(kind), `${level.number}: ${kind} previews match actual blocks`);
     }
+    assert.equal(features.some(feature => feature.picture === 'brick:normal'),
+      kinds.some(kind => ['normal', 'slow', 'fast'].includes(kind)), `${level.number}: steering cooldowns share one preview`);
   }
   const pictures = levelFeatures(LEVELS.at(-1)).map(feature => feature.picture);
   assert.ok(pictures.includes('special:boom-helmet'));
@@ -81,7 +87,8 @@ test('map icons describe actual schedules, placed events and spawner contents, w
   assert.ok(pictures.includes('brick:warped'));
 });
 
-function mapFixture(profile = { guest: true, completed: [], results: {} }, custom = null, game = engine, graph = worlds) {
+function mapFixture(profile = { guest: true, completed: [], results: {} }, custom = null, game = engine, graph = worlds,
+  cutsceneViewed = () => false) {
   const elements = new Map();
   const node = () => ({
     children: [], dataset: {}, style: {}, listeners: {}, attributes: {}, hidden: false,
@@ -114,14 +121,31 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'world-map.js'), 'utf8'), context);
   const selection = { value: '0' };
-  const map = new context.KoshiWorldMap({ selection, profile: () => profile, picture: () => node(), custom: () => custom });
+  const pictures = [];
+  const map = new context.KoshiWorldMap({
+    selection, profile: () => profile,
+    picture(picture, title, fillBrick) { pictures.push({ picture, title, fillBrick }); return node(); },
+    custom: () => custom, cutsceneViewed,
+  });
   const text = node => [node.textContent ?? '', ...node.children.map(text)].join(' ');
-  return { map, selection, elements, text, motion };
+  return { map, selection, elements, text, motion, pictures };
 }
+
+test('skip cutscene starts unchecked and defaults on after the selected scene has been viewed', () => {
+  for (const [viewed, expected] of [[false, false], [true, true]]) {
+    const { map, elements } = mapFixture(undefined, null, engine, worlds,
+      levelId => viewed && levelId === LEVELS[0].id);
+    map.open();
+    map.showWorld(WORLDS[0]);
+    assert.equal(elements.get('#skip-cutscene-option').hidden, false);
+    assert.equal(elements.get('#skip-cutscene').checked, expected);
+    assert.equal(elements.get('#level-picker-close').hidden, true);
+  }
+});
 
 test('two-tier map selects worlds separately, moves Koshi, and reveals only that world and its complete level details', () => {
   const fixture = mapFixture();
-  const { map, selection, text } = fixture;
+  const { map, selection, text, pictures } = fixture;
   map.open();
   assert.equal(map.map.querySelectorAll('.map-node').length, 2);
   map.selectWorld(WORLDS[1]);
@@ -146,16 +170,51 @@ test('two-tier map selects worlds separately, moves Koshi, and reveals only that
   assert.match(styles, /\.map-features \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   const featureSection = map.details.children.at(-1);
   assert.equal(featureSection.className, 'map-feature-section');
+  assert.ok(pictures.some(picture => picture.picture.startsWith('brick:') && picture.fillBrick));
+  assert.ok(pictures.some(picture => picture.picture.startsWith('food:') && !picture.fillBrick));
   assert.deepEqual(featureSection.children[1].children.map(group => group.className), [
     'map-feature-group map-feature-bricks', 'map-feature-group map-feature-enemies',
     'map-feature-group map-feature-food', 'map-feature-group map-feature-items',
   ]);
   assert.equal(map.map.querySelector('.map-koshi').style.left, '12%');
   assert.equal(map.play.hidden, false);
+  assert.doesNotMatch(styles, /\.map-feature-bricks \.map-feature(?:s)? \{/);
+  assert.match(styles, /\.map-feature \.guide-picture, \.map-feature \.guide-special-brick \{ width: 64px; height: 36px;/);
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.match(html, /id="level-picker-play"[^>]*>Play Level<\/button>/);
   fixture.elements.get('#world-map-back').listeners.click();
   map.map.querySelector('[aria-pressed="true"]').listeners.click();
   assert.equal(map.map.querySelectorAll('.map-node').length, 24);
   assert.equal(selection.value, '33', 'back/zoom retains selected level');
+});
+
+test('level features merge cooldown colors and slime colors into functional categories', () => {
+  const features = levelFeatures({ brickTypes: [
+    { kind: 'normal' }, { kind: 'slow' }, { kind: 'fast' },
+    { kind: 'normal', slimed: true, slimeColor: 'red' },
+    { kind: 'normal', slimed: true, slimeColor: 'blue' },
+  ] });
+  assert.deepEqual(features.filter(feature => feature.picture.startsWith('brick:')).map(feature => feature.picture),
+    ['brick:normal']);
+  assert.equal(features.find(feature => feature.picture === 'brick:normal').name, 'Steering Brick');
+  assert.deepEqual(features.filter(feature => feature.picture.startsWith('slime:')),
+    [{ picture: 'slime:green', name: 'Slime' }]);
+});
+
+test('map brick preview fills its picture and omits Crumbler and Warped counters', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const picture = app.slice(app.indexOf('function guidePicture('), app.indexOf('\nfunction showGuideChapter('));
+  assert.match(picture, /fillBrick\s*\?[\s\S]*?x: 0, y: 0, w: 160, h: 80/);
+  assert.match(picture, /const brickColor = type === 'spikes' \? '#59656a' : colors\[type\] \?\? colors\.normal;/);
+  assert.match(picture, /if \(fillBrick\) \{\s*ctx\.fillStyle = brickColor;\s*ctx\.fillRect\(0, 0, 160, 80\);/);
+  assert.match(picture, /for \(const x of \[40, 120\]\)/);
+  assert.match(picture, /ctx\.lineWidth = 2\.8/);
+  assert.match(picture, /surface\(conveyor\.belt, null, '#303840', 12\)/);
+  assert.match(picture, /surface\(conveyor\.teeth, '#adb4ba', '#303840', 2\)/);
+  assert.match(picture, /brickSpring\(\[brick\], 600, 960, 0, 1\.8\)/);
+  assert.match(picture, /if \(!fillBrick && \(crumbler \|\| warped\)\)/);
+  const visuals = fs.readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8');
+  assert.match(visuals, /fill: '#1b2623'/);
 });
 
 test('details show saved outcome statistics, no fabricated legacy bests, and helmet limits only where applicable', () => {

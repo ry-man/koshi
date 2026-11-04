@@ -94,7 +94,7 @@ test('menus and hidden pages freeze endings; new attempts discard them; reduced 
   assert.equal(c.ending, null);
 });
 
-test('completion popup shows the prior-star note and compares all four records', () => {
+test('completion popup shows the prior-star note and compares all five records', () => {
   const elements = new Map();
   const node = () => ({
     children: [], hidden: false, textContent: '', className: '', attributes: {},
@@ -139,9 +139,9 @@ test('completion popup shows the prior-star note and compares all four records',
   });
   vm.runInContext(completionResults, context);
   context.showCompletionResults({
-    result: { damageFree: true, time: 12.5, food: 25, enemy: 4, goals: 2 },
-    previousStats: { goldStar: true, bestTime: 15, mostFood: 20, mostEnemies: 4, mostGoals: 1 },
-    newRecords: { time: true, food: true, enemy: false, goals: true },
+    result: { damageFree: true, time: 12.5, food: 25, enemy: 4, goals: 2, moves: 9 },
+    previousStats: { goldStar: true, bestTime: 15, mostFood: 20, mostEnemies: 4, mostGoals: 1, fewestMoves: 12 },
+    newRecords: { time: true, food: true, enemy: false, goals: true, moves: true },
   });
   assert.equal(elements.get('#level-results').open, true);
   assert.equal(elements.get('#level-results-heading').textContent, 'Level 1-1 complete');
@@ -149,28 +149,28 @@ test('completion popup shows the prior-star note and compares all four records',
   assert.equal(elements.get('#level-results-star-prior').hidden, false);
   assert.deepEqual(elements.get('#level-results-rows').children[0].children.map(cell => cell.textContent),
     ['', 'This Run', 'Record']);
-  assert.equal(elements.get('#level-results-rows tbody').children.length, 4);
+  assert.equal(elements.get('#level-results-rows tbody').children.length, 5);
   assert.deepEqual(Array.from(elements.get('#level-results-rows tbody').children, row => row.className), [
     'level-result-row new-record', 'level-result-row new-record', 'level-result-row',
-    'level-result-row new-record',
+    'level-result-row new-record', 'level-result-row new-record',
   ]);
   const rows = elements.get('#level-results-rows tbody').children;
   assert.deepEqual(rows.map(row => row.children.map(cell => String(cell.textContent))), [
-    ['🕒', '12.50', '15.00'], ['🍗', '25', '20'], ['👾', '4', '4'], ['⚽', '2', '1'],
+    ['🕒', '12.50', '15.00'], ['🍗', '25', '20'], ['👾', '4', '4'], ['⚽', '2', '1'], ['👣', '9', '12'],
   ]);
   assert.deepEqual(rows.map(row => row.children[1].children.map(child => child.textContent)), [
-    ['😺'], ['😺'], [], ['😺'],
+    ['😺'], ['😺'], [], ['😺'], ['😺'],
   ]);
   assert.deepEqual(rows.map(row => row.children[0].children.map(child => child.textContent)), [
-    [':'], [':'], [':'], [':'],
+    [':'], [':'], [':'], [':'], [':'],
   ]);
   assert.deepEqual(rows.map(row => row.children[0].getAttribute('aria-label')),
-    ['Completion time', 'Food points', 'Enemy points', 'Soccer goals']);
+    ['Completion time', 'Food points', 'Enemy points', 'Soccer goals', 'Moves']);
   assert.equal(elements.get('#level-results-record-legend').hidden, false);
   context.showCompletionResults({
-    result: { damageFree: false, time: 20, food: 10, enemy: 1, goals: 0 },
-    previousStats: { goldStar: true, bestTime: 15, mostFood: 20, mostEnemies: 4, mostGoals: 1 },
-    newRecords: { time: false, food: false, enemy: false, goals: false },
+    result: { damageFree: false, time: 20, food: 10, enemy: 1, goals: 0, moves: 13 },
+    previousStats: { goldStar: true, bestTime: 15, mostFood: 20, mostEnemies: 4, mostGoals: 1, fewestMoves: 9 },
+    newRecords: { time: false, food: false, enemy: false, goals: false, moves: false },
   });
   assert.equal(elements.get('#level-results-star').hidden, true);
   assert.equal(elements.get('#level-results-star-prior').hidden, true);

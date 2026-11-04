@@ -577,7 +577,7 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     assert.equal(visual.info, null);
     assert.equal(block.attributes.class, 'brick-cinder');
     assert.equal(block.attributes.viewBox, vertical ? '0 0 58 100' : '0 0 100 58');
-    assert.equal(block.children[0].children.filter(child => child.attributes.fill === '#343d3a').length, 2);
+    assert.equal(block.children[0].children.filter(child => child.attributes.fill === '#1b2623').length, 2);
   }
   for (const color of Object.keys(PORTALS)) {
     const brick = { x: 0, y: 0, w: 100, h: 25, portal: color, toggle: 4, toggleRemaining: 4 };

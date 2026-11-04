@@ -25,12 +25,14 @@ fastest winning time, fewest moves to win, highest food and enemy points, win/lo
 win percentage (wins divided by finished attempts, excluding quits).
 Win objectives use food, enemy and soccer-goal icons with numerical targets,
 or just a clock for survival. Small labeled icons preview its enemies, blocks, items and
-spawner contents. **Play level** begins the selected level; **All worlds**
+spawner contents. **Play Level** begins the selected level; **World Select**
 returns to the high-level map. Maps support touch, keyboard and reduced motion.
 The map window and its scrollable map/details panes keep the same size for a
 given viewport regardless of how many levels or preview items are listed.
-Level-number labels stay on one line. All worlds and Back to menu share the
-bottom action bar and the same button style.
+Level-number labels stay on one line. **Skip cutscene** replaces **Back to menu**
+when a cutscene level is selected. Cutscenes play on first visits and default
+to skipped after being viewed; restarting a level does not replay its cutscene.
+Back to menu remains available in the world-selection view.
 Level selection remains unrestricted.
 World and level selection are required for new games; level selection is
 required between campaign levels. Creating a save starts at world selection. Loading a save opens the
@@ -39,8 +41,8 @@ The last-played field is saved when the briefing's Start is pressed, even
 if the player later abandons the attempt; this does not record a win or loss.
 Legacy saves without that field use their first unfinished level.
 After a win's celebration, a results popup compares completion time, food,
-enemy points and soccer goals with previous records in a grid labeled This Run
-and Record. Game-interface icons identify each metric. New records highlight
+enemy points, soccer goals and moves with previous records in a grid labeled
+This Run and Record. Game-interface icons identify each metric. New records highlight
 the value in gold with a smiling-cat marker and an explanatory legend. A
 damage-free win awards a gold star, with an indicator if it was acquired on
 an earlier run. Continue opens the level map and Koshi moves from the completed
@@ -99,9 +101,10 @@ these choices; zero disables a score target. Boss objectives are not implemented
 
 Each level opens with an objectives popup and a large **Start** button, including
 restarts and campaign advances. Time does not advance until the player starts.
-The top-left HUD shows **Time left** instead of the in-game logo. The row below
-shows **Koshi's Health**, **Food**, **Enemies**, **Weapon**, **Batteries**, **Goals**
-in that order. Combined progress follows the least-complete required target.
+The top-left HUD shows **Time left** inset from the edge instead of the in-game
+logo. The evenly spaced row below shows **Koshi's Health**, **Food**, **Enemies**,
+**Batteries**, **Goals**. An equipped sword appears beside Koshi with its
+remaining hit count. Combined progress follows the least-complete required target.
 
 ### Boom Helmet difficulty modifier
 
@@ -493,10 +496,14 @@ Custom levels can set `goalsGoal` to the number of scores required, alone or wit
 food (`goal`) and enemy (`killGoal`) targets. All positive targets must be met
 before time runs out. Survival remains exclusive. The editor supports Goals
 and scheduled soccer balls (`kind: "object", type: "soccer-ball"`), including
-ball spawners. Balls have no lifetime or shield. Pause freezes rolling/scoring
-effects; restart clears scores and restores placements. The guide and tutorial
-include soccer. Level 2-19 requires three goals and supplies five balls; the
-original 19 levels remain unchanged.
+ball spawners. Balls have no lifetime or shield. The editor also supports
+stationary red, green and blue bumpers as objects and brick spawners. Bumpers
+bounce Koshi and enemies without moving; red increases Koshi's speed by 25%,
+green preserves it, and blue reduces it by 25%. Their concentric white rings
+compress and shake briefly when hit. Pause freezes rolling/scoring effects;
+restart clears scores and restores placements. The guide and tutorial include
+soccer. Level 2-19 requires three goals and supplies five balls; the original
+19 levels remain unchanged.
 
 ## Enemies
 
@@ -532,6 +539,17 @@ apart and fade over 1.2 seconds while the detached tongue spins away.
 Custom placements snap to the perimeter; editor spawners, portraits, the guide
 and an interactive head-interception lesson support it. Level 2-17 introduces
 head interception; the original 19 levels stay unchanged.
+
+**Robo Snail** (`robo-snail`) wanders continuously at 85 game units/second,
+slightly faster than Robo Mouse, without the Mouse's resting pauses. Its green
+body has two robotic antennae ending in red square eyes and a rigid frown, with
+a blocky grey-and-brown spiral shell. When defeated, the antennae shrink first,
+the body retreats into the shell, then the shell splits and fades over 0.9
+seconds. Defeating it freezes every brick's cooldown for 20 seconds and shows a
+scrolling slug-and-turtle ribbon. Cooldowns already counting down resume after
+the freeze; bricks hit during it start their cooldowns when the freeze ends.
+It supports custom placements, spawn bricks and cutscenes; built-in campaign
+levels and schedules remain unchanged.
 
 **Robo Ball** (`ball`) is an orange robot basketball with dark grey stripes,
 two beady red eyes and a rectangular mouth whose grey grate resembles teeth.

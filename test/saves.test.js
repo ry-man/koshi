@@ -291,13 +291,13 @@ test('completion summaries compare against prior records without counting the cu
   context.game.goals = 2;
   context.game.tookDamage = false;
   const first = context.saveResult();
-  assert.deepEqual({ ...first.newRecords }, { time: true, food: true, enemy: true, goals: true });
+  assert.deepEqual({ ...first.newRecords }, { time: true, food: true, enemy: true, goals: true, moves: true });
   assert.equal(first.result.damageFree, true);
   assert.equal(first.result.goals, 2);
   context.attemptId = 'attempt-2';
   context.game = { ...context.game, elapsed: 9, score: 20, enemies: 2, goals: 3, tookDamage: true };
   const second = context.saveResult();
-  assert.deepEqual({ ...second.newRecords }, { time: true, food: false, enemy: false, goals: true });
+  assert.deepEqual({ ...second.newRecords }, { time: true, food: false, enemy: false, goals: true, moves: false });
   assert.equal(second.previousStats.goldStar, true);
   assert.equal(second.result.damageFree, false);
 });

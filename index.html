@@ -83,9 +83,15 @@
         <select id="level-select"></select>
       </label>
       <div class="save-actions">
-        <button id="level-picker-play" class="primary" type="button" hidden>Play level</button>
-        <button id="world-map-back" class="title-secondary" type="button" hidden>All worlds</button>
-        <button id="level-picker-close" class="title-secondary" type="button">Back to menu</button>
+        <button id="level-picker-play" class="primary" type="button" hidden>Play Level</button>
+        <button id="world-map-back" class="title-secondary" type="button" hidden>World Select</button>
+        <div class="picker-exit-action">
+          <button id="level-picker-close" class="title-secondary" type="button">Back to menu</button>
+          <label id="skip-cutscene-option" class="title-secondary skip-cutscene-option" hidden>
+            <input id="skip-cutscene" type="checkbox">
+            <span>Skip cutscene</span>
+          </label>
+        </div>
       </div>
     </dialog>
     <dialog id="save-slots" class="install-dialog" aria-labelledby="save-heading" aria-describedby="save-help">
@@ -161,7 +167,6 @@
           </div>
           <div class="stat"><span class="stat-label">FOOD</span><strong id="food-count">🍗 0 <span>/ 20</span></strong></div>
           <div class="stat"><span class="stat-label">ENEMIES</span><strong id="enemy-count">👾 0</strong></div>
-          <div class="stat" id="weapon-status" role="status" aria-label="Weapon: no sword equipped"><span class="stat-label">WEAPON</span><strong class="weapon-value"><svg id="weapon-icon" viewBox="-24 -28 48 56" aria-hidden="true" hidden><g transform="rotate(28)"><path d="M0 -23 L6 -14 L4 10 L-4 10 L-6 -14 Z" fill="currentColor"/><path d="M-10 10 H10" stroke="currentColor" stroke-width="4"/><path d="M0 12 V22" stroke="#8a6953" stroke-width="5"/></g></svg><span id="weapon-remaining">—</span></strong></div>
           <div class="stat" id="battery-status" role="status" aria-label="Batteries: 0"><span class="stat-label">BATTERIES</span><strong id="battery-count">🔋 0</strong></div>
           <div class="stat"><span class="stat-label">GOALS</span><strong id="goal-count" aria-label="0 goals scored">⚽ 0</strong></div>
         </div>
@@ -185,6 +190,7 @@
         </div>
         </div>
         <p class="game-status" id="game-status">Your next adventure is one click away.</p>
+        <span id="weapon-status" class="visually-hidden" role="status" aria-live="polite">Weapon: no sword equipped</span>
       </section>
       <footer><span>KOSHI'S QUEST <span class="footer-dot">/</span> AN ADVENTURE IN THE MAKING</span><span>Made for curious cats & clever humans.</span></footer>
       <noscript><p class="error">Please enable JavaScript to play Koshi's Quest.</p></noscript>
