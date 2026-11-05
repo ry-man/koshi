@@ -10,6 +10,7 @@ const { LEVELS } = engine;
 const worlds = require('../src/worlds.js');
 const { WORLDS, worldLevels, nextLevelIndex, levelFeatures } = worlds;
 const saveApi = require('../src/saves.js');
+const collectibles = require('../src/collectibles.js');
 
 test('World Select shares the bottom action bar and styling with the level menu action', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
@@ -36,6 +37,31 @@ test('worlds partition all 60 campaign identities into themed groups of 10, 24, 
   for (const [i, level] of LEVELS.entries()) {
     assert.equal(nextLevelIndex(i), [47, LEVELS.length - 1].includes(i) ? -1 : i + 1);
     assert.equal(level.cutscene.theme, WORLDS.find(world => world.id === level.worldId).theme);
+  }
+});
+
+test('every World 1 level offers one Cat Block via a pickup, existing enemy or chest', () => {
+  for (const level of LEVELS) {
+    const catBlockEvents = level.items.filter(([, type]) => type === 'cat-block');
+    const carriers = level.enemies.filter(event => event[4]?.carriesCatBlock);
+    const chests = (level.events ?? []).filter(event => event.kind === 'item' && event.type === 'treasure-chest');
+    if (level.worldId === '1') {
+      assert.equal(catBlockEvents.length + carriers.length + chests.length, 1, `${level.number} has one Cat Block`);
+      if (['1-3', '1-6', '1-9'].includes(level.number)) {
+        assert.deepEqual(carriers, [level.enemies[0]]);
+        assert.match(level.catBlock.description, /Defeat the marked enemy/);
+      } else if (level.number === '1-4') {
+        assert.equal(chests[0].keysRequired, 3);
+        assert.match(level.catBlock.description, /3 keys/);
+      } else {
+        assert.equal(catBlockEvents[0][0], Math.floor(level.duration / 2));
+        assert.match(level.catBlock.description, /random location/);
+      }
+    } else {
+      assert.equal(catBlockEvents.length, 0, `${level.number} remains unchanged`);
+      assert.equal(carriers.length, 0);
+      assert.equal(level.catBlock, undefined);
+    }
   }
 });
 
@@ -70,6 +96,7 @@ test('map icons describe actual schedules, placed events and spawner contents, w
     assert.ok(features.every(feature => typeof feature.name === 'string' && feature.name.length));
     assert.ok(features.every(feature => feature.name === feature.name.replace(/\b[a-z]/g, letter => letter.toUpperCase())));
     assert.ok(features.every(feature => !/\bblock\b/i.test(feature.name)));
+    assert.equal(features.some(feature => feature.picture === 'item:cat-block'), false);
     for (const [, , type] of level.food) assert.ok(features.some(feature => feature.picture === `food:${type}`));
     for (const [, type] of level.enemies) assert.ok(features.some(feature => feature.picture === `enemy:${type}`));
     for (const entry of level.events ?? []) assert.ok(features.some(feature => feature.picture === `${entry.kind}:${entry.type}`));
@@ -122,7 +149,7 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   };
   const motion = { matches: false };
   const context = vm.createContext({
-    document, KoshiGame: game, KoshiWorlds: graph, KoshiSaves: saveApi,
+    document, KoshiGame: game, KoshiWorlds: graph, KoshiSaves: saveApi, KoshiCollectibles: collectibles,
     getComputedStyle: node => node.style, matchMedia: () => motion,
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'world-map.js'), 'utf8'), context);
@@ -166,7 +193,7 @@ test('two-tier map selects worlds separately, moves Koshi, and reveals only that
   assert.equal(selection.value, '33');
   const details = text(map.details);
   for (const value of ['2-24', 'The final countdown feast', '35', '🕒 100s', 'Moves to beat',
-    '6 activations', 'Best (fastest) win', 'Fewest moves', 'Most food points', 'Most enemy points', 'Wins / losses',
+    '6 activations', 'Best (fastest) win', 'Fewest moves', 'Most food points', 'Most enemy points', 'Wins / losses / quits',
     'Win percentage', 'Level Features', 'Bricks', 'Enemies', 'Food', 'Items / Objects']) assert.ok(details.includes(value), value);
   assert.ok(!details.includes('Time to beat'));
   assert.ok(!details.includes('Guest statistics'));
@@ -228,19 +255,21 @@ test('details show saved outcome statistics, no fabricated legacy bests, and hel
   const result = { levelId: LEVELS[0].id, outcome: 'won', time: 12.25, food: 22, enemy: 3, moves: 7 };
   const { map, text } = mapFixture({
     completed: [LEVELS[0].id, LEVELS[1].id],
-    results: { first: result, second: { ...result, outcome: 'lost', food: 25, enemy: 5 } },
+    results: { first: result, second: { ...result, outcome: 'lost', food: 25, enemy: 5 },
+      third: { ...result, outcome: 'quit' } },
   });
   map.open(); map.showWorld(WORLDS[0]); map.selectLevel(LEVELS[0]);
   let details = text(map.details);
-  for (const value of ['12.25 seconds', '25', '5', '1 / 1', '50.0%']) assert.ok(details.includes(value), value);
+  for (const value of ['12.25 seconds', '25', '5', '1 / 1 / 1', '33.3%']) assert.ok(details.includes(value), value);
   assert.ok(!details.includes('Damage-free gold star'));
-  assert.equal(map.details.children[0].children[1].textContent, '☆');
+  assert.equal(map.details.children[0].children[1].children[0].children[0].getAttribute('fill'), 'none');
   assert.equal(map.details.children[0].children[1].getAttribute('aria-label'), 'Gold star not earned: complete without taking damage');
   assert.doesNotMatch(details, /Win \/ loss percentages|50\.0% \/ /);
   assert.match(details, /Fewest moves\s+7\b/);
   assert.ok(!details.includes('Moves to beat'));
   map.selectLevel(LEVELS[1]); details = text(map.details);
-  assert.ok(details.includes('0 / 0'));
+  assert.ok(details.includes('0 / 0 / 0'));
+  assert.match(details, /Win percentage\s+N\/A/);
   assert.ok(details.includes('Not recorded'));
 
   const earned = mapFixture({
@@ -248,12 +277,12 @@ test('details show saved outcome statistics, no fabricated legacy bests, and hel
     results: { first: { ...result, damageFree: true } },
   });
   earned.map.open(); earned.map.showWorld(WORLDS[0]); earned.map.selectLevel(LEVELS[0]);
-  assert.equal(earned.map.details.children[0].children[1].textContent, '★');
+  assert.equal(earned.map.details.children[0].children[1].children[0].children[0].getAttribute('fill'), 'currentColor');
   assert.equal(earned.map.details.children[0].children[1].className, 'map-star map-star-earned');
   assert.doesNotMatch(earned.text(earned.map.details), /Damage-free gold star/);
 });
 
-test('earned gold stars appear at the bottom-left of only their level-map nodes', () => {
+test('gold stars use matching outlined and filled shapes at the bottom-left of every level node', () => {
   const { map } = mapFixture({
     completed: [LEVELS[0].id, LEVELS[1].id],
     results: {
@@ -266,14 +295,123 @@ test('earned gold stars appear at the bottom-left of only their level-map nodes'
   const nodes = map.map.querySelectorAll('.map-node');
   const earned = nodes.find(node => node.dataset.node === LEVELS[0].id);
   const unearned = nodes.find(node => node.dataset.node === LEVELS[1].id);
-  assert.equal(earned.children.at(-1).className, 'map-node-star');
-  assert.equal(earned.children.at(-1).textContent, '★');
-  assert.equal(earned.children.at(-1).getAttribute('aria-hidden'), 'true');
+  const earnedStar = earned.children.find(child => child.className === 'map-node-star map-node-star-earned');
+  const unearnedStar = unearned.children.find(child => child.className === 'map-node-star');
+  assert.equal(earnedStar.children[0].children[0].getAttribute('fill'), 'currentColor');
+  assert.equal(earnedStar.getAttribute('aria-hidden'), 'true');
   assert.match(earned.getAttribute('aria-label'), /gold star earned/);
-  assert.equal(unearned.children.some(child => child.className === 'map-node-star'), false);
+  assert.equal(unearnedStar.children[0].children[0].getAttribute('fill'), 'none');
+  assert.equal(unearnedStar.children[0].children[0].getAttribute('d'), earnedStar.children[0].children[0].getAttribute('d'));
+  assert.equal(unearnedStar.children[0].getAttribute('viewBox'), earnedStar.children[0].getAttribute('viewBox'));
   assert.doesNotMatch(unearned.getAttribute('aria-label'), /gold star earned/);
   const styles = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert.match(styles, /\.map-node-star \{[^}]*left: -8px; bottom: -8px;/);
+});
+
+test('Cat Block hints are available beside the star on touch and hover, and the map node marks its discovery', () => {
+  const levels = [...LEVELS];
+  levels[0] = { ...levels[0], catBlock: { description: 'Find the hidden Cat Block.' } };
+  const graph = { ...worlds, worldLevels: world => worlds.worldLevels(world, levels) };
+  const profile = { guest: false, completed: [], catBlocks: [levels[0].id], results: {} };
+  const { map, text } = mapFixture(profile, null, { ...engine, LEVELS: levels }, graph);
+  map.open();
+  map.showWorld(WORLDS[0]);
+  const node = map.map.querySelectorAll('.map-node').find(candidate => candidate.dataset.node === levels[0].id);
+  assert.ok(node.children.some(child => child.className?.startsWith('map-node-cat-block')));
+  assert.match(node.getAttribute('aria-label'), /Cat Block available, found/);
+  map.selectLevel(levels[0]);
+  const button = map.details.children[0].children[2];
+  const information = button;
+  const description = map.details.children[1];
+  assert.equal(button.title, 'Find the hidden Cat Block.');
+  assert.equal(button.type, 'button');
+  assert.equal(map.details.children[0].children.length, 3, 'no separate information icon');
+  assert.equal(information.getAttribute('aria-expanded'), 'false');
+  assert.equal(information.getAttribute('aria-controls'), description.id);
+  assert.match(information.getAttribute('aria-label'), /Cat Block found/);
+  assert.equal(button.children[0].children[0].getAttribute('href'), './icons/cat-building-block.png');
+  assert.equal(button.children[0].children[0].getAttribute('filter'), undefined);
+  information.listeners.mouseenter();
+  assert.equal(description.hidden, false);
+  information.listeners.mouseleave();
+  assert.equal(description.hidden, true);
+  information.listeners.focus();
+  assert.equal(description.hidden, false);
+  information.listeners.blur();
+  assert.equal(description.hidden, true);
+  information.listeners.click();
+  information.listeners.mouseleave();
+  assert.equal(description.hidden, false);
+  assert.equal(information.getAttribute('aria-expanded'), 'true');
+  assert.ok(text(description).includes('Find the hidden Cat Block.'));
+  information.listeners.click();
+  assert.equal(description.hidden, true);
+  const star = map.details.children[0].children[1];
+  const starDescription = map.details.children[2];
+  assert.equal(star.type, 'button');
+  assert.equal(star.getAttribute('aria-controls'), starDescription.id);
+  assert.match(text(starDescription), /completing this level without taking any damage/);
+  for (const [action, visible] of [
+    ['mouseenter', true], ['mouseleave', false], ['focus', true], ['blur', false],
+    ['click', true], ['mouseleave', true], ['click', false],
+  ]) {
+    star.listeners[action]();
+    assert.equal(starDescription.hidden, !visible);
+    assert.equal(star.getAttribute('aria-expanded'), String(visible));
+  }
+  star.listeners.click();
+  star.listeners.keydown({ key: 'Escape' });
+  assert.equal(starDescription.hidden, true);
+  map.details.scrollTop = 100;
+  map.selectLevel(levels[1]);
+  assert.equal(map.details.scrollTop, 0);
+});
+
+test('uncollected Cat Blocks outline the artwork silhouette in nodes and hints, never feature previews', () => {
+  const { map } = mapFixture();
+  map.open();
+  map.showWorld(WORLDS[0]);
+  const node = map.map.querySelectorAll('.map-node')[0];
+  const icons = [
+    node.children.find(child => child.className === 'map-node-cat-block').children[0],
+    map.details.children[0].children[2].children[0],
+  ];
+  for (const icon of icons) {
+    assert.equal(icon.getAttribute('viewBox'), '0 0 100 100');
+    assert.equal(icon.children[1].getAttribute('href'), './icons/cat-building-block.png');
+    assert.match(icon.children[1].getAttribute('filter'), /^url\(#cat-block-outline-/);
+  }
+  assert.notEqual(icons[0].children[1].getAttribute('filter'), icons[1].children[1].getAttribute('filter'));
+  const featureSection = map.details.children.at(-1);
+  assert.equal(JSON.stringify(featureSection).includes('cat-building-block.png'), false);
+});
+
+test('Cat Blocks are omitted from feature metadata, schedules, placed events and brick spawners', () => {
+  const features = levelFeatures({
+    catBlock: { description: 'Find it.' },
+    items: [[1, 'cat-block'], [2, 'key']],
+    events: [{ kind: 'item', type: 'cat-block' }, { kind: 'item', type: 'treasure-chest' }],
+    brickTypes: [{ kind: 'normal', spawner: { kind: 'item', type: 'cat-block' } }],
+  });
+  assert.equal(features.some(feature => feature.picture === 'item:cat-block'), false);
+  assert.ok(features.some(feature => feature.picture === 'item:key'));
+  assert.ok(features.some(feature => feature.picture === 'item:treasure-chest'));
+});
+test('world selection shows campaign collectible totals but level maps do not', () => {
+  const { map, text } = mapFixture({
+    completed: [], catBlocks: [LEVELS[0].id],
+    results: {
+      clean: { levelId: LEVELS[0].id, outcome: 'won', damageFree: true },
+      repeat: { levelId: LEVELS[0].id, outcome: 'won', damageFree: true },
+    },
+  });
+  map.open();
+  const totals = map.map.children.find(child => child.className === 'collectible-totals');
+  assert.deepEqual(Array.from(totals.children, child => child.getAttribute('aria-label')),
+    ['Flags: 0 of 60', 'Gold stars: 1 of 60', 'Cat Blocks: 1 of 10']);
+  assert.equal(text(totals).trim().replace(/\s+/g, ' '), '0/60 ★ 1/60 1/10');
+  map.showWorld(WORLDS[0]);
+  assert.equal(map.map.children.some(child => child.className === 'collectible-totals'), false);
 });
 
 test('map objectives use accessible icons and positive targets, or only a clock for survival', () => {

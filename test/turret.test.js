@@ -134,7 +134,15 @@ test('merged turret bricks spawn and draw their icon on the middle sub-brick, ro
   });
   const context = vm.createContext({ KoshiGame: require('../src/game.js'), document: { createElementNS: node } });
   vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8'), context);
-  for (const [members, middle] of [[top, top[1]], [top.slice(0, 2), top[1]], [base.perimeter.slice(1, 5), top[2]]]) {
+  const cases = [[top, top[1]], [top.slice(0, 2), top[1]], [base.perimeter.slice(1, 5), top[2]]];
+  const regions = brickRegions(base.bricks, base.width, base.height);
+  for (let i = 0; i < base.perimeter.length; i++) {
+    const a = base.perimeter[i], b = base.perimeter[(i + 1) % base.perimeter.length];
+    if (regions.get(a).edge === regions.get(b).edge) continue;
+    cases.push([[a, b], b], [[base.perimeter[(i + base.perimeter.length - 1) % base.perimeter.length],
+      a, b, base.perimeter[(i + 2) % base.perimeter.length]], b]);
+  }
+  for (const [members, middle] of cases) {
     const owner = members[0], region = brickEditRegions(base.bricks).get(owner);
     const customLevel = { ...blank(), brickTypes: [{ ...region, kind: 'normal', turret: 'laser' }], brickGroups: [{ owner, members }] };
     const game = new Game(() => .5, { customLevel });

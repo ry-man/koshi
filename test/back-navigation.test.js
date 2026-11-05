@@ -60,7 +60,7 @@ function fixture({ installed = true, entries = [null], index = entries.length - 
       navigation: navigationAPI ? { addEventListener: listen(navigationListeners) } : undefined,
     },
     navigator: {}, history, game, cutscene, document, customLevel, lastTime: 123,
-    syncUI: () => { syncs++; },
+    syncUI: () => { syncs++; }, checkpointAttempt() {},
     console: { error: (...args) => logged.push(args) },
   });
   vm.runInContext(`${protection}\ninstallBackNavigation();`, context);

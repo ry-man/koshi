@@ -9,22 +9,25 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 10);
+  assert.equal(scripts.length, 12);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
   }
-  assert.match(scripts[0][1], /src="\.\/src\/game\.js"/);
-  assert.match(scripts[1][1], /src="\.\/src\/brick-visuals\.js"/);
-  assert.match(scripts[2][1], /src="\.\/src\/cutscene\.js"/);
-  assert.match(scripts[3][1], /src="\.\/src\/learning\.js"/);
-  assert.match(scripts[4][1], /src="\.\/src\/saves\.js"/);
-  assert.match(scripts[5][1], /src="\.\/src\/worlds\.js"/);
-  assert.match(scripts[6][1], /src="\.\/src\/world-map\.js"/);
-  assert.match(scripts[7][1], /src="\.\/src\/transitions\.js"/);
-  assert.match(scripts[8][1], /src="\.\/src\/app\.js"/);
-  assert.match(scripts[9][1], /src="\.\/src\/pwa\.js"/);
+  assert.match(scripts[0][1], /src="\.\/src\/campaign\.js"/);
+  assert.match(scripts[1][1], /src="\.\/src\/game\.js"/);
+  assert.match(scripts[2][1], /src="\.\/src\/brick-visuals\.js"/);
+  assert.match(scripts[3][1], /src="\.\/src\/cutscene\.js"/);
+  assert.match(scripts[4][1], /src="\.\/src\/learning\.js"/);
+  assert.match(scripts[5][1], /src="\.\/src\/saves\.js"/);
+  assert.match(scripts[6][1], /src="\.\/src\/worlds\.js"/);
+  assert.match(scripts[7][1], /src="\.\/src\/collectibles\.js"/);
+  assert.match(scripts[8][1], /src="\.\/src\/world-map\.js"/);
+  assert.match(scripts[9][1], /src="\.\/src\/transitions\.js"/);
+  assert.match(scripts[10][1], /src="\.\/src\/app\.js"/);
+  assert.match(scripts[11][1], /src="\.\/src\/pwa\.js"/);
   const context = vm.createContext({});
+  vm.runInContext(readFileSync(path.join(root, 'src', 'campaign.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'game.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'learning.js'), 'utf8'), context);
   const tutorial = new context.KoshiLearning.Tutorial();
@@ -268,13 +271,13 @@ test('title screen provides accessible artwork and explicit game entry without e
   const hud = html.slice(html.indexOf('<div class="hud">'), html.indexOf('<div class="objective">'));
   assert.ok(!hud.includes('weapon-status'), 'weapon status is announced without taking up HUD space');
   assert.deepEqual([...hud.matchAll(/<span class="stat-label">([^<]+)<\/span>/g)].map(([, label]) => label),
-    ["KOSHI'S HEALTH", 'FOOD', 'ENEMIES', 'BATTERIES', 'GOALS']);
+    ["KOSHI'S HEALTH", 'FOOD', 'ENEMIES', 'GOALS', 'KEYS', 'BATTERIES']);
   assert.match(html, /id="weapon-status" class="visually-hidden"[^>]+role="status"/);
   assert.ok(hud.includes('id="goal-count"'));
   assert.ok(!hud.includes('id="timer"'), 'time is shown in the top-left control row');
-  assert.match(styles, /\.hud \{ display: grid; grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
+  assert.match(styles, /\.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   assert.match(styles, /\.timer-stat \{ padding: 6px 0 0 10px;/);
-  assert.match(styles, /\.tutorial-active \.hud \{ display: grid; grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/);
+  assert.match(styles, /\.tutorial-active \.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   const mobileHud = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
   assert.match(mobileHud, /\.stat-label \{ font-size: 8px;/);
   assert.match(mobileHud, /\.stat\.lives \.stat-label \{ max-width: 62px;[\s\S]*?font-size: 8px;[\s\S]*?white-space: normal;/);
@@ -325,7 +328,7 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
     titleScreen: dialog(), saveDialog: dialog(), levelPicker: dialog(),
     skipCutscene, activeSave: null, tutorial: null,
     createGame() { return { level: { id: '1-1', number: '1-1', cutscene: {} }, customLevel: false }; },
-    makeAttemptId() { return 'attempt'; }, updateSaveProfile() {}, makeBrickButtons() {},
+    makeAttemptId() { return 'attempt'; }, saveResult() {}, updateSaveProfile() {}, makeBrickButtons() {},
     displayedState: null, trail: [], toast: { textContent: '' }, lastTime: null,
     resize() {}, syncUI() {}, overlay: { hidden: false },
     cutscene: { open() { opened++; } }, showLevelBriefing() { briefings++; },
@@ -339,10 +342,17 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
   assert.equal(briefings, 1, 'skipping still presents the level briefing');
 });
 
+test('HUD counters follow health, food, enemies, soccer goals, keys, batteries order', () => {
+  const html = readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const hud = html.slice(html.indexOf('<div class="hud">'), html.indexOf('<div class="objective">'));
+  assert.deepEqual([...hud.matchAll(/<strong id="([^"]+)"/g)].map(match => match[1]),
+    ['hearts', 'food-count', 'enemy-count', 'goal-count', 'key-count', 'battery-count']);
+});
+
 test('Start on a level briefing begins the existing level instead of rebuilding it', () => {
   assert.doesNotMatch(readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /dialog-note/);
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.number \?\? game\.level\.id\} · MISSION`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
+  assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.number \?\? game\.level\.id\}`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
   const start = source.indexOf("play.addEventListener('click'");
   const end = source.indexOf("\nrestart.addEventListener", start);
   const handler = source.slice(start, end);
@@ -364,6 +374,7 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
     LEVELS: [{ id: '1–1' }, { id: '1–2' }],
     nextLevelIndex: index => index === 0 ? 1 : -1,
   });
+
   vm.runInContext(handler, context);
   play.click();
   assert.equal(started, 1);
@@ -384,6 +395,42 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
   game.customLevel = {};
   play.click();
   assert.equal(rebuilt, 2, 'custom playtests can replay without campaign maps');
+});
+
+test('opening briefings list only victory conditions and show optional Cat Block acquisition state', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const node = () => ({
+    children: [], textContent: '',
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+  });
+  const context = vm.createContext({ document: { createElement: node } });
+  vm.runInContext(source.slice(source.indexOf('function levelBriefingText('), source.indexOf('\nfunction showDialog(')), context);
+  for (const [level, expected] of [
+    [{ duration: 60, goal: 20 }, 'VICTORY CONDITIONS:\n🍗 Target: 20'],
+    [{ duration: 60, goal: 0, killGoal: 5 }, 'VICTORY CONDITIONS:\n👾 Target: 5'],
+    [{ duration: 60, goalsGoal: 3 }, 'VICTORY CONDITIONS:\n⚽ Target: 3'],
+    [{ duration: 60, goal: 10, killGoal: 5, goalsGoal: 2 }, 'VICTORY CONDITIONS:\n🍗 Target: 10\n👾 Target: 5\n⚽ Target: 2'],
+    [{ duration: 90, goal: 0, survive: true }, 'VICTORY CONDITIONS:\n🕒 Surive Time: 90'],
+  ]) {
+    assert.equal(context.levelBriefingText(level), expected);
+    const container = node();
+    context.renderLevelBriefing(container, level, false);
+    assert.equal(container.children.length, 1);
+    assert.equal(container.children[0].textContent, expected);
+    for (const acquired of [false, true]) {
+      const description = 'Defeat the marked enemy in the first patrol.';
+      context.renderLevelBriefing(container, { ...level, catBlock: { description } }, acquired);
+      assert.equal(container.children.length, 2);
+      const [image, hint] = container.children[1].children;
+      assert.equal(image.src, './icons/cat-building-block.png');
+      assert.equal(image.alt, 'Cat Block');
+      assert.equal(hint.textContent, acquired ? 'Cat Block already acquired!' : description);
+    }
+    context.renderLevelBriefing(container, level, false);
+    assert.equal(container.children.length, 1, 'switching levels removes stale Cat Block sections');
+  }
+  assert.match(source, /renderLevelBriefing\(content, game\.level, game\.catBlockPreviouslyCollected\)/);
 });
 
 test('soccer goal and ball guide illustrations use shared artwork', () => {

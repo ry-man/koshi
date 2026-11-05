@@ -1,9 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, ITEMS, LEVELS, validateCustomLevel } = require('../src/game.js');
+const { Game, ITEMS, CAT_BLOCK_MESSAGES, LEVELS, validateCustomLevel } = require('../src/game.js');
 
-const level = events => ({
+const level = (events, extra = {}) => ({
   version: 1, id: 'Item tests', duration: 30, goal: 1000, heartCost: null, brickSet: 1, events,
+  ...(events.some(event => event.kind === 'item' && ['cat-block', 'treasure-chest'].includes(event.type)
+    || event.kind === 'enemy' && event.carriesCatBlock)
+    ? { catBlock: { description: 'Find the Cat Block.', messages: CAT_BLOCK_MESSAGES } } : {}),
+  ...extra,
 });
 
 function gameWithItem(type, duration = 30) {
@@ -29,11 +33,15 @@ test('the original 19 levels retain their item schedules and spawn bricks', () =
 
 test('all power-up items validate in custom levels and item spawners', () => {
   for (const type of Object.keys(ITEMS)) {
-    const custom = level([{ time: 2, kind: 'item', type, x: .25, y: .75 }]);
+    const custom = level([{ time: 2, kind: 'item', type, x: .25, y: .75,
+      ...(type === 'treasure-chest' ? { keysRequired: 1 } : {}) }]);
     assert.deepEqual(validateCustomLevel(custom), custom);
     const game = new Game(() => .5, {
-      customLevel: { ...level([]), brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal',
-        spawner: { kind: 'item', type } }] },
+      customLevel: level([], {
+        ...(type === 'cat-block' || type === 'treasure-chest'
+          ? { catBlock: { description: 'Find the Cat Block.', messages: CAT_BLOCK_MESSAGES } } : {}),
+        brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'item', type } }],
+      }),
     });
     const brick = game.bricks.find(candidate => candidate.spawner);
     game.spawnFromBrick(brick);

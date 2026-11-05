@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, CAT_BLOCK_MESSAGES, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -172,6 +172,7 @@ test('custom playtests expose a toolbar link back to the unchanged editor snapsh
     },
     console: { error: (...args) => failures.push(args) },
   });
+  vm.runInContext(source.slice(source.indexOf('function levelBriefingText('), source.indexOf('\nfunction showDialog(')), context);
   vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"), source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
   assert.equal(failures.length, 0);
   assert.equal(nodes.get('#back-to-editor').hidden, false);
@@ -242,6 +243,10 @@ test('campaign editor previews use every real schedule and preserve the original
       + campaign.enemies.reduce((sum, [, , count]) => sum + count, 0)
       + campaign.items.length + campaign.weapons.length + (campaign.events?.length ?? 0));
     for (const event of campaign.events ?? []) assert.ok(preview.events.includes(event));
+    assert.equal(preview.events.filter(event => event.carriesKey).length,
+      campaign.enemies.filter(entry => entry[4]?.carriesKey).length);
+    assert.equal(preview.events.filter(event => event.carriesCatBlock).length,
+      campaign.enemies.filter(entry => entry[4]?.carriesCatBlock).length);
     validateCustomLevel({ ...preview, version: 1 });
     assert.equal(JSON.stringify(context.campaignPreview(index)), JSON.stringify(preview), 'representative positions stay stable');
     for (const [kind, schedule] of [['food', campaign.food], ['enemy', campaign.enemies], ['item', campaign.items], ['weapon', campaign.weapons]]) {
@@ -303,6 +308,24 @@ test('campaign play links choose the original game level and malformed links rep
     if (expected) { assert.equal(levelSelect.value, expected); assert.equal(error.hidden, true); }
     else { assert.equal(error.hidden, false); assert.equal(failures.length, 1); }
   }
+});
+
+test('campaign links prefer fixed IDs when reassignment reuses a former level number', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = source.indexOf("if (location.hash.startsWith('#campaign='))");
+  const script = source.slice(start, source.indexOf('function layoutOptions()', start));
+  const levels = [
+    { id: '1-2', number: '1-1', name: 'Moved mouse' },
+    { id: '1-1', number: 'bonus-1', name: 'Moved breakfast' },
+  ];
+  for (const hash of ['#campaign=1-1', '#campaign=bonus-1']) {
+    const levelSelect = { value: '0' };
+    const context = vm.createContext({ location: { hash }, LEVELS: levels, levelSelect });
+    vm.runInContext(script, context);
+    assert.equal(levelSelect.value, '1');
+  }
+  const editor = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  assert.match(editor, /#campaign=\$\{encodeURIComponent\(level\.id\)\}/);
 });
 
 test('editor saves turret variants and preserves contact-surface exclusivity', () => {
@@ -491,7 +514,7 @@ test('editor settings select exclusive survival or score targets and preserve im
     return nodes.get(selector);
   };
   const messages = [];
-  const context = vm.createContext({ $, level: blank(), validateDraft: validateCustomLevel,
+  const context = vm.createContext({ $, level: blank(), CAT_BLOCK_MESSAGES, validateDraft: validateCustomLevel,
     attempt: action => action(), markChanged() {}, render() {}, message: text => messages.push(text) });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);

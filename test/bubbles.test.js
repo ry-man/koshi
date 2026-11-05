@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 const { Game, OBJECTS, SLIMES, validateCustomLevel } = require('../src/game.js');
 
 const level = events => ({
@@ -59,4 +62,90 @@ test('bubble confinement does not disable sword damage or enemy contact damage',
     x: victim.cat.x, y: victim.cat.y, age: 0, transition: .18, duration: SLIMES.red.duration };
   victim.combat(.01, victim.cat.x, victim.cat.y);
   assert.equal(victim.hearts, 2, 'enemies can still hurt Koshi inside a bubble');
+});
+
+test('each bubble pops once at release, freezes on pause, and clears on restart', () => {
+  for (const color of ['blue', 'green', 'red']) {
+    const game = arena([{ time: 0, kind: 'object', type: `bubble-${color}`, x: .5, y: .5 }]);
+    game.update(1 / 120);
+    const trap = game.bubbleTrap;
+    const lifetime = trap.transition + trap.duration;
+    game.update(lifetime - .001);
+    assert.ok(game.bubbleTrap, 'bubble remains until the countdown ends');
+    assert.equal(game.bubblePops.length, 0);
+    game.pause();
+    const age = trap.age;
+    game.update(2);
+    assert.equal(trap.age, age);
+    game.resume();
+    game.update(.001);
+    assert.equal(game.bubbleTrap, null);
+    assert.equal(game.bubblePops.length, 1);
+    assert.deepEqual(game.bubblePops[0], { x: trap.x, y: trap.y, color, age: 0 });
+    game.update(.2);
+    assert.equal(game.bubblePops.length, 1);
+    game.pause();
+    const popAge = game.bubblePops[0].age;
+    game.update(2);
+    assert.equal(game.bubblePops[0].age, popAge);
+    game.resume();
+    game.state = 'won';
+    game.update(.35);
+    assert.equal(game.bubblePops.length, 0, 'pop finishes even if the level ends');
+    game.bubblePops.push({ x: trap.x, y: trap.y, color, age: 0 });
+    game.reset();
+    assert.equal(game.bubblePops.length, 0);
+    assert.equal(game.bubbleTrap, null);
+  }
+});
+
+function bubbleRenderer() {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const calls = [];
+  const ctx = { globalAlpha: 1 };
+  for (const method of ['save', 'restore', 'translate', 'rotate', 'beginPath', 'arc', 'ellipse', 'fill', 'stroke']) {
+    ctx[method] = (...args) => calls.push({ method, args, alpha: ctx.globalAlpha, lineWidth: ctx.lineWidth });
+  }
+  const context = vm.createContext({ ctx, SLIMES });
+  vm.runInContext(source.slice(source.indexOf('function drawBubble('), source.indexOf('function drawObjectLifetime(')), context);
+  return { ...context, calls };
+}
+
+test('countdown keeps a fixed radius while its arc shrinks continuously from full to zero', () => {
+  const { drawBubble, calls } = bubbleRenderer();
+  for (const color of ['blue', 'green', 'red']) {
+    const lifetime = .18 + SLIMES[color].duration;
+    for (const progress of [0, .1, .25, .5, .9, 1]) {
+      calls.length = 0;
+      drawBubble({ x: 100, y: 100, radius: 24, color, transition: .18,
+        duration: SLIMES[color].duration, age: progress * lifetime }, true);
+      const ring = calls.find(call => call.method === 'arc' && call.args[2] === 29);
+      if (progress === 1) assert.equal(ring, undefined);
+      else {
+        assert.ok(ring);
+        assert.equal(ring.args[3], -Math.PI / 2);
+        assert.ok(Math.abs(ring.args[4] - ring.args[3] - Math.PI * 2 * (1 - progress)) < 1e-9);
+        assert.equal(calls.at(-2).lineWidth, 1.5);
+      }
+    }
+    calls.length = 0;
+    drawBubble({ x: 100, y: 100, radius: 24, color });
+    assert.equal(calls.some(call => call.method === 'arc' && call.args[2] === 29), false, 'unused bubbles have no countdown');
+  }
+});
+
+test('water pop expands broken ripples and droplets, fades, then stops drawing', () => {
+  const { drawBubblePop, calls } = bubbleRenderer();
+  for (const progress of [0, .5, 1]) {
+    calls.length = 0;
+    drawBubblePop({ x: 100, y: 100, color: 'blue', age: progress * .55 });
+    const ripples = calls.filter(call => call.method === 'arc');
+    const droplets = calls.filter(call => call.method === 'ellipse');
+    assert.equal(ripples.length, progress === 1 ? 0 : 8);
+    assert.equal(droplets.length, progress === 1 ? 0 : 8);
+    for (const ripple of ripples) {
+      assert.equal(ripple.args[2], 24 + progress * 22);
+      assert.equal(ripple.alpha, 1 - progress);
+    }
+  }
 });

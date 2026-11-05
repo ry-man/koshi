@@ -41,9 +41,17 @@ const ITEMS = {
   'kitty-cape': { name: 'Kitty Cape', icon: '⚡', color: '#b5d77c' },
   'ditto-stamp': { name: 'Ditto Stamp', icon: '▣', color: '#f59a50' },
   'spooky-mask': { name: 'Spooky Mask', icon: '👹', color: '#d73642' },
+  'cat-block': { name: 'Cat Block', icon: '🐱', color: '#f5b52e' },
+  key: { name: 'Key', icon: '🗝️', color: '#f0ce35' },
+  'treasure-chest': { name: 'Treasure Chest', icon: '🧰', color: '#a66b36' },
   'boom-time-red': { name: 'Red Boom Time (+1)', icon: '💣', color: '#d94a4a', counts: 1 },
   'boom-time-green': { name: 'Green Boom Time (+3)', icon: '💣', color: '#399d4a', counts: 3 },
   'boom-time-blue': { name: 'Blue Boom Time (+8)', icon: '💣', color: '#287dcc', counts: 8 },
+};
+const CAT_BLOCK_MESSAGES = {
+  item: 'Koshi found the Cat Block!',
+  enemy: 'Koshi found a Cat Block carried by an enemy!',
+  chest: 'Koshi opened the treasure chest and found the Cat Block!',
 };
 for (const [brush, name, paintUses] of [['pencil', 'Thin Paintbrush', 1], ['wide', 'Wide Paintbrush', 3], ['roller', 'Paint Roller', 5]]) {
   for (const [paintColor, paintKind, color] of [['red', 'fast', '#df8c81'], ['green', 'normal', '#83bca1'], ['blue', 'slow', '#7eacdb']]) {
@@ -216,9 +224,9 @@ const story = (theme, dialogue, enemies) => ({
 });
 const campaignRegions = brickEditRegions(makeBricks());
 const campaignBrick = (id, attributes) => ({ ...campaignRegions.get(id), kind: 'normal', ...attributes });
-const LEVELS = [
+const BASE_LEVEL_DATA = [
   {
-    name: 'Breakfast rebellion', concept: 'normal bricks', duration: 60, goal: 20, food: SCHEDULE,
+    id: '1-1', name: 'Breakfast rebellion', concept: 'normal bricks', duration: 60, goal: 20, food: SCHEDULE,
     enemies: [], weapons: [], bricks: [],
     dialogue: [
       ['tom', 'I am Tom the Duck! My robots will seize the world and lock every meal in my Clockwork Pantry.'],
@@ -228,7 +236,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Mouse at the market', concept: 'robo mouse', duration: 45, survive: true,
+    id: '1-2', name: 'Mouse at the market', concept: 'robo mouse', duration: 45, survive: true,
     enemies: [[8,'mouse',2],[22,'mouse',1],[35,'mouse',1]], weapons: [], bricks: [],
     dialogue: [
       ['tom', 'My Robo Mouse patrol has occupied the market. Hold out until the evacuation bell rings!'],
@@ -237,7 +245,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Cutlery uprising', concept: 'swords', duration: 90, killGoal: 5,
+    id: '1-3', name: 'Cutlery uprising', concept: 'swords', duration: 90, killGoal: 5,
     enemies: [[10,'mouse',3],[28,'mouse',3],[48,'mouse',2],[68,'mouse',3]], bricks: [],
     weapons: [[20,'wood'],[38,'bronze'],[58,'silver'],[76,'gold']],
     dialogue: [
@@ -247,8 +255,11 @@ const LEVELS = [
     ],
   },
   {
-    name: 'A hearty harvest', concept: 'hearts and heart cost', duration: 100, goal: 30, killGoal: 4,
-    enemies: [[12,'mouse',3],[35,'mouse',3],[62,'mouse',2]], bricks: [],
+    id: '1-4', name: 'A hearty harvest', concept: 'hearts and heart cost', duration: 100, goal: 30, killGoal: 4,
+    enemies: [[12,'mouse',3,null,{ carriesKey: true }],[35,'mouse',3,null,{ carriesKey: true }],[62,'mouse',2]], bricks: [],
+    items: [[20,'key']],
+    events: [{ time: 50, kind: 'item', type: 'treasure-chest', x: .5, y: .5, keysRequired: 3 }],
+    catBlock: { description: 'Open the treasure chest that appears in the center at 50 seconds with 3 keys. One key appears at a random location at 20 seconds; defeat the key-marked mouse in each patrol at 12 and 35 seconds for the other two. The chest stays until opened or the level ends.' },
     dialogue: [
       ['tom', 'I have stolen the farms\' harvest. My patrol will wear down your three hearts.'],
       ['koshi', 'Food now earns healing hearts! The Next heart meter shows the food cost; each full meter creates a heart after a pink cloud.'],
@@ -257,7 +268,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Cracker causeway', concept: 'crumblers', duration: 100, goal: 35,
+    id: '1-5', name: 'Cracker causeway', concept: 'crumblers', duration: 100, goal: 35,
     enemies: [[15,'mouse',3],[45,'mouse',3],[75,'mouse',2]],
     bricks: [[4,{ crumbler: 5 }],[9,{ crumbler: 5 }],[16,{ crumbler: 5 }]],
     dialogue: [
@@ -267,7 +278,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Sticky jam depot', concept: 'slime', duration: 100, goal: 30, killGoal: 5,
+    id: '1-6', name: 'Sticky jam depot', concept: 'slime', duration: 100, goal: 30, killGoal: 5,
     enemies: [[12,'mouse',3],[38,'mouse',3],[68,'mouse',3]],
     bricks: [[4,{ slimed: true, slimeColor: 'green' }],[16,{ slimed: true, slimeColor: 'green' }],[9,{ crumbler: 5 }]],
     dialogue: [
@@ -277,7 +288,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Tin-foil picnic', concept: 'enemy shields', duration: 110, killGoal: 8,
+    id: '1-7', name: 'Tin-foil picnic', concept: 'enemy shields', duration: 110, killGoal: 8,
     enemies: [[10,'mouse',4],[28,'mouse',2,'red'],[45,'mouse',3],[64,'mouse',3,'red'],[82,'mouse',2]],
     bricks: [[16,{ slimed: true, slimeColor: 'red' }],[9,{ crumbler: 5 }]],
     dialogue: [
@@ -287,7 +298,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Skewered supper', concept: 'spikes', duration: 60, survive: true,
+    id: '1-8', name: 'Skewered supper', concept: 'spikes', duration: 60, survive: true,
     enemies: [[10,'mouse',3],[30,'mouse',2],[48,'mouse',3,'red']],
     bricks: [[4,{ spikes: true }],[9,{ spikes: true }],[16,{ slimed: true, slimeColor: 'red' }]],
     dialogue: [
@@ -298,7 +309,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Meals on wheels', concept: 'robo wheels', duration: 110, goal: 35, killGoal: 7,
+    id: '1-9', name: 'Meals on wheels', concept: 'robo wheels', duration: 110, goal: 35, killGoal: 7,
     enemies: [[12,'wheel',2],[25,'mouse',3],[43,'wheel',3,'red'],[62,'mouse',3],[82,'wheel',2,'red']],
     bricks: [[16,{ spikes: true }],[9,{ crumbler: 5 }]],
     dialogue: [
@@ -308,7 +319,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Pancake trampoline', concept: 'springs', duration: 110, goal: 40,
+    id: '1-10', name: 'Pancake trampoline', concept: 'springs', duration: 110, goal: 40,
     weapons: [[28,'silver']],
     enemies: [[14,'mouse',3],[35,'wheel',3,'red'],[62,'mouse',3],[85,'wheel',2,'red']],
     bricks: [[4,{ springs: true }],[9,{ springs: true }],[16,{ spikes: true }]],
@@ -319,7 +330,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Sushi assembly line', concept: 'conveyers', duration: 120, goal: 35, killGoal: 8,
+    id: '1-11', name: 'Sushi assembly line', concept: 'conveyers', duration: 120, goal: 35, killGoal: 8,
     enemies: [[12,'mouse',3],[30,'wheel',3],[50,'mouse',3,'red'],[72,'wheel',3,'red'],[95,'mouse',2]],
     bricks: [[19,{ conveyor: true }],[10,{ conveyor: true, conveyorDirection: 'counterclockwise' }],[4,{ springs: true }]],
     dialogue: [
@@ -329,7 +340,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'The folding pantry', concept: 'warped bricks', duration: 120, killGoal: 10,
+    id: '1-12', name: 'The folding pantry', concept: 'warped bricks', duration: 120, killGoal: 10,
     enemies: [[12,'mouse',4],[32,'wheel',3,'red'],[52,'mouse',3,'green'],[74,'mouse',3],[97,'wheel',2,'red']],
     bricks: [[4,{ warped: 12 }],[19,{ warped: 12, conveyor: true }],[16,{ springs: true }]],
     dialogue: [
@@ -339,7 +350,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Ram through the granary', concept: 'robo rams', duration: 120, goal: 40, killGoal: 9,
+    id: '1-13', name: 'Ram through the granary', concept: 'robo rams', duration: 120, goal: 40, killGoal: 9,
     enemies: [[12,'ram',2],[28,'mouse',4],[46,'wheel',3,'red'],[65,'ram',2,'green'],[83,'mouse',2,'green'],[100,'wheel',2]],
     bricks: [[4,{ warped: 12 }],[19,{ conveyor: true }],[16,{ springs: true }]],
     dialogue: [
@@ -349,7 +360,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Fast-food rescue', concept: 'boost', duration: 140, killGoal: 12,
+    id: '1-14', name: 'Fast-food rescue', concept: 'boost', duration: 140, killGoal: 12,
     weapons: [],
     enemies: [[12,'ram',2],[28,'mouse',4],[45,'wheel',3,'red'],[62,'mouse',3,'green'],[80,'ram',3,'green'],[98,'wheel',2]],
     bricks: [[4,{ boost: true }],[9,{ boost: true }],[19,{ conveyor: true }],[16,{ springs: true }]],
@@ -360,7 +371,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Snack dispensary', concept: 'spawners', duration: 120, goal: 45, killGoal: 10,
+    id: '1-15', name: 'Snack dispensary', concept: 'spawners', duration: 120, goal: 45, killGoal: 10,
     enemies: [[12,'mouse',4],[30,'wheel',3,'red'],[50,'ram',2,'green'],[70,'mouse',3,'green'],[92,'wheel',2]],
     bricks: [[4,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[9,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }],[19,{ boost: true }]],
     dialogue: [
@@ -370,7 +381,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Buckets at the bakery', concept: 'robo buckets', duration: 75, survive: true,
+    id: '1-16', name: 'Buckets at the bakery', concept: 'robo buckets', duration: 75, survive: true,
     enemies: [[12,'bucket',1],[27,'mouse',3],[43,'wheel',2,'green'],[56,'ram',1,'red'],[65,'bucket',2,'green']],
     bricks: [[4,{ boost: true }],[9,{ springs: true }],[16,{ spawner: { kind: 'weapon', type: 'silver' } }]],
     dialogue: [
@@ -380,7 +391,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Cinder soup factory', concept: 'cinder', duration: 130, goal: 45, killGoal: 12,
+    id: '1-17', name: 'Cinder soup factory', concept: 'cinder', duration: 130, goal: 45, killGoal: 12,
     weapons: [[24,'silver'],[48,'silver'],[65,'silver'],[82,'silver'],[105,'silver']],
     enemies: [[12,'bucket',2],[28,'mouse',4,'red'],[45,'wheel',3,'green'],[63,'ram',2],[80,'mouse',3,'green'],[98,'bucket',2,'green'],[115,'wheel',3]],
     bricks: [[4,{ kind: 'cinder' }],[9,{ kind: 'cinder' }],[16,{ boost: true }],[19,{ springs: true }]],
@@ -391,7 +402,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Switchboard supper', concept: 'toggles', duration: 130, killGoal: 14,
+    id: '1-18', name: 'Switchboard supper', concept: 'toggles', duration: 130, killGoal: 14,
     enemies: [[12,'mouse',4],[28,'wheel',3,'green'],[44,'ram',3,'green'],[61,'bucket',2],[78,'mouse',3,'blue'],[96,'wheel',3,'red'],[114,'mouse',4]],
     bricks: [[4,{ toggle: 2 }],[9,{ toggle: 2 }],[16,{ boost: true }],[19,{ conveyor: true }]],
     dialogue: [
@@ -401,7 +412,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'A feast for the world', concept: 'portals', duration: 140, goal: 50, killGoal: 15,
+    id: '1-19', name: 'A feast for the world', concept: 'portals', duration: 140, goal: 50, killGoal: 15,
     enemies: [[12,'mouse',7],[28,'wheel',5,'red'],[44,'ram',4,'green'],[60,'bucket',3],[77,'mouse',3,'blue'],[93,'wheel',3,'green'],[108,'mouse',3,'red'],[123,'bucket',3]],
     bricks: [[4,{ portal: 'purple' }],[3,{ portal: 'purple' }],[16,{ boost: true }],[19,{ toggle: 2 }]],
     dialogue: [
@@ -413,7 +424,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Bouncing breakfast', concept: 'robo ball', duration: 90, killGoal: 4,
+    id: '1-20', name: 'Bouncing breakfast', concept: 'robo ball', duration: 90, killGoal: 4,
     enemies: [[8,'ball',3],[26,'ball',3,'red'],[48,'ball',4]], weapons: [[22,'silver'],[52,'silver']],
     bricks: [[2,{ crumbler: 4 }],[12,{ crumbler: 4 }],[19,{ springs: true }]],
     dialogue: [
@@ -423,7 +434,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Cookie calling', concept: 'smiley cookie', duration: 75, goal: 35,
+    id: '1-21', name: 'Cookie calling', concept: 'smiley cookie', duration: 75, goal: 35,
     enemies: [[6,'mouse',3],[26,'wheel',2],[48,'mouse',3,'red']], weapons: [[20,'bronze'],[44,'silver']],
     bricks: [[2,{ conveyor: true }],[12,{ slimed: true, slimeColor: 'green' }]],
     items: [[12,'smiley-cookie'],[36,'smiley-cookie'],[57,'smiley-cookie']],
@@ -435,7 +446,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Lunch against the clock', concept: 'stopwatches', duration: 18, goal: 35, killGoal: 3,
+    id: '1-22', name: 'Lunch against the clock', concept: 'stopwatches', duration: 18, goal: 35, killGoal: 3,
     food: [[2,'L3','B',18],[5,'L3','C',25],[8,'C3','L',30],[11,'L3','F',35],[14,'C3','H',40]],
     enemies: [[2,'mouse',4],[6,'mouse',3,'red'],[12,'mouse',3]], weapons: [[12,'silver'],[16,'silver']],
     bricks: [[2,{ crumbler: 4 }],[12,{ springs: true }]],
@@ -452,7 +463,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Recharge the cutlery', concept: 'battery', duration: 120, killGoal: 12,
+    id: '1-23', name: 'Recharge the cutlery', concept: 'battery', duration: 120, killGoal: 12,
     enemies: [[0,'mouse',6],[30,'mouse',6,'red'],[55,'mouse',6],[80,'mouse',6,'red']], weapons: [],
     bricks: [[2,{ spawner: { kind: 'weapon', type: 'silver' } }],[12,{ slimed: true, slimeColor: 'green' }]],
     items: [[3,'battery'],[25,'battery'],[50,'battery']],
@@ -464,7 +475,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Pantry lullaby', concept: 'music box', duration: 90, goal: 30, killGoal: 4,
+    id: '1-24', name: 'Pantry lullaby', concept: 'music box', duration: 90, goal: 30, killGoal: 4,
     enemies: [[8,'mouse',4],[24,'bucket',2],[44,'mouse',4,'red'],[64,'bucket',2]], weapons: [[22,'silver'],[50,'silver']],
     bricks: [[2,{ slimed: true, slimeColor: 'green' }],[12,{ conveyor: true }]],
     items: [[12,'music-box'],[32,'music-box'],[56,'music-box']],
@@ -476,7 +487,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Eggplant mix-up', concept: 'eggplant', duration: 80, goal: 35,
+    id: '1-25', name: 'Eggplant mix-up', concept: 'eggplant', duration: 80, goal: 35,
     enemies: [[6,'mouse',3],[28,'wheel',3],[50,'mouse',3,'red']], weapons: [[20,'bronze'],[46,'silver']],
     bricks: [[2,{ spikes: true }],[12,{ warped: 10 }]],
     items: [[10,'eggplant'],[30,'eggplant'],[50,'eggplant']],
@@ -488,7 +499,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Saw through the blockade', concept: 'saw blade', duration: 110, killGoal: 6,
+    id: '1-26', name: 'Saw through the blockade', concept: 'saw blade', duration: 110, killGoal: 6,
     enemies: [[8,'mouse',5],[32,'mouse',5,'red'],[60,'mouse',5]], weapons: [],
     bricks: [[2,{ boost: true }],[12,{ boost: true }],[19,{ boost: true }],[16,{ crumbler: 4 }]],
     items: [[5,'saw-blade'],[40,'saw-blade']],
@@ -500,7 +511,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Snake at the snack rack', concept: 'robo snake', duration: 100, killGoal: 3,
+    id: '1-27', name: 'Snake at the snack rack', concept: 'robo snake', duration: 100, killGoal: 3,
     enemies: [[8,'snake',2],[32,'snake',2],[58,'snake',2,'red'],[78,'snake',1]],
     weapons: [[22,'silver'],[52,'silver']],
     bricks: [[2,{ springs: true }],[12,{ crumbler: 4 }]],
@@ -512,7 +523,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'A brighter buffet', concept: 'magical sunglasses', duration: 85, goal: 40,
+    id: '1-28', name: 'A brighter buffet', concept: 'magical sunglasses', duration: 85, goal: 40,
     enemies: [[6,'wheel',3],[28,'mouse',3],[50,'wheel',3,'red']], weapons: [[20,'bronze'],[48,'silver']],
     bricks: [[2,{ crumbler: 2 }],[12,{ toggle: 2 }],[19,{ crumbler: 2 }]],
     items: [[8,'magic-sunglasses'],[30,'magic-sunglasses'],[55,'magic-sunglasses']],
@@ -524,7 +535,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Three-course kickoff', concept: 'soccer goals and balls', duration: 110, goalsGoal: 3,
+    id: '1-29', name: 'Three-course kickoff', concept: 'soccer goals and balls', duration: 110, goalsGoal: 3,
     food: [], enemies: [[6,'mouse',3],[30,'wheel',2],[56,'mouse',3,'red']], weapons: [[20,'bronze'],[48,'silver']],
     bricks: [[2,{ kind: 'goal' }],[4,{ kind: 'goal' }],[12,{ kind: 'goal' }],[14,{ kind: 'goal' }],
       [19,{ kind: 'goal' }],[21,{ kind: 'goal' }],[23,{ kind: 'goal' }],
@@ -538,7 +549,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Stamp a snack shortcut', concept: 'ditto stamp', duration: 90, goal: 35,
+    id: '1-30', name: 'Stamp a snack shortcut', concept: 'ditto stamp', duration: 90, goal: 35,
     enemies: [[6,'mouse',3],[28,'ball',3],[52,'mouse',3,'red']], weapons: [[20,'bronze'],[48,'silver']],
     bricks: [[2,{ boost: true }],[12,{ conveyor: true }]],
     items: [[5,'ditto-stamp'],[35,'ditto-stamp']],
@@ -550,7 +561,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Scare up some supper', concept: 'spooky mask', duration: 90, goal: 30, killGoal: 4,
+    id: '1-31', name: 'Scare up some supper', concept: 'spooky mask', duration: 90, goal: 30, killGoal: 4,
     enemies: [[8,'mouse',4],[28,'ram',4],[50,'mouse',5,'red']],
     weapons: [[22,'silver'],[50,'silver']],
     bricks: [[2,{ spikes: true }],[12,{ springs: true }]],
@@ -563,7 +574,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Fence the food depot', concept: 'barrier blocks', duration: 100, goal: 35, killGoal: 4,
+    id: '1-32', name: 'Fence the food depot', concept: 'barrier blocks', duration: 100, goal: 35, killGoal: 4,
     enemies: [[8,'bucket',3],[32,'ball',4,'red'],[58,'bucket',3]],
     weapons: [[22,'silver'],[52,'silver']],
     bricks: [[2,{ barrier: true }],[12,{ barrier: true }],[19,{ barrier: true }],
@@ -576,7 +587,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Pumpkin pantry patrol', concept: 'robo jackolantern', duration: 100, killGoal: 4,
+    id: '1-33', name: 'Pumpkin pantry patrol', concept: 'robo jackolantern', duration: 100, killGoal: 4,
     enemies: [[8,'jackolantern',2],[30,'jackolantern',2],[52,'jackolantern',2,'red'],[74,'jackolantern',2]],
     weapons: [[22,'silver'],[52,'silver']],
     bricks: [[2,{ barrier: true }],[12,{ barrier: true }],[19,{ barrier: true }],[16,{ toggle: 2 }]],
@@ -588,7 +599,7 @@ const LEVELS = [
     ],
   },
   {
-    name: 'The final countdown feast', concept: 'boom helmet and boom times', duration: 100, goal: 35,
+    id: '1-34', name: 'The final countdown feast', concept: 'boom helmet and boom times', duration: 100, goal: 35,
     activationLimit: 6, enemies: [[6,'mouse',3],[28,'wheel',3],[52,'mouse',4,'red']],
     weapons: [[20,'bronze'],[48,'silver']],
     bricks: [[2,{ warped: 10 }],[12,{ conveyor: true }]],
@@ -665,13 +676,24 @@ const LEVELS = [
     weapons.push([Math.floor(entry.duration / 3), 'bronze'], [Math.floor(entry.duration * 2 / 3), 'bronze']);
     weapons.sort((a, b) => a[0] - b[0]);
   }
+  const catBlockCarrier = [2, 5, 8].includes(index);
   return {
-    id: `1-${index + 1}`, worldId: index < 10 ? '1' : '2',
-    number: index < 10 ? `1-${index + 1}` : `2-${index - 9}`,
+    id: entry.id,
     name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
     heartCost: index < 3 || foodPoints === 0 ? Infinity : Math.ceil(foodPoints / 5),
     brickSet: index === 0 ? 1 : 3, brickTypes, brickGroups, food, enemies: entry.enemies, items: entry.items ?? [],
+    ...(index < 10 ? {
+      items: catBlockCarrier || entry.catBlock ? entry.items ?? []
+        : [...(entry.items ?? []), [Math.floor(entry.duration / 2), 'cat-block']].sort((a, b) => a[0] - b[0]),
+      ...(catBlockCarrier ? {
+        enemies: entry.enemies.map((event, wave) => wave === 0
+          ? [event[0], event[1], event[2], event[3], { carriesCatBlock: true }] : event),
+      } : {}),
+      catBlock: entry.catBlock ?? { description: catBlockCarrier
+        ? 'An enemy in the first patrol carries the Cat Block. Defeat the marked enemy, then collect the block it drops.'
+        : 'A Cat Block appears at a random location halfway through the level. Collect it to keep it.' },
+    } : {}),
     weapons,
     ...(entry.events ? { events: entry.events } : {}),
     ...(entry.goalsGoal ? { goalsGoal: entry.goalsGoal } : {}),
@@ -704,9 +726,9 @@ const placedFood = duration => FOUNDRY_FOOD_ORDER.flatMap((type, i) => {
 });
 const placed = (kind, entries) => entries.map(([time, type, x, y, extra]) => ({ time, kind, type, x, y, ...extra }));
 const QUADRANTS = [[.22, .25], [.78, .25], [.22, .75], [.78, .75]];
-const FOUNDRY_LEVELS = [
+const FOUNDRY_LEVEL_DATA = [
   {
-    name: 'Tom\'s foundry kickoff', concept: 'robo goalies', duration: 150, goalsGoal: 5, layout: 'x',
+    id: '1-35', name: 'Tom\'s foundry kickoff', concept: 'robo goalies', duration: 150, goalsGoal: 5, layout: 'x',
     enemies: [[1,'goalie',2],[20,'mouse',3],[40,'goalie',1],[60,'mouse',3],[80,'goalie',1,'red'],[100,'wheel',2]],
     weapons: [[16,'bronze'],[50,'silver'],[95,'bronze']],
     bricks: [[2,{ kind: 'goal' }],[12,{ kind: 'goal' }],[19,{ kind: 'goal' }],[16,{ springs: true }],[5,{ crumbler: 4 }]],
@@ -721,7 +743,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Painting the pancake path', concept: 'paint brushes', duration: 100, goal: 40, layout: 'y',
+    id: '1-36', name: 'Painting the pancake path', concept: 'paint brushes', duration: 100, goal: 40, layout: 'y',
     enemies: [[6,'mouse',3],[26,'wheel',2],[48,'ram',2],[70,'mouse',1,'red']],
     weapons: [[20,'bronze'],[60,'bronze']],
     bricks: [[18,{ conveyor: true }],[23,{ crumbler: 3 }]],
@@ -735,7 +757,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Caped cat cafe', concept: 'kitty cape', duration: 80, survive: true, layout: 'z',
+    id: '1-37', name: 'Caped cat cafe', concept: 'kitty cape', duration: 80, survive: true, layout: 'z',
     enemies: [[4,'mouse',4],[14,'wheel',3],[26,'ball',2],[36,'ram',2],[48,'mouse',3],[58,'snake',1],[62,'ball',1,'red']],
     weapons: [[18,'bronze'],[50,'silver']],
     bricks: [[20,{ springs: true }],[5,{ warped: 10 }]],
@@ -748,7 +770,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Laser light lunch', concept: 'laser turret', duration: 120, killGoal: 15, layout: 'x',
+    id: '1-38', name: 'Laser light lunch', concept: 'laser turret', duration: 120, killGoal: 15, layout: 'x',
     enemies: [[4,'mouse',4],[12,'wheel',3],[24,'ram',3],[36,'ball',3],[50,'mouse',4],[62,'bucket',2],
       [74,'snake',2],[86,'mouse',3],[98,'ball',1,'red'],[104,'ram',1]],
     weapons: [[30,'bronze'],[80,'bronze']],
@@ -763,7 +785,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Blocked buffet', concept: 'obstructions', duration: 100, goal: 35, killGoal: 4, layout: 'y',
+    id: '1-39', name: 'Blocked buffet', concept: 'obstructions', duration: 100, goal: 35, killGoal: 4, layout: 'y',
     enemies: [[6,'mouse',3],[20,'wheel',2],[40,'ball',2],[60,'mouse',2],[75,'ram',1,'red']],
     bricks: [[3,{ portal: 'purple' }],[18,{ portal: 'purple' }],[23,{ spikes: true }]],
     events: [
@@ -780,7 +802,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Snail-paced soup', concept: 'robo snail', duration: 100, goal: 35, killGoal: 3, layout: 'z',
+    id: '1-40', name: 'Snail-paced soup', concept: 'robo snail', duration: 100, goal: 35, killGoal: 3, layout: 'z',
     enemies: [[4,'robo-snail',1],[10,'mouse',3],[30,'wheel',2],[40,'robo-snail',1],[55,'mouse',3],[70,'robo-snail',1]],
     weapons: [[22,'bronze'],[60,'bronze']],
     bricks: [[5,{ crumbler: 3 }],[20,{ conveyor: true }],[23,{ slimed: true, slimeColor: 'red' }]],
@@ -793,7 +815,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Pinball pantry', concept: 'bumpers', duration: 100, goal: 40, layout: 'x',
+    id: '1-41', name: 'Pinball pantry', concept: 'bumpers', duration: 100, goal: 40, layout: 'x',
     enemies: [[6,'mouse',3],[24,'ball',2],[44,'wheel',2],[60,'bucket',1],[75,'mouse',2],[85,'ball',1,'red']],
     bricks: [[16,{ springs: true }],[7,{ barrier: true }],[22,{ barrier: true }]],
     events: [
@@ -810,7 +832,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Bubble tea trouble', concept: 'bubbles', duration: 110, goal: 25, killGoal: 5, layout: 'y',
+    id: '1-42', name: 'Bubble tea trouble', concept: 'bubbles', duration: 110, goal: 25, killGoal: 5, layout: 'y',
     enemies: [[6,'mouse',3],[20,'ram',2],[36,'ball',2],[52,'mouse',3],[68,'wheel',2],[84,'ram',1,'green']],
     bricks: [[7,{ warped: 10 }],[18,{ boost: true }]],
     events: [
@@ -828,7 +850,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Fireball fry-up', concept: 'fireball turret', duration: 120, killGoal: 14, layout: 'z',
+    id: '1-43', name: 'Fireball fry-up', concept: 'fireball turret', duration: 120, killGoal: 14, layout: 'z',
     enemies: [[4,'mouse',4],[14,'bucket',2],[26,'ram',3],[40,'ball',3],[54,'mouse',4],[66,'jackolantern',1],
       [78,'wheel',3],[90,'mouse',3],[100,'ram',1,'red']],
     weapons: [[25,'bronze'],[70,'bronze']],
@@ -842,7 +864,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Demolition dinner', concept: 'destructible obstructions', duration: 110, goal: 30, killGoal: 4, layout: 'x',
+    id: '1-44', name: 'Demolition dinner', concept: 'destructible obstructions', duration: 110, goal: 30, killGoal: 4, layout: 'x',
     enemies: [[6,'mouse',3],[18,'wheel',2],[34,'ball',2],[50,'mouse',3],[66,'ram',1,'red'],[80,'bucket',1]],
     bricks: [[7,{ turret: 'fireball' }],[2,{ toggle: 2 }],[16,{ slimed: true, slimeColor: 'green' }]],
     events: [
@@ -860,7 +882,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Surprise wall supper', concept: 'appearing obstructions', duration: 90, survive: true, layout: 'y',
+    id: '1-45', name: 'Surprise wall supper', concept: 'appearing obstructions', duration: 90, survive: true, layout: 'y',
     enemies: [[4,'mouse',3],[14,'wheel',2],[30,'robo-snail',1],[40,'ram',2],[48,'ram',1,'blue'],[55,'ball',2],[70,'mouse',3]],
     bricks: [[13,{ springs: true }],[7,{ conveyor: true }]],
     events: [
@@ -878,7 +900,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Stampede steakhouse', concept: 'robo cows', duration: 120, killGoal: 8, layout: 'x',
+    id: '1-46', name: 'Stampede steakhouse', concept: 'robo cows', duration: 120, killGoal: 8, layout: 'x',
     enemies: [[4,'robo-cow',1],[10,'mouse',2],[20,'robo-cow',1],[30,'ball',2],[45,'robo-cow',1,'red'],[55,'mouse',2],
       [70,'robo-cow',1],[85,'ball',1]],
     weapons: [[40,'wood']],
@@ -892,7 +914,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Unicorn dessert dash', concept: 'robo unicorns', duration: 120, goal: 45, layout: 'z',
+    id: '1-47', name: 'Unicorn dessert dash', concept: 'robo unicorns', duration: 120, goal: 45, layout: 'z',
     enemies: [[2,'robo-unicorn',1],[12,'mouse',2],[30,'robo-unicorn',1],[55,'mouse',3],[62,'robo-unicorn',1,'green'],[80,'ball',2]],
     food: [5, 15, 25, 35, 45, 55, 65, 75, 85, 95].map((time, i) =>
       [time, i % 2 ? 'C3' : 'L3', ['S', 'P', 'B', 'C', 'L', 'F', 'H', 'L', 'C', 'F'][i], 20]),
@@ -908,7 +930,7 @@ const FOUNDRY_LEVELS = [
     ],
   },
   {
-    name: 'Copycat showdown', concept: 'robo koshi', duration: 110, goal: 30, killGoal: 4, layout: 'y',
+    id: '1-48', name: 'Copycat showdown', concept: 'robo koshi', duration: 110, goal: 30, killGoal: 4, layout: 'y',
     enemies: [[3,'robo-koshi',1],[10,'mouse',3],[25,'wheel',2],[40,'robo-koshi',1],[55,'mouse',1,'red'],[70,'ram',2],[85,'robo-koshi',1]],
     weapons: [[16,'bronze'],[50,'silver'],[80,'bronze']],
     bricks: [[3,{ portal: 'orange' }],[18,{ portal: 'orange' }],[13,{ springs: true }]],
@@ -921,8 +943,7 @@ const FOUNDRY_LEVELS = [
       ['koshi', 'A sword works on copies too. Once this foundry falls, the whole world gets a feast, and I get first helpings!'],
     ],
   },
-].map((entry, offset) => {
-  const index = LEVELS.length + offset;
+].map(entry => {
   const groups = FOUNDRY_LAYOUTS[entry.layout];
   const brickTypes = entry.bricks.flatMap(([id, attributes]) =>
     (attributes.kind === 'goal' ? groups.find(group => group[0] === id) ?? [id] : [id])
@@ -937,7 +958,7 @@ const FOUNDRY_LEVELS = [
     ...entry.enemies.map(([, type]) => type),
   ])].slice(0, 2);
   return {
-    id: `1-${index + 1}`, worldId: '3', number: `3-${offset + 1}`,
+    id: entry.id,
     name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
     // At most five hearts even if every food point is collected.
@@ -949,7 +970,6 @@ const FOUNDRY_LEVELS = [
     cutscene: story('foundry', entry.dialogue, cast),
   };
 });
-LEVELS.push(...FOUNDRY_LEVELS);
 
 // World 3S (Tom's Gauntlet) is an optional challenge branch from World 2. Each level declares its own
 // brick groups and slow/fast colors; static objects sit on QUADRANTS so placed spawns stay reachable.
@@ -959,9 +979,9 @@ const spread = (kind, entries, start = 0) => placed(kind, entries.map(([time, ty
   [time, type, ...CHALLENGE_SPOTS[(i + start) % CHALLENGE_SPOTS.length]]));
 const soccerBalls = times => placed('object', times.map((time, i) => [time, 'soccer-ball', ...SOCCER_SPOTS[i % SOCCER_SPOTS.length]]));
 const atQuadrants = entries => placed('object', entries.map(([time, type, quadrant, extra]) => [time, type, ...QUADRANTS[quadrant], extra]));
-const CHALLENGE_LEVELS = [
+const CHALLENGE_LEVEL_DATA = [
   {
-    name: 'Goalie gauntlet', concept: 'goalie gauntlet', duration: 150, goalsGoal: 6,
+    id: '1-49', name: 'Goalie gauntlet', concept: 'goalie gauntlet', duration: 150, goalsGoal: 6,
     groups: [[18, 16, 14], [15, 17], [2, 4], [7, 5], [10, 0]],
     kinds: { 24: 'slow', 7: 'slow', 23: 'slow', 2: 'fast', 12: 'fast', 21: 'fast' },
     bricks: [[18,{ kind: 'goal' }],[15,{ kind: 'goal' }],[10,{ springs: true }],[2,{ conveyor: true, conveyorDirection: 'clockwise' }],[23,{ crumbler: 3 }]],
@@ -982,7 +1002,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Unicorn smorgasbord', concept: 'unicorn buffet', duration: 110, goal: 60,
+    id: '1-50', name: 'Unicorn smorgasbord', concept: 'unicorn buffet', duration: 110, goal: 60,
     groups: [[22, 20], [0, 2, 4], [13, 15], [9, 7], [3, 1]],
     kinds: { 22: 'slow', 14: 'slow', 9: 'slow', 0: 'fast', 17: 'fast', 3: 'fast' },
     bricks: [[12,{ spawner: { kind: 'food', type: 'H', lifetime: 20 } }],[0,{ portal: 'blue' }],[19,{ portal: 'blue' }],[9,{ warped: 8 }],
@@ -1000,7 +1020,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Laser lockdown', concept: 'turret crossfire', duration: 130, killGoal: 22,
+    id: '1-51', name: 'Laser lockdown', concept: 'turret crossfire', duration: 130, killGoal: 22,
     groups: [[16, 14, 12, 10], [8, 11], [19, 21], [5, 3]],
     kinds: { 16: 'slow', 13: 'slow', 22: 'slow', 6: 'fast', 23: 'fast', 1: 'fast' },
     bricks: [[16,{ turret: 'laser' }],[8,{ turret: 'fireball' }],[19,{ turret: 'laser' }],[2,{ toggle: 2 }],[25,{ spikes: true }],[5,{ toggle: 1 }]],
@@ -1016,7 +1036,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Bubble bend-it', concept: 'bubble bank shots', duration: 140, goal: 30, goalsGoal: 4,
+    id: '1-52', name: 'Bubble bend-it', concept: 'bubble bank shots', duration: 140, goal: 30, goalsGoal: 4,
     groups: [[2, 4, 6], [24, 22], [17, 19], [7, 5]],
     kinds: { 24: 'fast', 13: 'fast', 0: 'fast', 17: 'slow', 9: 'slow', 12: 'slow' },
     bricks: [[2,{ kind: 'goal' }],[24,{ boost: true }],[17,{ slimed: true, slimeColor: 'red' }],[7,{ warped: 10 }],[3,{ barrier: true }]],
@@ -1037,7 +1057,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Copycat penalty kicks', concept: 'copycat penalties', duration: 130, killGoal: 8, goalsGoal: 4,
+    id: '1-53', name: 'Copycat penalty kicks', concept: 'copycat penalties', duration: 130, killGoal: 8, goalsGoal: 4,
     groups: [[20, 18], [12, 10], [11, 13], [23, 25], [5, 3, 1]],
     kinds: { 22: 'slow', 23: 'slow', 4: 'slow', 12: 'fast', 5: 'fast', 15: 'fast' },
     bricks: [[20,{ kind: 'goal' }],[11,{ kind: 'goal' }],[12,{ portal: 'green' }],[23,{ portal: 'green' }],[5,{ crumbler: 3 }],[6,{ spikes: true }]],
@@ -1054,7 +1074,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Cinder stampede', concept: 'cinder stampede', duration: 120, goal: 35, killGoal: 8,
+    id: '1-54', name: 'Cinder stampede', concept: 'cinder stampede', duration: 120, goal: 35, killGoal: 8,
     groups: [[24, 22, 20], [0, 2], [15, 17], [21, 23], [9, 7]],
     kinds: { 24: 'slow', 0: 'slow', 13: 'slow', 18: 'fast', 4: 'fast', 21: 'fast', 3: 'fast' },
     bricks: [[14,{ boost: true }],[21,{ boost: true }],[0,{ barrier: true }],[9,{ barrier: true }],[16,{ crumbler: 3 }],[5,{ springs: true }]],
@@ -1070,7 +1090,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Obstacle cup', concept: 'obstacle course', duration: 140, goalsGoal: 5,
+    id: '1-55', name: 'Obstacle cup', concept: 'obstacle course', duration: 140, goalsGoal: 5,
     groups: [[14, 12], [4, 6, 8], [19, 21], [25, 9]],
     kinds: { 14: 'slow', 3: 'slow', 17: 'slow', 19: 'fast', 0: 'fast', 24: 'fast' },
     bricks: [[4,{ kind: 'goal' }],[25,{ turret: 'fireball' }],[19,{ toggle: 2 }],[1,{ conveyor: true, conveyorDirection: 'counterclockwise' }]],
@@ -1092,7 +1112,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Boom helmet bakery', concept: 'boom bakery', duration: 120, goal: 50, activationLimit: 8,
+    id: '1-56', name: 'Boom helmet bakery', concept: 'boom bakery', duration: 120, goal: 50, activationLimit: 8,
     groups: [[22, 20, 18], [2, 4], [17, 19], [7, 5], [23, 25]],
     kinds: { 22: 'slow', 7: 'slow', 23: 'slow', 2: 'fast', 15: 'fast', 12: 'fast' },
     bricks: [[16,{ conveyor: true, conveyorDirection: 'clockwise' }],[2,{ springs: true }],[17,{ warped: 8 }],[7,{ toggle: 4 }],
@@ -1110,7 +1130,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Jackolantern junkyard', concept: 'fire and fences', duration: 120, killGoal: 14,
+    id: '1-57', name: 'Jackolantern junkyard', concept: 'fire and fences', duration: 120, killGoal: 14,
     groups: [[18, 16], [0, 2, 4], [13, 15], [19, 21, 23], [3, 1]],
     kinds: { 18: 'slow', 11: 'slow', 7: 'slow', 12: 'fast', 0: 'fast', 25: 'fast' },
     bricks: [[18,{ spikes: true }],[0,{ portal: 'yellow' }],[19,{ portal: 'yellow' }],[7,{ slimed: true, slimeColor: 'blue' }],[10,{ barrier: true }],
@@ -1131,7 +1151,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Grand slam', concept: 'triple threat', duration: 150, goal: 30, killGoal: 6, goalsGoal: 3,
+    id: '1-58', name: 'Grand slam', concept: 'triple threat', duration: 150, goal: 30, killGoal: 6, goalsGoal: 3,
     groups: [[24, 22], [12, 10], [2, 4], [15, 17, 19], [9, 7]],
     kinds: { 12: 'slow', 21: 'slow', 3: 'slow', 24: 'fast', 6: 'fast', 9: 'fast' },
     bricks: [[15,{ kind: 'goal' }],[2,{ spawner: { kind: 'weapon', type: 'bronze' } }],[24,{ springs: true }],
@@ -1153,7 +1173,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'Turret derby', concept: 'turret derby', duration: 140, killGoal: 12, goalsGoal: 4,
+    id: '1-59', name: 'Turret derby', concept: 'turret derby', duration: 140, killGoal: 12, goalsGoal: 4,
     groups: [[20, 18, 16], [0, 2], [6, 8], [11, 13], [21, 23, 25]],
     kinds: { 0: 'slow', 11: 'slow', 5: 'slow', 14: 'fast', 6: 'fast', 9: 'fast' },
     bricks: [[20,{ kind: 'goal' }],[0,{ turret: 'laser' }],[21,{ turret: 'laser' }],[6,{ toggle: 2 }],[11,{ toggle: 1 }],
@@ -1175,7 +1195,7 @@ const CHALLENGE_LEVELS = [
     ],
   },
   {
-    name: 'The duck\'s last stand', concept: 'last stand', duration: 160, goal: 40, goalsGoal: 4,
+    id: '1-60', name: 'The duck\'s last stand', concept: 'last stand', duration: 160, goal: 40, goalsGoal: 4,
     groups: [[22, 20], [14, 12, 10, 0], [4, 6], [13, 15, 17], [25, 9], [3, 1]],
     kinds: { 14: 'slow', 8: 'slow', 25: 'slow', 22: 'fast', 2: 'fast', 21: 'fast', 5: 'fast' },
     bricks: [[13,{ kind: 'goal' }],[14,{ boost: true }],[4,{ portal: 'red' }],[25,{ portal: 'red' }],[19,{ spikes: true }],
@@ -1198,8 +1218,7 @@ const CHALLENGE_LEVELS = [
       ['koshi', 'When this gauntlet falls, the whole world gets a feast, and I get the first bite!'],
     ],
   },
-].map((entry, offset) => {
-  const index = LEVELS.length + offset;
+].map(entry => {
   const attributes = new Map([...campaignRegions.keys()].map(id => [id, { kind: entry.kinds[id] ?? 'normal' }]));
   for (const [id, brick] of entry.bricks) {
     for (const member of brick.kind === 'goal' ? entry.groups.find(group => group[0] === id) ?? [id] : [id]) {
@@ -1217,7 +1236,7 @@ const CHALLENGE_LEVELS = [
     ...entry.enemies.map(([, type]) => type),
   ])].slice(0, 2);
   return {
-    id: `1-${index + 1}`, worldId: '3S', number: `3S-${offset + 1}`,
+    id: entry.id,
     name: entry.name, concept: entry.concept, duration: entry.duration,
     goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: false,
     // Challenge levels allow at most four hearts even if every food point is collected.
@@ -1230,7 +1249,13 @@ const CHALLENGE_LEVELS = [
     cutscene: story('foundry', entry.dialogue, cast),
   };
 });
-LEVELS.push(...CHALLENGE_LEVELS);
+const LEVEL_DATA = {};
+for (const level of [...BASE_LEVEL_DATA, ...FOUNDRY_LEVEL_DATA, ...CHALLENGE_LEVEL_DATA]) {
+  if (Object.hasOwn(LEVEL_DATA, level.name)) throw new Error(`Duplicate level name: ${level.name}`);
+  LEVEL_DATA[level.name] = level;
+}
+const campaign = typeof module !== 'undefined' && module.exports ? require('./campaign.js') : globalThis.KoshiCampaign;
+const LEVELS = campaign.assembleCampaign(LEVEL_DATA);
 
 function portalPairIssues(bricks) {
   return Object.keys(PORTALS).flatMap(color => {
@@ -1310,6 +1335,22 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const result = { time, kind: event.kind, type: event.type, x, y };
     shield(event, result, name);
     obstructionAppearance(event, result, name);
+    if (event.carriesCatBlock !== undefined) {
+      if (event.kind !== 'enemy' || typeof event.carriesCatBlock !== 'boolean') fail(`${name} has an invalid Cat Block carrier setting.`);
+      if (event.carriesCatBlock) result.carriesCatBlock = true;
+    }
+    if (event.carriesKey !== undefined) {
+      if (event.kind !== 'enemy' || typeof event.carriesKey !== 'boolean') fail(`${name} has an invalid key carrier setting.`);
+      if (event.carriesKey) result.carriesKey = true;
+    }
+    if (event.keysRequired !== undefined && (event.kind !== 'item' || event.type !== 'treasure-chest')) {
+      fail(`${name}: keysRequired is only supported for treasure chests.`);
+    }
+    if (event.kind === 'item' && event.type === 'treasure-chest') {
+      const keysRequired = number(event.keysRequired ?? 1, 1, 100000, `${name} required keys`);
+      if (!Number.isInteger(keysRequired)) fail(`${name} required keys must be a whole number.`);
+      result.keysRequired = keysRequired;
+    }
     if (event.kind === 'object' && event.lifetime != null) fail(`${name}: objects cannot have a lifetime; soccer balls persist until scored and other objects until used or the level ends.`);
     if (event.kind === 'food') result.lifetime = number(event.lifetime, .1, 3600, `${name} food lifetime`);
     else if (['item', 'weapon'].includes(event.kind) && event.lifetime != null) {
@@ -1322,6 +1363,22 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
   if (value.goalsGoal !== undefined) result.goalsGoal = goalsGoal;
   if (value.activationLimit !== undefined) result.activationLimit = value.activationLimit;
   if (value.survive !== undefined) result.survive = value.survive;
+  if (value.catBlock !== undefined) {
+    const catBlock = value.catBlock;
+    if (!catBlock || typeof catBlock !== 'object' || Array.isArray(catBlock)
+      || typeof catBlock.description !== 'string' || !catBlock.description.trim() || catBlock.description.length > 500) {
+      fail('Cat Block description must contain 1–500 characters.');
+    }
+    const messages = {};
+    for (const source of Object.keys(CAT_BLOCK_MESSAGES)) {
+      const message = catBlock.messages?.[source] ?? CAT_BLOCK_MESSAGES[source];
+      if (typeof message !== 'string' || !message.trim() || message.length > 200) {
+        fail(`Cat Block ${source} message must contain 1–200 characters.`);
+      }
+      messages[source] = message.trim();
+    }
+    result.catBlock = { description: catBlock.description.trim(), messages };
+  }
   if (value.cutscene !== undefined) result.cutscene = validateCutscene(value.cutscene);
   if (value.brickTypes !== undefined) {
     if (!Array.isArray(value.brickTypes) || value.brickTypes.length > 2000) fail('Brick types must be an array of at most 2000 edge overrides.');
@@ -1418,6 +1475,11 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     });
   }
   applyBrickGroups(bricks, result.brickGroups);
+  const hasCatBlockSource = result.events.some(event =>
+    event.kind === 'item' && ['cat-block', 'treasure-chest'].includes(event.type)
+    || event.kind === 'enemy' && event.carriesCatBlock)
+    || result.brickTypes?.some(brick => brick.spawner?.kind === 'item' && brick.spawner.type === 'cat-block');
+  if (hasCatBlockSource && !result.catBlock) fail('Enable Cat Block in level settings and add its collection description.');
   const issues = portalPairIssues(bricks);
   if (!allowUnpairedPortals && issues.length) fail(issues.join(' '));
   return result;
@@ -2132,7 +2194,7 @@ function rotateToward(angle, target, maximum) {
 }
 
 class Game {
-  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null, editorPreview = false } = {}) {
+  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null, editorPreview = false, catBlockCollected = false } = {}) {
     if (customLevel) {
       this.customLevel = validateCustomLevel(customLevel, { allowUnpairedPortals: editorPreview });
       this.levelIndex = -1;
@@ -2145,6 +2207,7 @@ class Game {
       this.customEvents = [...(this.level.events ?? [])].sort((a, b) => a.time - b.time);
     }
     this.random = random;
+    this.catBlockPreviouslyCollected = catBlockCollected;
     this.portrait = portrait;
     this.scale = scale;
     this.width = portrait ? HEIGHT : WIDTH;
@@ -2162,6 +2225,7 @@ class Game {
     this.goals = 0;
     this.soccerBalls = [];
     this.bubbles = [];
+    this.bubblePops = [];
     this.bumpers = [];
     this.obstructions = [];
     this.obstructionDestructions = [];
@@ -2169,6 +2233,9 @@ class Game {
     this.activationsRemaining = this.level.activationLimit ?? null;
     this.boomHelmet = null;
     this.hearts = 3;
+    this.keys = 0;
+    this.catBlockCollected = this.catBlockPreviouslyCollected;
+    this.catBlockEvents = [];
     this.tookDamage = false;
     this.invulnerableUntil = 0;
     this.nextEvent = 0;
@@ -2523,6 +2590,7 @@ class Game {
   spawnFromBrick(brick) {
     const spawn = brick.spawner;
     brick.spawned = true;
+    if (this.catBlockCollected && spawn.kind === 'item' && this.isCatBlockSource(spawn)) return;
     if (spawn.x !== undefined && spawn.y !== undefined) {
       const position = spawn.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(spawn.type)
         ? snapWheel(spawn.x, spawn.y) : { x: spawn.x, y: spawn.y };
@@ -2827,7 +2895,7 @@ class Game {
         if (time > this.elapsed + 2 + 1e-9) break;
         const duration = event.kind === 'object' && OBJECTS[event.type]?.obstruction ? 2 : 1;
         if (time > this.elapsed + duration + 1e-9) continue;
-        if (!this.pendingSpawns.has(event)) this.pendingSpawns.set(event, { kind: kind ?? event.kind, time, duration, items: create(event) });
+        if (!this.pendingSpawns.has(event)) this.pendingSpawns.set(event, { kind: kind ?? event.kind, time, duration, items: this.availableSpawns(create(event)) });
       }
     };
     prepare(this.customEvents, this.nextCustom, null, event => this.createCustomSpawn(event), event => event.time);
@@ -2849,7 +2917,7 @@ class Game {
   takeSpawn(event, create) {
     const pending = this.pendingSpawns.get(event);
     this.pendingSpawns.delete(event);
-    const items = pending ? pending.items : create(event);
+    const items = this.availableSpawns(pending ? pending.items : create(event));
     if (Array.isArray(event)) {
       for (const item of items) {
         if (needsBrickSpawnClearance(item.type) && !this.stampSpawnClear(item)) {
@@ -2995,14 +3063,21 @@ class Game {
   }
 
   createCustomSpawn(event) {
+    if (this.catBlockCollected && event.kind === 'item' && this.isCatBlockSource(event)) return [];
     const point = this.pointFromRelative(event.x, event.y);
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
-    if (event.kind === 'weapon' || event.kind === 'item') return [this.createCollectible(event.time, event.type, event.lifetime, point)];
+    if (event.kind === 'weapon' || event.kind === 'item') {
+      const collectible = this.createCollectible(event.time, event.type, event.lifetime, point);
+      if (event.type === 'treasure-chest') collectible.keysRequired = event.keysRequired ?? 1;
+      return [collectible];
+    }
     if (event.kind === 'object') return [OBJECTS[event.type].bumper
       ? this.createBumper(point, event.type) : OBJECTS[event.type].bubble
         ? this.createBubble(point, event.type) : OBJECTS[event.type].obstruction
           ? this.createObstruction(point, event) : this.createSoccerBall(point)];
     const enemy = { ...point, type: event.type, radius: event.type === 'robo-cow' ? 26 : 19,
+      carriesCatBlock: !this.catBlockCollected && event.carriesCatBlock === true,
+      ...(event.carriesKey ? { carriesKey: true } : {}),
       phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
     this.initializeShield(enemy, event.shield);
     this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
@@ -3399,11 +3474,13 @@ class Game {
     throw new RangeError('No safe perimeter enemy spawn location is available.');
   }
 
-  createEnemies([, type, count, shield]) {
+  createEnemies([, type, count, shield, options]) {
     const items = [];
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
     for (let i = 0; i < count; i++) {
       const enemy = { ...this.randomPoint(), type, radius: type === 'robo-cow' ? 26 : 19,
+        ...(!this.catBlockCollected && options?.carriesCatBlock && i === 0 ? { carriesCatBlock: true } : {}),
+        ...(options?.carriesKey && i === 0 ? { carriesKey: true } : {}),
         phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: this.random() * 2 * (w + h) };
       this.initializeShield(enemy, shield);
       if (type === 'ram') this.initializeRam(enemy);
@@ -3572,6 +3649,14 @@ class Game {
 
   defeatEnemy(enemy, awardPoints = true) {
     if (awardPoints) this.enemies += enemy.defeatPoints ?? 1;
+    if (enemy.carriesKey) {
+      this.items.push(this.createCollectible(this.elapsed, 'key', null, { x: enemy.x, y: enemy.y }));
+      enemy.carriesKey = false;
+    }
+    if (enemy.carriesCatBlock && !this.catBlockCollected) {
+      this.items.push({ ...this.createCollectible(this.elapsed, 'cat-block', null, { x: enemy.x, y: enemy.y }), source: 'enemy' });
+      enemy.carriesCatBlock = false;
+    }
     this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
       bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
     if (enemy.type === 'robo-snail') this.freezeBrickCooldowns();
@@ -3793,6 +3878,20 @@ class Game {
     enemy.cowWalkRemaining = steps * perimeter / this.perimeter.length;
     enemy.cowTargetIndex = null;
     enemy.cowTargetId = null;
+  }
+
+  updateRoboCowFear(enemy) {
+    const afraid = this.maskActive;
+    if (afraid && !enemy.afraid) {
+      enemy.cowEating = false;
+      enemy.cowEatTime = 0;
+      enemy.cowTargetIndex = null;
+      enemy.cowTargetId = null;
+      enemy.cowWalkRemaining = 0;
+    } else if (!afraid && enemy.afraid) {
+      this.chooseCowWalkDistance(enemy);
+    }
+    enemy.afraid = afraid;
   }
 
   updateRoboCow(enemy, seconds) {
@@ -4547,6 +4646,7 @@ class Game {
     this.items = this.items.filter(item => {
       if (item.expires != null && item.expires <= this.elapsed + 1e-9) return false;
       if (distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y) > reach) return true;
+      if (item.type === 'treasure-chest' && this.keys < (item.keysRequired ?? 1)) return true;
       const x = item.x - startX, y = item.y - startY;
       const along = length ? (x * dx + y * dy) / length : 0;
       const across = length ? (x * dy - y * dx) / length : 0;
@@ -4554,6 +4654,7 @@ class Game {
       return false;
     });
     for (const { item } of collectedItems.sort((a, b) => a.entry - b.entry)) {
+      if (this.catBlockCollected && this.isCatBlockSource(item)) continue;
       this.collectItem(item);
       this.recordPickup(item, 'item');
     }
@@ -4573,6 +4674,7 @@ class Game {
     for (const enemy of this.robots) {
       enemy.age += dt;
       enemy.asleep = this.enemiesSleepUntil > this.elapsed + 1e-9;
+      if (enemy.type === 'robo-cow') this.updateRoboCowFear(enemy);
       enemy.afraid = this.maskActive;
       enemy.fleeMoving = false;
       if (enemy.asleep) { enemy.touching = false; continue; }
@@ -4711,8 +4813,38 @@ class Game {
     });
   }
 
+  isCatBlockSource(item) {
+    return item.type === 'cat-block' || item.type === 'treasure-chest';
+  }
+
+  availableSpawns(items) {
+    if (!this.catBlockCollected) return items;
+    return items.filter(item => {
+      if (item.carriesCatBlock) item.carriesCatBlock = false;
+      return !this.isCatBlockSource(item);
+    });
+  }
+
+  collectCatBlock(source) {
+    if (this.catBlockCollected) return;
+    this.catBlockCollected = true;
+    this.catBlockEvents.push(source);
+    this.items = this.availableSpawns(this.items);
+    for (const enemy of this.robots) enemy.carriesCatBlock = false;
+    for (const pending of this.pendingSpawns.values()) pending.items = this.availableSpawns(pending.items);
+  }
+
   collectItem(item) {
-    if (ITEMS[item.type]?.paintUses) {
+    if (item.type === 'cat-block') {
+      this.collectCatBlock(item.source ?? 'item');
+    } else if (item.type === 'key') this.keys++;
+    else if (item.type === 'treasure-chest') {
+      if (this.catBlockCollected) return false;
+      const keysRequired = item.keysRequired ?? 1;
+      if (this.keys < keysRequired) return false;
+      this.keys -= keysRequired;
+      this.collectCatBlock('chest');
+    } else if (ITEMS[item.type]?.paintUses) {
       this.paintBrush = { type: item.type, uses: ITEMS[item.type].paintUses };
     } else if (item.type === 'smiley-cookie') {
       this.cookieActive = true;
@@ -4737,6 +4869,7 @@ class Game {
     else if (item.type === 'spooky-mask') {
       this.maskUntil = this.elapsed + MASK_DURATION;
       this.maskPickup = { x: item.x ?? this.cat.x, y: item.y ?? this.cat.y, age: 0 };
+      for (const enemy of this.robots) if (enemy.type === 'robo-cow') this.updateRoboCowFear(enemy);
     }
     else if (item.type === 'magic-sunglasses') {
       this.sunglassesStart = this.elapsed;
@@ -4899,7 +5032,7 @@ class Game {
     }
     this.pickups = this.pickups.filter(pickup => {
       pickup.age += seconds;
-      return pickup.age < .8 - 1e-9;
+      return pickup.age < (pickup.type === 'treasure-chest' ? 1.6 : .8) - 1e-9;
     });
   }
 
@@ -4910,6 +5043,7 @@ class Game {
     if (trap.age >= trap.transition + trap.duration - 1e-9) {
       this.cat.x = trap.x;
       this.cat.y = trap.y;
+      this.bubblePops.push({ x: trap.x, y: trap.y, color: trap.color, age: 0 });
       this.bubbleTrap = null;
       return;
     }
@@ -4917,6 +5051,13 @@ class Game {
     const smooth = progress * progress * (3 - 2 * progress);
     this.cat.x = trap.fromX + (trap.x - trap.fromX) * smooth;
     this.cat.y = trap.fromY + (trap.y - trap.fromY) * smooth;
+  }
+
+  updateBubblePops(seconds) {
+    this.bubblePops = this.bubblePops.filter(pop => {
+      pop.age += seconds;
+      return pop.age < .55 - 1e-9;
+    });
   }
 
   update(seconds) {
@@ -4927,6 +5068,7 @@ class Game {
       this.updatePickups(seconds);
       this.updateBrickDestructions(seconds);
       this.updateObstructionDestructions(seconds);
+      this.updateBubblePops(seconds);
     }
     if (this.state !== 'playing') return;
     let remaining = Math.min(seconds, this.timeLimit - this.elapsed);
@@ -4951,6 +5093,7 @@ class Game {
     this.updatePickups(dt);
     this.updateBrickDestructions(dt);
     this.updateObstructionDestructions(dt);
+    this.updateBubblePops(dt);
     const sunglassesWereActive = this.sunglassesActive;
     const capeWasActive = this.capeActive;
     this.elapsed = Math.min(this.timeLimit, this.elapsed + dt);
@@ -5254,7 +5397,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, OBJECTS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, turretSourceBrick, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, turretSourceBrick, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

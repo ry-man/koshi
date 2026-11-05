@@ -1,10 +1,11 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, ITEMS, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, turretSourceBrick, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, turretSourceBrick, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
+const { collectibleTotals } = globalThis.KoshiCollectibles;
 const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
 
 let game;
@@ -30,6 +31,9 @@ const toast = document.querySelector('#toast');
 const levelSelect = document.querySelector('#level-select');
 const skipCutscene = document.querySelector('#skip-cutscene');
 const weaponStatus = document.querySelector('#weapon-status');
+const catBlockArt = new Image();
+catBlockArt.src = './icons/cat-building-block.png';
+globalThis.koshiCatBlockArt = catBlockArt;
 for (const [index, level] of LEVELS.entries()) {
   const option = document.createElement('option');
   option.value = String(index);
@@ -44,7 +48,7 @@ const saves = new SaveSlots(LEVELS.map(level => level.id), undefined, undefined,
 let activeSave = null;
 let runSave = null;
 const pendingSaves = [];
-const guestProfile = { guest: true, completed: [], results: {} };
+const guestProfile = { guest: true, completed: [], catBlocks: [], results: {} };
 const recordedAttempts = new WeakSet();
 const viewedCutscenes = new Set();
 let attemptId = makeAttemptId();
@@ -89,7 +93,7 @@ if (location.hash.startsWith('#level=')) {
     const backToEditor = document.querySelector('#back-to-editor');
     backToEditor.href = `./editor.html${location.hash}`;
     backToEditor.hidden = false;
-    document.querySelector('#dialog-text').textContent = `${levelObjective(customLevel)}. This is your custom level from the editor.`;
+    document.querySelector('#dialog-text').textContent = levelBriefingText(customLevel);
   } catch (error) {
     console.error('Custom level could not be loaded:', error);
     const message = document.querySelector('#level-error');
@@ -100,7 +104,8 @@ if (location.hash.startsWith('#level=')) {
 if (location.hash.startsWith('#campaign=')) {
   try {
     const id = decodeURIComponent(location.hash.slice(10));
-    const index = LEVELS.findIndex(level => level.id === id || level.number === id);
+    const level = LEVELS.find(level => level.id === id) ?? LEVELS.find(level => level.number === id);
+    const index = LEVELS.indexOf(level);
     if (index < 0) throw new Error('Game level could not be found.');
     levelSelect.value = String(index);
   } catch (failure) {
@@ -118,10 +123,18 @@ function layoutOptions() {
 }
 
 function createGame() {
+  const level = LEVELS[Number(levelSelect.value)];
+  const profile = activeSave ? activeSave.slot : guestProfile;
+  const catBlockCollected = levelSelect.value !== 'custom' && (
+    (profile.catBlocks ?? []).includes(level?.id)
+    || activeSave && pendingSaves.some(pending => pending.id === activeSave.slot.id
+      && pending.result?.outcome === 'won' && pending.result.catBlock
+      && pending.result.levelId === level?.id));
   return new Game(Math.random, {
     ...layoutOptions(),
     level: levelSelect.value === 'custom' ? 0 : Number(levelSelect.value),
     customLevel: levelSelect.value === 'custom' ? customLevel : null,
+    catBlockCollected: Boolean(catBlockCollected),
   });
 }
 
@@ -218,26 +231,66 @@ function flushSaves() {
   while (pendingSaves.length) {
     const pending = pendingSaves[0];
     const slot = pending.levelId
-      ? saves.visit(pending.index, pending.id, pending.levelId)
-      : saves.record(pending.index, pending.id, pending.attemptId, pending.result);
+        ? saves.visit(pending.index, pending.id, pending.levelId)
+        : saves.record(pending.index, pending.id, pending.attemptId, pending.result);
     pendingSaves.shift();
     if (activeSave?.slot.id === slot.id) activeSave.slot = slot;
   }
   updateSaveProfile();
 }
 
+function recordCatBlockFinds() {
+  for (const source of game.catBlockEvents.splice(0)) {
+    const levelId = game.level.id;
+    const collected = runSave ? activeSave?.slot.catBlocks ?? [] : guestProfile.catBlocks;
+    if (!game.customLevel && collected.includes(levelId)) continue;
+    toast.textContent = game.level.catBlock?.messages?.[source] ?? CAT_BLOCK_MESSAGES[source];
+    if (!game.customLevel) toast.textContent += ' Complete the level to keep it!';
+    toastUntil = performance.now() + 3500;
+  }
+}
+
+function attemptResult(outcome) {
+  return {
+    levelId: game.level.id, outcome, time: game.elapsed, food: game.score, enemy: game.enemies,
+    goals: game.goals ?? 0, moves: game.moves,
+    damageFree: outcome === 'won' && !game.tookDamage,
+    ...(outcome === 'won' && game.catBlockCollected ? { catBlock: true } : {}),
+  };
+}
+
+function storeAttempt(result) {
+  if (!runSave) {
+    guestProfile.results[attemptId] = result;
+    if (result.outcome === 'won' && !guestProfile.completed.includes(game.level.id)) guestProfile.completed.push(game.level.id);
+    if (result.catBlock && !(guestProfile.catBlocks ?? []).includes(result.levelId)) {
+      guestProfile.catBlocks ??= [];
+      guestProfile.catBlocks.push(result.levelId);
+    }
+    return;
+  }
+  pendingSaves.push({ ...runSave, attemptId, result });
+  saveAttempt(flushSaves);
+}
+
+function checkpointAttempt() {
+  if (tutorial || game.customLevel || recordedAttempts.has(game)) return;
+  if (['won', 'lost'].includes(game.state)) { saveResult(); return; }
+  if (!['playing', 'paused'].includes(game.state)) return;
+  // Persist before shutdown; mobile app termination may not fire an unload event.
+  storeAttempt({ ...attemptResult('quit'), inProgress: true });
+}
+
 function saveResult() {
   if (tutorial || game.customLevel || recordedAttempts.has(game)) return;
-  if (!['won', 'lost'].includes(game.state)) return;
+  if (!['playing', 'paused', 'won', 'lost'].includes(game.state)) return;
   recordedAttempts.add(game);
-  const result = {
-    levelId: game.level.id, outcome: game.state, time: game.elapsed, food: game.score, enemy: game.enemies,
-    goals: game.goals ?? 0, moves: game.moves,
-    damageFree: game.state === 'won' && !game.tookDamage,
-  };
-  const previousStats = levelStats(runSave ? activeSave?.slot.results : guestProfile.results, game.level.id);
+  const result = attemptResult(['won', 'lost'].includes(game.state) ? game.state : 'quit');
+  const results = runSave ? activeSave?.slot.results : guestProfile.results;
+  const previousStats = levelStats(Object.fromEntries(Object.entries(results ?? {}).filter(([id]) => id !== attemptId)), game.level.id);
   const summary = {
     result,
+    newCatBlock: result.catBlock === true && !game.catBlockPreviouslyCollected,
     previousStats,
     newRecords: {
       time: previousStats.bestTime === null || result.time < previousStats.bestTime,
@@ -248,13 +301,7 @@ function saveResult() {
         && (previousStats.fewestMoves === null || result.moves < previousStats.fewestMoves),
     },
   };
-  if (!runSave) {
-    guestProfile.results[attemptId] = result;
-    if (game.state === 'won' && !guestProfile.completed.includes(game.level.id)) guestProfile.completed.push(game.level.id);
-    return summary;
-  }
-  pendingSaves.push({ ...runSave, attemptId, result });
-  saveAttempt(flushSaves);
+  storeAttempt(result);
   return summary;
 }
 
@@ -279,10 +326,10 @@ function renderSaveSlots() {
     const section = document.createElement('section'), heading = document.createElement('h3');
     section.className = 'save-slot';
     heading.textContent = `Slot ${index + 1}${slot ? ` - ${slot.owner}` : ' - Empty'}`;
+    heading.append(collectibleTotals(slot, LEVELS, document));
     section.append(heading);
     if (slot) {
-      const progress = document.createElement('p'), actions = document.createElement('div');
-      progress.textContent = saveProgress(slot);
+      const actions = document.createElement('div');
       actions.className = 'save-actions';
       const resume = document.createElement('button'), remove = document.createElement('button');
       resume.type = remove.type = 'button';
@@ -305,7 +352,7 @@ function renderSaveSlots() {
         });
       });
       actions.append(resume, remove);
-      section.append(progress, actions);
+      section.append(actions);
     }
     const form = document.createElement('form'), label = document.createElement('label');
     const input = document.createElement('input'), submit = document.createElement('button');
@@ -591,11 +638,42 @@ function syncBrickDestructions() {
   }
 }
 
+function levelBriefingText(level) {
+  const lines = ['VICTORY CONDITIONS:'];
+  if (level.survive) lines.push(`🕒 Surive Time: ${level.duration}`);
+  else {
+    if (level.goal > 0) lines.push(`🍗 Target: ${level.goal}`);
+    if (level.killGoal > 0) lines.push(`👾 Target: ${level.killGoal}`);
+    if (level.goalsGoal > 0) lines.push(`⚽ Target: ${level.goalsGoal}`);
+  }
+  return lines.join('\n');
+}
+
+function renderLevelBriefing(container, level, catBlockAcquired) {
+  const conditions = document.createElement('p');
+  conditions.className = 'briefing-conditions';
+  conditions.textContent = levelBriefingText(level);
+  container.replaceChildren(conditions);
+  if (level.catBlock) {
+    const section = document.createElement('div');
+    section.className = 'briefing-cat-block';
+    const image = document.createElement('img');
+    image.src = './icons/cat-building-block.png';
+    image.alt = 'Cat Block';
+    const hint = document.createElement('p');
+    hint.textContent = catBlockAcquired ? 'Cat Block already acquired!' : level.catBlock.description;
+    section.append(image, hint);
+    container.append(section);
+  }
+}
+
 function showDialog(kicker, title, text, label, icon) {
   overlay.classList.toggle('level-briefing', game.state === 'ready');
   document.querySelector('#dialog-kicker').textContent = kicker;
   document.querySelector('#dialog-title').textContent = title;
-  document.querySelector('#dialog-text').textContent = text;
+  const content = document.querySelector('#dialog-text');
+  if (game.state === 'ready') renderLevelBriefing(content, game.level, game.catBlockPreviouslyCollected);
+  else content.textContent = text;
   document.querySelector('#dialog-icon').textContent = icon;
   play.textContent = label;
   overlay.hidden = false;
@@ -612,6 +690,7 @@ function showCompletionResults(summary) {
   heading.textContent = `Level ${game.level.number ?? game.level.id} complete`;
   star.hidden = !summary.result.damageFree;
   previousStar.hidden = !summary.result.damageFree || !summary.previousStats.goldStar;
+  document.querySelector('#level-results-cat-block').hidden = !summary.newCatBlock;
   rows.replaceChildren();
   const metrics = [
     { key: 'time', label: '🕒', labelText: 'Completion time', current: summary.result.time.toFixed(2),
@@ -729,6 +808,8 @@ function syncUI() {
   const batteryLabel = `Batteries: ${game.batteries}`;
   document.querySelector('#battery-count').textContent = `🔋 ${game.batteries}`;
   document.querySelector('#battery-status').setAttribute('aria-label', batteryLabel);
+  document.querySelector('#key-count').textContent = `🗝️ ${game.keys}`;
+  document.querySelector('#key-status').setAttribute('aria-label', `Keys: ${game.keys}`);
   const gameCanvas = document.querySelector('#canvas');
   const turret = game.activeTurret;
   const wasInTurret = displayedTurret;
@@ -822,10 +903,8 @@ function syncUI() {
   if (displayedState === game.state) return;
   displayedState = game.state;
   if (game.state === 'ready') {
-    const description = game.customLevel
-      ? `${levelObjective(game.level)}. This is your custom level from the editor.`
-      : `${levelObjective(game.level)}. Click a boundary brick to guide Koshi.`;
-    showDialog(`LEVEL ${game.level.number ?? game.level.id} · MISSION`, 'Ready for this level?', description, 'Start', '🐾');
+    const description = levelBriefingText(game.level);
+    showDialog(`LEVEL ${game.level.number ?? game.level.id}`, 'Ready for this level?', description, 'Start', '🐾');
     status.textContent = 'Your next adventure is one click away.';
   } else if (game.state === 'playing') {
     overlay.hidden = true;
@@ -863,6 +942,7 @@ function syncUI() {
 function begin() {
   if (tutorial) { selectTutorial(tutorial.index); return; }
   phaseTransition.run(() => {
+    saveResult();
     for (const dialog of [titleScreen, saveDialog, levelPicker]) if (dialog.open) dialog.close();
     game = createGame();
     attemptId = makeAttemptId();
@@ -888,6 +968,7 @@ function startLevel() {
     saveAttempt(flushSaves);
   }
   game.start();
+  checkpointAttempt();
   lastTime = null;
   syncUI();
   pause.focus({ preventScroll: true });
@@ -1023,8 +1104,8 @@ exitConfirm.addEventListener('keydown', event => {
 document.querySelector('#exit-confirm-end').addEventListener('click', () => {
   exitConfirm.close();
   phaseTransition.run(() => {
+    saveResult();
     if (tutorial) leaveTutorial();
-    // Discard the abandoned attempt so it cannot be resumed from the menus.
     resetBoard();
     openLevelPicker({ insideWorld: true, level: levelSelect.value === 'custom' ? null : game.levelIndex });
   });
@@ -1061,6 +1142,7 @@ function selectTutorial(index) {
 
 function startTutorial(index = 0) {
   phaseTransition.run(() => {
+    saveResult();
     if (titleScreen.open) titleScreen.close();
     if (guide.open) guide.close();
     tutorial = new Tutorial();
@@ -1282,7 +1364,10 @@ function autoPause() {
 }
 const installButton = document.getElementById('install-button');
 if (installButton) installButton.addEventListener('click', autoPause);
-document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { autoPause(); checkpointAttempt(); }
+});
+window.addEventListener('pagehide', checkpointAttempt);
 window.addEventListener('blur', () => {
   // Android's gesture UI can blur a visible installed app without leaving it.
   if (!isInstalledApp() || document.hidden) autoPause();
@@ -1744,6 +1829,11 @@ function render(now) {
   }
   for (const enemy of robotDrawOrder(game.robots)) {
     drawRobot(enemy, null, game.enemyDamageProgress(enemy));
+    if (enemy.carriesCatBlock) drawCatBlockBadge(enemy.x + enemy.radius, enemy.y - enemy.radius - 10, 20);
+    if (enemy.carriesKey) {
+      ctx.save(); ctx.translate(enemy.x - enemy.radius, enemy.y - enemy.radius - 10);
+      ctx.scale(.6, .6); drawKey(); ctx.restore();
+    }
     if (enemy.asleep) {
       ctx.save(); ctx.fillStyle = '#d7c3ff'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('Z z', enemy.x + 19, enemy.y - enemy.radius - 6); ctx.restore();
@@ -1809,6 +1899,7 @@ function render(now) {
     drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
   }
   if (game.bubbleTrap) drawBubble({ ...game.bubbleTrap, x: game.cat.x, y: game.cat.y, radius: 24 }, true);
+  for (const pop of game.bubblePops) drawBubblePop(pop);
   if (game.activeTurret) drawTurretRim(ctx, game.activeTurret);
   if (game.activeTurret) drawTurretOnscreenCounter(ctx, game.activeTurret);
   if (game.sunglassesPickup) drawWornSunglasses(game);
@@ -2099,6 +2190,20 @@ function drawBrickDestructionSmoke(effect) {
 
 function drawPickupPop(pickup) {
   if (['magic-sunglasses', 'spooky-mask', 'ditto-stamp'].includes(pickup.type)) return;
+  if (pickup.type === 'treasure-chest') {
+    const opening = Math.min(1, pickup.age / .35);
+    ctx.save(); ctx.translate(pickup.x, pickup.y);
+    ctx.globalAlpha *= Math.max(0, 1 - Math.max(0, pickup.age - .9) / .55);
+    drawTreasureChest(opening);
+    ctx.restore();
+    if (pickup.age < .9) {
+      const rise = Math.max(0, Math.min(1, (pickup.age - .2) / .7));
+      if (rise > 0) drawCatBlockArt(pickup.x, pickup.y - 46 * rise, 50 * rise);
+    } else {
+      drawPickupPop({ ...pickup, type: 'cat-block', y: pickup.y - 46, age: pickup.age - .9 });
+    }
+    return;
+  }
   const progress = Math.min(1, pickup.age / .55);
   if (progress >= 1) return;
   ctx.save(); ctx.translate(pickup.x, pickup.y);
@@ -2136,6 +2241,37 @@ function drawBubble(bubble, trapped = false) {
   ctx.beginPath(); ctx.arc(0, 0, radius - 1, -.4, Math.PI * 1.65); ctx.stroke();
   ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.ellipse(-radius * .36, -radius * .4, radius * .13, radius * .24, -.55, 0, Math.PI * 2); ctx.fill();
+  if (trapped) {
+    const remaining = Math.max(0, Math.min(1, 1 - bubble.age / (bubble.transition + bubble.duration)));
+    if (remaining > 0) {
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(0, 0, radius + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * remaining);
+      ctx.strokeStyle = '#123c50'; ctx.lineWidth = 3.5; ctx.stroke();
+      ctx.strokeStyle = '#d7faff'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawBubblePop(pop) {
+  const progress = Math.min(1, pop.age / .55);
+  if (progress >= 1) return;
+  ctx.save(); ctx.translate(pop.x, pop.y);
+  ctx.globalAlpha = 1 - progress;
+  ctx.strokeStyle = '#d7faff'; ctx.lineWidth = 2 * (1 - progress);
+  const radius = 24 + progress * 22;
+  for (let i = 0; i < 8; i++) {
+    const angle = i * Math.PI / 4;
+    ctx.beginPath(); ctx.arc(0, 0, radius, angle + progress * .3, angle + .55); ctx.stroke();
+    const distance = 24 + progress * (i % 2 ? 48 : 36);
+    const x = Math.cos(angle) * distance;
+    const y = Math.sin(angle) * distance + progress * progress * 22;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle + Math.PI / 2);
+    ctx.fillStyle = SLIMES[pop.color].color;
+    ctx.beginPath(); ctx.ellipse(0, 0, 2.5 * (1 - progress), 5 * (1 - progress), 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
 }
 
@@ -2269,7 +2405,17 @@ function drawSword(x, y, color, label) {
 
 function drawGameItem(item) {
   ctx.save(); ctx.translate(item.x, item.y);
-  if (ITEMS[item.type]?.brush) {
+  if (item.type === 'cat-block') {
+    drawCatBlockArt(0, 0, 50);
+  } else if (item.type === 'key') {
+    drawKey();
+  } else if (item.type === 'treasure-chest') {
+    const required = item.keysRequired ?? 1;
+    drawTreasureChest();
+    ctx.fillStyle = '#fff8e6'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.strokeStyle = '#442a1d'; ctx.lineWidth = 2; ctx.strokeText(String(required), 0, 28);
+    ctx.fillText(String(required), 0, 28);
+  } else if (ITEMS[item.type]?.brush) {
     drawPaintbrush(ctx, ITEMS[item.type]);
   } else if (item.type === 'smiley-cookie') {
     ctx.fillStyle = '#c78d50'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
@@ -2364,6 +2510,50 @@ function drawGameItem(item) {
     ctx.strokeStyle = '#d6b7e5'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-9, -7); ctx.quadraticCurveTo(-15, 2, -9, 8); ctx.stroke();
     ctx.fillStyle = '#316039'; ctx.beginPath(); ctx.moveTo(-5, -14); ctx.lineTo(5, -16); ctx.lineTo(10, -11); ctx.lineTo(2, -12); ctx.closePath(); ctx.fill();
   }
+  ctx.restore();
+}
+
+function drawKey() {
+  ctx.save();
+  ctx.strokeStyle = '#a86b00'; ctx.fillStyle = '#ffdf00'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-2, -3); ctx.lineTo(5, -3); ctx.lineTo(5, 6);
+  ctx.lineTo(13, 6); ctx.lineTo(13, 12); ctx.lineTo(5, 12);
+  ctx.lineTo(5, 19); ctx.lineTo(-2, 19); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(1.5, -10, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#fff59a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(1.5, -10, 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawTreasureChest(opening = 0) {
+  ctx.save();
+  ctx.fillStyle = '#7b4727'; ctx.strokeStyle = '#442a1d'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.roundRect(-20, -8, 40, 23, 5); ctx.fill(); ctx.stroke();
+  if (opening > 0) {
+    ctx.fillStyle = '#2c1a13'; ctx.fillRect(-17, -7, 34, 8);
+  }
+  ctx.save(); ctx.translate(-20, -8); ctx.rotate(-opening * Math.PI / 3);
+  ctx.fillStyle = '#d59b43'; ctx.beginPath(); ctx.roundRect(0, -5, 40, 12, 4); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = '#f6d46f'; ctx.fillRect(-3, -6, 6, 12);
+  ctx.restore();
+}
+
+function drawCatBlockArt(x, y, size) {
+  const image = globalThis.koshiCatBlockArt;
+  if (image?.complete && image.naturalWidth) {
+    ctx.drawImage(image, x - size / 2, y - size / 2, size, size);
+  } else {
+    ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🐱', x, y);
+  }
+}
+
+function drawCatBlockBadge(x, y, size) {
+  ctx.save();
+  drawCatBlockArt(x, y, size);
   ctx.restore();
 }
 
@@ -3712,6 +3902,7 @@ function frame(timestamp) {
     else game.update(seconds);
     updateEnding(seconds);
   }
+  recordCatBlockFinds();
   lastTime = timestamp;
   syncUI();
   render(timestamp / 1000);

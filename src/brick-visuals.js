@@ -64,6 +64,9 @@ const SYMBOLS = {
   battery: 'M-12 -20 H12 V-16 H16 V17 H-16 V-16 H-12 Z M-7 -8 L0 -1 L-5 5 L7 -5 L1 -6 L5 -12',
   'boom-time': 'M-5 -16 H5 L8 -14 Q20 -16 21 -3 A21 21 0 1 1 -21 -3 Q-20 -16 -8 -14 Z',
   'music-box': 'M-20 -8 H12 L20 -13 V13 L12 18 H-20 Z M-16 -12 H15 V-8 H-16 Z M12 -8 L20 -13 V-10 L12 -5 Z M20 1 H25 M25 -2 A3 3 0 1 1 25 4 M-2 -3 V9 M-2 -3 L7 -6 V5 M-2 2 A5 5 0 1 1 -2 3',
+  'cat-block': 'M-17 -12 L-12 -22 L-3 -17 H3 L12 -22 L17 -12 Q22 -7 20 12 Q0 25 -20 12 Q-22 -7 -17 -12 Z M-10 -2 A2 2 0 1 0 -10 -1 M10 -2 A2 2 0 1 0 10 -1 M-7 8 Q0 14 7 8 M-20 -2 L-27 -5 M20 -2 L27 -5 M-10 -23 V-29 H10 V-23 M-8 -29 V-23 M8 -29 V-23',
+  key: 'M-4 -5 A10 10 0 1 1 4 -5 A10 10 0 1 1 -4 -5 M0 4 V23 M0 14 H8 V20 H0 M0 21 H7',
+  'treasure-chest': 'M-21 -10 Q-21 -20 -10 -20 H10 Q21 -20 21 -10 V17 H-21 Z M-21 -5 H21 M-4 -5 V7 H4 V-5 M-15 -16 V-12 M15 -16 V-12',
   eggplant: 'M-8 -14 C4 -27 25 -11 18 5 C12 20 -6 22 -17 10 C-28 -3 -17 -19 -7 -16 L-14 -24 L-4 -21 L0 -28 L4 -19 L15 -22 L8 -14',
   'saw-blade': `${SAW_BLADE} M7 0 A7 7 0 1 1 -7 0 A7 7 0 1 1 7 0`,
   'magic-sunglasses': 'M-23 -7 H-4 V2 Q-13 14 -22 2 Z M4 -7 H23 L22 2 Q13 14 4 2 Z M-4 -3 Q0 -7 4 -3 M-23 -7 L-27 -11 M23 -7 L27 -11',
@@ -159,17 +162,35 @@ function svgNode(tag, attributes = {}) {
 function brickInfoBounds(brick, members) {
   const shape = brickShape(members);
   const cx = shape.x + shape.w / 2, cy = shape.y + shape.h / 2;
-  if (members.some(part => cx >= part.x && cx <= part.x + part.w && cy >= part.y && cy <= part.y + part.h)) {
-    return { x: cx - brick.w / 2, y: cy - brick.h / 2, w: brick.w, h: brick.h };
-  }
-  // A corner union's bounding-box center can be empty arena, not brick.
-  const anchors = members.map(part => {
-    const inset = Math.min(part.w, part.h) / 2;
-    return { x: Math.max(part.x + inset, Math.min(part.x + part.w - inset, cx)),
-      y: Math.max(part.y + inset, Math.min(part.y + part.h - inset, cy)) };
+  const centered = { x: cx - brick.w / 2, y: cy - brick.h / 2, w: brick.w, h: brick.h };
+  const cuts = [...new Set([centered.x, centered.x + centered.w,
+    ...members.flatMap(part => [part.x, part.x + part.w])
+      .filter(x => x > centered.x && x < centered.x + centered.w)])].sort((a, b) => a - b);
+  const covered = cuts.slice(1).every((right, index) => {
+    const left = cuts[index];
+    const spans = members.filter(part => part.x <= left && part.x + part.w >= right)
+      .map(part => [part.y, part.y + part.h]).sort((a, b) => a[0] - b[0]);
+    let bottom = centered.y;
+    for (const [start, end] of spans) {
+      if (start > bottom + 1e-9) break;
+      bottom = Math.max(bottom, end);
+    }
+    return bottom >= centered.y + centered.h - 1e-9;
   });
-  const center = anchors.reduce((best, point) => Math.hypot(point.x - cx, point.y - cy) < Math.hypot(best.x - cx, best.y - cy) ? point : best);
-  return { x: center.x - brick.w / 2, y: center.y - brick.h / 2, w: brick.w, h: brick.h };
+  if (covered) return centered;
+  // Fit the whole panel on a real section, not a corner connector or empty arena.
+  const sections = members.some(part => part.sourceId !== undefined)
+    ? members.filter(part => part.sourceId !== undefined) : members;
+  const anchors = sections.map(part => {
+    const scale = Math.min(1, part.w / brick.w, part.h / brick.h);
+    const w = brick.w * scale, h = brick.h * scale;
+    const x = Math.max(part.x + w / 2, Math.min(part.x + part.w - w / 2, cx));
+    const y = Math.max(part.y + h / 2, Math.min(part.y + part.h - h / 2, cy));
+    return { x: x - w / 2, y: y - h / 2, w, h, scale, distance: Math.hypot(x - cx, y - cy) };
+  });
+  const { x, y, w, h } = anchors.reduce((best, point) => point.scale > best.scale
+    || (point.scale === best.scale && point.distance < best.distance) ? point : best);
+  return { x, y, w, h };
 }
 function decorateBrick(button, brick, members, width, height, turretSource = null) {
   let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null, turretFill = null;

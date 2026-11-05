@@ -139,6 +139,7 @@ test('completion popup shows the prior-star note and compares all five records',
   });
   vm.runInContext(completionResults, context);
   context.showCompletionResults({
+    newCatBlock: true,
     result: { damageFree: true, time: 12.5, food: 25, enemy: 4, goals: 2, moves: 9 },
     previousStats: { goldStar: true, bestTime: 15, mostFood: 20, mostEnemies: 4, mostGoals: 1, fewestMoves: 12 },
     newRecords: { time: true, food: true, enemy: false, goals: true, moves: true },
@@ -167,6 +168,7 @@ test('completion popup shows the prior-star note and compares all five records',
   assert.deepEqual(rows.map(row => row.children[0].getAttribute('aria-label')),
     ['Completion time', 'Food points', 'Enemy points', 'Soccer goals', 'Moves']);
   assert.equal(elements.get('#level-results-record-legend').hidden, false);
+  assert.equal(elements.get('#level-results-cat-block').hidden, false);
   context.showCompletionResults({
     result: { damageFree: false, time: 20, food: 10, enemy: 1, goals: 0, moves: 13 },
     previousStats: { goldStar: true, bestTime: 15, mostFood: 20, mostEnemies: 4, mostGoals: 1, fewestMoves: 9 },
@@ -175,6 +177,7 @@ test('completion popup shows the prior-star note and compares all five records',
   assert.equal(elements.get('#level-results-star').hidden, true);
   assert.equal(elements.get('#level-results-star-prior').hidden, true);
   assert.equal(elements.get('#level-results-record-legend').hidden, true);
+  assert.equal(elements.get('#level-results-cat-block').hidden, true);
 });
 
 test('continuing from completion closes the popup and advances to the campaign map', () => {

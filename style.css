@@ -56,7 +56,13 @@ body:has(#cutscene[open]) { overflow: hidden; }
 .title-feedback { grid-column: 1 / -1; margin: 20px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .title-feedback a { color: var(--accent); overflow-wrap: anywhere; }
 .save-slot { margin: 16px 0; padding: 14px; border: 1px solid #ffffff20; border-radius: 8px; text-align: left; overflow-wrap: anywhere; }
-.save-slot h3 { margin: 0 0 8px; color: var(--accent); }
+.save-slot h3 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; color: var(--accent); }
+.collectible-totals { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; color: var(--text); font-size: 14px; }
+.collectible-total { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.collectible-total img, .collectible-total svg { width: 28px; height: 28px; object-fit: contain; }
+.collectible-star { color: #ffd34e; font-size: 28px; line-height: 1; }
+.collectible-flag { display: inline-block; width: 25px; height: 28px; border-left: 3px solid #e8dfc7; }
+.world-map > .collectible-totals { position: absolute; right: 10px; bottom: 10px; padding: 8px 10px; border-radius: 9px; background: #10191ee6; pointer-events: none; }
 .save-slot p, #save-help, #save-profile { font-size: 14px; line-height: 1.5; }
 .save-slot form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: 12px 0; }
 .save-slot label { flex: 1; min-width: 150px; font-size: 14px; }
@@ -117,7 +123,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .level-badge span { display: block; color: var(--muted); font-size: 8px; }
 .level-badge strong { font-size: 30px; line-height: 1.4; font-weight: 500; }
 .game-shell { background: var(--panel); border: 1px solid #ffffff16; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 70px #0003; }
-.hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 22px 26px; gap: 8px; }
+.hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 22px 26px; gap: 8px; }
 .stat { min-width: 0; text-align: center; }
 .stat-label { display: block; color: var(--muted); font-size: 9px; margin-bottom: 8px; }
 .stat strong { font-size: 24px; font-weight: 500; white-space: nowrap; }
@@ -215,11 +221,16 @@ canvas { display: block; width: 100%; height: 100%; }
 .dialog { text-align: center; max-width: 410px; padding: 25px; }
 .overlay.level-briefing .dialog { max-width: 560px; padding: clamp(24px, 5vw, 48px); border: 1px solid #d3ef8b55; border-radius: 16px; background: #15252cf2; box-shadow: 0 24px 70px #0009, inset 0 1px #ffffff12; }
 .overlay.level-briefing .dialog h2 { font-size: clamp(30px, 5vw, 44px); }
+.briefing-conditions { white-space: pre-line; }
+.briefing-cat-block { margin-top: 20px; }
+.briefing-cat-block img { display: block; width: 50px; height: 50px; margin: 0 auto; }
+.level-results-cat-block { margin: 20px 0; text-align: center; }
+.level-results-cat-block img { display: block; margin: 0 auto; }
 .overlay.level-briefing #play { min-width: min(320px, 100%); min-height: 72px; font-size: 22px; box-shadow: 0 8px 26px #d3ef8b30; }
 .overlay.level-briefing #play span { font-size: 24px; }
 .dialog-icon { display: inline-block; font-size: 40px; margin-bottom: 18px; }
 .dialog h2 { font-size: 32px; font-weight: 500; letter-spacing: -1px; margin: 0 0 16px; }
-.dialog > p:not(.eyebrow) { color: #b0bec3; font-size: 14px; line-height: 1.8; margin: 0 0 25px; }
+.dialog > p:not(.eyebrow), #dialog-text { color: #b0bec3; font-size: 14px; line-height: 1.8; margin: 0 0 25px; }
 .primary { border: 0; background: var(--accent); color: #1c2a22; padding: 14px 28px; border-radius: 7px; font-weight: 700; min-width: 174px; }
 .primary:hover { background: #e0ffa0; }
 .primary span { margin-left: 22px; }
@@ -282,14 +293,26 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 .map-node[aria-pressed="true"] { outline: 3px solid #ffdc75; outline-offset: 3px; }
 .completion-flag { position: absolute; right: -9px; top: -22px; width: 25px; height: 30px; border-left: 3px solid #e8dfc7; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
 .flag-cloth { display: block; width: 24px; height: 17px; background: #e8b94e; clip-path: polygon(0 0, 100% 10%, 80% 50%, 100% 90%, 0 100%); transform-origin: left center; animation: flag-wave 1.4s ease-in-out infinite alternate; }
-.map-node-star { position: absolute; left: -8px; bottom: -8px; color: #ffd34e; font-size: 20px; line-height: 1; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
+.map-node-star { position: absolute; left: -8px; bottom: -8px; width: 20px; height: 20px; color: #829096; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
+.map-node-star-earned { color: #ffd34e; }
+.map-node-cat-block { position: absolute; right: -9px; bottom: -8px; width: 23px; height: 23px; filter: drop-shadow(0 1px 2px #0008); }
+.map-node-cat-block svg, .map-cat-block svg, .map-node-star svg, .map-star svg { display: block; width: 100%; height: 100%; }
+.map-node-cat-block-found { filter: drop-shadow(0 0 3px #72df92); }
 @keyframes flag-wave { from { transform: perspective(70px) rotateY(-25deg) skewY(-6deg); } to { transform: perspective(70px) rotateY(25deg) skewY(6deg); } }
 .map-koshi { position: absolute; width: 46px; height: 46px; transform: translate(-50%, calc(-100% - 27px)); pointer-events: none; transition: left .35s ease, top .35s ease; filter: drop-shadow(0 3px 2px #0008); }
 .map-details { min-height: 0; overflow: auto; scrollbar-gutter: stable; padding: 16px; background: #ffffff06; border: 1px solid #ffffff15; border-radius: 12px; }
-.map-level-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.map-level-heading { display: grid; grid-template-columns: minmax(0, 1fr) 30px 38px; align-items: start; gap: 8px; }
+.map-level-heading h3 { grid-column: 1; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
+.map-level-heading .map-star { grid-column: 2; grid-row: 1; }
+.map-level-heading .map-cat-block { grid-column: 3; grid-row: 1; }
 .map-details h3 { margin: 0; }
-.map-star { flex: none; color: #829096; font-size: 30px; line-height: 1; }
+.map-star { flex: none; width: 30px; height: 30px; color: #829096; }
+.map-star, .map-cat-block { border: 0; background: transparent; cursor: pointer; }
+.map-star { padding: 0; }
 .map-star-earned { color: #ffd34e; }
+.map-cat-block { box-sizing: border-box; width: 38px; height: 38px; padding: 2px; }
+.map-cat-block-found svg { filter: drop-shadow(0 0 4px #72df9266); }
+.map-collectible-description { padding: 10px 12px; border-left: 3px solid #e7b648; background: #ffffff0a; color: var(--text); font-size: 13px; }
 .map-objectives { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; }
 .map-objective { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; white-space: nowrap; }
 .map-objective strong { font-size: 13px; white-space: nowrap; }
@@ -354,7 +377,7 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   .game-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; border-radius: 12px; }
   .game-shell > :not(.play-area) { flex-shrink: 0; }
   .game-shell > .error { margin: 4px 8px; font-size: 11px; }
-  .hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 6px 8px; gap: 5px; }
+  .hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 6px 8px; gap: 5px; }
   .stat { border: 0; padding: 0; }
   .stat-label { font-size: 8px; letter-spacing: .2px; line-height: 1.1; margin-bottom: 5px; white-space: normal; }
   .stat.lives .stat-label { max-width: 62px; margin-inline: auto; font-size: 8px; letter-spacing: 0; line-height: 1.1; white-space: normal; }
@@ -424,7 +447,7 @@ body:has(.learning-guide[open]) { overflow: hidden; }
 .tutorial-active .masthead { flex: 0 0 40px; padding-top: 2px; padding-bottom: 2px; border: 0; }
 .tutorial-active .game-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .tutorial-active .game-shell > :not(.play-area) { flex-shrink: 0; }
-.tutorial-active .hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+.tutorial-active .hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; padding: 8px; }
 .tutorial-active .stat { min-width: 0; border: 0; padding: 0; }
 .tutorial-active .stat strong { font-size: 17px; }
 .tutorial-active .stat-label { font-size: 7px; letter-spacing: .3px; margin-bottom: 4px; }

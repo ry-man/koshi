@@ -6,10 +6,12 @@ const RECENT_KEY = 'koshi-campaign-recent-save';
 const SLOT_COUNT = 3;
 
 function validateResult(result, levelIds) {
-  if (!result || !levelIds.includes(result.levelId) || !['won', 'lost'].includes(result.outcome)
+  if (!result || !levelIds.includes(result.levelId) || !['won', 'lost', 'quit'].includes(result.outcome)
     || !['time', 'food', 'enemy'].every(key => Number.isFinite(result[key]) && result[key] >= 0)
     || (result.moves !== undefined && (!Number.isSafeInteger(result.moves) || result.moves < 0))
     || (result.goals !== undefined && (!Number.isSafeInteger(result.goals) || result.goals < 0))
+    || (result.inProgress !== undefined && (result.inProgress !== true || result.outcome !== 'quit'))
+    || (result.catBlock !== undefined && (result.catBlock !== true || result.outcome !== 'won'))
     || (result.damageFree !== undefined && (typeof result.damageFree !== 'boolean'
       || (result.damageFree && result.outcome !== 'won')))) {
     throw new Error('Invalid completed level result.');
@@ -19,13 +21,15 @@ function validateResult(result, levelIds) {
 function levelStats(results, levelId) {
   const attempts = Object.values(results ?? {}).filter(result => result.levelId === levelId);
   const wins = attempts.filter(result => result.outcome === 'won');
+  const losses = attempts.filter(result => result.outcome === 'lost').length;
+  const quits = attempts.filter(result => result.outcome === 'quit').length;
   const moveRecords = wins.filter(result => result.moves !== undefined);
   const goalRecords = attempts.filter(result => result.goals !== undefined);
   return {
-    wins: wins.length, losses: attempts.length - wins.length,
+    wins: wins.length, losses, quits,
     goldStar: wins.some(result => result.damageFree === true),
     winPercent: attempts.length ? wins.length / attempts.length * 100 : null,
-    lossPercent: attempts.length ? (attempts.length - wins.length) / attempts.length * 100 : null,
+    lossPercent: attempts.length ? losses / attempts.length * 100 : null,
     bestTime: wins.length ? Math.min(...wins.map(result => result.time)) : null,
     fewestMoves: moveRecords.length ? Math.min(...moveRecords.map(result => result.moves)) : null,
     mostFood: attempts.length ? Math.max(...attempts.map(result => result.food)) : null,
@@ -61,6 +65,9 @@ class SaveSlots {
         || ownerName(slot.owner) !== slot.owner || !Array.isArray(slot.completed)
         || slot.completed.some(id => !this.levelIds.includes(id))
         || new Set(slot.completed).size !== slot.completed.length) invalid();
+      if (slot.catBlocks !== undefined && (!Array.isArray(slot.catBlocks)
+        || slot.catBlocks.some(id => !this.levelIds.includes(id))
+        || new Set(slot.catBlocks).size !== slot.catBlocks.length)) invalid();
       if (slot.lastPlayed !== undefined && !this.levelIds.includes(slot.lastPlayed)) invalid();
       ids.add(slot.id);
       if (slot.results !== undefined) {
@@ -111,6 +118,16 @@ class SaveSlots {
     }
     return slot;
   }
+  collectCatBlock(index, id, levelId) {
+    if (!this.levelIds.includes(levelId)) throw new Error('Only campaign levels can save Cat Blocks.');
+    const slots = this.load(), slot = this.slot(slots, index, id);
+    slot.catBlocks ??= [];
+    if (!slot.catBlocks.includes(levelId)) {
+      slot.catBlocks.push(levelId);
+      this.write(slots);
+    }
+    return slot;
+  }
   record(index, id, attemptId, result) {
     if (typeof attemptId !== 'string' || !attemptId || ['__proto__', 'constructor', 'prototype'].includes(attemptId)) {
       throw new Error('Invalid level attempt ID.');
@@ -120,13 +137,19 @@ class SaveSlots {
     slot.results ??= {};
     if (Object.hasOwn(slot.results, attemptId)) {
       const previous = slot.results[attemptId];
-      if (['levelId', 'outcome', 'time', 'food', 'enemy', 'moves', 'goals', 'damageFree'].some(key => previous[key] !== result[key])) {
-        throw new Error('This attempt already has a different saved result.');
+      if (!previous.inProgress || previous.levelId !== result.levelId) {
+        if (['levelId', 'outcome', 'time', 'food', 'enemy', 'moves', 'goals', 'damageFree', 'inProgress', 'catBlock'].some(key => previous[key] !== result[key])) {
+          throw new Error('This attempt already has a different saved result.');
+        }
+        return slot;
       }
-      return slot;
     }
     slot.results[attemptId] = { ...result };
     if (result.outcome === 'won' && !slot.completed.includes(result.levelId)) slot.completed.push(result.levelId);
+    if (result.catBlock) {
+      slot.catBlocks ??= [];
+      if (!slot.catBlocks.includes(result.levelId)) slot.catBlocks.push(result.levelId);
+    }
     this.write(slots);
     return slot;
   }

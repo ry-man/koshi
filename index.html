@@ -13,12 +13,14 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Koshi">
     <link rel="stylesheet" href="./style.css">
+    <script defer src="./src/campaign.js"></script>
     <script defer src="./src/game.js"></script>
     <script defer src="./src/brick-visuals.js"></script>
     <script defer src="./src/cutscene.js"></script>
     <script defer src="./src/learning.js"></script>
     <script defer src="./src/saves.js"></script>
     <script defer src="./src/worlds.js"></script>
+    <script defer src="./src/collectibles.js"></script>
     <script defer src="./src/world-map.js"></script>
     <script defer src="./src/transitions.js"></script>
     <script defer src="./src/app.js"></script>
@@ -118,13 +120,17 @@
         <tbody></tbody>
       </table>
       <p id="level-results-record-legend" class="level-results-record-legend" hidden>😺 = New Record!</p>
+      <section id="level-results-cat-block" class="level-results-cat-block" aria-live="polite" hidden>
+        <img src="./icons/cat-building-block.png" alt="Cat Block" width="64" height="64">
+        <p>New Cat Block collected!</p>
+      </section>
       <div class="save-actions">
         <button id="level-results-continue" class="primary" type="button">Continue to map →</button>
       </div>
     </dialog>
     <dialog id="exit-confirm" class="install-dialog exit-confirm" aria-labelledby="exit-confirm-heading" aria-describedby="exit-confirm-message">
       <h2 id="exit-confirm-heading">Quit this level?</h2>
-      <p id="exit-confirm-message">Do you really want to quit and return to the world map? Progress in this attempt will be lost.</p>
+      <p id="exit-confirm-message">Do you really want to quit and return to the world map? An unfinished, started attempt will count as a quit.</p>
       <div class="save-actions">
         <button id="exit-confirm-end" class="primary" type="button">End Level</button>
         <button id="exit-confirm-cancel" class="title-secondary" type="button">Cancel</button>
@@ -176,8 +182,9 @@
           </div>
           <div class="stat"><span class="stat-label">FOOD</span><strong id="food-count">🍗 0 <span>/ 20</span></strong></div>
           <div class="stat"><span class="stat-label">ENEMIES</span><strong id="enemy-count">👾 0</strong></div>
-          <div class="stat" id="battery-status" role="status" aria-label="Batteries: 0"><span class="stat-label">BATTERIES</span><strong id="battery-count">🔋 0</strong></div>
           <div class="stat"><span class="stat-label">GOALS</span><strong id="goal-count" aria-label="0 goals scored">⚽ 0</strong></div>
+          <div class="stat" id="key-status" role="status" aria-label="Keys: 0"><span class="stat-label">KEYS</span><strong id="key-count">🗝️ 0</strong></div>
+          <div class="stat" id="battery-status" role="status" aria-label="Batteries: 0"><span class="stat-label">BATTERIES</span><strong id="battery-count">🔋 0</strong></div>
         </div>
         <div class="objective"><span><span class="live-dot"></span> THE MISSION</span><strong>Collect 20 food before time runs out</strong><span id="progress-label">0% complete</span></div>
         <div class="progress-track"><div id="progress"></div></div>
@@ -191,7 +198,7 @@
               <span class="dialog-icon" id="dialog-icon">🐾</span>
               <p class="eyebrow" id="dialog-kicker">READY, LITTLE HERO?</p>
               <h2 id="dialog-title">Follow your appetite.</h2>
-              <p id="dialog-text">Click a brick to send Koshi toward it. Redirect him mid-flight to scoop up snacks. Get 20 food in 60 seconds!</p>
+              <div id="dialog-text"></div>
               <button class="primary" id="play">Let's play <span>→</span></button>
             </div>
           </div>

@@ -24,8 +24,8 @@ click the world he is already on to zoom into its low-level map.
 Only that world's individual level stops are shown, connected by a path.
 Clicking a stop moves Koshi along the map and displays the level's number,
 name, win objectives, time to beat, Boom Helmet moves to beat when applicable,
-fastest winning time, fewest moves to win, highest food and enemy points, win/loss counts and
-win percentage (wins divided by finished attempts, excluding quits).
+fastest winning time, fewest moves to win, highest food and enemy points, win/loss/quit counts and
+win percentage (wins divided by all attempts, including quits; N/A before any attempts).
 Win objectives use food, enemy and soccer-goal icons with numerical targets,
 or just a clock for survival. Small labeled icons preview its enemies, blocks, items and
 spawner contents. **Play Level** begins the selected level; **World Select**
@@ -41,7 +41,7 @@ World and level selection are required for new games; level selection is
 required between campaign levels. Creating a save starts at world selection. Loading a save opens the
 level map inside the last-played level's world, with that level selected.
 The last-played field is saved when the briefing's Start is pressed, even
-if the player later abandons the attempt; this does not record a win or loss.
+if the player later abandons the attempt, which counts as a quit rather than a win or loss.
 Legacy saves without that field use their first unfinished level.
 After a win's celebration, a results popup compares completion time, food,
 enemy points, soccer goals and moves with previous records in a grid labeled
@@ -63,10 +63,15 @@ rejoin 2. Special branches are dashed; default next-level suggestions follow
 the main path rather than requiring special-world completion. No additional
 special-world levels are included in this two-world demonstration.
 
-Completed attempts save their results to the active campaign slot. Quitting,
-leaving or restarting before a result counts as neither a win nor a loss.
-Only wins contribute to fastest time; both outcomes contribute to highest food,
-enemy and soccer-goal scores. Guest results last for the current visit. Older saves preserve
+Every started attempt saves to the active campaign slot as a provisional quit.
+A win or loss replaces that same entry, so closing or terminating the app still
+records a quit even without a shutdown event. Quitting, leaving or restarting a
+started level before a result counts as one quit. Briefings and cutscenes do not
+count as attempts. Pausing and backgrounding checkpoint the same attempt without
+ending it; resumed play can still replace the provisional quit with a win or loss.
+Only wins contribute to fastest time; all outcomes contribute to highest food,
+enemy and soccer-goal scores, using the latest saved checkpoint on app closure.
+Guest results last for the current visit. Older saves preserve
 completed levels, but have no historical times, scores or attempt counts;
 unrecorded values are shown explicitly. Stable internal level IDs and existing
 campaign links are retained, while displayed numbers reflect the new worlds.

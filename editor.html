@@ -10,6 +10,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="./editor.css">
+    <script defer src="./src/campaign.js"></script>
     <script defer src="./src/game.js"></script>
     <script defer src="./src/brick-visuals.js"></script>
     <script defer src="./src/editor.js"></script>
@@ -40,6 +41,14 @@
           <label>Boom Helmet activation limit (blank: unlimited) <input id="activation-limit" type="number" min="1" max="100000" step="1" placeholder="Unlimited"></label>
           <label>Heart cost <input id="heart-cost" type="number" min="1" max="100000" step="1" placeholder="None (disabled)"></label>
           <label>Boundary bricks <select id="brick-set"><option value="1">1 slow + 1 fast</option><option value="3">3 slow + 3 fast</option></select></label>
+          <label class="inline-label"><input id="cat-block-enabled" type="checkbox"> Cat Block available in this level</label>
+          <fieldset id="cat-block-settings" class="settings-grid" disabled>
+            <label class="full-width">How to collect it <textarea id="cat-block-description" maxlength="500" rows="3" placeholder="Describe how to find the Cat Block"></textarea></label>
+            <label>Pickup message <input id="cat-block-item-message" maxlength="200"></label>
+            <label>Enemy-carrier message <input id="cat-block-enemy-message" maxlength="200"></label>
+            <label class="full-width">Treasure-chest message <input id="cat-block-chest-message" maxlength="200"></label>
+            <p class="editor-help full-width">Achievements are not supported yet. Cat Blocks can currently be placed as pickups, carried by enemies, or locked in treasure chests.</p>
+          </fieldset>
           <button type="submit">Apply settings</button>
         </form>
         </fieldset>
@@ -150,6 +159,9 @@
               <p class="editor-help">Each shape choice starts at its fixed default size. Resize in board units, or select a placed obstruction and drag a corner or side of its bounding rectangle. Blank dimensions restore defaults. Circles and diamonds stay square; rectangles allow independent width and height. Appearing obstructions destroy overlapping objects and enemies; Koshi loses all hearts if caught inside. Destructible obstructions carry an item-sized TNT sign and crumble when any part touches a fireball turret's blast. Colors and patterns do not affect collisions.</p>
             </fieldset>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
+            <label id="event-carrier-label" class="inline-label" hidden><input id="event-carries-cat-block" type="checkbox" disabled> Carries a Cat Block</label>
+            <label id="event-key-carrier-label" class="inline-label" hidden><input id="event-carries-key" type="checkbox" disabled> Carries a key</label>
+            <label id="chest-keys-label" hidden>Keys needed to open chest <input id="event-keys-required" type="number" min="1" max="100000" step="1" value="1" disabled></label>
             <div class="input-pair">
               <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
               <label id="lifetime-label">On-screen lifetime (seconds) <input id="event-lifetime" type="number" min="0.1" max="3600" step="any" value="5" required></label>

@@ -4,6 +4,32 @@
 const { LEVELS, levelObjective } = globalThis.KoshiGame;
 const { WORLDS, worldLevels, levelFeatures, nextLevelIndex } = globalThis.KoshiWorlds;
 const { levelStats } = globalThis.KoshiSaves;
+const { catBlockIcon, goldStarIcon, collectibleTotals } = globalThis.KoshiCollectibles;
+
+function collectibleHint(button, id, text) {
+  const description = document.createElement('p');
+  description.id = id;
+  description.className = 'map-collectible-description';
+  description.textContent = text;
+  description.hidden = true;
+  button.type = 'button';
+  button.setAttribute('aria-expanded', 'false');
+  button.setAttribute('aria-controls', id);
+  let pinned = false;
+  const reveal = visible => {
+    description.hidden = !visible;
+    button.setAttribute('aria-expanded', String(visible));
+  };
+  button.addEventListener('mouseenter', () => reveal(true));
+  button.addEventListener('mouseleave', () => reveal(pinned));
+  button.addEventListener('focus', () => reveal(true));
+  button.addEventListener('blur', () => { pinned = false; reveal(false); });
+  button.addEventListener('click', () => { pinned = !pinned; reveal(pinned); });
+  button.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { pinned = false; reveal(false); }
+  });
+  return description;
+}
 
 class WorldMap {
   constructor({ selection, profile, picture, custom, cutsceneViewed = () => false }) {
@@ -48,6 +74,7 @@ class WorldMap {
         } };
     });
     this.draw(nodes, WORLDS.flatMap(world => world.next.map(id => [world.id, id])), 300);
+    this.map.append(collectibleTotals(this.profile(), LEVELS, document));
     this.selectWorld(this.world);
     const custom = this.custom();
     if (custom) {
@@ -99,6 +126,8 @@ class WorldMap {
         subtitle: level === departure ? `From World ${level.worldId}` : null,
         completed: profile?.completed.includes(level.id),
         goldStar: levelStats(profile?.results, level.id).goldStar,
+        catBlock: level.catBlock ?? null,
+        catBlockFound: (profile?.catBlocks ?? []).includes(level.id),
         action: () => {
           if (level === departure) {
             this.selection.value = String(LEVELS.indexOf(level));
@@ -159,26 +188,41 @@ class WorldMap {
     this.mark(level.id);
     this.setCutsceneOption(level);
     this.details.replaceChildren();
+    this.details.scrollTop = 0;
     const heading = document.createElement('header'), title = document.createElement('h3');
     const objective = this.objectives(level), stats = document.createElement('dl');
     heading.className = 'map-level-heading';
     title.textContent = `Level ${level.number} - ${level.name}`;
     const profile = this.profile(), result = levelStats(profile?.results, level.id);
-    const star = document.createElement('span');
+    const star = document.createElement('button');
     star.className = `map-star${result.goldStar ? ' map-star-earned' : ''}`;
-    star.textContent = result.goldStar ? '★' : '☆';
+    star.append(goldStarIcon(result.goldStar, document));
     star.title = result.goldStar ? 'Gold star earned: completed without taking damage' : 'Gold star not earned: complete without taking damage';
-    star.setAttribute('role', 'img');
     star.setAttribute('aria-label', star.title);
+    const starDescription = collectibleHint(star, 'map-star-description',
+      'Earn the gold star by completing this level without taking any damage.');
     heading.append(title, star);
+    let catBlockDescription;
+    if (level.catBlock) {
+      const catBlock = document.createElement('button');
+      catBlock.className = 'map-cat-block';
+      catBlock.title = level.catBlock.description;
+      const catBlockFound = (profile?.catBlocks ?? []).includes(level.id);
+      catBlock.setAttribute('aria-label', `Cat Block${catBlockFound ? ' found' : ''}: ${level.catBlock.description}`);
+      catBlock.append(catBlockIcon(catBlockFound, document));
+      if (catBlockFound) catBlock.classList.add('map-cat-block-found');
+      catBlockDescription = collectibleHint(catBlock, 'map-cat-block-description',
+        `${level.catBlock.description} Complete the level without dying or leaving to keep the Cat Block.`);
+      heading.append(catBlock);
+    }
     const fields = [
       ...(level.activationLimit == null ? [] : [['Moves to beat', `${level.activationLimit} activations`]]),
       ['Best (fastest) win', result.bestTime === null ? 'Not recorded' : `${result.bestTime.toFixed(2)} seconds`],
       ['Fewest moves', result.fewestMoves ?? 'Not recorded'],
       ['Most food points', result.mostFood ?? 'Not recorded'],
       ['Most enemy points', result.mostEnemies ?? 'Not recorded'],
-      ['Wins / losses', `${result.wins} / ${result.losses}`],
-      ['Win percentage', result.winPercent === null ? 'Not recorded' : `${result.winPercent.toFixed(1)}%`],
+      ['Wins / losses / quits', `${result.wins} / ${result.losses} / ${result.quits}`],
+      ['Win percentage', result.winPercent === null ? 'N/A' : `${result.winPercent.toFixed(1)}%`],
     ];
     for (const [name, value] of fields) {
       const term = document.createElement('dt'), description = document.createElement('dd');
@@ -235,9 +279,12 @@ class WorldMap {
     const note = profile?.guest ? null : document.createElement('p');
     if (note) {
       note.className = 'map-note';
-      note.textContent = 'Only finished attempts count. Earlier saved completions have no recorded statistics. Quitting does not count.';
+      note.textContent = 'Every started attempt counts as a win, loss or quit. Win percentage is wins divided by all attempts. Earlier saved completions have no recorded statistics.';
     }
-    this.details.append(heading, objective, stats);
+    this.details.append(heading);
+    if (catBlockDescription) this.details.append(catBlockDescription);
+    this.details.append(starDescription);
+    this.details.append(objective, stats);
     if (note) this.details.append(note);
     this.details.append(featureSection);
   }
@@ -269,7 +316,7 @@ class WorldMap {
       button.dataset.node = node.id; button.dataset.theme = node.theme;
       button.style.left = `${node.x}%`; button.style.top = `${node.y}%`;
       button.setAttribute('aria-pressed', 'false');
-      button.setAttribute('aria-label', `${node.label}${node.subtitle ? ` - ${node.subtitle}` : ''}${node.completed ? ', completed' : ''}${node.goldStar ? ', gold star earned' : ''}`);
+      button.setAttribute('aria-label', `${node.label}${node.subtitle ? ` - ${node.subtitle}` : ''}${node.completed ? ', completed' : ''}${node.goldStar ? ', gold star earned' : ''}${node.catBlock ? `, Cat Block available${node.catBlockFound ? ', found' : ''}` : ''}`);
       const name = document.createElement('strong'); name.textContent = node.label;
       button.append(name);
       if (node.subtitle && this.view === 'worlds') {
@@ -295,12 +342,20 @@ class WorldMap {
         flag.className = 'completion-flag'; flag.setAttribute('aria-hidden', 'true');
         cloth.className = 'flag-cloth'; flag.append(cloth); button.append(flag);
       }
-      if (node.goldStar) {
+      if (this.view === 'levels') {
         const star = document.createElement('span');
-        star.className = 'map-node-star';
-        star.textContent = '★';
+        star.className = `map-node-star${node.goldStar ? ' map-node-star-earned' : ''}`;
+        star.append(goldStarIcon(node.goldStar, document));
         star.setAttribute('aria-hidden', 'true');
         button.append(star);
+      }
+      if (node.catBlock) {
+        const catBlock = document.createElement('span');
+        catBlock.className = `map-node-cat-block${node.catBlockFound ? ' map-node-cat-block-found' : ''}`;
+        catBlock.title = `Cat Block: ${node.catBlock.description}`;
+        catBlock.setAttribute('aria-hidden', 'true');
+        catBlock.append(catBlockIcon(node.catBlockFound, document));
+        button.append(catBlock);
       }
       button.addEventListener('click', node.action); this.map.append(button);
     }

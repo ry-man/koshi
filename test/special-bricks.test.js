@@ -735,3 +735,56 @@ test('special graphics center on the full starting or grown brick, including cor
   assert.ok(Math.hypot(x - (brick.x + brick.w / 2), y - (brick.y + brick.h / 2)) > 20,
     'growth moves the graphics away from the initial owner');
 });
+
+test('all special icon panels fit solid brick sections across every corner and wrapping group', () => {
+  const node = () => ({
+    attributes: {}, children: [], style: { setProperty(name, value) { this[name] = value; } }, dataset: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    append(...children) { this.children.push(...children); },
+    querySelector(selector) { return this.children.find(child => child.attributes.class === selector.slice(1)); },
+  });
+  const context = vm.createContext({ KoshiGame: require('../src/game.js'), document: { createElementNS: node } });
+  vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8'), context);
+  const { brickInfoBounds, decorateBrick, exposeBrickInfo } = context.KoshiBrickVisuals;
+  const features = [
+    { boost: true }, { barrier: true }, { spawner: { kind: 'food', type: 'S' } },
+    { spawner: { kind: 'item', type: 'boom-time-red' } },
+    { toggle: 4, toggleRemaining: 2 }, { crumbler: 5, usesLeft: 3 }, { warped: 10 },
+    { portal: 'purple', toggle: 4, toggleRemaining: 2 },
+    { boost: true, toggle: 2, toggleRemaining: 1, crumbler: 5, usesLeft: 3, warped: 10 },
+  ];
+  for (const options of [{}, { portrait: true, scale: .3 }, { portrait: true, scale: .5 }]) {
+    const base = arena(options), regions = brickRegions(base.bricks, base.width, base.height);
+    for (let i = 0; i < base.perimeter.length; i++) {
+      if (regions.get(base.perimeter[i]).edge === regions.get(base.perimeter[(i + 1) % base.perimeter.length]).edge) continue;
+      for (const size of [2, 4, 10, base.perimeter.length]) {
+        const ids = Array.from({ length: size }, (_, offset) => base.perimeter[(i + offset) % base.perimeter.length]);
+        for (const owner of ids.slice(0, 2)) {
+          const game = new Game(() => .5, { ...options, customLevel: { ...level(), brickGroups: [{ owner, members: ids }] } });
+          const brick = game.bricks[owner], members = game.brickParts().filter(part => part.id === owner);
+          const bounds = brickInfoBounds(brick, members), shape = brickShape(members);
+          near(bounds.w, brick.w); near(bounds.h, brick.h);
+          for (let x = 0; x <= 8; x++) for (let y = 0; y <= 8; y++) {
+            const px = bounds.x + bounds.w * x / 8, py = bounds.y + bounds.h * y / 8;
+            assert.ok(members.some(part => px >= part.x - 1e-8 && px <= part.x + part.w + 1e-8
+              && py >= part.y - 1e-8 && py <= part.y + part.h + 1e-8), 'the whole panel stays on solid brick, not just its center');
+          }
+          const cx = shape.x + shape.w / 2, cy = shape.y + shape.h / 2;
+          const distance = Math.hypot(bounds.x + bounds.w / 2 - cx, bounds.y + bounds.h / 2 - cy);
+          for (const part of members.filter(part => part.w >= brick.w && part.h >= brick.h)) {
+            const x = Math.max(part.x + brick.w / 2, Math.min(part.x + part.w - brick.w / 2, cx));
+            const y = Math.max(part.y + brick.h / 2, Math.min(part.y + part.h - brick.h / 2, cy));
+            assert.ok(distance <= Math.hypot(x - cx, y - cy) + 1e-8, 'panel uses the nearest safe position to the union center');
+          }
+          for (const feature of features) {
+            const visual = decorateBrick(node(), { ...brick, ...feature }, members, game.width, game.height);
+            assert.deepEqual(visual.infoBounds, bounds);
+            const container = node();
+            exposeBrickInfo(visual, container, brick, game.width, game.height);
+            assert.equal(visual.info.style.cssText, `left:${bounds.x / game.width * 100}%;top:${bounds.y / game.height * 100}%;width:${bounds.w / game.width * 100}%;height:${bounds.h / game.height * 100}%;`);
+          }
+        }
+      }
+    }
+  }
+});

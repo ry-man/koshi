@@ -57,8 +57,8 @@ The high-level map shows one stop per world. Click a world to move Koshi's
 marker; clicking the world Koshi is already on zooms into its individual level stops.
 Click a level to move Koshi and see its number, name, objectives, time limit,
 Boom Helmet activation limit when applicable, fastest winning time, fewest moves, highest food
-and enemy points, win/loss totals, and win percentage (wins divided by finished
-attempts; quits are excluded). Objectives use food, enemy and soccer-goal icons
+and enemy points, win/loss/quit totals, and win percentage (wins divided by all
+attempts, including quits; N/A before any attempts). Objectives use food, enemy and soccer-goal icons
 with their numerical targets, or just a clock for survival. Small labeled illustrations
 show the enemies, blocks, foods, weapons and items actually included, including
 spawner contents. Each level detail shows a gold star at the top right when any
@@ -66,6 +66,39 @@ win was completed without taking damage; otherwise it shows the empty outline.
 The star remains earned when the level is replayed, and earned stars also appear
 at the bottom-left of their level stops on the zoomed-in map. **Play Level**
 starts that selection; **World Select** returns to world selection.
+Levels that offer a Cat Block show its icon beside the star. These detail icons
+stay in fixed positions as levels change, independently of title length.
+Hover or focus the star or Cat Block icon for its collection hint,
+or click/tap the icon to keep the hint open. Press Escape to dismiss it.
+The pre-level mission briefing lists only
+active victory targets with emojis. Where applicable, a centered Cat Block image
+appears below them with its collection hint or “Cat Block already acquired!”.
+Uncollected stars and Cat Blocks use outlines with the same shape, size and
+position as their collected artwork, both beside map stops and in level details.
+Cat Block outlines follow the artwork's alpha silhouette. Cat Blocks are omitted
+from Level Features because their availability is already shown beside the star.
+Each World 1 level offers one Cat Block. In **1-3 (Cutlery uprising)**,
+**1-6 (Sticky jam depot)** and **1-9 (Meals on wheels)**, defeat the marked enemy
+in the first patrol and collect its dropped block. In **1-4 (A hearty harvest)**,
+open the center chest (appearing at 50 seconds) with three keys: one spawns at
+20 seconds and one mouse in each existing 12- and 35-second patrol carries a key.
+Defeat the key-marked mice and collect their drops. The chest has no expiry and
+stays until opened or the level ends. In the other six levels,
+it appears at a random location halfway through the level.
+Save slots remember collected Cat Blocks by level. The world-selection map and
+each save slot show icon-only completion-flag, gold-star and Cat Block counts against the totals
+available across the campaign.
+Cat Blocks are kept only when collected during a run that ends in victory.
+Opening a chest animates its lid and lifts the Cat Block before the normal
+pickup pop. Keys and enemy key badges use bright opaque yellow artwork.
+Victory results show a centered Cat Block reward when newly collected that run.
+Losing, restarting or leaving before victory forfeits the block; damage alone
+does not forfeit it. Blocks and completion results save together.
+Each Cat Block can be kept only once per profile: replays omit its pickup,
+carrier badge and treasure chest after collection. Guest discoveries last for
+the current visit; editor playtests remain independent. Carried blocks track
+their enemy at a fixed offset without bobbing, using the same unframed artwork
+as collected map icons and the in-game pickup.
 The map window and its map/details panes keep a consistent viewport-relative
 size regardless of the number of stops or preview icons; longer content scrolls
 inside its pane. Level numbers stay on one line. **World Select** and
@@ -90,11 +123,27 @@ a loss or restarting the same level still opens its briefing directly.
 Completed levels and fully completed worlds display waving golden flags;
 reduced motion keeps flags and Koshi still.
 
-World definitions in [src/worlds.js](./src/worlds.js) give each world a theme
-and explicit `next` routes; levels carry `worldId` and a displayed `number`.
+World definitions in [src/campaign.js](./src/campaign.js) give each world a theme,
+explicit `next` routes, and an ordered `levels` mapping from displayed numbers to
+named level data. For example, `'1-10': 'Pancake trampoline'` assigns that named
+level to that stop. Move or rename a stop by editing these mappings, not the
+level's gameplay data. Mapping insertion order defines the path through a world;
+the world array defines campaign order.
+
+The engine exports `LEVEL_DATA`, a catalog keyed by level name, without world
+membership or displayed numbers. Its fixed `id` values are legacy save identities,
+not level positions: never change them when moving or renumbering a level.
+`assembleCampaign` resolves the mappings into the runtime `LEVELS` array, adding
+`worldId` and `number` without changing the catalog or its layouts, schedules,
+objectives, dialogue or cutscene themes. Unknown names, duplicate assignments,
+duplicate numbers and invalid world routes are rejected at startup.
+[src/worlds.js](./src/worlds.js) provides navigation and feature helpers for this
+assembled campaign. Both the game and editor load the same definitions, and the
+editor's campaign play links use fixed IDs so they survive reassignment.
+
 Main worlds are numbered 1, 2, 3, etc. Optional worlds can use IDs such as
 `S2`, `special: true`, and a branch from World 1 with `next: ['2', 'S2']`.
-Add levels assigned to that world to make the branch playable. Dashed routes
+Add named levels to that world's `levels` mapping to make the branch playable. Dashed routes
 distinguish special branches. Default next-level suggestions follow the main
 path; completing a special world's levels can rejoin a main world through its
 `next` route. World 3S uses `special: true`, and World 2 lists
@@ -121,8 +170,10 @@ offers **Continue** to revisit the map. Optional World 3S levels count toward
 the slot's "completed / 60" total but are not required, and **Continue** never
 suggests them.
 
-Completed attempts autosave to the selected slot immediately, including losses
-and their statistics; only wins mark levels complete. Replaying an earlier
+Every started attempt autosaves to the selected slot as a provisional quit,
+replaced by a win or loss when play finishes; only wins mark levels complete.
+This records quits even if the app is closed or terminated without an exit event.
+Replaying an earlier
 level never removes progress; choosing levels out of order still records each
 completed level separately. Failed attempts and restarting do not erase wins.
 **Save name** renames the owner without resetting progress. **Delete save**
@@ -131,10 +182,12 @@ saving for the current session and opens world selection. The most recently
 continued or created slot is remembered for the title's **Continue as**
 button; if that slot was deleted (or older saves have no record), the first
 occupied slot is used instead. Custom levels and tutorials never change
-campaign saves. Quitting, restarting or leaving before a result counts as neither
-a win nor a loss. Guest statistics are kept only for the current page visit.
+campaign saves. Quitting, restarting or leaving a started level before a result
+counts as one quit, not a loss. Briefings and cutscenes do not start an attempt.
+Pausing or temporarily backgrounding the app does not end an attempt; resumed
+play replaces the same provisional quit. Guest statistics are kept only for the current page visit.
 Fastest times use wins only; highest food, enemy and soccer-goal scores use all
-finished attempts.
+attempts, including quits (using the latest saved checkpoint on app closure).
 **Fewest moves** is the smallest successful brick-selection count in a win,
 including mid-flight redirects and Magical Sunglasses selections. Failed clicks,
 passive travel, Spring bounces, Portal arrivals and physical brick contacts
@@ -192,7 +245,7 @@ The objectives practice challenge uses real victory rules: collect one food and
 defeat one robot. Finish tutorial returns to the title.
 
 The open-doorway **Exit level** button in the game toolbar pauses play and asks
-whether to quit and return to the world map. **End Level** discards the attempt
+whether to quit and return to the world map. **End Level** records a quit for a started attempt
 and opens the world map; **Cancel** (or Escape) returns to the paused game.
 Leaving a tutorial discards its practice arena and restores the selected normal
 or custom level to a fresh ready state. Practice never modifies campaign levels
@@ -775,9 +828,19 @@ Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
 `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
 `robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`; weapon types are `wood`,
 `bronze`, `silver`, `gold`.
-Item types (`kind: "item"`) are `smiley-cookie`, `stopwatch`, `stopwatch-green`, `stopwatch-blue`, `battery`,
-`music-box`, `eggplant`, `saw-blade`, `magic-sunglasses`, and `kitty-cape`. `brickSet` is 1
+Item types (`kind: "item"`) include `cat-block`, `key`, and `treasure-chest` as
+well as the power-ups. A Cat Block can be placed directly, carried by a custom
+enemy (`"carriesCatBlock": true`, dropped when defeated), or put in a chest.
+Chest events accept `"keysRequired"` (a positive whole number, default 1);
+collecting keys adds to the HUD counter, and opening a chest spends the required
+keys. In the editor, enable Cat Block in level settings, write its collection
+hint, and customize the pickup, carrier, and chest messages. Achievement-based
+collection is not implemented yet. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
+Enemy events also accept `"carriesKey": true` (the editor's **Carries a key**
+checkbox). A key floats beside the carrier and drops at its position on defeat,
+remaining collectible until the level ends. Omit a chest event's `lifetime` to
+keep it available until opened or the level ends.
 Objects use `kind: "object"` and have no lifetime or shield. Soccer balls
 persist until scored or the level ends. Custom levels can also place red,
 green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
@@ -1072,6 +1135,10 @@ As eating begins, a thin, six-unit grass strip fades in just beside the inner
 face of the original-sized brick section, at the cow's feet rather than over
 the brick or its body. A straight edge wipes the grass away at a constant speed,
 emptying exactly when the five-second eating timer destroys the brick.
+Spooky Mask immediately cancels eating and removes the grass without changing
+the brick. The cow flees instead (unless asleep). When fear ends, it chooses a
+fresh two-to-six-brick walking distance from its current position; interrupted
+eating never resumes.
 Its 2.1-second death animation first pops off the head and releases the neck
 spring while the body and legs remain still; only then do the legs detach,
 the body drop, and the explosion begin. Robo Unicorn
@@ -1092,6 +1159,9 @@ Blue, green and red Bubbles (`bubble-blue`, `bubble-green`, `bubble-red`) are
 custom-level objects slightly larger than Koshi. Contact pulls Koshi smoothly
 to the center, where he is held for the matching slime duration: 5, 3 or 1
 seconds. Enemies can still hurt him, and he can still attack with his sword.
+A thin ring around Koshi steadily loses arc length from capture until release.
+When it reaches zero, the bubble bursts into fading watery ripples and droplets.
+Pause freezes the countdown and pop animation; restarting clears them.
 
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom
@@ -1414,8 +1484,10 @@ Crumbler counts (`C:`), Warped seconds (`W:`), and Toggle switches share a
 centered information strip, arranged along the original brick's long axis.
 Any combination is supported, with item icons alongside when present. The strip
 keeps its original size but centers on the full starting or grown group.
-Around corners its center stays on the solid rim rather than in empty arena;
-it remains outside Crumbler clipping. Larger non-Crumbler groups have slightly
+Around corners the entire strip fits on the solid rim near the group's center,
+not merely its center point. Boost flames, spawner and Barrier icons use the
+same bounded layout without growing to the group's bounding-box size.
+It remains outside Crumbler clipping. Larger non-Crumbler groups have slightly
 rounded exterior and interior corners, without seams between their segments.
 `W:X` denotes a frozen, exhausted Warped Crumbler.
 

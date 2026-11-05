@@ -4,12 +4,7 @@
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
 const { LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS } = engine;
 
-const WORLDS = [
-  { id: '1', name: 'Garden Path', theme: 'garden', special: false, next: ['2'] },
-  { id: '2', name: 'Clockwork Pantry', theme: 'workshop', special: false, next: ['3', '3S'] },
-  { id: '3', name: 'Robot Foundry', theme: 'foundry', special: false, next: [] },
-  { id: '3S', name: 'Tom\'s Gauntlet', theme: 'foundry', special: true, next: [] },
-];
+const { WORLDS } = typeof module !== 'undefined' && module.exports ? require('./campaign.js') : globalThis.KoshiCampaign;
 
 function worldLevels(world, levels = LEVELS) {
   return levels.filter(level => level.worldId === world.id);
@@ -37,6 +32,7 @@ function levelFeatures(level) {
   const titleCase = name => String(name).replace(/\b[a-z]/g, letter => letter.toUpperCase());
   const add = (picture, name) => features.set(picture, { picture, name: titleCase(name) });
   const event = (kind, type) => {
+    if (kind === 'item' && type === 'cat-block') return;
     const catalog = { food: FOODS, item: ITEMS, object: OBJECTS, weapon: SWORDS, enemy: CHARACTERS };
     add(`${kind}:${type}`, kind === 'enemy' ? CHARACTERS[type]
       : catalog[kind]?.[type]?.name ?? (type === 'soccer-ball' ? 'Soccer ball' : type));
@@ -46,6 +42,8 @@ function levelFeatures(level) {
     for (const entry of entries) event(kind, entry[kind === 'food' ? 2 : 1]);
   }
   for (const entry of level.events ?? []) event(entry.kind, entry.type);
+  if ((level.enemies ?? []).some(entry => entry[4]?.carriesKey)
+    || (level.events ?? []).some(entry => entry.kind === 'enemy' && entry.carriesKey)) event('item', 'key');
   const index = LEVELS.indexOf(level);
   const bricks = index === -1 ? level.brickTypes ?? [] : new engine.Game(() => .5, { level: index }).bricks;
   for (const brick of bricks.filter(brick => brick.absorbedBy == null)) {

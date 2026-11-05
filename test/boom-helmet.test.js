@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, LEVELS, ITEMS, validateCustomLevel, levelObjective, brickRegions } = require('../src/game.js');
+const { Game, LEVELS, ITEMS, CAT_BLOCK_MESSAGES, validateCustomLevel, levelObjective, brickRegions } = require('../src/game.js');
 
 const blank = () => ({ version: 1, id: 'Boom tests', duration: 60, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 function arena(limit = 4) {
@@ -134,7 +134,7 @@ test('editor settings round-trip limit, allow clearing it, and keep it independe
     if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);
   };
-  const context = vm.createContext({ $, level: { ...blank(), activationLimit: 8 }, validateDraft: validateCustomLevel,
+  const context = vm.createContext({ $, level: { ...blank(), activationLimit: 8 }, CAT_BLOCK_MESSAGES, validateDraft: validateCustomLevel,
     attempt: action => action(), markChanged() {}, render() {}, message() {} });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);

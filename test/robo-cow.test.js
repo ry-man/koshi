@@ -41,6 +41,90 @@ test('Robo Cow follows the perimeter at twice Robo Wheel speed', () => {
     || cow.y === game.bounds().top || cow.y === game.bounds().bottom);
 });
 
+test('Spooky Mask immediately cancels eating and grass, then cows flee without destroying their brick', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = arena(options);
+    const cow = game.createCustomSpawn({ kind: 'enemy', type: 'robo-cow', x: .5, y: 0 })[0];
+    const regions = brickRegions(game.bricks, game.width, game.height);
+    const top = game.perimeter.filter(id => regions.get(id).edge === 'top' && game.bricks[id].kind === 'normal');
+    const id = top[Math.floor(top.length / 2)];
+    cow.distance = game.perimeterBrickDistance(id);
+    cow.cowWalkRemaining = 0;
+    game.updateRoboCow(cow, .01);
+    cow.cowEatTime = COW_EAT_DURATION - .001;
+    game.robots = [cow];
+    game.cat.x = cow.x + 50;
+    const draw = grassRenderer(game), brick = { ...game.bricks[id] };
+    assert.equal(cow.cowEating, true);
+    assert.ok(draw(cow).length > 0);
+    game.collectItem({ type: 'spooky-mask' });
+    assert.equal(cow.cowEating, false, 'capture interrupts eating before the next simulation step');
+    assert.equal(cow.cowEatTime, 0);
+    assert.equal(cow.cowTargetId, null);
+    assert.equal(cow.cowTargetIndex, null);
+    assert.equal(draw(cow).length, 0, 'grass disappears immediately');
+    const distance = cow.distance;
+    const separation = Math.hypot(cow.x - game.cat.x, cow.y - game.cat.y);
+    game.update(.1);
+    assert.ok(Math.abs(Math.abs(cow.distance - distance) - 6.4) < 1e-8);
+    assert.ok(Math.hypot(cow.x - game.cat.x, cow.y - game.cat.y) > separation);
+    assert.equal(cow.fleeMoving, true);
+    game.update(COW_EAT_DURATION);
+    assert.equal(cow.cowEating, false);
+    assert.equal(cow.cowEatTime, 0);
+    assert.deepEqual(game.bricks[id], brick, 'the abandoned meal never converts the brick');
+  }
+});
+
+test('fear expiry generates one fresh cow walking quota, including sleeping cows and repeated masks', () => {
+  for (const sleeping of [false, true]) for (const eating of [false, true]) {
+    const game = arena(), cow = game.createCustomSpawn({ kind: 'enemy', type: 'robo-cow', x: .5, y: 0 })[0];
+    game.robots = [cow];
+    cow.cowEating = eating;
+    cow.cowEatTime = eating ? 2 : 0;
+    cow.cowWalkRemaining = 1;
+    if (sleeping) game.collectItem({ type: 'music-box' });
+    let rolls = 0;
+    game.random = () => { rolls++; return .99; };
+    game.collectItem({ type: 'spooky-mask' });
+    game.update(.1);
+    game.collectItem({ type: 'spooky-mask' });
+    game.update(.1);
+    assert.equal(cow.cowEating, false);
+    assert.equal(rolls, 0, 'mask refreshes and fleeing do not roll walking quotas');
+    const b = game.bounds(), averageLength = 2 * (b.right - b.left + b.bottom - b.top) / game.perimeter.length;
+    const distance = cow.distance, direction = cow.cowDirection;
+    game.maskUntil = game.elapsed;
+    game.update(.01);
+    assert.equal(rolls, 1, 'fear ending rolls a new distance exactly once');
+    assert.equal(cow.cowEating, false);
+    assert.equal(cow.cowEatTime, 0);
+    assert.equal(cow.cowTargetId, null);
+    assert.equal(cow.cowTargetIndex, null);
+    assert.equal(cow.cowDirection, direction);
+    assert.ok(Math.abs(cow.cowWalkRemaining - (6 * averageLength - (sleeping ? 0 : 1.9))) < 1e-8);
+    assert.ok(Math.abs(cow.distance - distance - (sleeping ? 0 : direction * 1.9)) < 1e-8);
+    game.update(.01);
+    assert.equal(rolls, 1);
+  }
+});
+
+test('cows spawned during fear flee first and roll a new walking distance when it ends', () => {
+  const game = arena();
+  game.collectItem({ type: 'spooky-mask' });
+  const cow = game.createCustomSpawn({ kind: 'enemy', type: 'robo-cow', x: .5, y: 0 })[0];
+  game.robots = [cow];
+  game.update(.1);
+  assert.equal(cow.afraid, true);
+  assert.equal(cow.cowEating, false);
+  assert.equal(cow.cowWalkRemaining, 0);
+  game.maskUntil = game.elapsed;
+  game.update(.01);
+  assert.equal(cow.afraid, false);
+  assert.ok(cow.cowWalkRemaining > 0);
+  assert.equal(cow.cowEating, false);
+});
+
 test('eating cows cannot be moved by any enemy head or snake body in either collision order', () => {
   for (const options of [{}, { portrait: true, scale: .3 }]) {
     for (const type of ['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'goalie', 'robo-koshi', 'robo-snail', 'robo-cow', 'robo-unicorn']) {
