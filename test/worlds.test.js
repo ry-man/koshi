@@ -23,6 +23,13 @@ test('World Select shares the bottom action bar and styling with the level menu 
   assert.doesNotMatch(picker.slice(0, picker.indexOf('</header>')), /world-map-back/);
 });
 
+test('phone world map uses the full screen and does not reserve a hidden details row', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  const phoneRules = css.slice(css.indexOf('@media (max-width: 760px) {'));
+  assert.match(phoneRules, /\.world-picker\s*\{[^}]*width:\s*100vw;[^}]*height:\s*100dvh;[^}]*max-height:\s*100dvh;[^}]*margin:\s*0;/);
+  assert.match(phoneRules, /\.map-layout\[data-view="worlds"\]\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/);
+});
+
 test('worlds partition all 60 campaign identities into themed groups of 10, 24, 14 and 12', () => {
   assert.deepEqual(WORLDS.map(world => worldLevels(world).length), [10, 24, 14, 12]);
   assert.deepEqual(WORLDS.map(world => world.theme), ['garden', 'workshop', 'foundry', 'foundry']);
