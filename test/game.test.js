@@ -87,6 +87,29 @@ test('weapon status announces remaining attacks or seconds and the sword badge s
   assert.match(app, /drawSword\(swordX, swordY, color\)[\s\S]*const label = `\$\{remaining\}\$\{timedWeapon \? 's' : ''\}`/);
 });
 
+test('weapon counters sit above Koshi on the left without moving the sword on the right', () => {
+  const { SWORDS } = require('../src/game.js');
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = app.indexOf('  if (game.weapon) {', app.indexOf('function render('));
+  const body = app.slice(start, app.indexOf('  drawTurretEffects(ctx);', start));
+  for (const [type, uses, label] of [['wood', 3, '3'], ['gold', Infinity, '12s']]) {
+    const arcs = [], texts = [], swords = [];
+    const ctx = new Proxy({}, {
+      get(target, name) {
+        if (name === 'measureText') return () => ({ width: 20 });
+        if (name === 'arc') return (...args) => arcs.push(args);
+        if (name === 'fillText') return (...args) => texts.push(args);
+        return () => {};
+      },
+    });
+    const game = { cat: { x: 400, y: 300 }, elapsed: 5, weapon: { type, uses, expires: 17 } };
+    vm.runInNewContext(body, { game, SWORDS, ctx, drawSword: (...args) => swords.push(args) });
+    assert.deepEqual(swords[0], [430, 280, SWORDS[type].color]);
+    assert.deepEqual(texts[0], [label, 370, 257]);
+    assert.deepEqual(arcs[0].slice(0, 2), [370, 257]);
+  }
+});
+
 test('aiming draws a subtle transparent dotted line and an exact red outlined target above bricks', () => {
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const strokes = [], arcs = [], lines = [], dashes = [];

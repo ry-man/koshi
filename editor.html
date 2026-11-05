@@ -76,7 +76,7 @@
             <input id="timeline" type="range" min="0" max="60" step="0.1" value="0">
             <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
           </div>
-          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food, items, and weapons disappear at their expiry. Items and weapons with a blank lifetime remain until the level ends. Enemy and soccer ball spawn markers persist. Wheels snap to the nearest playable edge. Robo Goalies spawn at their markers and move toward the nearest Goal brick; without a Goal brick they immediately die. Other enemies and balls can be placed anywhere. Positions adapt between layouts.</p>
+          <p class="editor-help">The preview shows spawn locations, not enemy movement or player pickups. With “show all” off, food, items, and weapons disappear at their expiry. Items and weapons with a blank lifetime remain until the level ends. Enemy and soccer ball spawn markers persist. Wheels, snakes, and Robo Cows snap to the nearest playable edge. Robo Goalies spawn at their markers and move toward the nearest Goal brick; without a Goal brick they immediately die. Other enemies and balls can be placed anywhere. Positions adapt between layouts.</p>
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
           <fieldset id="inspector-access" class="access-fields">
@@ -115,6 +115,12 @@
             <label>Spawning item<select id="brick-spawn-item" disabled></select></label>
             <label>Spawned object lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" placeholder="Until level ends" disabled></label>
             <label>Spawned enemy shield<select id="brick-spawn-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
+            <fieldset id="brick-spawn-obstruction" hidden disabled>
+              <legend>Obstruction texture</legend>
+              <label>Base color<input id="brick-spawn-color" type="color" value="#718596"></label>
+              <label>Pattern<select id="brick-spawn-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
+              <label>Pattern color<input id="brick-spawn-patternColor" type="color" value="#dbe6ed"></label>
+            </fieldset>
             <label>Turret type<select id="brick-turret-type" disabled><option value="fireball">Fireball</option><option value="laser">Laser</option></select></label>
             <details class="inspector-help"><summary>Mechanics &amp; reset</summary>
               <p class="editor-help">Changes apply immediately to selected bricks. Contact surfaces replace one another; modifiers can combine with any surface. Crumbler counts selections; Warped absorbs neighbors temporarily. Slime holds Koshi; Springs reflect him; Spikes hurt; Conveyor carries; Boost launches from rest at double speed. Turrets protect Koshi while he aims and fires three shots, then return him to play after 10 seconds.</p>
@@ -130,6 +136,13 @@
           <form id="event-form">
             <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option><option value="item">Item</option><option value="object">Object</option></select></label>
             <label>Object <select id="event-type"></select></label>
+            <fieldset id="event-obstruction" hidden disabled>
+              <legend>Obstruction texture</legend>
+              <label>Base color<input id="event-color" type="color" value="#718596"></label>
+              <label>Pattern<select id="event-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
+              <label>Pattern color<input id="event-patternColor" type="color" value="#dbe6ed"></label>
+              <p class="editor-help">Obstructions are fixed solids. Circles and diamonds come in normal and double-size versions; long rectangles also come in horizontal and vertical versions. Koshi slides or sticks against them without changing his intended direction or speed. Choose from 100 shared color presets or use the color inputs for custom colors. Colors and patterns do not affect collisions.</p>
+            </fieldset>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <div class="input-pair">
               <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
@@ -159,7 +172,7 @@
       <section class="editor-panel" aria-label="Import and export">
         <fieldset id="files-access" class="access-fields">
         <div class="section-heading"><h2>Take your level with you</h2><div class="file-actions"><button id="save-draft">Save draft</button><button id="load-draft">Load draft</button></div></div>
-        <p class="editor-help">JSON is the portable source of truth. Save a draft in this browser, download a file, or paste JSON below. Importing replaces the current level only after validation. Playtest sends a snapshot to the game; use its editor link to return.</p>
+        <p class="editor-help">JSON is the portable source of truth. Save a draft in this browser, download a file, or paste JSON below. Importing replaces the current level only after validation. Playtest sends a snapshot to the game; use Back to editor or your browser's Back button to return to editing that snapshot.</p>
         <label for="level-json">Level JSON</label>
         <textarea id="level-json" rows="9" spellcheck="false" placeholder="Generate JSON, or paste an exported level here to import."></textarea>
         <div class="file-actions"><button id="generate-json">Generate JSON</button><button id="import-json">Import JSON</button><button id="download-json">Download JSON</button><label class="file-label">Import file <input id="import-file" type="file" accept=".json,application/json"></label></div>

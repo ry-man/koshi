@@ -13,6 +13,9 @@ const CAPE_DURATION = 10;
 const CAPE_SPEED_MULTIPLIER = 2;
 const MASK_DURATION = 10;
 const FEAR_SPEED = 32;
+const COW_EAT_DURATION = 5;
+const OBSTRUCTION_RADIUS = 48;
+const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
 const DITTO_STAMP_RADIUS = 27;
 const COOLDOWNS = { slow: 15, normal: 8, fast: 3 };
 const SLIMES = { blue: { duration: 5, color: '#287dcc' }, green: { duration: 3, color: '#399d24' }, red: { duration: 1, color: '#cd4136' } };
@@ -55,6 +58,17 @@ const OBJECTS = {
   'bumper-red': { name: 'Red Bumper', icon: '🔴', color: '#d94a4a', bumper: true, speedMultiplier: 1.25 },
   'bumper-green': { name: 'Green Bumper', icon: '🟢', color: '#399d4a', bumper: true, speedMultiplier: 1 },
   'bumper-blue': { name: 'Blue Bumper', icon: '🔵', color: '#287dcc', bumper: true, speedMultiplier: .75 },
+  'bubble-blue': { name: 'Blue Bubble', icon: '🔵', color: '#287dcc', bubble: true, bubbleColor: 'blue' },
+  'bubble-green': { name: 'Green Bubble', icon: '🟢', color: '#399d4a', bubble: true, bubbleColor: 'green' },
+  'bubble-red': { name: 'Red Bubble', icon: '🔴', color: '#cd4136', bubble: true, bubbleColor: 'red' },
+  'obstruction-circle': { name: 'Circle Obstruction', icon: '\u25cf', color: '#718596', obstruction: 'circle' },
+  'obstruction-diamond': { name: 'Diamond Obstruction', icon: '\u25c6', color: '#718596', obstruction: 'diamond' },
+  'obstruction-circle-large': { name: 'Large Circle Obstruction', icon: '\u25cf', color: '#718596', obstruction: 'circle', radius: 96 },
+  'obstruction-diamond-large': { name: 'Large Diamond Obstruction', icon: '\u25c6', color: '#718596', obstruction: 'diamond', radius: 96 },
+  'obstruction-rectangle-horizontal': { name: 'Horizontal Long Rectangle Obstruction', icon: '\u25ac', color: '#718596', obstruction: 'rectangle', radius: 96, width: 192, height: 48 },
+  'obstruction-rectangle-vertical': { name: 'Vertical Long Rectangle Obstruction', icon: '\u25ae', color: '#718596', obstruction: 'rectangle', radius: 96, width: 48, height: 192 },
+  'obstruction-rectangle-horizontal-large': { name: 'Large Horizontal Long Rectangle Obstruction', icon: '\u25ac', color: '#718596', obstruction: 'rectangle', radius: 192, width: 384, height: 96 },
+  'obstruction-rectangle-vertical-large': { name: 'Large Vertical Long Rectangle Obstruction', icon: '\u25ae', color: '#718596', obstruction: 'rectangle', radius: 192, width: 96, height: 384 },
 };
 function needsBrickSpawnClearance(type) {
   return type === 'ditto-stamp' || type === 'saw-blade' || Boolean(ITEMS[type]?.paintUses);
@@ -133,7 +147,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop'];
 
 function validateCutscene(value) {
@@ -677,6 +691,18 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     if (item.kind !== 'enemy' || (item.shield !== null && !Object.hasOwn(SHIELDS, item.shield))) fail(`${name} has an invalid enemy shield.`);
     result.shield = item.shield;
   };
+  const obstructionAppearance = (item, result, name) => {
+    const obstruction = item.kind === 'object' && OBJECTS[item.type]?.obstruction;
+    for (const field of ['color', 'patternColor', 'pattern']) {
+      if (item[field] === undefined) continue;
+      if (!obstruction) fail(`${name}: ${field} is only supported for obstructions.`);
+      if (field === 'pattern' ? !OBSTRUCTION_PATTERNS.includes(item[field])
+        : typeof item[field] !== 'string' || !/^#[0-9a-f]{6}$/i.test(item[field])) {
+        fail(`${name} has an invalid obstruction ${field}.`);
+      }
+      result[field] = item[field];
+    }
+  };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Level must be a JSON object.');
   if (value.version !== 1) fail('Unsupported level version. Expected version 1.');
   if (typeof value.id !== 'string' || !value.id.trim() || value.id.length > 60) fail('Level name must contain 1–60 characters.');
@@ -704,13 +730,15 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
     if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
+    if (event.kind === 'enemy' && event.type === 'robo-cow' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: Robo Cows must start on an edge of the playable area.`);
     const result = { time, kind: event.kind, type: event.type, x, y };
     shield(event, result, name);
-    if (event.kind === 'object' && event.lifetime != null) fail(`${name}: soccer balls persist until scored or the level ends.`);
+    obstructionAppearance(event, result, name);
+    if (event.kind === 'object' && event.lifetime != null) fail(`${name}: objects cannot have a lifetime; soccer balls persist until scored and other objects until used or the level ends.`);
     if (event.kind === 'food') result.lifetime = number(event.lifetime, .1, 3600, `${name} food lifetime`);
     else if (['item', 'weapon'].includes(event.kind) && event.lifetime != null) {
       result.lifetime = number(event.lifetime, .1, 3600, `${name} object lifetime`);
@@ -768,11 +796,12 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
-          if (spawn.kind === 'object' && spawn.lifetime != null) fail(`Brick override ${i + 1}: soccer balls cannot have a lifetime.`);
+          obstructionAppearance(spawn, override.spawner, `Brick override ${i + 1}`);
+          if (spawn.kind === 'object' && spawn.lifetime != null) fail(`Brick override ${i + 1}: objects cannot have a lifetime.`);
           if (spawn.kind === 'food') override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn food lifetime`);
           else if (['item', 'weapon'].includes(spawn.kind) && spawn.lifetime != null) {
             override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn object lifetime`);
@@ -1411,6 +1440,48 @@ function circleContact(x, y, dx, dy, radius) {
   return discriminant < 0 ? Infinity : (-approaching - Math.sqrt(discriminant)) / speedSquared;
 }
 
+function obstructionGeometry(obstruction) {
+  const definition = OBJECTS[obstruction.type];
+  const radius = obstruction.radius ?? definition.radius ?? OBSTRUCTION_RADIUS;
+  const scale = radius / (definition.radius ?? OBSTRUCTION_RADIUS);
+  return { radius, width: obstruction.width ?? (definition.width ? definition.width * scale : radius * 2),
+    height: obstruction.height ?? (definition.height ? definition.height * scale : radius * 2) };
+}
+
+function obstructionSurface(x, y, obstruction) {
+  let dx = x - obstruction.x, dy = y - obstruction.y;
+  if (OBJECTS[obstruction.type].obstruction === 'circle') {
+    const distance = Math.hypot(dx, dy);
+    return { gap: distance - obstruction.radius, nx: distance ? dx / distance : -1, ny: distance ? dy / distance : 0 };
+  }
+  const diamond = OBJECTS[obstruction.type].obstruction === 'diamond';
+  const u = diamond ? (dx + dy) / Math.SQRT2 : dx, v = diamond ? (dy - dx) / Math.SQRT2 : dy;
+  const halfW = diamond ? obstruction.radius / Math.SQRT2 : obstruction.width / 2;
+  const halfH = diamond ? halfW : obstruction.height / 2;
+  dx = u - Math.max(-halfW, Math.min(halfW, u));
+  dy = v - Math.max(-halfH, Math.min(halfH, v));
+  let gap = Math.hypot(dx, dy), nx, ny;
+  if (gap) { nx = dx / gap; ny = dy / gap; }
+  else if (Math.abs(u) - halfW >= Math.abs(v) - halfH) { gap = Math.abs(u) - halfW; nx = Math.sign(u) || -1; ny = 0; }
+  else { gap = Math.abs(v) - halfH; nx = 0; ny = Math.sign(v) || -1; }
+  return diamond ? { gap, nx: (nx - ny) / Math.SQRT2, ny: (nx + ny) / Math.SQRT2 } : { gap, nx, ny };
+}
+
+function obstructionContact(x, y, dx, dy, radius, obstruction) {
+  if (OBJECTS[obstruction.type].obstruction === 'circle') {
+    return circleContact(x - obstruction.x, y - obstruction.y, dx, dy, radius + obstruction.radius);
+  }
+  if (OBJECTS[obstruction.type].obstruction === 'rectangle') {
+    return brickContact(x, y, dx, dy, radius, { x: obstruction.x - obstruction.width / 2,
+      y: obstruction.y - obstruction.height / 2, w: obstruction.width, h: obstruction.height });
+  }
+  const half = obstruction.radius / Math.SQRT2;
+  return brickContact((x - obstruction.x + y - obstruction.y) / Math.SQRT2,
+    (y - obstruction.y - x + obstruction.x) / Math.SQRT2,
+    (dx + dy) / Math.SQRT2, (dy - dx) / Math.SQRT2, radius,
+    { x: -half, y: -half, w: half * 2, h: half * 2 });
+}
+
 function spikeContact(x, y, dx, dy, radius, triangle) {
   let contact = Infinity;
   const orientation = Math.sign(triangle.reduce((sum, [ax, ay], i) => {
@@ -1496,7 +1567,9 @@ class Game {
     this.enemies = 0;
     this.goals = 0;
     this.soccerBalls = [];
+    this.bubbles = [];
     this.bumpers = [];
+    this.obstructions = [];
     this.goalEffects = [];
     this.activationsRemaining = this.level.activationLimit ?? null;
     this.boomHelmet = null;
@@ -1515,6 +1588,7 @@ class Game {
     this.stuckUntil = 0;
     this.stuckColor = 'green';
     this.releasedAt = null;
+    this.bubbleTrap = null;
     this.pickups = [];
     this.foodId = 0;
     this.robots = [];
@@ -1643,7 +1717,8 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.activeTurret || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick)) return false;
+    if (this.state !== 'playing' || this.activeTurret || this.bubbleTrap
+      || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick)) return false;
     const parts = this.brickParts();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
@@ -1717,6 +1792,7 @@ class Game {
     const speed = Math.hypot(vx, vy);
     if (!speed || this.conveyorRide) return this.target ? [[x, y], [this.target.x, this.target.y]] : [];
     const parts = this.brickParts(), spikes = this.spikeParts(parts);
+    if (this.obstructions.length) return this.obstructionTrajectory(parts, spikes);
     const distance = Math.hypot(this.width, this.height) * 2;
     const cast = (x, y, vx, vy) => {
       const dx = vx / speed * distance, dy = vy / speed * distance;
@@ -1751,6 +1827,87 @@ class Game {
     return points;
   }
 
+  obstructionTrajectory(parts, spikes) {
+    const actor = { ...this.cat }, points = [[actor.x, actor.y]];
+    const maxDistance = Math.hypot(this.width, this.height) * 2;
+    let traveled = 0, reflections = 0;
+    const append = () => {
+      const point = [actor.x, actor.y], last = points.at(-1), before = points.at(-2);
+      if (Math.hypot(point[0] - last[0], point[1] - last[1]) < 1e-5) return;
+      if (before) {
+        const ax = last[0] - before[0], ay = last[1] - before[1];
+        const bx = point[0] - last[0], by = point[1] - last[1];
+        if (ax * bx + ay * by > 0 && Math.abs(ax * by - ay * bx) < 1e-8) {
+          points[points.length - 1] = point;
+          return;
+        }
+      }
+      points.push(point);
+    };
+    // Match gameplay's fixed substeps and position-only sliding, without ticking the live game.
+    for (let step = 0; step < 4096 && traveled < maxDistance; step++) {
+      const old = { x: actor.x, y: actor.y };
+      const speed = Math.hypot(actor.vx, actor.vy);
+      if (!speed) break;
+      const dt = Math.min(1 / 120, (maxDistance - traveled) / speed);
+      actor.x += actor.vx * dt; actor.y += actor.vy * dt;
+      this.moveAroundObstructions(actor, old, true);
+      const dx = actor.x - old.x, dy = actor.y - old.y;
+      let contact = Math.min(1,
+        dx > 0 ? (this.width - actor.radius - old.x) / dx : dx < 0 ? (actor.radius - old.x) / dx : Infinity,
+        dy > 0 ? (this.height - actor.radius - old.y) / dy : dy < 0 ? (actor.radius - old.y) / dy : Infinity);
+      let contacts = [], bumpers = [];
+      const left = Math.min(old.x, actor.x) - actor.radius - 1e-7;
+      const right = Math.max(old.x, actor.x) + actor.radius + 1e-7;
+      const top = Math.min(old.y, actor.y) - actor.radius - 1e-7;
+      const bottom = Math.max(old.y, actor.y) + actor.radius + 1e-7;
+      for (const part of parts) {
+        const body = part.collisionBody ?? part;
+        if (body.x > right || body.x + body.w < left || body.y > bottom || body.y + body.h < top) continue;
+        const time = brickContact(old.x, old.y, dx, dy, actor.radius, part);
+        if (time < contact - 1e-9) { contact = time; contacts = [part]; }
+        else if (time <= contact + 1e-9 && time <= 1) contacts.push(part);
+      }
+      for (const spike of spikes) {
+        const time = spikeContact(old.x, old.y, dx, dy, actor.radius, spike.triangle);
+        if (time < contact - 1e-9) { contact = time; contacts = [spike]; }
+        else if (time <= contact + 1e-9 && time <= 1) contacts.push(spike);
+      }
+      for (const bumper of this.bumpers) {
+        const time = circleContact(old.x - bumper.x, old.y - bumper.y, dx, dy, actor.radius + bumper.radius);
+        if (time < contact - 1e-9) { contact = time; contacts = []; bumpers = [bumper]; }
+        else if (time <= contact + 1e-9 && time <= 1) bumpers.push(bumper);
+      }
+      actor.x = old.x + dx * contact; actor.y = old.y + dy * contact;
+      traveled += speed * dt;
+      append();
+      if (contacts.length) {
+        if (reflections++ || !contacts.every(part => this.bricks[part.id].springs)) break;
+        for (const part of contacts) {
+          const normal = brickNormal(actor.x, actor.y, part);
+          if (normal && actor.vx * normal.x + actor.vy * normal.y < 0) {
+            Object.assign(actor, reflectVelocity(actor.vx, actor.vy, normal));
+          }
+        }
+      } else if (bumpers.length) {
+        if (reflections++ >= 8) break;
+        for (const bumper of bumpers) {
+          const distance = Math.hypot(actor.x - bumper.x, actor.y - bumper.y);
+          const normal = distance ? { x: (actor.x - bumper.x) / distance, y: (actor.y - bumper.y) / distance }
+            : { x: -actor.vx / speed, y: -actor.vy / speed };
+          if (actor.vx * normal.x + actor.vy * normal.y >= -1e-9) continue;
+          Object.assign(actor, reflectVelocity(actor.vx, actor.vy, normal));
+          actor.vx *= OBJECTS[bumper.type].speedMultiplier;
+          actor.vy *= OBJECTS[bumper.type].speedMultiplier;
+          actor.x = bumper.x + normal.x * (actor.radius + bumper.radius + .01);
+          actor.y = bumper.y + normal.y * (actor.radius + bumper.radius + .01);
+        }
+        append();
+      } else if (contact < 1 || Math.hypot(actor.x - old.x, actor.y - old.y) < 1e-5) break;
+    }
+    return points;
+  }
+
   spawnFromBrick(brick) {
     const spawn = brick.spawner;
     brick.spawned = true;
@@ -1765,6 +1922,8 @@ class Game {
     else if (spawn.kind === 'object') {
       const point = this.randomPoint();
       if (OBJECTS[spawn.type].bumper) this.bumpers.push(this.createBumper(point, spawn.type));
+      else if (OBJECTS[spawn.type].bubble) this.bubbles.push(this.createBubble(point, spawn.type));
+      else if (OBJECTS[spawn.type].obstruction) this.obstructions.push(this.createObstruction(point, spawn));
       else this.soccerBalls.push(this.createSoccerBall(point));
     }
     else this.food.push({ ...this.randomPoint(), id: this.foodId++, type: spawn.type,
@@ -2131,7 +2290,8 @@ class Game {
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
       const event = this.customEvents[this.nextCustom++];
       const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items
-        : event.kind === 'object' ? OBJECTS[event.type].bumper ? this.bumpers : this.soccerBalls : this.robots;
+        : event.kind === 'object' ? OBJECTS[event.type].bumper ? this.bumpers
+          : OBJECTS[event.type].bubble ? this.bubbles : OBJECTS[event.type].obstruction ? this.obstructions : this.soccerBalls : this.robots;
       const items = this.takeSpawn(event, entry => this.createCustomSpawn(entry));
       if (event.kind === 'enemy') {
         const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
@@ -2146,22 +2306,28 @@ class Game {
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
     if (event.kind === 'weapon' || event.kind === 'item') return [this.createCollectible(event.time, event.type, event.lifetime, point)];
     if (event.kind === 'object') return [OBJECTS[event.type].bumper
-      ? this.createBumper(point, event.type) : this.createSoccerBall(point)];
-    const enemy = { ...point, type: event.type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
+      ? this.createBumper(point, event.type) : OBJECTS[event.type].bubble
+        ? this.createBubble(point, event.type) : OBJECTS[event.type].obstruction
+          ? this.createObstruction(point, event) : this.createSoccerBall(point)];
+    const enemy = { ...point, type: event.type, radius: event.type === 'robo-cow' ? 26 : 19,
+      phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
     this.initializeShield(enemy, event.shield);
     this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
     if (event.type === 'ram') this.initializeRam(enemy);
     if (event.type === 'bucket') this.initializeBucket(enemy);
     if (event.type === 'jackolantern') this.initializeJackolantern(enemy);
     if (event.type === 'goalie') this.initializeGoalie(enemy);
-    if (['wheel', 'snake'].includes(event.type)) {
+    if (['wheel', 'snake', 'robo-cow'].includes(event.type)) {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
-      if (event.y === 0) enemy.distance = event.x * w;
+      if (event.type === 'robo-cow') enemy.distance = this.perimeterPosition(point);
+      else if (event.y === 0) enemy.distance = event.x * w;
       else if (event.x === 1) enemy.distance = w + event.y * h;
       else if (event.y === 1) enemy.distance = w + h + (1 - event.x) * w;
       else enemy.distance = 2 * w + h + (1 - event.y) * h;
       this.placeWheel(enemy);
     }
+    if (event.type === 'robo-cow') this.initializeRoboCow(enemy);
+    if (event.type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
     return [enemy];
   }
 
@@ -2173,8 +2339,97 @@ class Game {
     return { ...point, type: 'soccer-ball', radius: 16, vx: 0, vy: 0, angle: 0 };
   }
 
+  createBubble(point, type) {
+    return { ...point, type, color: OBJECTS[type].bubbleColor, radius: 24 };
+  }
+
   createBumper(point, type) {
     return { ...point, type, radius: 24, hitAt: -Infinity, hitNormal: null };
+  }
+
+  createObstruction(point, appearance) {
+    return { ...point, type: appearance.type, ...obstructionGeometry(appearance),
+      color: appearance.color ?? OBJECTS[appearance.type].color,
+      pattern: appearance.pattern ?? 'solid', patternColor: appearance.patternColor ?? '#dbe6ed' };
+  }
+
+  moveAroundObstructions(actor, old, singleSegment = false) {
+    if (!this.obstructions.length) return;
+    let x = old.x, y = old.y, dx = actor.x - x, dy = actor.y - y;
+    // Scheduled obstructions may appear underneath an actor.
+    for (let pass = 0; pass < 8; pass++) {
+      let overlap = false;
+      for (const obstruction of this.obstructions) {
+        const { gap, nx, ny } = obstructionSurface(x, y, obstruction);
+        const depth = actor.radius - gap;
+        if (depth <= 1e-7) continue;
+        x += nx * (depth + 1e-6); y += ny * (depth + 1e-6);
+        overlap = true;
+      }
+      if (!overlap) break;
+    }
+    for (let pass = 0; pass < 8 && Math.hypot(dx, dy) > 1e-9; pass++) {
+      let time = 1, hit = null;
+      for (const obstruction of this.obstructions) {
+        const contact = obstructionContact(x, y, dx, dy, actor.radius, obstruction);
+        if (contact <= time) { time = contact; hit = obstruction; }
+      }
+      x += dx * time; y += dy * time;
+      if (!hit || (singleSegment && time > 1e-5)) break;
+      const { nx, ny } = obstructionSurface(x, y, hit);
+      x += nx * 1e-6; y += ny * 1e-6;
+      dx *= 1 - time; dy *= 1 - time;
+      const incoming = Math.min(0, dx * nx + dy * ny);
+      dx -= incoming * nx; dy -= incoming * ny;
+    }
+    actor.x = x; actor.y = y;
+  }
+
+  blockEnemyWithObstructions(enemy, old) {
+    if (!this.obstructions.length) return;
+    if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) {
+      const bounds = this.bounds(), perimeter = 2 * (bounds.right - bounds.left + bounds.bottom - bounds.top);
+      const segmentsAt = distance => {
+        if (enemy.type === 'snake') return this.snakeSegments({ ...enemy, distance });
+        const segment = { distance, radius: enemy.radius };
+        this.placeWheel(segment);
+        return [segment];
+      };
+      const clear = distance => segmentsAt(distance).every((segment, index) => this.obstructions.every(obstruction =>
+        obstructionSurface(segment.x, segment.y, obstruction).gap >= segment.radius + (index ? 5 : 0) - 1e-7));
+      if (!clear(old.distance)) {
+        // Keep the entire robot on its route if a new solid appears underneath it.
+        for (let offset = 8; offset <= perimeter / 2 + 8; offset += 8) for (const sign of [1, -1]) {
+          if (!clear(old.distance + sign * offset)) continue;
+          let low = offset - 8, high = offset;
+          for (let iteration = 0; iteration < 16; iteration++) {
+            const middle = (low + high) / 2;
+            if (clear(old.distance + sign * middle)) high = middle; else low = middle;
+          }
+          enemy.distance = old.distance + sign * high;
+          this.placeWheel(enemy);
+          return;
+        }
+        enemy.distance = old.distance;
+        this.placeWheel(enemy);
+        return;
+      }
+      const before = enemy.type === 'snake' ? this.snakeSegments({ ...enemy, distance: old.distance }) : [{ ...old, radius: enemy.radius }];
+      const after = enemy.type === 'snake' ? this.snakeSegments(enemy) : [enemy];
+      let contact = 1;
+      for (const [index, segment] of before.entries()) {
+        for (const obstruction of this.obstructions) {
+          const radius = segment.radius + (index ? 5 : 0);
+          contact = Math.min(contact, obstructionContact(segment.x, segment.y,
+            after[index].x - segment.x, after[index].y - segment.y, radius, obstruction));
+        }
+      }
+      const travel = ((enemy.distance - old.distance + perimeter / 2) % perimeter + perimeter) % perimeter - perimeter / 2;
+      enemy.distance = old.distance + travel * contact;
+      this.placeWheel(enemy);
+    } else {
+      this.moveAroundObstructions(enemy, old);
+    }
   }
 
   goalEntry(ball, dx, dy, part, edge) {
@@ -2333,7 +2588,9 @@ class Game {
   spawnEnemies(event) {
     const enemies = this.takeSpawn(event, entry => this.createEnemies(entry));
     for (const enemy of enemies) {
+      const perimeterDistance = enemy.distance;
       this.ensureEnemySpawnClear(enemy);
+      if (enemy.type === 'robo-cow' && enemy.distance !== perimeterDistance) this.initializeRoboCow(enemy);
       const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
       this.initializeRoboKoshi(enemy, spawn.time, spawn);
     }
@@ -2348,7 +2605,7 @@ class Game {
 
   ensureEnemySpawnClear(enemy) {
     if (this.enemySpawnClear(enemy)) return;
-    if (!['wheel', 'snake'].includes(enemy.type)) {
+    if (!['wheel', 'snake', 'robo-cow'].includes(enemy.type)) {
       Object.assign(enemy, this.randomPoint(point => this.enemySpawnClear({ ...enemy, ...point })));
       if (enemy.type === 'goalie') enemy.goaliePushPriority = enemy.y;
       return;
@@ -2366,14 +2623,17 @@ class Game {
     const items = [];
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
     for (let i = 0; i < count; i++) {
-      const enemy = { ...this.randomPoint(), type, radius: 19, phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: this.random() * 2 * (w + h) };
+      const enemy = { ...this.randomPoint(), type, radius: type === 'robo-cow' ? 26 : 19,
+        phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: this.random() * 2 * (w + h) };
       this.initializeShield(enemy, shield);
       if (type === 'ram') this.initializeRam(enemy);
       if (type === 'bucket') this.initializeBucket(enemy);
       if (type === 'jackolantern') this.initializeJackolantern(enemy);
       if (type === 'goalie') this.initializeGoalie(enemy);
-      if (['wheel', 'snake'].includes(type)) this.placeWheel(enemy);
+      if (['wheel', 'snake', 'robo-cow'].includes(type)) this.placeWheel(enemy);
       this.ensureEnemySpawnClear(enemy);
+      if (type === 'robo-cow') this.initializeRoboCow(enemy);
+      if (type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
       this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       items.push(enemy);
     }
@@ -2704,6 +2964,178 @@ class Game {
     else { enemy.x = b.left; enemy.y = b.bottom - (d - 2 * w - h); }
   }
 
+  perimeterPosition(point) {
+    const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const sides = [point.x - b.left, b.right - point.x, point.y - b.top, b.bottom - point.y];
+    const side = sides.indexOf(Math.min(...sides));
+    if (side === 0) return 2 * w + h + b.bottom - clamp(point.y, b.top, b.bottom);
+    if (side === 1) return w + clamp(point.y - b.top, 0, h);
+    if (side === 2) return clamp(point.x - b.left, 0, w);
+    return w + h + b.right - clamp(point.x, b.left, b.right);
+  }
+
+  perimeterBrickDistance(id) {
+    const brick = this.bricks[id], edge = brickRegions(this.bricks, this.width, this.height).get(id).edge;
+    const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
+    if (edge === 'top') return Math.max(0, Math.min(w, brick.x + brick.w / 2 - b.left));
+    if (edge === 'right') return w + Math.max(0, Math.min(h, brick.y + brick.h / 2 - b.top));
+    if (edge === 'bottom') return w + h + b.right - Math.max(b.left, Math.min(b.right, brick.x + brick.w / 2));
+    return 2 * w + h + b.bottom - Math.max(b.top, Math.min(b.bottom, brick.y + brick.h / 2));
+  }
+
+  initializeRoboCow(enemy) {
+    const perimeter = 2 * (this.bounds().right - this.bounds().left + this.bounds().bottom - this.bounds().top);
+    const distances = this.perimeter.map(id => this.perimeterBrickDistance(id));
+    enemy.cowDirection = 1;
+    enemy.cowBrickIndex = distances.reduce((best, distance, index) => {
+      const gap = Math.min((distance - enemy.distance + perimeter) % perimeter,
+        (enemy.distance - distance + perimeter) % perimeter);
+      return gap < best.gap ? { index, gap } : best;
+    }, { index: 0, gap: Infinity }).index;
+    enemy.cowEating = false;
+    enemy.cowEatTime = 0;
+    this.chooseCowTarget(enemy);
+    this.placeWheel(enemy);
+    this.updateRoboCowFacing(enemy);
+  }
+
+  updateRoboCowFacing(enemy, seconds) {
+    const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
+    const perimeter = 2 * (w + h), d = ((enemy.distance % perimeter) + perimeter) % perimeter;
+    const target = d < w ? Math.PI : d < w + h ? -Math.PI / 2 : d < 2 * w + h ? 0 : Math.PI / 2;
+    if (seconds === undefined || !Number.isFinite(enemy.facingAngle)) {
+      enemy.facingAngle = target;
+      return;
+    }
+    const delta = Math.atan2(Math.sin(target - enemy.facingAngle), Math.cos(target - enemy.facingAngle));
+    const step = Math.PI / 2 / .12 * seconds;
+    enemy.facingAngle += Math.max(-step, Math.min(step, delta));
+  }
+
+  chooseCowTarget(enemy) {
+    const stepsByRoll = [2, 3, 3, 4, 4, 4, 4, 5, 5, 6];
+    const steps = stepsByRoll[Math.min(9, Math.floor(this.random() * stepsByRoll.length))];
+    const currentId = this.perimeter[enemy.cowBrickIndex];
+    const owner = this.bricks[currentId].absorbedBy ?? currentId;
+    const merged = this.perimeter.filter(id => (this.bricks[id].absorbedBy ?? id) === owner).length > 1
+      && !['cinder', 'goal'].includes(this.bricks[owner].kind);
+    let distance = steps;
+    if (merged) {
+      let available = 1;
+      while (available < steps) {
+        const id = this.perimeter[(enemy.cowBrickIndex + available) % this.perimeter.length];
+        if ((this.bricks[id].absorbedBy ?? id) !== owner) break;
+        available++;
+      }
+      distance = Math.min(distance, available);
+    }
+    enemy.cowDirection = 1;
+    const offset = merged ? Math.max(0, distance - 1) : distance;
+    const index = (enemy.cowBrickIndex + offset) % this.perimeter.length;
+    enemy.cowTargetIndex = index;
+    enemy.cowTargetDistance = this.perimeterBrickDistance(this.perimeter[index]);
+    const target = this.bricks[this.perimeter[index]];
+    enemy.cowTargetId = target.absorbedBy ?? target.id;
+  }
+
+  updateRoboCow(enemy, seconds) {
+    if (enemy.cowEating) {
+      enemy.cowEatTime += seconds;
+      if (enemy.cowEatTime >= COW_EAT_DURATION - 1e-9) {
+        const brick = this.bricks[enemy.cowTargetId];
+        if (brick && !['cinder', 'goal'].includes(brick.kind)) this.convertBrickToCinder(brick, this.brickParts());
+        enemy.cowBrickIndex = enemy.cowTargetIndex;
+        enemy.cowEating = false;
+        enemy.cowEatTime = 0;
+        this.chooseCowTarget(enemy);
+      }
+      this.placeWheel(enemy);
+      return;
+    }
+    const b = this.bounds(), perimeter = 2 * (b.right - b.left + b.bottom - b.top);
+    const remaining = ((enemy.cowTargetDistance - enemy.distance) % perimeter + perimeter) % perimeter;
+    if (remaining <= 190 * seconds + 1e-9) {
+      enemy.distance = enemy.cowTargetDistance;
+      const brick = this.bricks[enemy.cowTargetId];
+      if (!brick || ['cinder', 'goal'].includes(brick.kind)) {
+        enemy.cowBrickIndex = enemy.cowTargetIndex;
+        this.chooseCowTarget(enemy);
+      } else {
+        enemy.cowEating = true;
+        enemy.cowEatTime = 0;
+      }
+    } else enemy.distance += 190 * seconds;
+    this.placeWheel(enemy);
+  }
+
+  initializeRoboUnicorn(enemy) {
+    enemy.unicornState = 'roam';
+    enemy.unicornStateTime = 0;
+    enemy.nextRestAt = enemy.age + 2 + this.random() * 2;
+    enemy.angry = false;
+    enemy.mouthOpen = false;
+    enemy.facingAngle = enemy.phase ?? 0;
+  }
+
+  nearestFood(enemy) {
+    return this.food.reduce((nearest, food) => !nearest
+      || Math.hypot(food.x - enemy.x, food.y - enemy.y) < Math.hypot(nearest.x - enemy.x, nearest.y - enemy.y) ? food : nearest, null);
+  }
+
+  updateRoboUnicorn(enemy, seconds, bounds) {
+    this.moveRoboUnicorn(enemy, seconds, bounds);
+    enemy.facingAngle = rotateToward(enemy.facingAngle ?? enemy.phase ?? 0, enemy.phase ?? 0, 10 * seconds);
+  }
+
+  moveRoboUnicorn(enemy, seconds, bounds) {
+    enemy.angry = this.food.length === 0;
+    enemy.resting = false;
+    enemy.mouthOpen = false;
+    if (enemy.angry) {
+      enemy.unicornState = 'roam';
+      enemy.unicornStateTime = 0;
+    } else if (enemy.unicornState === 'rest') {
+      enemy.resting = true;
+      enemy.unicornStateTime += seconds;
+      const target = this.nearestFood(enemy);
+      if (target) enemy.phase = rotateToward(enemy.phase, Math.atan2(target.y - enemy.y, target.x - enemy.x), 6 * seconds);
+      if (enemy.unicornStateTime >= 1) {
+        enemy.unicornState = 'charge';
+        enemy.unicornStateTime = 0;
+      }
+    }
+    if (!enemy.angry && enemy.unicornState === 'roam' && enemy.age >= enemy.nextRestAt) {
+      enemy.unicornState = 'rest';
+      enemy.unicornStateTime = 0;
+      enemy.resting = true;
+    }
+    if (!enemy.resting) {
+      let speed = enemy.angry ? 150 : 95;
+      if (!enemy.angry && enemy.unicornState === 'charge') {
+        const target = this.nearestFood(enemy);
+        if (target) {
+          enemy.mouthOpen = true;
+          const heading = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+          enemy.phase = rotateToward(enemy.phase, heading, 9 * seconds);
+          // Ease off while the food is well off-heading so the turning circle cannot orbit it.
+          const offHeading = Math.abs(Math.atan2(Math.sin(heading - enemy.phase), Math.cos(heading - enemy.phase)));
+          speed = 230 * Math.max(.3, Math.cos(Math.min(Math.PI / 2, offHeading)));
+        } else {
+          enemy.unicornState = 'roam';
+          enemy.nextRestAt = enemy.age + 2 + this.random() * 2;
+        }
+      }
+      if (!enemy.angry && enemy.unicornState !== 'charge') enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * seconds;
+      enemy.x += Math.cos(enemy.phase) * speed * seconds;
+      enemy.y += Math.sin(enemy.phase) * speed * seconds;
+      if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+    }
+  }
+
   snakeSegments(enemy) {
     if (!Number.isFinite(enemy.distance)) return Array.from({ length: 4 }, (_, index) => ({
       x: enemy.x - index * 38, y: enemy.y, radius: 19, angle: 0, index,
@@ -2984,7 +3416,7 @@ class Game {
         ({ nx, ny, depth } = sides[0]);
       }
       actor.x += nx * (depth + .01); actor.y += ny * (depth + .01);
-      if (actor.type === 'wheel') {
+      if (['wheel', 'robo-cow'].includes(actor.type)) {
         const bounds = this.bounds(), w = bounds.right - bounds.left, h = bounds.bottom - bounds.top;
         if (Math.abs(nx) > Math.abs(ny)) {
           actor.x = Math.max(bounds.left, Math.min(bounds.right, actor.x));
@@ -3061,7 +3493,7 @@ class Game {
   }
 
   turnEnemyFromContact(enemy, nx, ny) {
-    if (['wheel', 'snake'].includes(enemy.type) || (enemy.type === 'mouse' && enemy.resting)
+    if (['wheel', 'snake', 'robo-cow'].includes(enemy.type) || (enemy.type === 'mouse' && enemy.resting)
       || (!enemy.afraid && enemy.type === 'ram' && enemy.state === 'targeting')) return;
     const angle = enemy.type === 'ram' && !enemy.afraid ? enemy.angle : enemy.phase;
     const vx = Math.cos(angle), vy = Math.sin(angle);
@@ -3080,7 +3512,7 @@ class Game {
       enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
       enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
     };
-    const aPerimeter = ['wheel', 'snake'].includes(a.type), bPerimeter = ['wheel', 'snake'].includes(b.type);
+    const aPerimeter = ['wheel', 'snake', 'robo-cow'].includes(a.type), bPerimeter = ['wheel', 'snake', 'robo-cow'].includes(b.type);
     if (a.type === 'goalie' && b.type === 'goalie') {
       const leader = (a.goaliePushPriority ?? a.y) >= (b.goaliePushPriority ?? b.y) ? a : b;
       const yielding = leader === a ? b : a;
@@ -3182,7 +3614,7 @@ class Game {
         const nx = (x + dx * time) / radius, ny = (y + dy * time) / radius;
         react(a, b, nx, ny, i * this.robots.length + j);
         for (const [enemy, old] of [[a, oldA], [b, oldB]]) {
-          if (['wheel', 'snake'].includes(enemy.type)) continue;
+          if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) continue;
           enemy.x = old.x + (enemy.x - old.x) * time;
           enemy.y = old.y + (enemy.y - old.y) * time;
         }
@@ -3343,12 +3775,16 @@ class Game {
         this.moveGoalie(enemy, dt);
       } else if (enemy.afraid) {
         enemy.resting = false;
-        if (['wheel', 'snake'].includes(enemy.type)) this.moveAfraidWheel(enemy, dt);
+        if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) this.moveAfraidWheel(enemy, dt);
         else this.moveAfraidEnemy(enemy, dt);
         if (enemy.type === 'bucket') this.updateBucket(enemy, dt, parts);
         if (enemy.type === 'jackolantern') this.updateJackolantern(enemy, dt, parts, startX, startY);
       } else if (['wheel', 'snake'].includes(enemy.type)) {
         enemy.distance += (enemy.barrierDirection ?? 1) * 95 * dt; this.placeWheel(enemy);
+      } else if (enemy.type === 'robo-cow') {
+        this.updateRoboCow(enemy, dt);
+      } else if (enemy.type === 'robo-unicorn') {
+        this.updateRoboUnicorn(enemy, dt, bounds);
       } else if (enemy.type === 'ram') {
         this.updateRam(enemy, dt, parts);
       } else if (enemy.type === 'bucket') {
@@ -3379,6 +3815,7 @@ class Game {
         }
       }
     }
+    for (const enemy of this.robots) this.blockEnemyWithObstructions(enemy, previous.get(enemy));
     this.resolveEnemyCollisions(previous);
     this.resolveSnakeBodyCollisions(previous);
     for (const enemy of this.robots) {
@@ -3408,6 +3845,25 @@ class Game {
       this.blockEnemyWithBumpers(enemy, old);
       enemy.fleeMoving = enemy.afraid && !enemy.asleep && Math.hypot(enemy.x - old.x, enemy.y - old.y) > 1e-8;
       if (enemy.fleeMoving) enemy.fleeTrailAngle = Math.atan2(old.y - enemy.y, old.x - enemy.x);
+      if (enemy.type === 'robo-cow') {
+        this.placeWheel(enemy);
+        if (!enemy.asleep) this.updateRoboCowFacing(enemy, dt);
+      }
+      this.blockEnemyWithObstructions(enemy, old);
+      if (enemy.type === 'robo-unicorn' && enemy.unicornState === 'charge' && enemy.mouthOpen) {
+        let ateFood = false;
+        this.food = this.food.filter(food => {
+          if (distanceToSegment(food.x, food.y, old.x, old.y, enemy.x, enemy.y) > enemy.radius + 12) return true;
+          ateFood = true;
+          return false;
+        });
+        if (ateFood) {
+          enemy.unicornState = 'roam';
+          enemy.unicornStateTime = 0;
+          enemy.nextRestAt = enemy.age + 2 + this.random() * 2;
+          enemy.mouthOpen = false;
+        }
+      }
     }
     this.updateSoccerBalls(dt, startX, startY, previous);
     this.robots = this.robots.filter(enemy => {
@@ -3490,6 +3946,13 @@ class Game {
 
   sawBrick(brick, parts) {
     if (this.sawStartedAt === null || ['cinder', 'goal'].includes(brick.kind)) return false;
+    this.convertBrickToCinder(brick, parts);
+    this.sawStartedAt = null;
+    return true;
+  }
+
+  convertBrickToCinder(brick, parts) {
+    if (!brick || ['cinder', 'goal'].includes(brick.kind)) return false;
     const members = parts.filter(part => part.id === brick.id).map(part => ({ ...part }));
     this.brickDestructions.push({ id: brick.id, members, age: 0 });
     const portal = brick.portal;
@@ -3506,7 +3969,6 @@ class Game {
         member.absorbedBy = member.initialOwner;
       } else if (portal && member.portal === portal) member.portal = null;
     }
-    this.sawStartedAt = null;
     this.brickRevision++;
     return true;
   }
@@ -3600,7 +4062,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'robo-cow' ? 2.1 : enemy.type === 'robo-unicorn' ? 2 : enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -3632,6 +4094,22 @@ class Game {
       pickup.age += seconds;
       return pickup.age < .8 - 1e-9;
     });
+  }
+
+  updateBubbleTrap(seconds) {
+    const trap = this.bubbleTrap;
+    if (!trap) return;
+    trap.age += seconds;
+    if (trap.age >= trap.transition + trap.duration - 1e-9) {
+      this.cat.x = trap.x;
+      this.cat.y = trap.y;
+      this.bubbleTrap = null;
+      return;
+    }
+    const progress = Math.min(1, trap.age / trap.transition);
+    const smooth = progress * progress * (3 - 2 * progress);
+    this.cat.x = trap.fromX + (trap.x - trap.fromX) * smooth;
+    this.cat.y = trap.fromY + (trap.y - trap.fromY) * smooth;
   }
 
   update(seconds) {
@@ -3677,6 +4155,7 @@ class Game {
       this.releasedAt = this.stuckUntil;
       this.stuckUntil = 0;
     }
+    this.updateBubbleTrap(dt);
     this.restoreWarps();
     this.updateBarriers(dt);
     this.prepareSpawns();
@@ -3729,7 +4208,12 @@ class Game {
         rideEnd = remaining <= CONVEYOR_SPEED * dt + 1e-9;
       }
     }
-    const dx = cat.vx * dt, dy = cat.vy * dt;
+    let dx = this.bubbleTrap ? 0 : cat.vx * dt, dy = this.bubbleTrap ? 0 : cat.vy * dt;
+    if (this.obstructions.length) {
+      const motion = { x: cat.x + dx, y: cat.y + dy, radius: cat.radius };
+      this.moveAroundObstructions(motion, cat, true);
+      dx = motion.x - cat.x; dy = motion.y - cat.y;
+    }
     for (const id of this.paintTouching) {
       if (!parts.some(part => part.id === id && Math.hypot(
         cat.x - Math.max(part.x, Math.min(part.x + part.w, cat.x)),
@@ -3762,6 +4246,8 @@ class Game {
     let contacts = [];
     let bumperContacts = [];
     let collectingSaw = false;
+    let bumperTime = Infinity;
+    let bubbleHit = null, bubbleTime = Infinity;
     if (dx || dy) {
       for (const brick of parts) {
         if (this.conveyorRide?.id === brick.id) {
@@ -3780,7 +4266,7 @@ class Game {
         if (t < contact - 1e-9) { contact = t; contacts = [spike]; }
         else if (t <= contact + 1e-9 && t <= 1) contacts.push(spike);
       }
-      let bumperTime = Infinity;
+      bumperTime = Infinity;
       for (const bumper of this.bumpers) {
         const time = circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius);
         if (time < bumperTime) bumperTime = time;
@@ -3817,6 +4303,19 @@ class Game {
         }
       }
     }
+    if (!this.bubbleTrap) for (const bubble of this.bubbles) {
+      const time = dx || dy
+        ? circleContact(cat.x - bubble.x, cat.y - bubble.y, dx, dy, cat.radius + bubble.radius)
+        : Math.hypot(cat.x - bubble.x, cat.y - bubble.y) <= cat.radius + bubble.radius ? 0 : Infinity;
+      if (time < bubbleTime) { bubbleTime = time; bubbleHit = bubble; }
+    }
+    if (bubbleHit && bubbleTime <= contact + 1e-9 && bubbleTime <= 1
+      && bubbleTime <= bumperTime + 1e-9) {
+      contact = bubbleTime;
+      contacts = [];
+      bumperContacts = [];
+      bumperTime = Infinity;
+    }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
     this.attractFoodToCat(dt * contact, endX, endY);
     this.food = this.food.filter(item => {
@@ -3833,6 +4332,12 @@ class Game {
     }
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
+    if (bubbleHit && bubbleTime <= contact + 1e-9 && bubbleTime <= 1) {
+      this.bubbles = this.bubbles.filter(bubble => bubble !== bubbleHit);
+      cat.vx = 0; cat.vy = 0;
+      this.bubbleTrap = { color: bubbleHit.color, fromX: endX, fromY: endY,
+        x: bubbleHit.x, y: bubbleHit.y, age: 0, transition: .18, duration: SLIMES[bubbleHit.color].duration };
+    }
     const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
     const sawing = this.sawStartedAt !== null || collectingSaw;
     const stamping = stampAvailable && contacts.some(part => !this.bricks[part.id].portal);
@@ -3933,7 +4438,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, OBJECTS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, OBJECTS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

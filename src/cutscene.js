@@ -137,12 +137,53 @@ function drawPortrait(ctx, character, speaking, time) {
   } else if (character === 'robo-snail') {
     box('#314443', 13, 9, 17, 18); box('#777f80', 15, 8, 14, 17);
     box('#826345', 16, 10, 5, 5); box('#a17a4c', 21, 15, 7, 5);
-    box('#404749', 19, 13, 5, 2); box('#404749', 23, 17, 2, 4);
+    box('#404749', 18, 12, 8, 2); box('#404749', 25, 13, 2, 8);
+    box('#404749', 18, 20, 8, 2); box('#404749', 17, 14, 2, 6);
+    box('#404749', 20, 15, 3, 2); box('#404749', 22, 16, 2, 3);
     box('#4d9658', 3, 21, 17, 7); box('#79c96c', 4, 17, 12, 9);
-    box('#47784b', 6, 9, 2, 9); box('#47784b', 13, 8, 2, 10);
-    box('#ed3139', 4, 6, 6, 6); box('#ed3139', 11, 5, 6, 6);
-    box('#26353d', 8, 24, 7, talking ? 3 : 1);
-    if (talking) box('#edf2e8', 9, 24, 5, 1);
+    for (const [x, y, phase] of [[6, 9, 0], [13, 8, .8]]) {
+      const bounce = Math.round(Math.sin(time * 6 + phase));
+      box('#47784b', x, y + bounce, 2, 18 - y - bounce);
+      box('#355a43', x - 3, y - 2 + bounce, 8, 4);
+      box('#ed3139', x - 2, y - 1 + bounce, 6, 2);
+    }
+    const mouthHeight = talking ? 6 : 2 + Math.round((Math.sin(time * 5) + 1) * 1.5);
+    box('#26353d', 7, 26 - mouthHeight, 7, mouthHeight);
+    box('#edf2e8', 8, 26 - Math.min(2, mouthHeight - 1), 5, Math.min(2, mouthHeight - 1));
+    box('#384044', 10, 26 - Math.min(2, mouthHeight - 1), 1, Math.min(2, mouthHeight - 1));
+  } else if (character === 'robo-cow') {
+    const bob = Math.round(Math.sin(time * 8) * 1.5);
+    box('#49335a', 3, 10 + bob, 26, 17); box('#9451bd', 5, 9 + bob, 22, 16);
+    box('#12151a', 7, 11 + bob, 6, 5); box('#12151a', 18, 19 + bob, 7, 4);
+    box('#12151a', 21, 10 + bob, 4, 3);
+    box('#673b8e', 21, 4 + bob, 9, 12); box('#a663cc', 19, 3 + bob, 9, 11);
+    box('#723b94', 19, 2 + bob, 4, 3); box('#723b94', 26, 2 + bob, 4, 3);
+    box('#e8d8a2', 20, bob, 3, 5); box('#e8d8a2', 26, bob, 3, 5);
+    for (const x of [21, 26]) {
+      box('#ffd92f', x, 7 + bob, 3, blink ? 1 : 5);
+      if (!blink) box('#352b1a', x + 1, 8 + bob, 1, 3);
+    }
+    box('#16191d', 25, 16 + bob, 6, talking ? 5 : 2);
+    box('#dfa9bd', 26, 16 + bob, 4, talking ? 3 : 1);
+    for (const x of [7, 19]) { box('#673b8e', x, 24 + bob, 4, 7); box('#343039', x - 1, 29 + bob, 6, 2); }
+  } else if (character === 'robo-unicorn') {
+    const bob = Math.round(Math.sin(time * 6) * 1.5);
+    box('#71364f', 8, 8 + bob, 17, 18); box('#f5b5d3', 9, 8 + bob, 15, 17);
+    box('#f5b5d3', 17, 17 + bob, 11, 8); box('#f5b5d3', 9, 24 + bob, 8, 7);
+    box('#f5b5d3', 6, 29 + bob, 9, 2);
+    for (const [index, color] of ['#fa596f', '#ffad42', '#ffe65a', '#69d58e', '#53b9f1', '#a77bf0'].entries()) {
+      box(color, 2 + index * 2, 6 + bob + index, 3, 21 - index * 2);
+    }
+    box('#f5b5d3', 13, 3 + bob, 4, 9);
+    box('#ffd92f', 21, 4 + bob, 3, 7); box('#ffd92f', 23, 1 + bob, 3, 5);
+    box('#ffd92f', 20, 12 + bob, 4, blink ? 1 : 4);
+    if (!blink) box('#45381d', 22, 12 + bob, 1, 4);
+    if (time % 1 < .5) {
+      box('#fff9cf', 21, 6, 2, 1); box('#fff9cf', 21, 4, 2, 5);
+    }
+    box('#535d66', 23, 21 + bob, 6, talking ? 6 : 3);
+    box('#c4cdd5', 24, 21 + bob, 1, 2); box('#c4cdd5', 26, 21 + bob, 1, 2);
+    if (talking) { box('#c4cdd5', 24, 25 + bob, 1, 2); box('#c4cdd5', 26, 25 + bob, 1, 2); }
   } else if (character === 'goalie') {
     for (const x of [10, 15, 20]) {
       box('#7b8e9c', x, 1, 1, 6); box('#e8c561', x, 0, 2, 2);
@@ -327,7 +368,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-cow': 29, 'robo-unicorn': 33 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);

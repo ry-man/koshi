@@ -53,6 +53,8 @@ body:has(#cutscene[open]) { overflow: hidden; }
 .title-actions .primary { min-height: 48px; }
 .title-secondary { min-height: 48px; padding: 12px 22px; border: 1px solid #d3ef8b55; border-radius: 7px; color: var(--text); background: #ffffff06; }
 .title-secondary:hover { background: #ffffff12; }
+.title-feedback { grid-column: 1 / -1; margin: 20px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.title-feedback a { color: var(--accent); overflow-wrap: anywhere; }
 .save-slot { margin: 16px 0; padding: 14px; border: 1px solid #ffffff20; border-radius: 8px; text-align: left; overflow-wrap: anywhere; }
 .save-slot h3 { margin: 0 0 8px; color: var(--accent); }
 .save-slot p, #save-help, #save-profile { font-size: 14px; line-height: 1.5; }
@@ -227,8 +229,9 @@ canvas { display: block; width: 100%; height: 100%; }
 .pause-icon { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
 .pause-icon [hidden] { display: none; }
 .game-status { margin: 0; padding: 0 20px 14px; color: var(--muted); font-size: 11px; }
-.game-toolbar button { color: #c5d0d1; background: #ffffff05; border: 1px solid #ffffff15; border-radius: 6px; padding: 7px 11px; font-size: 11px; white-space: nowrap; }
-.game-toolbar button:hover { background: #ffffff12; }
+.game-toolbar button, #back-to-editor { color: #c5d0d1; background: #ffffff05; border: 1px solid #ffffff15; border-radius: 6px; padding: 7px 11px; font-size: 11px; white-space: nowrap; }
+.game-toolbar button:hover, #back-to-editor:hover { background: #ffffff12; }
+#back-to-editor { text-decoration: none; text-align: center; }
 .game-toolbar button:disabled { opacity: .35; cursor: default; }
 h3 { font-size: 15px; font-weight: 500; margin: 15px 0 12px; }
 footer { display: flex; justify-content: space-between; padding: 23px 0 30px; border-top: 1px solid #ffffff12; color: #75878d; font-size: 8px; letter-spacing: 1px; gap: 15px; }
@@ -362,7 +365,8 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   }
   .game-controls { order: -1; min-height: 48px; padding: 2px 4px; gap: 4px; }
   .game-toolbar { flex-shrink: 0; gap: 4px; }
-  .game-toolbar button { width: 44px; min-height: 44px; padding: 0; font-size: 20px; touch-action: manipulation; }
+  .game-toolbar button, #back-to-editor { width: 44px; min-height: 44px; padding: 0; font-size: 20px; touch-action: manipulation; }
+  #back-to-editor:not([hidden]) { display: grid; place-items: center; }
   .control-icon { margin: 0; }
   .control-label { display: none; }
   .brick { border-radius: 6px; }

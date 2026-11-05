@@ -419,7 +419,8 @@ This is browser-history protection, not a system-gesture override. Before the
 first interaction, or if Android/browser bypasses page history, Back can still
 close the app. Browser-controlled predictive gesture visuals may still appear,
 especially when the traversal is not cancelable. Device testing is required; guaranteed OS-level blocking requires
-a native Android app. Normal browser tabs retain native Back and blur pausing.
+a native Android app. Custom-level playtests do not enable Back protection, so
+Back can return to editing. Normal browser tabs retain native Back and blur pausing.
 The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart buttons
 share one row above the stats. The level is centered in the space between the
 logo and toolbar. Save-status text stays in the menu, not on the gameplay HUD;
@@ -438,7 +439,8 @@ and Warped attributes follow each brick through the rotation. Brick dimensions a
 some bricks are narrower than 44px on small phones to keep the count fixed.
 Toolbar buttons retain at least 44px touch targets.
 An equipped sword appears beside Koshi with its remaining hit count. Timed
-swords show seconds with an **s**; no sword appears when none is equipped.
+swords show seconds with an **s**. The counter sits above Koshi's left side,
+clear of the sword on his right; no sword appears when none is equipped.
 Level 1–1 has one slow and one fast segment; later levels start with three of
 each before special-brick overrides and grouping. Food patterns stay
 inside the playable area. Instructions are available through **Menu → How to play**.
@@ -463,6 +465,10 @@ restore your custom workspace and unsaved work; browsing never overwrites a draf
 It is a separate page, works by double-clicking the file, and is included in
 the GitHub Pages deployment at `/koshi/editor.html`. No server-side storage
 or build tools are needed.
+
+Placed enemies use compact icon markers, including Robo Koshi and Robo Snail.
+Robo Snail's marker shares its angular shell and eye-stalk drawing with its palette.
+The enemy and spawn-brick palettes show their corresponding outlined graphics.
 
 ### Optional story cutscenes
 
@@ -599,8 +605,10 @@ playtest links, direct-file play, and the offline app.
    portable file. Paste JSON and choose **Import JSON**, or use **Import file**.
    Invalid imports leave the existing level unchanged.
 7. **Playtest** opens a snapshot in the game, including its settings, exact spawn
-   times, and placements. The game’s editor link returns the snapshot for more
-   edits. Restart replays that custom level; built-in levels remain selectable.
+   times, and placements. **Back to editor** in the game toolbar returns the
+   snapshot for more edits. Browser/Android Back also returns to the editor;
+   the editor URL retains the playtest snapshot even if the page reloads.
+   Restart replays that custom level; built-in levels remain selectable.
    The snapshot is encoded in the URL fragment (not sent to a server), so an
    HTTP/Pages playtest URL can be shared. Download JSON for long-term storage.
 
@@ -649,7 +657,8 @@ including automatic collection of objects placed over Koshi's starting point.
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
 `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
-`robo-koshi`, `robo-snail`; weapon types are `wood`, `bronze`, `silver`, `gold`.
+`robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`; weapon types are `wood`,
+`bronze`, `silver`, `gold`.
 Item types (`kind: "item"`) are `smiley-cookie`, `stopwatch`, `stopwatch-green`, `stopwatch-blue`, `battery`,
 `music-box`, `eggplant`, `saw-blade`, `magic-sunglasses`, and `kitty-cape`. `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
@@ -658,6 +667,51 @@ persist until scored or the level ends. Custom levels can also place red,
 green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
 stay fixed and bounce Koshi and enemies away. Red increases Koshi's speed by
 25%, green preserves it, and blue reduces it by 25%.
+Custom levels can also place blue, green and red bubbles (`bubble-blue`,
+`bubble-green`, `bubble-red`); they trap Koshi for the same 5-, 3- and
+1-second durations as the corresponding slime colors.
+Circle and diamond obstructions (`obstruction-circle`, `obstruction-diamond`)
+are fixed solids, each 96 units wide and tall (twice a bumper's diameter).
+Their large variants (`obstruction-circle-large`, `obstruction-diamond-large`)
+are 192 units wide and tall. Long rectangles come in four variants:
+`obstruction-rectangle-horizontal` (192 by 48 units),
+`obstruction-rectangle-vertical` (48 by 192),
+`obstruction-rectangle-horizontal-large` (384 by 96), and
+`obstruction-rectangle-vertical-large` (96 by 384).
+All variants have shaded boundary bevels for depth, with a light upper-left
+edge and dark lower-right edge, without changing their collision shapes.
+They block Koshi and every enemy, including perimeter robots and every snake
+segment. Obstruction contact changes position only: Koshi slides along the
+surface or remains stuck when aimed directly into it, while his intended
+velocity and steering target remain unchanged. Actual brick and bumper
+collisions retain their usual effects.
+When obstructions are present, the dotted trajectory forecasts Koshi's actual
+no-click motion, curving along obstruction surfaces or ending where he becomes
+stuck instead of continuing through the shape toward the original target.
+The forecast uses gameplay's collision substeps without changing live state,
+and still accounts for spring reflections and bumper deflections.
+
+The editor lists each shape, size and orientation once. Its **Obstruction texture**
+controls offer the same fixed **100 color presets** for base and pattern colors
+across all shapes and levels: ten greys from white to black, plus pale, muted,
+bold, dark and deep shades spanning the color spectrum and browns.
+Expand either preset palette to select a numbered hex swatch, or use the
+color inputs to choose custom colors. The texture choices are **Solid**, **Polka dots**,
+**Stripes**, or **Checkered**. These options also appear for obstruction
+spawners; appearance has no effect on collision geometry. Optional JSON fields
+`color` and `patternColor` accept six-digit hex colors; `pattern` accepts
+`solid`, `polka-dots`, `stripes`, or `checkered`. Defaults are `#718596`,
+`#dbe6ed`, and `solid`. For example:
+
+```json
+{ "time": 0, "kind": "object", "type": "obstruction-diamond",
+  "x": 0.5, "y": 0.5, "color": "#7153b2",
+  "pattern": "checkered", "patternColor": "#dfd6f4" }
+```
+
+Obstructions persist until the level ends and are available only for custom
+placements and spawners; no campaign placements are added.
+
 Duration is 1–3600 seconds, food/enemy/soccer goals are whole numbers from 0 to 100000,
 heart costs are positive integers up to
 100000, and a level supports up to 2000 events. Appearance times must be
@@ -845,12 +899,48 @@ spawn bricks and cutscenes; no built-in campaign levels are changed.
 
 Robo Snail (`robo-snail`) is a green, continuously wandering enemy that moves
 slightly faster than Robo Mouse. Its blocky grey-and-brown spiral shell sits
-behind two antennae with red square eyes and a rigid frown. When defeated, its
-antennae shrink, its body retreats into its shell, and the shell splits and fades
+behind a tall green head with upright stalks, horizontal red eye grilles, and
+an arched mouth with square teeth. The shell has a tall octagonal outline and
+an angular inward spiral. Its mouth opens and closes and its eyes bounce gently
+while alive. When defeated, this idle motion stops, its antennae shrink,
+its body retreats into its shell, and the shell splits and fades
 over 0.9 seconds. Defeating it freezes all brick cooldowns for 20 seconds and
-shows a scrolling slug-and-turtle ribbon; bricks hit during the freeze begin
+shows a scrolling slug-and-turtle ribbon. Already-running cooldowns retain
+their remaining time and displayed recharge progress for the entire effect;
+bricks hit during the freeze begin
 their cooldowns after the freeze ends. Available in custom placements, spawn
 bricks and cutscenes; no built-in campaign levels are changed.
+
+Robo Cow (`robo-cow`) walks only along the board perimeter at twice Robo
+Wheel's speed in the same clockwise direction. Its legs face the bricks and
+alternate as it walks, stopping while it eats or sleeps, with quick, smooth
+quarter-turns at the corners. It chooses a target two to six original perimeter bricks ahead,
+with four most likely; after bobbing its head for five seconds, it turns the
+target brick (including any merged members) into cinder.
+As eating begins, a thin, six-unit grass strip fades in just beside the inner
+face of the original-sized brick section, at the cow's feet rather than over
+the brick or its body. A straight edge wipes the grass away at a constant speed,
+emptying exactly when the five-second eating timer destroys the brick.
+Its 2.1-second death animation first pops off the head and releases the neck
+spring while the body and legs remain still; only then do the legs detach,
+the body drop, and the explosion begin. Robo Unicorn
+(`robo-unicorn`) has a curved horse-head-and-neck silhouette inspired by
+`unicorn.png`, with pink skin, a flowing rainbow mane, a yellow horn and eye,
+and grey mechanical mouth and teeth. It floats faster than Robo Mouse, pausing for about a second
+with its mouth gaping exaggeratedly wide while it aims, then charges at the nearest food with its
+mouth open. While charging it turns sharply and eases off when the food is far off-heading, so it
+cannot orbit food without reaching it. Its artwork rotates smoothly toward its travel direction
+rather than snapping at wall bounces. It eats food
+only while charging. When no food remains it turns red, moves continuously,
+and speeds up. On death its horn launches away and its body becomes a 180-degree
+rainbow arch whose angle shrinks to zero from one end. Both enemies are
+available in custom placements, spawn bricks and cutscenes; no built-in
+campaign levels are changed.
+
+Blue, green and red Bubbles (`bubble-blue`, `bubble-green`, `bubble-red`) are
+custom-level objects slightly larger than Koshi. Contact pulls Koshi smoothly
+to the center, where he is held for the matching slime duration: 5, 3 or 1
+seconds. Enemies can still hurt him, and he can still attack with his sword.
 
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom

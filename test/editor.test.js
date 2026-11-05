@@ -1,12 +1,109 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
+
+test('playtesting preserves the editor snapshot in history before navigating without requiring storage', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const draft = { ...blank(), events: [event()] };
+  const href = `./index.html#level=${encodeURIComponent(JSON.stringify(draft))}`;
+  let click, prevented = false;
+  const calls = [], failures = [];
+  const context = vm.createContext({
+    level: draft, committed: 'old draft', dirty: true, location: {},
+    readOnly: () => false, validateCustomLevel,
+    $: () => ({ href, addEventListener(type, handler) { assert.equal(type, 'click'); click = handler; } }),
+    history: {
+      state: { preserved: true },
+      replaceState(state, title, url) { calls.push({ state, url }); },
+    },
+    attempt(action) { try { action(); } catch (error) { failures.push(error); } },
+  });
+  vm.runInContext(source.slice(source.indexOf("$('#playtest').addEventListener('click'"), source.indexOf("window.addEventListener('beforeunload'")), context);
+  click({ preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(failures.length, 0);
+  assert.deepEqual(calls, [{ state: { preserved: true }, url: href.slice('./index.html'.length) }]);
+  assert.equal(context.location.href, href);
+  assert.equal(context.dirty, false);
+  assert.equal(context.committed, JSON.stringify(draft));
+
+  context.dirty = true;
+  delete context.location.href;
+  context.history.replaceState = () => { throw new Error('History unavailable'); };
+  click({ preventDefault() {} });
+  assert.match(failures[0].message, /History unavailable/);
+  assert.equal(context.location.href, undefined, 'failed snapshot preservation does not abandon the draft');
+  assert.equal(context.dirty, true);
+});
+
+test('custom playtests expose a toolbar link back to the unchanged editor snapshot', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const hash = `#level=${encodeURIComponent(JSON.stringify({ ...blank(), events: [event()] }))}`;
+  const nodes = new Map(), failures = [];
+  const context = vm.createContext({
+    location: { hash }, customLevel: null, validateCustomLevel, levelObjective,
+    levelSelect: { append() {} },
+    document: {
+      createElement: () => ({}),
+      querySelector(selector) {
+        if (!nodes.has(selector)) nodes.set(selector, { hidden: true });
+        return nodes.get(selector);
+      },
+    },
+    console: { error: (...args) => failures.push(args) },
+  });
+  vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"), source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
+  assert.equal(failures.length, 0);
+  assert.equal(nodes.get('#back-to-editor').hidden, false);
+  assert.equal(nodes.get('#back-to-editor').href, `./editor.html${hash}`);
+  assert.equal(nodes.get('#editor-link').href, `./editor.html${hash}`);
+});
+
+test('every selectable enemy has a board icon and a palette/spawner graphic', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const { spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', dataset: {}, replaceChildren(...options) { this.options = options; } });
+    return nodes.get(selector);
+  };
+  $('#event-kind').value = 'enemy';
+  const context = vm.createContext({ $, MIXED: '', selectedEvents: new Set(), OBJECTS,
+    document: { createElement: () => ({}) }, picture: (value, control) => ({ value, control }) });
+  vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function readEvent(')), context);
+  context.typeOptions();
+  const icons = new Map();
+  for (const { value: type } of $('#event-type').options) {
+    const enemy = { kind: 'enemy', type };
+    const icon = context.icon(enemy);
+    if (['robo-snail', 'robo-cow', 'robo-unicorn'].includes(type)) {
+      assert.equal(icon.value, `enemy:${type}`);
+      assert.equal(icon.control, 'brick-spawn-item');
+    } else {
+      assert.equal(typeof icon, 'string', `${type} board icon`);
+      assert.ok(icon.length > 0 && !icon.includes('undefined'), `${type} visible board icon`);
+    }
+    assert.match(spawnSymbol(enemy), /^M/, `${type} palette/spawner SVG path`);
+    assert.match(spawnColor(enemy), /^#[0-9a-f]{6}$/i, `${type} graphic color`);
+    icons.set(type, icon);
+  }
+  assert.equal(icons.get('robo-koshi'), '🤖');
+  assert.ok(icons.has('robo-snail'));
+  assert.ok(icons.has('robo-cow'));
+  assert.ok(icons.has('robo-unicorn'));
+  $('#event-kind').value = 'object';
+  context.typeOptions();
+  for (const type of ['bubble-blue', 'bubble-green', 'bubble-red']) {
+    assert.ok($('#event-type').options.some(option => option.value === type));
+    assert.equal(context.icon({ kind: 'object', type }), OBJECTS[type].icon);
+  }
+});
 
 test('campaign editor previews use every real schedule and preserve the original game levels', () => {
   const { LEVELS } = require('../src/game.js');
@@ -103,7 +200,7 @@ test('editor saves turret variants and preserves contact-surface exclusivity', (
     return nodes.get(selector);
   };
   const regionKey = region => `${region.edge}:${region.start}:${region.end}`;
-  const context = vm.createContext({ $, Game, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
+  const context = vm.createContext({ $, Game, OBJECTS, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
     CONTACT_SURFACES: require('../src/game.js').CONTACT_SURFACES, MIXED: '',
     immutableBrick: kind => ['cinder', 'goal'].includes(kind),
     common: values => values.every(value => value === values[0]) ? values[0] : '',
@@ -637,9 +734,9 @@ test('snake event selectors and editor placements use Wheel edge snapping', () =
   ] });
   assert.deepEqual(saved.brickTypes[0].spawner, snakeSpawner);
   assert.deepEqual(saved.events[0], JSON.parse(JSON.stringify(placement)));
-  assert.ok(source.includes("['wheel', 'snake'].includes(event.type)"));
-  assert.ok(source.includes("['wheel', 'snake'].includes(item.type)"));
-  assert.ok(source.includes("['wheel', 'snake'].includes(next.type)"));
+  assert.ok(source.includes("['wheel', 'snake', 'robo-cow'].includes(event.type)"));
+  assert.ok(source.includes("['wheel', 'snake', 'robo-cow'].includes(item.type)"));
+  assert.ok(source.includes("['wheel', 'snake', 'robo-cow'].includes(next.type)"));
   assert.match(source, /snake: \{ name: 'Robo Snake' \}/);
   assert.match(spawnSymbol({ kind: 'enemy', type: 'snake' }), /M-25 5/);
   assert.equal(spawnColor({ kind: 'enemy', type: 'snake' }), '#bbc5ca');
@@ -684,7 +781,7 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
     return nodes.get(selector);
   };
   const regionKey = region => `${region.edge}:${region.start}:${region.end}`;
-  const context = vm.createContext({ $, Game, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
+  const context = vm.createContext({ $, Game, OBJECTS, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
     CONTACT_SURFACES: require('../src/game.js').CONTACT_SURFACES, MIXED: '',
     immutableBrick: kind => ['cinder', 'goal'].includes(kind),
     common: values => values.every(value => value === values[0]) ? values[0] : '',

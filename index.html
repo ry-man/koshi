@@ -68,6 +68,7 @@
         <p id="save-profile">Guest play - progress is not saved.</p>
         <p id="save-title-error" class="error" role="alert" hidden></p>
         <button id="save-title-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
+        <p class="title-feedback">Feedback? Please send to <a href="mailto:koshisquest@gmail.com">koshisquest@gmail.com</a></p>
       </div>
     </dialog>
     <dialog id="level-picker" class="install-dialog world-picker" aria-labelledby="level-picker-heading">
@@ -143,6 +144,7 @@
             <div class="level-status"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div>
           </div>
           <div class="game-toolbar">
+            <a id="back-to-editor" href="./editor.html" aria-label="Back to editor" title="Back to editor" hidden><span class="control-icon" aria-hidden="true">&larr;</span><span class="control-label">Back to editor</span></a>
             <button id="title-menu" type="button" aria-label="Menu" title="Menu" aria-haspopup="dialog"><span class="control-icon" aria-hidden="true">☰</span><span class="control-label">Menu</span></button>
             <button id="pause" type="button" aria-label="Pause" title="Pause" disabled><svg class="control-icon pause-icon" viewBox="0 0 24 24" aria-hidden="true"><g class="pause-bars"><rect x="5" y="4" width="5" height="16"/><rect x="14" y="4" width="5" height="16"/></g><path class="resume-triangle" d="M7 4 L20 12 L7 20 Z" hidden/></svg><span class="control-label">Pause</span></button>
             <button id="restart" type="button" aria-label="Restart" title="Restart"><span class="control-icon" aria-hidden="true">↻</span><span class="control-label">Restart</span></button>

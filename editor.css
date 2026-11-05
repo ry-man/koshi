@@ -52,6 +52,14 @@
 .editor-main .marker[data-kind="object"] { border-color: #f1f3f2; }
 .editor-main .marker[aria-pressed="true"] { outline: 3px solid white; outline-offset: 3px; z-index: 3; }
 .marker small { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: #10191fee; padding: 1px 3px; font-size: 9px; color: white; white-space: nowrap; }
+.marker .palette-picture { display: block; width: 26px; height: 26px; margin: auto; }
+.editor-main .obstruction-marker { border: 0; border-radius: 0; min-height: 0; background: transparent; }
+.editor-main .obstruction-marker:hover { background: transparent; filter: brightness(1.15); }
+.obstruction-marker canvas { display: block; width: 100%; height: 100%; }
+.obstruction-colors { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; max-height: 240px; overflow-y: auto; padding: 4px; }
+.editor-main .obstruction-colors button { min-height: 44px; padding: 0; border: 2px solid #ffffff55; box-shadow: inset 0 0 0 1px #0005; }
+.editor-main .obstruction-colors button:hover { filter: brightness(1.15); border-color: white; }
+.editor-main .obstruction-colors button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .timeline-controls { margin-top: 18px; display: grid; gap: 8px; }
 .timeline-controls > label:first-child { flex-direction: row; justify-content: space-between; }
 #timeline { width: 100%; accent-color: var(--accent); height: 30px; }

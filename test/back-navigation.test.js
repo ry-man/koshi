@@ -10,7 +10,7 @@ const { Game } = require('../src/game.js');
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
 const protection = source.slice(source.indexOf('function isInstalledApp()'), source.indexOf('\nfunction line('));
 
-function fixture({ installed = true, entries = [null], index = entries.length - 1, failure = null, navigationAPI = false } = {}) {
+function fixture({ installed = true, entries = [null], index = entries.length - 1, failure = null, navigationAPI = false, customLevel = null } = {}) {
   entries = [...entries];
   const listeners = {};
   const documentListeners = {};
@@ -59,7 +59,7 @@ function fixture({ installed = true, entries = [null], index = entries.length - 
       location: { href: 'https://example.test/koshi/index.html#level=custom' },
       navigation: navigationAPI ? { addEventListener: listen(navigationListeners) } : undefined,
     },
-    navigator: {}, history, game, cutscene, document, lastTime: 123,
+    navigator: {}, history, game, cutscene, document, customLevel, lastTime: 123,
     syncUI: () => { syncs++; },
     console: { error: (...args) => logged.push(args) },
   });
@@ -198,6 +198,18 @@ test('browser tabs keep native Back navigation and blur pausing', () => {
   assert.equal(app.listeners.popstate, undefined);
   app.blur();
   assert.equal(app.game.state, 'paused');
+});
+
+test('custom-level playtests allow native Back even in the installed app', () => {
+  for (const navigationAPI of [false, true]) {
+    const app = fixture({ customLevel: { id: 'Editor snapshot' }, navigationAPI });
+    app.input();
+    assert.equal(app.pushes, 0);
+    assert.equal(app.entries.length, 1);
+    assert.equal(app.listeners.popstate, undefined);
+    assert.equal(app.navigate(), false);
+    assert.equal(app.forwards, 0);
+  }
 });
 
 test('visible installed-app blur does not pause gameplay or cutscenes; hiding still pauses', () => {

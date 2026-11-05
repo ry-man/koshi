@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, brickShape, brickEnabled, goalTiles } = engine;
+const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, obstructionGeometry, brickShape, brickEnabled, goalTiles } = engine;
 const FLAME = 'M0 20 C-24 16 -22 -6 -10 -12 Q-8 -2 -3 -5 Q7 -14 3 -24 C26 -7 26 16 0 20 Z';
 const FENCE = 'M-22 -6 H22 M-22 6 H22 M-18 -14 V14 M-6 -14 V14 M6 -14 V14 M18 -14 V14';
 const BOOM_TIME_TYPES = new Set(['boom-time-red', 'boom-time-green', 'boom-time-blue']);
@@ -22,6 +22,14 @@ function traceSawBlade(ctx, radius, growth = 1) {
   ctx.closePath();
 }
 const SYMBOLS = {
+  'obstruction-circle': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 Z',
+  'obstruction-diamond': 'M0 -23 L23 0 L0 23 L-23 0 Z',
+  'obstruction-circle-large': 'M24 0 A24 24 0 1 1 -24 0 A24 24 0 1 1 24 0 Z',
+  'obstruction-diamond-large': 'M0 -26 L26 0 L0 26 L-26 0 Z',
+  'obstruction-rectangle-horizontal': 'M-22 -5.5 H22 V5.5 H-22 Z',
+  'obstruction-rectangle-vertical': 'M-5.5 -22 H5.5 V22 H-5.5 Z',
+  'obstruction-rectangle-horizontal-large': 'M-26 -6.5 H26 V6.5 H-26 Z',
+  'obstruction-rectangle-vertical-large': 'M-6.5 -26 H6.5 V26 H-6.5 Z',
   'soccer-ball': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M0 -8 L8 -2 L5 7 H-5 L-8 -2 Z M0 -8 V-20 M8 -2 L19 -6 M5 7 L12 16 M-5 7 L-12 16 M-8 -2 L-19 -6',
   'bumper-red': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0 M2 0 A2 2 0 1 1 -2 0 A2 2 0 1 1 2 0',
   'bumper-green': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0 M2 0 A2 2 0 1 1 -2 0 A2 2 0 1 1 2 0',
@@ -36,6 +44,12 @@ const SYMBOLS = {
   jackolantern: 'M0 -18 V-25 M3 -25 A3 3 0 1 1 -3 -25 A3 3 0 1 1 3 -25 M0 -17 C-28 -26 -28 23 0 19 C28 23 28 -26 0 -17 Z M-10 -15 C-18 -4 -18 10 -10 17 M10 -15 C18 -4 18 10 10 17 M-15 -7 H-4 V0 H-15 Z M4 -7 H15 V0 H4 Z M0 0 L-4 6 H4 Z M-14 8 L-8 10 L-5 7 L0 11 L5 7 L8 10 L14 8 L9 16 L4 13 L0 17 L-4 13 L-9 16 Z',
   goalie: 'M0 -22 C20 -22 26 28 0 28 C-26 28 -20 -22 0 -22 Z M-6 -22 L-11 -31 M0 -22 V-33 M6 -22 L11 -31 M-9 -9 A2 2 0 1 0 -9 -8 M9 -9 A2 2 0 1 0 9 -8 M-3 -8 C-4 0 -9 9 -3 11 C9 14 6 2 3 -8 M-19 0 H-7 M7 0 H19 M-12 3 V21 M-4 14 V26 M4 14 V26 M12 3 V21 M8 7 A4 4 0 1 0 16 7 A4 4 0 1 0 8 7 M-15 8 L-10 3 L-6 8 Z',
   'robo-koshi': 'M-7 -13 L-22 -30 L-19 -5 M7 -13 L22 -30 L19 -5 M0 -22 V-33 M0 -34 A3 3 0 1 1 0 -28 M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-14 -7 H-7 V1 H-14 Z M7 -7 H14 V1 H7 Z M-5 5 L0 9 L5 5 M-7 12 H7',
+  'robo-snail': 'M-5 -14 L4 -25 H20 L29 -14 V9 L18 22 H4 L-5 10 Z M0 10 V-8 L6 -16 H15 L23 -8 V5 L15 15 H7 L3 11 M7 15 L16 2 V-4 L12 -7 L8 -4 V1 L11 4 M-27 23 V5 Q-27 -4 -18 -4 Q-8 -4 -8 5 V22 H18 M-23 -4 V-16 M-13 -4 V-16 M-28 -18 A5 2 0 1 0 -18 -18 A5 2 0 1 0 -28 -18 M-18 -18 A5 2 0 1 0 -8 -18 A5 2 0 1 0 -18 -18 M-22 12 V9 C-22 0 -13 0 -13 9 V12 Z M-22 8 H-13 M-19 8 V12 M-16 8 V12',
+  'robo-cow': 'M-20 -7 L-29 -19 L-15 -17 L-7 -21 H13 L22 -15 L29 -23 L28 -8 Q32 1 23 9 L21 17 H13 L10 8 H-8 L-12 18 H-20 L-19 7 Q-29 1 -20 -7 M-12 -3 H-5 V2 H-12 Z M7 -3 H14 V2 H7 Z M-2 5 Q2 9 6 5',
+  'robo-unicorn': 'M-20 27 C-3 15 -12 4 -17 -7 C-27 -26 -8 -31 8 -21 C16 -16 15 -7 24 1 C35 10 25 21 17 15 C11 9 8 8 4 12 C2 20 -8 27 -20 27 Z M-9 -18 Q-18 -23 -10 -36 Q1 -28 -1 -20 Z M5 -21 L24 -40 L13 -16 Z M1 -14 Q7 -19 12 -12 Q7 -6 2 -9 Z M18 10 H27 V15 H18 Z',
+  'bubble-blue': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
+  'bubble-green': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
+  'bubble-red': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
   sword: 'M0 -23 L6 -14 L4 8 H-4 L-6 -14 Z M-10 9 H10 M0 9 V22',
   S: 'M-14 -8 Q-18 7 0 19 Q18 7 14 -8 Z M-14 -8 L-4 -6 L0 -16 L4 -6 L14 -8 M-6 0 L-5 3 M5 4 L4 7',
   P: 'M0 -2 C-20 -32 -30 10 -10 12 C8 16 24 -8 12 -14 C0 -26 -14 6 0 14 C22 26 26 -8 6 -6 M-14 10 L14 -10',
@@ -120,9 +134,10 @@ function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return SWORDS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return spawn.type === 'robo-koshi' ? '#454d52' : ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
-    : spawn.type === 'goalie' ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
+    : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-cow' ? '#9451bd'
+      : spawn.type === 'robo-unicorn' ? '#ef9dca' : spawn.type === 'goalie' ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
-  if (spawn.kind === 'object') return OBJECTS[spawn.type].color;
+  if (spawn.kind === 'object') return spawn.color ?? OBJECTS[spawn.type].color;
   return { S: '#db5560', P: '#bd8749', B: '#e6c654', C: '#e8b84e', L: '#c9966c', F: '#73b9cf', H: '#ca9a53' }[spawn.type];
 }
 function specialLabel(brick) {
@@ -429,6 +444,51 @@ function drawSoccerBall(ctx, ball) {
   ctx.restore();
 }
 
+function drawObstruction(ctx, obstruction) {
+  const { radius, width, height } = obstructionGeometry(obstruction);
+  const shape = OBJECTS[obstruction.type].obstruction;
+  const trace = () => {
+    ctx.beginPath();
+    if (shape === 'circle') ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    else if (shape === 'rectangle') ctx.rect(-width / 2, -height / 2, width, height);
+    else {
+      ctx.moveTo(0, -radius); ctx.lineTo(radius, 0);
+      ctx.lineTo(0, radius); ctx.lineTo(-radius, 0); ctx.closePath();
+    }
+  };
+  ctx.save(); ctx.translate(obstruction.x, obstruction.y);
+  trace();
+  ctx.fillStyle = obstruction.color ?? OBJECTS[obstruction.type].color;
+  ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.save();
+  ctx.fillStyle = obstruction.patternColor ?? '#dbe6ed';
+  if (obstruction.pattern === 'polka-dots') {
+    for (let y = -height / 2; y <= height / 2; y += 14) for (let x = -width / 2; x <= width / 2; x += 14) {
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (obstruction.pattern === 'stripes') {
+    const reach = Math.hypot(width, height) / 2;
+    ctx.rotate(-Math.PI / 4);
+    for (let x = -reach; x < reach; x += 16) ctx.fillRect(x, -reach, 7, reach * 2);
+  } else if (obstruction.pattern === 'checkered') {
+    for (let row = 0; row * 12 < height; row++) for (let column = 0; column * 12 < width; column++) {
+      if ((row + column) % 2 === 0) ctx.fillRect(-width / 2 + column * 12, -height / 2 + row * 12, 12, 12);
+    }
+  }
+  ctx.restore();
+  const bevel = ctx.createLinearGradient(-width / 2, -height / 2, width / 2, height / 2);
+  bevel.addColorStop(0, '#ffffff99');
+  bevel.addColorStop(.45, '#ffffff20');
+  bevel.addColorStop(.55, '#00000020');
+  bevel.addColorStop(1, '#00000099');
+  trace(); ctx.strokeStyle = bevel; ctx.lineWidth = 12; ctx.stroke();
+  ctx.restore();
+  trace();
+  ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.restore();
+}
+
 function drawBumper(ctx, bumper, time = 0) {
   const radius = bumper.radius ?? 24;
   const color = OBJECTS[bumper.type]?.color ?? '#399d4a';
@@ -450,7 +510,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawBumper, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();
