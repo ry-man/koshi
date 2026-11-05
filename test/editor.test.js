@@ -8,6 +8,120 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('the event category pane contains its complete form and actions', () => {
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const pane = html.match(/<section id="event-panel"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(pane);
+  assert.match(pane, /<\/form>/);
+  for (const id of ['apply-event', 'new-event', 'duplicate-event', 'delete-event']) {
+    assert.ok(pane.includes(`id="${id}"`), `${id} must hide with the event category pane`);
+  }
+  assert.equal((pane.match(/<details\b/g) ?? []).length, (pane.match(/<\/details>/g) ?? []).length);
+});
+
+test('editor category navigation opens bricks or the chosen event menu exclusively', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const categories = ['brick', 'food', 'enemy', 'item', 'object', 'weapon'];
+  const buttons = categories.map(category => ({
+    dataset: { category }, setAttribute(name, value) { this[name] = value; },
+  }));
+  const nodes = { '#brick-panel': {}, '#event-panel': {}, '#category-palette': { children: buttons } };
+  const context = vm.createContext({ $: selector => nodes[selector], activeCategory: 'food' });
+  vm.runInContext(source.slice(source.indexOf('function showCategory('), source.indexOf('function syncPalettes(')), context);
+  for (const category of categories) {
+    context.showCategory(category);
+    assert.equal(context.activeCategory, category);
+    assert.equal(nodes['#brick-panel'].hidden, category !== 'brick');
+    assert.equal(nodes['#event-panel'].hidden, category === 'brick');
+    assert.deepEqual(buttons.filter(button => button['aria-pressed'] === 'true').map(button => button.dataset.category), [category]);
+  }
+});
+
+test('palette choices activate Place mode before applying their action and respect read-only access', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  let locked = false, synced = 0, applied = 0;
+  const context = vm.createContext({
+    placing: false, readOnly: () => locked, picture: () => ({}),
+    syncTool() { synced++; },
+    document: { createElement: () => ({
+      setAttribute() {}, append() {}, addEventListener(type, handler) { this[type] = handler; },
+    }) },
+  });
+  vm.runInContext(source.slice(source.indexOf('function choiceButton('), source.indexOf('function setupPalettes(')), context);
+  const button = context.choiceButton('slow', 'Slow', 'brick-kind', () => {
+    assert.equal(context.placing, true);
+    applied++;
+  });
+  button.click({});
+  assert.equal(applied, 1);
+  assert.equal(synced, 1);
+  context.placing = false;
+  locked = true;
+  button.click({});
+  assert.equal(context.placing, false);
+  assert.equal(applied, 1);
+  assert.equal(synced, 1);
+});
+
+test('event palette changes start new placements without modifying selected events', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const nodes = new Map(), draft = { ...blank(), events: [event()] };
+  const context = vm.createContext({
+    placing: false, selectedEvents: new Set([0]), selectedBricks: new Set(), level: draft,
+    touched: new Set(), readOnly: () => false,
+    $: selector => {
+      if (!nodes.has(selector)) nodes.set(selector, {
+        value: '', dataset: { kind: 'food' },
+        addEventListener(type, handler) { this[type] = handler; },
+        setAttribute(name, value) { this[name] = value; },
+      });
+      return nodes.get(selector);
+    },
+    typeOptions() {}, showCategory(category) { context.activeCategory = category; },
+    board: { dataset: {} },
+    setSelection(events, bricks) {
+      context.selectedEvents = new Set(events);
+      context.selectedBricks = new Set(bricks);
+    },
+  });
+  vm.runInContext(source.slice(source.indexOf('function resetObstructionSize('), source.indexOf('function populateObstructionFields(')), context);
+  vm.runInContext(source.slice(source.indexOf('function startPlacement('), source.indexOf("$('#place-mode').addEventListener")), context);
+  vm.runInContext(source.slice(source.indexOf("$('#event-kind').addEventListener('change'"), source.indexOf("for (const field of ['color', 'pattern', 'patternColor']) {", source.indexOf("$('#event-kind').addEventListener('change'"))), context);
+  const before = JSON.stringify(draft);
+  for (const selector of ['#event-kind', '#event-type']) {
+    context.$('#event-width').value = '345'; context.$('#event-height').value = '123';
+    context.selectedEvents = new Set([0]);
+    context.placing = false;
+    nodes.get('#event-kind').value = 'enemy';
+    nodes.get(selector).change();
+    assert.equal(context.placing, true);
+    assert.equal(context.activeCategory, 'enemy');
+    assert.equal(context.selectedEvents.size, 0);
+    assert.equal(context.$('#event-width').value, '');
+    assert.equal(context.$('#event-height').value, '');
+    assert.equal(JSON.stringify(draft), before);
+  }
+  context.placing = false;
+  nodes.get('#inspector-access').change();
+  assert.equal(context.placing, true, 'other inspector changes also activate Place');
+  assert.equal(context.board.dataset.tool, 'place');
+  assert.equal(nodes.get('#place-mode')['aria-pressed'], 'true');
+  assert.equal(nodes.get('#select-mode')['aria-pressed'], 'false');
+});
+
+test('the Bricks menu never places the previously selected event on the playable area', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  let hint;
+  const context = vm.createContext({
+    activeCategory: 'brick', readOnly: () => false,
+    message(text) { hint = text; },
+    pointerPosition() { assert.fail('Brick category must not create an event'); },
+  });
+  vm.runInContext(source.slice(source.indexOf('function placeAt('), source.indexOf("board.addEventListener('pointerdown'")), context);
+  context.placeAt({});
+  assert.match(hint, /boundary brick/);
+});
+
 test('playtesting preserves the editor snapshot in history before navigating without requiring storage', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const draft = { ...blank(), events: [event()] };
@@ -203,6 +317,7 @@ test('editor saves turret variants and preserves contact-surface exclusivity', (
   const context = vm.createContext({ $, Game, OBJECTS, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
     CONTACT_SURFACES: require('../src/game.js').CONTACT_SURFACES, MIXED: '',
     immutableBrick: kind => ['cinder', 'goal'].includes(kind),
+    resetObstructionSize() {},
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true }),
     attempt: action => action(), markChanged() {}, renderBoard() {}, setSelection() {}, message() {},
@@ -777,13 +892,14 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { value: '', checked: false,
-      querySelector: () => null, replaceChildren() {} });
+      querySelector: () => null, replaceChildren() {}, setAttribute() {} });
     return nodes.get(selector);
   };
   const regionKey = region => `${region.edge}:${region.start}:${region.end}`;
-  const context = vm.createContext({ $, Game, OBJECTS, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null,
+  const context = vm.createContext({ $, Game, OBJECTS, brickEditRegions, brickRegions, COOLDOWNS, regionKey, combineOwner: null, connectingSpawn: null,
     CONTACT_SURFACES: require('../src/game.js').CONTACT_SURFACES, MIXED: '',
     immutableBrick: kind => ['cinder', 'goal'].includes(kind),
+    resetObstructionSize() {},
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true }),
     attempt: action => action(), markChanged() {}, renderBoard() {}, setSelection() {}, message() {},

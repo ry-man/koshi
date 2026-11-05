@@ -3,7 +3,7 @@
 A browser arcade game starring Koshi, a grey tabby with a big appetite.
 Built with vanilla JavaScript, HTML, and Canvas. No build step or runtime
 dependencies are required. The initial implementation follows
-[the game description](./game_description.md), with 34 campaign lessons across two worlds.
+[the game description](./game_description.md), with 47 campaign lessons across three worlds.
 
 ## Play locally
 
@@ -42,7 +42,8 @@ Reduced-motion mode changes screens immediately.
 ### Worlds and the map
 
 World 1, **Garden Path**, contains 10 levels (1–1 through 1–10). World 2,
-**Clockwork Pantry**, contains 24 (2–1 through 2–24). Their leaf and gear
+**Clockwork Pantry**, contains 24 (2–1 through 2–24). World 3, **Robot
+Foundry**, contains 13 (3–1 through 3–13). Their leaf, gear and robot-head
 emblems and map colors establish their graphical themes; gameplay graphics
 and all existing level content are unchanged.
 
@@ -93,7 +94,9 @@ path; completing a special world's levels can rejoin a main world through its
 `next` route. This demonstration adds no new special-world levels.
 
 Stable internal IDs and existing campaign URLs are retained for saves and editor
-links: old Level 1–11 is displayed as 2–1, and old 1–34 as 2–24.
+links: old Level 1–11 is displayed as 2–1, and old 1–34 as 2–24. World 3
+continues the same internal sequence: internal 1–35 through 1–47 are displayed
+as 3–1 through 3–13.
 All player-facing level selectors, briefings, HUD labels and new editor play links
 use the new numbers; both old and new campaign URLs are accepted.
 
@@ -105,7 +108,7 @@ new campaign at world selection. **Continue** opens the level map inside the
 world of the last level actually started, with that level selected, including
 if it was lost, replayed or abandoned. No level starts until **Play Level**
 and the briefing's **Start** are pressed; attempts always start fresh.
-After finishing all 34 levels, the slot shows **Campaign complete** and still
+After finishing all 47 levels, the slot shows **Campaign complete** and still
 offers **Continue** to revisit the map.
 
 Completed attempts autosave to the selected slot immediately, including losses
@@ -195,7 +198,7 @@ the board; phones keep compact controls above it without scrolling away from pla
   food points, enemy points, both targets, and survival until the timer reaches
   zero. The briefing and highlighted HUD counters show the required objectives.
   Food ranges from strawberries (1 point) to hamburgers (7 points).
-- Each scheduled appearance has a **one-second preview at its exact spawn
+- Most scheduled appearances have a **one-second preview at their exact spawn
   location**: a cloudy purple skull for each enemy, an expanding golden spiral
   for each sword, and a bright growing/fading star for each food item.
   Food patterns and robot waves preview every individual object; wheel previews
@@ -203,6 +206,15 @@ the board; phones keep compact controls above it without scrolling away from pla
   Pause freezes the effects, and restart clears them. Built-in and editor levels
   use the same effects without changing spawn times or food lifetimes. Spawns
   within the first second have shortened previews; time-zero spawns remain instant.
+  Obstructions preview for **two seconds**, with the same twinkling star plus a
+  dotted outline of their full shape. Scheduled times remain unchanged; early
+  warnings are shortened. Obstruction-spawning bricks reserve their location on
+  contact and wait two seconds before becoming solid. On arrival, overlapping
+  food, items, weapons, hearts, enemies and other loose objects are destroyed.
+  Any overlap with a snake segment destroys the whole snake. These environmental
+  enemy deaths award no enemy points. Koshi immediately loses all hearts and the
+  level, even with invulnerability or turret protection. Non-overlapping objects
+  are unaffected; existing solids retain their normal movement-blocking behavior.
 - Koshi starts at rest in the center with **3 hearts**. Leaving the board
   or running out of hearts loses the level. Level 1–1 remains enemy-free.
   Results now follow a brief ending animation: wins show Koshi cheering with
@@ -276,7 +288,7 @@ the board; phones keep compact controls above it without scrolling away from pla
   brick's center. Mouse/touch controls allow precise off-center aiming.
 - **Restart** starts a fresh attempt of the selected level.
   Victory automatically returns to the level map and moves Koshi to the next
-  stop through both main worlds, ending at Level 2–24.
+  stop through all three main worlds, ending at Level 3–13.
   The world map can also start any level directly; choose it and press **Play Level**.
 
 | Level | Name | New concept | Time | Win condition |
@@ -315,6 +327,19 @@ the board; phones keep compact controls above it without scrolling away from pla
 | 2–22 | Fence the food depot | Barrier blocks | 100s | 35 food + 4 enemy points |
 | 2–23 | Pumpkin pantry patrol | Robo Jackolantern | 100s | 4 enemy points |
 | 2–24 | The final countdown feast | Boom Helmet and Boom Times | 100s | 35 food; starts with 6 activations |
+| 3–1 | Tom's foundry kickoff | Robo Goalie | 150s | 5 soccer goals |
+| 3–2 | Painting the pancake path | Paintbrushes | 100s | 40 food |
+| 3–3 | Caped cat cafe | Kitty Cape | 80s | Survive |
+| 3–4 | Laser light lunch | Laser Turret | 120s | 15 enemy points |
+| 3–5 | Blocked buffet | Obstructions | 100s | 35 food + 4 enemy points |
+| 3–6 | Snail-paced soup | Robo Snail | 100s | 35 food + 3 enemy points |
+| 3–7 | Pinball pantry | Bumpers | 100s | 40 food |
+| 3–8 | Bubble tea trouble | Bubbles | 110s | 25 food + 5 enemy points |
+| 3–9 | Fireball fry-up | Fireball Turret | 120s | 14 enemy points |
+| 3–10 | Demolition dinner | Destructible obstructions | 110s | 30 food + 4 enemy points |
+| 3–11 | Surprise wall supper | Appearing obstructions | 90s | Survive |
+| 3–12 | Stampede steakhouse | Robo Cow | 120s | 8 enemy points |
+| 3–13 | Unicorn dessert dash | Robo Unicorn | 120s | 45 food |
 
 The 15 added lessons explain one new element (or its related pair) per cutscene.
 They use at most **five brick styles** and three larger blocks: either three
@@ -361,6 +386,35 @@ to keep the new type and two returning types within the five-style limit.
 The other added lessons retain all three plain cooldown colors.
 
 The original 19 lessons are unchanged. Only previously introduced mechanics return.
+
+World 3 (**Robot Foundry**) opens with Tom the Duck revealing that he builds every
+robot in his foundry. Each cutscene explains its new concept through Koshi's fight
+to save the world (and eat its food), showing only robots that appear in that level.
+Every layout has 17 standard, three double and one triple starting block. Shields
+are rare: red appears most often, green twice and blue once. Heart cost allows
+at most five hearts. Each level reuses one to four earlier brick types and one or
+two earlier items or objects.
+
+| Level | Returning bricks | Returning items/objects | Robots | Sword arrivals |
+|-------|------------------|-------------------------|--------|----------------|
+| 3–1 | Goals, Springs, Crumblers | Music Box | 12 | Bronze at 16/95s; silver at 50s |
+| 3–2 | Conveyors, Crumblers | Stopwatch | 8 | Bronze at 20/60s |
+| 3–3 | Springs, Warped | Spooky Mask, red Paintbrush | 16 | Bronze at 18s; silver at 50s |
+| 3–4 | Toggles, green slime | Battery, Music Box | 26 | Bronze at 30/80s |
+| 3–5 | Portals, Spikes | Kitty Cape | 10 | Bronze at 14s; silver at 50s |
+| 3–6 | Crumblers, Conveyors, red slime | Magical Sunglasses | 11 | Bronze at 22/60s |
+| 3–7 | Springs, Barriers | Smiley Cookie | 11 | Bronze at 18s; silver at 55s |
+| 3–8 | Warped, Boost | green Bumpers, Music Box | 13 | Bronze at 16/75s; silver at 45s |
+| 3–9 | Crumblers, Springs | Battery, Spooky Mask | 24 | Bronze at 25/70s |
+| 3–10 | Fireball Turret, Toggles, green slime | Battery, red Paintbrush | 12 | Bronze at 16s; silver at 55s |
+| 3–11 | Springs, Conveyors | Music Box, Spooky Mask | 14 | Bronze at 14s; silver at 48s |
+| 3–12 | Boost, Barriers | Music Box, Kitty Cape | 11 | One wood sword at 40s; use Boost |
+| 3–13 | Food spawner, Springs, Crumblers | Smiley Cookie | 10 | Bronze at 14s; silver at 50s |
+
+Level 3–1 spawns Robo Goalies before its first soccer ball. Level 3–2 delivers
+blue brushes before red ones. Level 3–10 has exactly one Fireball Turret and two
+Batteries. Level 3–11 is the first level whose obstructions appear mid-level.
+Level 3–13 spawns unicorns before any food and adds Eggplants.
 Those levels use at most six distinct
 brick styles, repeating useful combinations such as Warped conveyors or
 Boost with Springs. Of 21 starting blocks, 17 are standard, three are double
@@ -439,8 +493,10 @@ and Warped attributes follow each brick through the rotation. Brick dimensions a
 some bricks are narrower than 44px on small phones to keep the count fixed.
 Toolbar buttons retain at least 44px touch targets.
 An equipped sword appears beside Koshi with its remaining hit count. Timed
-swords show seconds with an **s**. The counter sits above Koshi's left side,
-clear of the sword on his right; no sword appears when none is equipped.
+swords show remaining seconds as a number without a unit suffix. The count is printed on the sword blade with
+its top toward the tip and bottom toward the handle, using larger text condensed
+to fit the blade width. Black or white text is chosen for
+the highest contrast with the blade color; no sword appears when none is equipped.
 Level 1–1 has one slow and one fast segment; later levels start with three of
 each before special-brick overrides and grouping. Food patterns stay
 inside the playable area. Instructions are available through **Menu → How to play**.
@@ -472,9 +528,9 @@ The enemy and spawn-brick palettes show their corresponding outlined graphics.
 
 ### Optional story cutscenes
 
-Each level can have an optional pre-level cutscene. All 34 campaign levels
-include short story scenes following Koshi from the garden to the Clockwork
-Pantry, controlled by **Tom the Duck**, the main antagonist. Tom is a robot
+Each level can have an optional pre-level cutscene. All 47 campaign levels
+include short story scenes following Koshi from the garden through the Clockwork
+Pantry to the Robot Foundry, controlled by **Tom the Duck**, the main antagonist. Tom is a robot
 duck who commands the robots and hoards the world's food.
 He is introduced in the first scene and speaks in every campaign scene.
 Koshi fights to save the world while celebrating every kind of food. Each scene
@@ -489,7 +545,7 @@ behind the animated mouth edge so their rectangular tops stay hidden.
 Scenes replay when restarting or directly selecting a level. Levels
 without a scene start immediately as before.
 
-The upper two-thirds of the viewport show a garden or workshop stage, with
+The upper two-thirds of the viewport show a garden, workshop or foundry stage, with
 characters using the same drawings as gameplay. Speakers step forward and
 animate while talking. The lower third holds an animated, 32-by-32 pixel
 portrait on the left and readable Space Grotesk dialogue on the right. The same
@@ -531,8 +587,9 @@ supports precise actor positions and repeated actors:
 }
 ```
 
-Add this optional property to a level object. Themes are `garden` or `workshop`;
-character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`, and `tom`. Each is available as both
+Add this optional property to a level object. Themes are `garden`, `workshop` or `foundry`;
+character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
+`robo-snail`, `robo-cow`, `robo-unicorn`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
@@ -555,19 +612,23 @@ playtest links, direct-file play, and the offline app.
    independently, or choose **Slimed**, **Springs**, **Spikes**, **Conveyor**,
    **Portal**, **Spawning**, or **Boost** for contact effects.
    Compact visual palettes select cooldowns, surfaces, colors, and modifiers.
-   Only settings for enabled attributes are shown; mechanics help and reset
-   are collapsible. The objects inspector closes when selecting only bricks,
-   and the brick inspector closes when selecting only objects.
+   The wider desktop sidebar has one category picker for **Bricks**, **Food**,
+   **Enemies**, **Items**, **Objects**, and **Weapons**. Click a category to
+   open its menu. Only settings for enabled brick attributes are shown.
+   Selecting a boundary brick opens its menu; selecting an event opens its category.
    Set Portal colors on individual bricks or any selected group. Incomplete
    or overfilled pairs show a warning but allow editing and draft saves;
    each used color must have exactly two bricks before export or playtest.
    **Toggle** adds an independent 1-, 2-, or 4-activation cycle.
    Set the selection limit (default 5) or warp duration
    (default 15 seconds). Changes apply immediately. Each brick
-   can have its own type, independent of the preset. **Reset brick types to
-   preset** clears all individual edits. Applying a different boundary preset
-   changes defaults but keeps individual overrides until reset.
-2. Click a food, enemy, weapon, or item picture in the inspector. Set its appearance time
+   can have its own type, independent of the preset. Applying a different boundary
+   preset changes defaults but keeps individual overrides.
+2. Click a category, then a food, enemy, weapon, item, or object picture in the
+   inspector. Choosing a category or palette option automatically activates **Place**.
+   Event category and object choices start a new placement instead of changing
+   a selected event; brick options still apply immediately to selected boundary bricks.
+   Set its appearance time
    and on-screen lifetime (required for food, optional for items and weapons).
    Leave an item or weapon lifetime blank to keep it until the level ends.
    With the **Place** tool, click/tap the dotted
@@ -680,8 +741,35 @@ are 192 units wide and tall. Long rectangles come in four variants:
 `obstruction-rectangle-vertical-large` (96 by 384).
 All variants have shaded boundary bevels for depth, with a light upper-left
 edge and dark lower-right edge, without changing their collision shapes.
+Optional `width` and `height` resize obstructions in board units (1–10000).
+Circles and diamonds keep equal dimensions; specifying either dimension sets
+their diameter. Rectangles allow independent width and height. Omitted dimensions
+retain the selected variant's defaults. The editor offers numeric size controls
+for placements and obstruction-spawning bricks; blank fields restore defaults.
+Choosing a normal/large shape starts with its fixed default size, never the
+previously edited shape's dimensions. Select a placed obstruction to reveal
+its tight bounding rectangle, then drag any corner or side handle to resize.
+Rectangles resize independently; circles and diamonds stay square. The opposite
+side/corner stays anchored until the center reaches the playable area's boundary.
+Numeric controls and exported dimensions reflect the resulting size.
+Optional `destructible: true` marks an obstruction with a centered black-on-white
+`TNT` sign surrounded by a red rectangular border. The item-sized sign is always
+36 by 26 board units (plus its border), regardless of obstruction size.
+Its white face and red rim have directional shading, a highlighted bevel and a
+small drop shadow for a raised appearance.
+Defaults remain indestructible.
+Any intersection with a fireball turret's 117-unit-radius damage zone destroys
+the entire marked obstruction immediately, removing its collision shape.
+It crumbles into fragments, grey dust and scattered small orange/red explosions
+over 1.2 seconds. Lasers, other attacks, and destruction dust do not trigger it.
+The animation freezes on pause, finishes after a win/loss, and clears on restart.
+These options are available for custom levels. In the campaign, Levels 3-5,
+3-10 and 3-11 introduce fixed, destructible and appearing obstructions.
 They block Koshi and every enemy, including perimeter robots and every snake
-segment. Obstruction contact changes position only: Koshi slides along the
+segment. Robo Wheels, Robo Snakes, and Robo Cows turn around when an obstruction
+blocks their boundary travel, as they do at Barrier fences. Cow walking quotas
+keep counting actual distance in either direction. Obstruction contact changes
+Koshi's position only: Koshi slides along the
 surface or remains stuck when aimed directly into it, while his intended
 velocity and steering target remain unchanged. Actual brick and bumper
 collisions retain their usual effects.
@@ -776,7 +864,7 @@ A translucent rectangle of cat heads and lightning bolts scrolls behind
 gameplay and exits when the power ends. Another pickup refreshes ten seconds
 without stacking speed. Pause freezes the effect and animation; restart clears
 both. Available in custom-level placements and item spawners with optional
-ground lifetimes; built-in campaign levels are unchanged.
+ground lifetimes. Level 3-3 introduces it in the campaign.
 
 Magical Sunglasses (`magic-sunglasses`) have sparkling, color-cycling frames.
 They fly onto Koshi's face and bypass cooldowns, Toggle locks, and exhausted
@@ -834,8 +922,8 @@ clearance as Ditto Stamp; explicit editor markers retain their positions.
 Saw Blades use this same clearance for random spawns and spawners, including
 rechecking reserved positions when they appear; explicit Saw Blade markers
 also retain their positions.
-Optional on-screen lifetimes are supported. Brushes are custom-level/editor
-items only; campaign levels are unchanged. Restart clears paint and restores
+Optional on-screen lifetimes are supported. Level 3-2 introduces brushes in
+the campaign. Restart clears paint and restores
 the original bricks.
 
 Barrier bricks (`barrier: true`) extend a dark green translucent fence when
@@ -909,14 +997,22 @@ shows a scrolling slug-and-turtle ribbon. Already-running cooldowns retain
 their remaining time and displayed recharge progress for the entire effect;
 bricks hit during the freeze begin
 their cooldowns after the freeze ends. Available in custom placements, spawn
-bricks and cutscenes; no built-in campaign levels are changed.
-
-Robo Cow (`robo-cow`) walks only along the board perimeter at twice Robo
-Wheel's speed in the same clockwise direction. Its legs face the bricks and
+bricks and cutscenes. Level 3-6 introduces it in the campaign.Robo Cow (`robo-cow`) walks only along the board perimeter at twice Robo
+Wheel's speed, initially clockwise, turning around when it reaches an active
+Barrier fence. Its legs face the bricks and
 alternate as it walks, stopping while it eats or sleeps, with quick, smooth
-quarter-turns at the corners. It chooses a target two to six original perimeter bricks ahead,
-with four most likely; after bobbing its head for five seconds, it turns the
-target brick (including any merged members) into cinder.
+quarter-turns at the corners. It chooses a walking distance of two to six average
+original perimeter-brick lengths, with four most likely (10%/20%/40%/20%/10%).
+The average length is the playable perimeter divided by its original brick count.
+All forward and backward walking counts toward that distance, so even a cow
+confined to one brick eventually stops to eat. After meeting that distance quota,
+it continues to the first original-sized brick center it reaches, keeping the
+cow centered on its grass strip. Barrier turnarounds still apply while seeking
+that center. It eats the brick under its feet; after bobbing its head for five seconds, it turns that brick
+(including any merged members) into cinder. Cinder and Goal bricks are skipped
+and a new walking distance is chosen without changing direction.
+Once eating starts, enemy collisions cannot displace the cow from its grass
+position, including contact with another perimeter enemy or any snake segment.
 As eating begins, a thin, six-unit grass strip fades in just beside the inner
 face of the original-sized brick section, at the cow's feet rather than over
 the brick or its body. A straight edge wipes the grass away at a constant speed,
@@ -934,8 +1030,8 @@ rather than snapping at wall bounces. It eats food
 only while charging. When no food remains it turns red, moves continuously,
 and speeds up. On death its horn launches away and its body becomes a 180-degree
 rainbow arch whose angle shrinks to zero from one end. Both enemies are
-available in custom placements, spawn bricks and cutscenes; no built-in
-campaign levels are changed.
+available in custom placements, spawn bricks and cutscenes. Levels 3-12 and
+3-13 introduce Robo Cow and Robo Unicorn in the campaign.
 
 Blue, green and red Bubbles (`bubble-blue`, `bubble-green`, `bubble-red`) are
 custom-level objects slightly larger than Koshi. Contact pulls Koshi smoothly
@@ -1064,6 +1160,26 @@ Optional `portal` is `"red"`, `"orange"`, `"yellow"`, `"green"`, `"blue"`, or
 `"purple"`; `null` removes it. Each color must map to exactly two physical
 bricks after applying all overrides. Optional `boost` is a boolean.
 Optional `spawner` is an object with `kind` and `type`, or `null` to remove it:
+Optional `x` and `y`, both fractions from 0 to 1, select a fixed location in the
+playable area. Omit both to keep existing random spawning. For example,
+`{ "kind": "item", "type": "smiley-cookie", "x": 0.7, "y": 0.4 }` always spawns
+at that location, including after Battery reactivation. Fixed locations adapt to
+both board layouts; wheels, snakes and cows snap to the nearest playable edge.
+Lifetimes begin at brick activation, not when the template was placed.
+
+In the editor, select a spawning brick and enable **Use a specific location**
+to enter X/Y percentages. Alternatively, place an object first, select one
+spawning brick, choose **Connect placed object**, then click the object's marker
+(or focus it and press Enter). This removes its scheduled event and stores its
+type, coordinates, lifetime, shield and obstruction attributes in the spawner.
+It remains visible as a **Spawn only** template, never as a scheduled duplicate.
+Selecting the brick shows a thin dotted link to its template. Drag the template
+or use arrow keys to move its spawn location; obstruction templates also retain
+corner/side resize handles. Editing the brick updates its template immediately.
+Escape or the connection button cancels linking. Unchecking fixed location
+returns to random spawning. All settings survive save/export/import/playtest.
+
+Spawner types:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
 `wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`,
 `bucket`, `ball`, `jackolantern`, `snake`, or `goalie`;
@@ -1072,15 +1188,19 @@ Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
 counted from each actual spawn; omit it for full-level persistence.
 Portal, Spawner, Boost, and Turret each replace any other contact surface,
 including Slimed/Springs/Spikes/Conveyor.
-Optional `turret` is `"fireball"`, `"laser"`, or `null`. Touching a turret
-brick moves Koshi into its inward-facing, translucent blue protective dome;
+Optional `turret` is `"fireball"`, `"laser"`, or `null`. A turret
+brick is marked by a closed semicircle and a rectangular barrel at 45 degrees
+to its flat base. A blue semicircle identifies a laser turret; a red semicircle
+identifies a fireball turret, without interior symbols.
+The icon rotates with the board edge so its flat base faces the brick's outer side.
+Touching the brick moves Koshi into its inward-facing, translucent blue protective dome;
 click or tap a point to aim and fire. The turret displays shots remaining, and
-a red arc around the dome shrinks over its 10-second duration. Keyboard players
+a blue arc for lasers or a red arc for fireballs shrinks over its 10-second duration. Keyboard players
 can focus a boundary brick and press Enter to fire toward its center. A turret
 allows three shots or 10 seconds, whichever comes first, then fades and releases
 Koshi. Fireball turrets launch glowing explosive
 shots that damage nearby enemies; laser turrets hit every enemy along a
-straight line. Neither turret affects pickups. Each brick works once per
+straight light-blue beam with a pale-blue core. Neither turret affects pickups. Each brick works once per
 attempt; touching it again with a Battery recharges it. Turrets replace other
 contact surfaces and can combine with cooldown color, Crumbler, Warped and
 Toggle attributes.

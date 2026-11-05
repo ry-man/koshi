@@ -6,7 +6,8 @@ const { LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS } = engine;
 
 const WORLDS = [
   { id: '1', name: 'Garden Path', theme: 'garden', special: false, next: ['2'] },
-  { id: '2', name: 'Clockwork Pantry', theme: 'workshop', special: false, next: [] },
+  { id: '2', name: 'Clockwork Pantry', theme: 'workshop', special: false, next: ['3'] },
+  { id: '3', name: 'Robot Foundry', theme: 'foundry', special: false, next: [] },
 ];
 
 function worldLevels(world, levels = LEVELS) {
@@ -53,7 +54,7 @@ function levelFeatures(level) {
         kind === 'normal' ? 'Steering Brick' : `${kind} Brick`);
     }
     for (const key of ['crumbler', 'warped']) if (brick[key]) add(`brick:${key}`, `${key} Brick`);
-    for (const key of ['spikes', 'springs', 'conveyor', 'boost', 'toggle', 'portal', 'spawner', 'barrier']) {
+    for (const key of ['spikes', 'springs', 'conveyor', 'boost', 'toggle', 'portal', 'spawner', 'barrier', 'turret']) {
       if (brick[key]) add(`${['spikes', 'springs', 'conveyor'].includes(key) ? 'brick' : 'special'}:${key}`, `${key} Brick`);
     }
     if (brick.slimed) add('slime:green', 'Slime');

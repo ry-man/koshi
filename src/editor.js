@@ -46,8 +46,10 @@ let selectedEvents = new Set();
 let selectedBricks = new Set();
 let combineOwner = null;
 let placing = true;
+let activeCategory = 'food';
 let previewGame;
 let gesture = null;
+let connectingSpawn = null;
 let touched = new Set();
 let dirty = false;
 let committed = JSON.stringify(level);
@@ -105,7 +107,7 @@ function syncAccess() {
 function selectEditorLevel() {
   const value = $('#editor-level').value;
   if (value !== 'custom' && !readOnly()) {
-    customWorkspace = { level, committed, dirty, placing, selectedEvents, selectedBricks,
+    customWorkspace = { level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks,
       sceneLines: [...$('#scene-lines').childNodes],
       sceneFieldsDisabled: $('#scene-fields').disabled,
       fields: [...document.querySelectorAll('input, select, textarea')].filter(node => node.id !== 'editor-level')
@@ -114,7 +116,7 @@ function selectEditorLevel() {
   if (value === 'custom') {
     if (!customWorkspace) return;
     campaignIndex = null;
-    ({ level, committed, dirty, placing, selectedEvents, selectedBricks } = customWorkspace);
+    ({ level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks } = customWorkspace);
   } else {
     campaignIndex = Number(value);
     level = campaignPreview(campaignIndex);
@@ -132,6 +134,7 @@ function selectEditorLevel() {
     updateWinCondition(); syncPalettes(); render();
     customWorkspace = null;
   }
+  showCategory(activeCategory);
   syncAccess();
   message(readOnly() ? 'Game level opened read-only. Select your custom level to resume editing.' : 'Your custom workspace restored.');
 }
@@ -152,7 +155,6 @@ const SURFACE_ICONS = {
   spikes: 'M-24 12 L-16 -12 L-8 12 L0 -12 L8 12 L16 -12 L24 12 Z',
   conveyor: 'M-15 -10 H15 A10 10 0 0 1 15 10 H-15 A10 10 0 0 1 -15 -10 Z M-18 0 H18 M8 -5 L18 0 L8 5',
   barrier: FENCE,
-  turret: 'M-22 13 A22 22 0 0 1 22 13 M-3 0 H19 V-7 H5 M23 -7 H29',
   crumbler: 'M-22 -12 H22 V12 H-22 Z M-4 -12 L2 -4 L-5 2 L5 12',
   warped: 'M-20 -4 C-24 -22 6 -22 7 -5 S-18 16 -8 1 S19 -12 21 8',
 };
@@ -185,12 +187,13 @@ function picture(value, control) {
       detail('M6 -14 H8 V-8 H6 Z', '#45381d');
       detail('M18 10 H27 V15 H18 Z', '#c4cdd5');
     }
-  } else if (['portal', 'toggle', 'spawner', 'boost', 'cinder', 'goal'].includes(value) || control === 'brick-toggle-clicks') {
+  } else if (['portal', 'toggle', 'spawner', 'boost', 'cinder', 'goal', 'turret'].includes(value) || control === 'brick-toggle-clicks') {
     const brick = { x: 0, y: 0, w: 88, h: 52 };
     if (value === 'portal') brick.portal = 'purple';
     if (value === 'toggle' || control === 'brick-toggle-clicks') { brick.toggle = control === 'brick-toggle-clicks' ? Number(value) : 1; brick.toggleRemaining = brick.toggle; }
     if (value === 'spawner') brick.spawner = { kind: 'heart', type: 'heart' };
     if (value === 'boost') brick.boost = true;
+    if (value === 'turret') brick.turret = $('#brick-turret-type').value || 'laser';
     if (immutableBrick(value)) brick.kind = value;
     decorateBrick(image, brick, [brick]);
   } else if (SURFACE_ICONS[value]) {
@@ -215,12 +218,33 @@ function choiceButton(value, name, control, action) {
   caption.className = 'palette-caption';
   caption.textContent = control === 'brick-toggle-clicks' ? `${value} clicks` : name.split(' · ')[0];
   button.append(picture(value, control), caption);
-  button.addEventListener('click', action);
+  button.addEventListener('click', event => {
+    if (readOnly()) return;
+    placing = true;
+    action(event);
+    syncTool();
+  });
   return button;
 }
 
 function setupPalettes() {
-  for (const id of ['brick-kind', 'brick-slime-color', 'brick-conveyor-direction', 'brick-portal-color', 'brick-toggle-clicks', 'brick-spawn-item', 'event-kind', 'event-type']) {
+  for (const [category, name] of [['brick', 'Bricks'], ['food', 'Food'], ['enemy', 'Enemies'], ['item', 'Items'], ['object', 'Objects'], ['weapon', 'Weapons']]) {
+    const button = choiceButton(category === 'brick' ? 'normal' : category, name, category === 'brick' ? 'brick-kind' : 'event-kind', () => {
+      if (category === 'brick') {
+        selectedEvents = new Set();
+        showCategory(category);
+        populateEventForm(); render();
+      } else {
+        $('#event-kind').value = category;
+        $('#event-kind').dispatchEvent(new Event('change'));
+      }
+    });
+    button.dataset.category = category;
+    button.setAttribute('aria-controls', category === 'brick' ? 'brick-panel' : 'event-panel');
+    $('#category-palette').append(button);
+  }
+  showCategory(activeCategory);
+  for (const id of ['brick-kind', 'brick-slime-color', 'brick-conveyor-direction', 'brick-portal-color', 'brick-toggle-clicks', 'brick-spawn-item', 'event-type']) {
     const select = $(`#${id}`), palette = document.createElement('div');
     select.hidden = true;
     palette.className = 'visual-palette'; palette.setAttribute('role', 'group');
@@ -242,6 +266,15 @@ function setupPalettes() {
       button.dataset.attribute = attribute;
       $(`#${container}`).append(button);
     }
+  }
+}
+
+function showCategory(category) {
+  activeCategory = category;
+  $('#brick-panel').hidden = category !== 'brick';
+  $('#event-panel').hidden = category === 'brick';
+  for (const button of $('#category-palette').children) {
+    button.setAttribute('aria-pressed', String(button.dataset.category === category));
   }
 }
 
@@ -337,6 +370,19 @@ function typeOptions(type, showLifetime) {
   const obstruction = kind === 'object' && OBJECTS[$('#event-type').value]?.obstruction;
   $('#event-obstruction').hidden = !obstruction;
   $('#event-obstruction').disabled = !obstruction;
+  if (obstruction) syncObstructionSize('event', { type: $('#event-type').value });
+}
+
+function syncObstructionSize(prefix, item) {
+  const rectangle = OBJECTS[item.type]?.obstruction === 'rectangle';
+  const geometry = obstructionGeometry({ type: item.type });
+  $(`#${prefix}-width`).placeholder = String(geometry.width);
+  $(`#${prefix}-height`).placeholder = String(geometry.height);
+  $(`#${prefix}-height`).parentElement.hidden = !rectangle;
+}
+
+function resetObstructionSize(prefix) {
+  for (const field of ['width', 'height']) $(`#${prefix}-${field}`).value = '';
 }
 
 function populateObstructionFields(prefix, items) {
@@ -350,10 +396,30 @@ function populateObstructionFields(prefix, items) {
     }
     input.value = value === MIXED ? fallback : value;
   }
+  for (const field of ['width', 'height']) {
+    const input = $(`#${prefix}-${field}`);
+    const value = common(items.map(item => item[field] ?? (field === 'width' && OBJECTS[item.type].obstruction !== 'rectangle' ? item.height : undefined) ?? ''));
+    input.value = value === MIXED ? '' : value;
+  }
+  const destructible = $(`#${prefix}-destructible`);
+  destructible.checked = items.every(item => item.destructible);
+  destructible.indeterminate = items.some(item => item.destructible) && !destructible.checked;
+  syncObstructionSize(prefix, items[0]);
 }
 
 function readObstructionFields(prefix) {
-  return Object.fromEntries(['color', 'pattern', 'patternColor'].map(field => [field, $(`#${prefix}-${field}`).value]));
+  const fields = Object.fromEntries(['color', 'pattern', 'patternColor'].map(field => [field, $(`#${prefix}-${field}`).value]));
+  for (const field of ['width', 'height']) {
+    const value = $(`#${prefix}-${field}`).value;
+    if (value !== '') fields[field] = Number(value);
+  }
+  const type = prefix === 'event' ? $('#event-type').value : $('#brick-spawn-item').value.split(':')[1];
+  if (OBJECTS[type]?.obstruction !== 'rectangle') {
+    if (fields.width !== undefined) fields.height = fields.width;
+    else delete fields.height;
+  }
+  if ($(`#${prefix}-destructible`).checked) fields.destructible = true;
+  return fields;
 }
 
 function setupObstructionColors() {
@@ -395,6 +461,7 @@ function icon(event) {
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
+        : event.kind === 'heart' ? '♥'
         : event.kind === 'object' ? OBJECTS[event.type].icon
         : ({ mouse: '🐭', wheel: '⚙', ram: '🐏', bucket: '🪣', ball: '🏀', jackolantern: '🎃', snake: '🐍', goalie: '⚽', 'robo-koshi': '🤖' })[event.type];
 }
@@ -473,8 +540,8 @@ function setSelection(events = selectedEvents, bricks = selectedBricks) {
   selectedEvents = new Set(events);
   selectedBricks = new Set(bricks);
   if (selectedEvents.size) placing = false;
-  $('#brick-panel').open = Boolean(selectedBricks.size);
-  $('#event-panel').open = Boolean(selectedEvents.size) || !selectedBricks.size;
+  if (selectedBricks.size && !selectedEvents.size) showCategory('brick');
+  else if (selectedEvents.size) showCategory(common(selectedList().map(index => level.events[index].kind)));
   populateEventForm(); render();
 }
 
@@ -530,6 +597,22 @@ function renderBrickInspector(bricks) {
     return button;
   }));
   const inert = chosen.some(brick => immutableBrick(brick.kind));
+  const spawns = chosen.map(brick => brick.spawner).filter(Boolean);
+  $('#brick-spawn-position').disabled = inert || !spawns.length;
+  const fixed = spawns.filter(spawn => spawn.x !== undefined);
+  $('#brick-spawn-fixed').checked = !!spawns.length && fixed.length === spawns.length;
+  $('#brick-spawn-fixed').indeterminate = !!fixed.length && fixed.length !== spawns.length;
+  for (const field of ['x', 'y']) {
+    const input = $(`#brick-spawn-${field}`);
+    const value = common(fixed.map(spawn => spawn[field]));
+    input.value = fixed.length ? value === MIXED ? '' : value * 100 : 50;
+    input.placeholder = fixed.length && value === MIXED ? 'Mixed' : '';
+    input.disabled = inert || !fixed.length;
+  }
+  $('#connect-spawn').disabled = inert || chosen.length !== 1 || !spawns.length;
+  if (!chosen.some(brick => regionKey(regions.get(brick.id)) === connectingSpawn)) connectingSpawn = null;
+  $('#connect-spawn').setAttribute('aria-pressed', String(connectingSpawn !== null));
+  $('#connect-spawn').textContent = connectingSpawn === null ? 'Connect placed object' : 'Cancel connection';
   for (const [selector, enabled, values, fallback] of [
     ['#brick-portal-color', chosen.some(brick => brick.portal), chosen.map(brick => brick.portal).filter(Boolean), 'red'],
     ['#brick-toggle-clicks', chosen.some(brick => brick.toggle), chosen.map(brick => brick.toggle).filter(Boolean).map(String), '1'],
@@ -609,7 +692,7 @@ function renderBrickInspector(bricks) {
 function renderBoard() {
   const portrait = $('#orientation').value === 'portrait';
   board.dataset.orientation = portrait ? 'portrait' : 'landscape';
-  board.dataset.tool = placing ? 'place' : 'select';
+  syncTool();
   previewGame = new Game(Math.random, { portrait, scale: portrait ? board.clientWidth / 600 : 1,
     ...(readOnly() ? { level: campaignIndex } : { customLevel: level }), editorPreview: true });
   const issues = portalPairIssues(previewGame.bricks);
@@ -650,7 +733,7 @@ function renderBoard() {
     if (brick.crumbler || merged) element.style.clipPath = shape.roundedClipPath;
     if (merged) element.classList.add('editor-brick-merged');
     if (brick.spikes) element.style.clipPath = body.roundedClipPath;
-    const special = decorateBrick(element, brick, members);
+    const special = decorateBrick(element, brick, members, previewGame.width, previewGame.height);
     if (brick.slimed || brick.springs || brick.spikes || merged) {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
@@ -750,37 +833,65 @@ function renderBoard() {
   $('#playable-area').style.cssText = `left:${b.left / previewGame.width * 100}%;top:${b.top / previewGame.height * 100}%;width:${(b.right - b.left) / previewGame.width * 100}%;height:${(b.bottom - b.top) / previewGame.height * 100}%`;
   const time = Number($('#timeline').value);
   $('#time-label').textContent = `${time.toFixed(1)}s`;
-  $('#place-mode').setAttribute('aria-pressed', String(placing));
-  $('#select-mode').setAttribute('aria-pressed', String(!placing));
   const summary = [selectedBricks.size && plural(selectedBricks.size, 'brick'), selectedEvents.size && plural(selectedEvents.size, 'event')].filter(Boolean);
   $('#selection-summary').textContent = summary.length ? `${summary.join(' + ')} selected` : 'Nothing selected';
   $('#clear-selection').disabled = !summary.length;
   const markers = $('#markers'); markers.replaceChildren();
-  level.events.forEach((event, index) => {
-    if (!$('#show-all').checked && (event.time > time || (event.lifetime != null && event.time + event.lifetime <= time))) return;
+  const templates = spawnTemplates();
+  renderSpawnLinks(templates);
+  [...level.events.map((event, index) => ({ event, index })), ...templates].forEach(({ event, index, spawnKey }) => {
+    if (!spawnKey && connectingSpawn === null && !$('#show-all').checked && (event.time > time || (event.lifetime != null && event.time + event.lifetime <= time))) return;
     const point = previewGame.pointFromRelative(event.x, event.y);
     const marker = document.createElement('button');
-    marker.className = 'marker'; marker.type = 'button'; marker.dataset.kind = event.kind; marker.dataset.index = index;
+    marker.className = spawnKey ? 'marker spawn-template' : 'marker';
+    marker.type = 'button'; marker.dataset.kind = event.kind;
+    if (spawnKey) marker.dataset.spawnKey = spawnKey; else marker.dataset.index = index;
     marker.style.left = `${point.x / previewGame.width * 100}%`; marker.style.top = `${point.y / previewGame.height * 100}%`;
     marker.style.color = event.kind === 'weapon' ? SWORDS[event.type].color : '';
     if (event.shield) marker.style.boxShadow = `0 0 0 3px ${SHIELDS[event.shield].color}`;
-    marker.setAttribute('aria-label', `Event ${index + 1}: ${description(event)} at ${event.time}s`);
-    marker.setAttribute('aria-pressed', String(selectedEvents.has(index)));
-    const label = document.createElement('small'); label.textContent = `${event.time}s`;
+    const selected = spawnKey ? selectedBricks.has(spawnKey) : selectedEvents.has(index);
+    marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);
+    marker.setAttribute('aria-pressed', String(selected));
+    const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s`;
     if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
       const { width, height } = obstructionGeometry(event);
+      const frameWidth = Math.max(width + 4, event.destructible ? 40 : 0);
+      const frameHeight = Math.max(height + 4, event.destructible ? 30 : 0);
       marker.classList.add('obstruction-marker');
-      marker.style.width = `${(width + 4) / previewGame.width * 100}%`;
-      marker.style.height = `${(height + 4) / previewGame.height * 100}%`;
+      marker.style.width = `${frameWidth / previewGame.width * 100}%`;
+      marker.style.height = `${frameHeight / previewGame.height * 100}%`;
       const image = document.createElement('canvas');
-      image.width = width + 4; image.height = height + 4;
+      const scale = Math.min(1, 2048 / frameWidth, 2048 / frameHeight);
+      image.width = Math.ceil(frameWidth * scale); image.height = Math.ceil(frameHeight * scale);
       image.setAttribute('aria-hidden', 'true');
-      drawObstruction(image.getContext('2d'), { ...event, x: image.width / 2, y: image.height / 2 });
+      const context = image.getContext('2d');
+      context.scale(image.width / frameWidth, image.height / frameHeight);
+      drawObstruction(context, { ...event, x: frameWidth / 2, y: frameHeight / 2 });
       marker.append(image, label);
+      if (selected && !readOnly() && connectingSpawn === null) {
+        const outline = document.createElement('span');
+        outline.className = 'obstruction-resize-box';
+        outline.style.cssText = `width:${width / frameWidth * 100}%;height:${height / frameHeight * 100}%`;
+        for (const handle of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
+          const grip = document.createElement('span');
+          grip.className = `obstruction-resize-handle resize-${handle}`;
+          grip.dataset.handle = handle;
+          grip.setAttribute('aria-hidden', 'true');
+          grip.addEventListener('pointerdown', down => {
+            if (readOnly() || down.button !== 0 || gesture) return;
+            down.preventDefault(); down.stopPropagation();
+            startGesture(down, { type: 'resize', index, spawnKey, handle });
+          });
+          outline.append(grip);
+        }
+        marker.append(outline);
+      }
     } else marker.append(icon(event), label);
     marker.addEventListener('click', click => {
       click.stopPropagation();
       if (click.detail !== 0 && !readOnly()) return;
+      if (!readOnly() && connectingSpawn !== null && !spawnKey) { attempt(() => connectSpawn(index)); return; }
+      if (spawnKey) { choose('brick', spawnKey, isAdditive(click)); focusSpawnTemplate(spawnKey); return; }
       choose('event', index, isAdditive(click));
       focusMarker(index);
     });
@@ -788,13 +899,20 @@ function renderBoard() {
       if (readOnly()) { down.stopPropagation(); return; }
       if (down.button !== 0 || gesture) return;
       down.preventDefault(); down.stopPropagation();
-      startGesture(down, { type: 'marker', index });
+      if (connectingSpawn !== null && !spawnKey) { attempt(() => connectSpawn(index)); return; }
+      startGesture(down, spawnKey ? { type: 'spawn-template', spawnKey } : { type: 'marker', index });
     });
     marker.addEventListener('keydown', key => {
       if (readOnly()) return;
       const direction = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] }[key.key];
       if (!direction) return;
       key.preventDefault();
+      if (spawnKey) {
+        attempt(() => saveSpawnTemplate(spawnKey, { ...event,
+          x: Math.max(0, Math.min(1, event.x + direction[0] * .01)),
+          y: Math.max(0, Math.min(1, event.y + direction[1] * .01)) }));
+        setSelection([], [spawnKey]); focusSpawnTemplate(spawnKey); return;
+      }
       if (!selectedEvents.has(index)) { selectedEvents = new Set([index]); selectedBricks = new Set(); }
       for (const item of selectedList()) moveEvent(item, level.events[item].x + direction[0] * .01, level.events[item].y + direction[1] * .01);
       markChanged(); setSelection();
@@ -811,6 +929,66 @@ function render() {
 
 function focusMarker(index) { board.querySelector(`.marker[data-index="${index}"]`)?.focus({ preventScroll: true }); }
 function focusBrick(key) { board.querySelector(`.editor-brick[data-region="${key}"]`)?.focus({ preventScroll: true }); }
+function focusSpawnTemplate(key) { board.querySelector(`.spawn-template[data-spawn-key="${key}"]`)?.focus({ preventScroll: true }); }
+
+function spawnTemplates() {
+  const regions = brickEditRegions(previewGame.bricks);
+  return previewGame.bricks.filter(brick => brick.absorbedBy === null && brick.spawner?.x !== undefined)
+    .map(brick => ({ event: { ...brick.spawner }, spawnKey: regionKey(regions.get(brick.id)), brick }));
+}
+
+function renderSpawnLinks(templates) {
+  const svg = $('#spawn-links');
+  svg.replaceChildren();
+  svg.setAttribute('viewBox', `0 0 ${previewGame.width} ${previewGame.height}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  for (const { event, spawnKey, brick } of templates) {
+    if (!selectedBricks.has(spawnKey)) continue;
+    const point = previewGame.pointFromRelative(event.x, event.y);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    for (const [name, value] of Object.entries({ x1: brick.x + brick.w / 2, y1: brick.y + brick.h / 2, x2: point.x, y2: point.y })) line.setAttribute(name, value);
+    svg.append(line);
+  }
+}
+
+function spawnTemplate(key) {
+  const template = spawnTemplates().find(item => item.spawnKey === key);
+  if (!template) throw new Error('Select a spawning brick with a fixed location.');
+  return template;
+}
+
+function saveSpawnTemplate(key, spawn, removeIndex = null) {
+  if (readOnly()) return;
+  const regions = brickEditRegions(previewGame.bricks);
+  const brick = previewGame.bricks.find(item => item.absorbedBy === null && regionKey(regions.get(item.id)) === key);
+  if (!brick?.spawner || immutableBrick(brick.kind)) throw new Error('Select one editable spawning brick first.');
+  const entries = previewGame.bricks.filter(member => member.id === brick.id || member.initialOwner === brick.id)
+    .map(member => ({ ...brickEntry(brick, regions.get(member.id)), spawner: { ...spawn } }));
+  const keys = new Set(entries.map(regionKey));
+  const events = removeIndex === null ? level.events : level.events.filter((_, index) => index !== removeIndex);
+  level = validateDraft({ ...level, events,
+    brickTypes: [...(level.brickTypes ?? []).filter(entry => !keys.has(regionKey(entry))), ...entries] });
+  markChanged();
+}
+
+function updateSpawnTemplateDraft(key, spawn) {
+  const regions = brickEditRegions(previewGame.bricks);
+  const { brick } = spawnTemplate(key);
+  const entries = previewGame.bricks.filter(member => member.id === brick.id || member.initialOwner === brick.id)
+    .map(member => ({ ...brickEntry(brick, regions.get(member.id)), spawner: { ...spawn } }));
+  const keys = new Set(entries.map(regionKey));
+  level.brickTypes = [...(level.brickTypes ?? []).filter(entry => !keys.has(regionKey(entry))), ...entries];
+}
+
+function connectSpawn(index) {
+  const event = level.events[index];
+  if (!event || connectingSpawn === null) throw new Error('Choose a placed object to connect.');
+  const key = connectingSpawn, { time, ...spawn } = event;
+  saveSpawnTemplate(key, spawn, index);
+  connectingSpawn = null;
+  setSelection([], [key]);
+  message('Object connected as a spawn-only template. It no longer appears on its old schedule.');
+}
 
 function moveEvent(index, x, y) {
   if (readOnly()) return;
@@ -827,8 +1005,27 @@ function pointerPosition(event) {
   return { x: (x - b.left) / (b.right - b.left), y: (y - b.top) / (b.bottom - b.top) };
 }
 
+function resizedObstruction(origin, handle, dx, dy, bounds) {
+  const geometry = obstructionGeometry(origin);
+  const west = handle.includes('w'), east = handle.includes('e');
+  const north = handle.includes('n'), south = handle.includes('s');
+  let width = Math.max(1, Math.min(10000, geometry.width + (west ? -dx : east ? dx : 0)));
+  let height = Math.max(1, Math.min(10000, geometry.height + (north ? -dy : south ? dy : 0)));
+  if (OBJECTS[origin.type].obstruction !== 'rectangle') {
+    const horizontal = west || east, vertical = north || south;
+    const changeX = width - geometry.width, changeY = height - geometry.height;
+    const size = horizontal && (!vertical || Math.abs(changeX) >= Math.abs(changeY)) ? width : height;
+    width = height = size;
+  }
+  const offsetX = (east ? 1 : west ? -1 : 0) * (width - geometry.width) / 2;
+  const offsetY = (south ? 1 : north ? -1 : 0) * (height - geometry.height) / 2;
+  return { ...origin, width, height,
+    x: Math.max(0, Math.min(1, origin.x + offsetX / (bounds.right - bounds.left))),
+    y: Math.max(0, Math.min(1, origin.y + offsetY / (bounds.bottom - bounds.top))) };
+}
+
 function startGesture(event, target) {
-  if (readOnly() && target.type === 'marker') return;
+  if (readOnly() && ['marker', 'resize', 'spawn-template'].includes(target.type)) return;
   gesture = { ...target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, additive: isAdditive(event), moved: false };
   if (target.type === 'marker') {
     // Pressing an unselected marker adds it (or replaces the selection) so the drag moves it with the group.
@@ -839,6 +1036,17 @@ function startGesture(event, target) {
     }
     gesture.start = pointerPosition(event);
     gesture.origins = new Map(selectedList().map(index => [index, { x: level.events[index].x, y: level.events[index].y }]));
+  }
+  if (target.type === 'resize') {
+    gesture.start = pointerPosition(event);
+    gesture.origin = target.spawnKey ? spawnTemplate(target.spawnKey).event : { ...level.events[target.index] };
+    if (target.spawnKey) gesture.baseLevel = { ...level };
+  }
+  if (target.type === 'spawn-template') {
+    selectedEvents = new Set(); selectedBricks = new Set([target.spawnKey]);
+    gesture.start = pointerPosition(event);
+    gesture.origin = spawnTemplate(target.spawnKey).event;
+    gesture.baseLevel = { ...level };
   }
   board.setPointerCapture(event.pointerId);
 }
@@ -870,7 +1078,7 @@ function boxSelect(event) {
   const bricks = [...board.querySelectorAll('.editor-brick')].filter(element => {
     return selectedParts.has(Number(element.dataset.id));
   }).map(element => element.dataset.region);
-  const events = [...board.querySelectorAll('.marker')].filter(element => {
+  const events = [...board.querySelectorAll('.marker[data-index]')].filter(element => {
     const r = element.getBoundingClientRect(), x = (r.left + r.right) / 2, y = (r.top + r.bottom) / 2;
     return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
   }).map(element => Number(element.dataset.index));
@@ -880,6 +1088,10 @@ function boxSelect(event) {
 
 function placeAt(event) {
   if (readOnly()) return;
+  if (activeCategory === 'brick') {
+    message('Select a boundary brick to edit it, or choose another category to place objects.');
+    return;
+  }
   const point = pointerPosition(event);
   if (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) {
     message('Place objects inside the dotted playable area, not on bricks.', true); return;
@@ -903,7 +1115,26 @@ board.addEventListener('pointermove', event => {
   if (!gesture || gesture.pointerId !== event.pointerId) return;
   if (!gesture.moved && Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < 5) return;
   gesture.moved = true;
-  if (gesture.type === 'marker') {
+  if (gesture.type === 'resize') {
+    const point = pointerPosition(event), bounds = previewGame.bounds();
+    const resized = resizedObstruction(gesture.origin, gesture.handle,
+      (point.x - gesture.start.x) * (bounds.right - bounds.left),
+      (point.y - gesture.start.y) * (bounds.bottom - bounds.top), bounds);
+    if (gesture.spawnKey) {
+      gesture.draft = resized;
+      updateSpawnTemplateDraft(gesture.spawnKey, resized);
+    } else level.events[gesture.index] = resized;
+    renderBoard();
+  } else if (gesture.type === 'spawn-template') {
+    const point = pointerPosition(event);
+    const spawn = { ...gesture.origin,
+      x: Math.max(0, Math.min(1, gesture.origin.x + point.x - gesture.start.x)),
+      y: Math.max(0, Math.min(1, gesture.origin.y + point.y - gesture.start.y)) };
+    if (spawn.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(spawn.type)) Object.assign(spawn, snapWheel(spawn.x, spawn.y));
+    gesture.draft = spawn;
+    updateSpawnTemplateDraft(gesture.spawnKey, spawn);
+    renderBoard();
+  } else if (gesture.type === 'marker') {
     const point = pointerPosition(event);
     for (const [index, origin] of gesture.origins) moveEvent(index, origin.x + point.x - gesture.start.x, origin.y + point.y - gesture.start.y);
     renderBoard();
@@ -914,6 +1145,26 @@ board.addEventListener('pointerup', event => {
   if (board.hasPointerCapture(event.pointerId)) board.releasePointerCapture(event.pointerId);
   $('#selection-box').hidden = true;
   const current = gesture;
+  if (current.spawnKey) {
+    gesture = null;
+    level = current.baseLevel;
+    attempt(() => {
+      if (current.moved) saveSpawnTemplate(current.spawnKey, current.draft);
+    });
+    setSelection([], [current.spawnKey]); focusSpawnTemplate(current.spawnKey);
+    return;
+  }
+  if (current.type === 'resize') {
+    gesture = null;
+    attempt(() => {
+      try { level = validateDraft(level); }
+      catch (error) { level.events[current.index] = current.origin; throw error; }
+      if (current.moved) markChanged();
+      message('Obstruction resized. Numeric dimensions are available in the inspector.');
+    });
+    setSelection(); focusMarker(current.index);
+    return;
+  }
   if (current.type === 'marker') {
     gesture = null;
     if (current.moved) { markChanged(); setSelection(); message(`Moved ${plural(current.origins.size, 'event')}.`); }
@@ -930,20 +1181,37 @@ board.addEventListener('pointerup', event => {
   else { if (!current.additive) setSelection([], []); board.focus({ preventScroll: true }); }
 });
 board.addEventListener('pointercancel', () => {
+  if (gesture?.spawnKey) {
+    level = gesture.baseLevel;
+    gesture = null; render(); return;
+  }
+  if (gesture?.type === 'resize') {
+    level.events[gesture.index] = gesture.origin;
+    gesture = null; render();
+    return;
+  }
   if (gesture?.origins) for (const [index, origin] of gesture.origins) Object.assign(level.events[index], origin);
   gesture = null; $('#selection-box').hidden = true; markChanged(); render();
 });
 board.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { setSelection([], []); board.focus({ preventScroll: true }); }
+  if (event.key === 'Escape') { connectingSpawn = null; setSelection([], []); board.focus({ preventScroll: true }); }
   else if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); deleteSelected(); board.focus({ preventScroll: true }); }
   else if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); selectAll(); }
 });
 function startPlacement() {
   if (readOnly()) return;
   placing = true; setSelection([], []);
-  $('#event-panel').open = true;
-  $('#brick-panel').open = false;
 }
+function syncTool() {
+  board.dataset.tool = placing ? 'place' : 'select';
+  $('#place-mode').setAttribute('aria-pressed', String(placing));
+  $('#select-mode').setAttribute('aria-pressed', String(!placing));
+}
+$('#inspector-access').addEventListener('change', () => {
+  if (readOnly()) return;
+  placing = true;
+  syncTool();
+}, true);
 $('#place-mode').addEventListener('click', startPlacement);
 $('#select-mode').addEventListener('click', () => { placing = false; render(); });
 $('#select-all').addEventListener('click', selectAll);
@@ -957,6 +1225,7 @@ function brickEntry(brick, region) {
 }
 function saveBrick(event) {
   attempt(() => {
+    if (event.target.id === 'brick-spawn-item') resetObstructionSize('brick-spawn');
     const regions = brickEditRegions(previewGame.bricks);
     const targets = previewGame.bricks.map(brick => ({ brick, region: regions.get(brick.id) })).filter(({ brick, region }) => brick.absorbedBy === null && selectedBricks.has(regionKey(region)));
     if (!targets.length) throw new Error('Select a brick before changing its attributes.');
@@ -980,7 +1249,8 @@ function saveBrick(event) {
       if (id === 'brick-portal-color' && $('#brick-portal-color').value !== MIXED) entry.portal = $('#brick-portal-color').value;
       if (id === 'brick-spawn-item' && $('#brick-spawn-item').value !== MIXED) {
         const [kind, type] = $('#brick-spawn-item').value.split(':');
-        entry.spawner = { kind, type };
+        const position = entry.spawner?.x === undefined ? {} : { x: entry.spawner.x, y: entry.spawner.y };
+        entry.spawner = { kind, type, ...position };
         if (kind === 'food') entry.spawner.lifetime = number('#brick-spawn-lifetime') ?? 15;
         else if (['item', 'weapon'].includes(kind) && number('#brick-spawn-lifetime') !== null) entry.spawner.lifetime = number('#brick-spawn-lifetime');
         if (kind === 'enemy') entry.spawner.shield = $('#brick-spawn-shield').value === 'none' || !$('#brick-spawn-shield').value ? null : $('#brick-spawn-shield').value;
@@ -991,6 +1261,19 @@ function saveBrick(event) {
         if (lifetime !== null) entry.spawner.lifetime = lifetime;
         else if (entry.spawner.kind === 'food') throw new Error('Food needs a lifetime in seconds.');
         else delete entry.spawner.lifetime;
+      }
+      if (entry.spawner && ['brick-spawn-fixed', 'brick-spawn-x', 'brick-spawn-y'].includes(id)) {
+        if (id === 'brick-spawn-fixed' && !$('#brick-spawn-fixed').checked) {
+          delete entry.spawner.x; delete entry.spawner.y;
+        } else {
+          for (const field of id === 'brick-spawn-fixed' ? ['x', 'y'] : [id.slice(12)]) {
+            if ($(`#brick-spawn-${field}`).value === '') throw new Error('Enter both spawn coordinates.');
+          }
+          if (id === 'brick-spawn-fixed') {
+            entry.spawner.x = Number($('#brick-spawn-x').value) / 100;
+            entry.spawner.y = Number($('#brick-spawn-y').value) / 100;
+          } else entry.spawner[id.slice(12)] = Number($(`#${id}`).value) / 100;
+        }
       }
       const editedSurface = id === 'brick-portal-color' ? 'portal' : id === 'brick-spawn-item' ? 'spawner'
         : id === 'brick-turret-type' ? 'turret' : null;
@@ -1016,6 +1299,14 @@ function saveBrick(event) {
         for (const field of ['color', 'pattern', 'patternColor']) {
           if (id === `brick-spawn-${field}` && $(`#${id}`).value !== MIXED) entry.spawner[field] = $(`#${id}`).value;
         }
+        for (const field of ['width', 'height']) if (id === `brick-spawn-${field}`) {
+          const fields = OBJECTS[entry.spawner.type].obstruction === 'rectangle' ? [field] : ['width', 'height'];
+          for (const dimension of fields) {
+            if ($(`#${id}`).value === '') delete entry.spawner[dimension];
+            else entry.spawner[dimension] = Number($(`#${id}`).value);
+          }
+        }
+        if (id === 'brick-spawn-destructible') entry.spawner.destructible = $('#brick-spawn-destructible').checked;
       }
       if (immutableBrick(entry.kind)) for (const attribute of Object.keys(entry)) if (!['edge', 'start', 'end', 'kind'].includes(attribute)) delete entry[attribute];
       return previewGame.bricks.filter(member => member.id === brick.id || member.initialOwner === brick.id)
@@ -1065,27 +1356,44 @@ function splitBricks() {
 for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type']) {
   $(selector).addEventListener('change', saveBrick);
 }
+for (const selector of ['#brick-spawn-fixed', '#brick-spawn-x', '#brick-spawn-y']) $(selector).addEventListener('change', saveBrick);
+$('#connect-spawn').addEventListener('click', () => attempt(() => {
+  if (readOnly()) return;
+  if (connectingSpawn !== null) {
+    connectingSpawn = null; render(); message('Connection cancelled.'); return;
+  }
+  const regions = brickEditRegions(previewGame.bricks);
+  const chosen = previewGame.bricks.filter(brick => brick.absorbedBy === null && selectedBricks.has(regionKey(regions.get(brick.id))));
+  if (chosen.length !== 1 || !chosen[0].spawner) throw new Error('Select one spawning brick first.');
+  connectingSpawn = regionKey(regions.get(chosen[0].id));
+  placing = false; render();
+  message('Click a placed object in the play area to convert it to this brick\'s spawn-only template. Escape cancels.');
+}));
 $('#combine-bricks').addEventListener('click', combineBricks);
 $('#split-bricks').addEventListener('click', splitBricks);
-$('#reset-brick-types').addEventListener('click', () => {
-  delete level.brickTypes;
-  delete level.brickGroups;
-  selectedBricks = new Set();
-  markChanged(); renderBoard(); message('Individual brick edits cleared. Boundary preset restored.');
-});
 $('#event-kind').addEventListener('change', () => {
+  resetObstructionSize('event');
   const previousKind = $('#event-lifetime').dataset.kind;
   typeOptions();
   if (previousKind !== $('#event-kind').value) $('#event-lifetime').value = $('#event-kind').value === 'food' ? 5 : '';
   touched.add('#event-kind'); touched.add('#event-type');
+  showCategory($('#event-kind').value);
+  startPlacement();
 });
 $('#event-type').addEventListener('change', () => {
+  resetObstructionSize('event');
   typeOptions($('#event-type').value);
   touched.add('#event-type');
+  showCategory($('#event-kind').value);
+  startPlacement();
 });
 for (const field of ['color', 'pattern', 'patternColor']) {
   $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
   $(`#brick-spawn-${field}`).addEventListener('change', event => attempt(() => saveBrick(event)));
+}
+for (const field of ['width', 'height', 'destructible']) {
+  $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
+  $(`#brick-spawn-${field}`).addEventListener('change', saveBrick);
 }
 $('#brick-spawn-shield').addEventListener('change', event => attempt(() => saveBrick(event)));
 $('#event-shield').addEventListener('change', () => touched.add('#event-shield'));
@@ -1102,7 +1410,9 @@ function applyToSelected() {
   const lifetimeChanged = touched.has('#event-lifetime') && !$('#event-lifetime').disabled;
   const shieldChanged = touched.has('#event-shield') && value('#event-shield') !== MIXED;
   const textureFields = ['color', 'pattern', 'patternColor'].filter(field => touched.has(`#event-${field}`) && value(`#event-${field}`) !== MIXED);
-  if (!kind && !type && !shieldChanged && !lifetimeChanged && !textureFields.length && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
+  const destructibleChanged = touched.has('#event-destructible');
+  if (!kind && !type && !shieldChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -1123,6 +1433,22 @@ function applyToSelected() {
     for (const field of ['color', 'pattern', 'patternColor']) {
       if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) delete next[field];
       else if (textureFields.includes(field)) next[field] = value(`#event-${field}`);
+    }
+    if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) {
+      for (const field of ['width', 'height', 'destructible']) delete next[field];
+    } else {
+      for (const field of sizeFields) {
+        const dimensions = OBJECTS[next.type].obstruction === 'rectangle' ? [field] : ['width', 'height'];
+        for (const dimension of dimensions) {
+          if (value(`#event-${field}`) === '') delete next[dimension];
+          else next[dimension] = Number(value(`#event-${field}`));
+        }
+      }
+      if (destructibleChanged) next.destructible = $('#event-destructible').checked;
+      if (type && OBJECTS[next.type].obstruction !== 'rectangle') {
+        const size = next.width ?? next.height;
+        if (size !== undefined) next.width = next.height = size;
+      }
     }
     if (next.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(next.type)) Object.assign(next, snapWheel(next.x, next.y));
     return next;

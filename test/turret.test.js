@@ -46,6 +46,44 @@ test('turret variants validate, round-trip, and cannot share a contact surface',
   /cannot combine contact surfaces/);
 });
 
+test('shared turret brick icons have a blue or red closed semicircle and a 45-degree rectangular barrel without interior symbols', () => {
+  const node = (_namespace, tag) => ({
+    tag, attributes: {}, children: [], dataset: {},
+    style: { setProperty(name, value) { this[name] = value; } },
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    append(...children) { this.children.push(...children); },
+  });
+  const context = vm.createContext({ KoshiGame: require('../src/game.js'), document: { createElementNS: node } });
+  vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8'), context);
+  for (const turret of ['laser', 'fireball']) for (const vertical of [false, true]) {
+    const brick = { x: 0, y: 0, w: vertical ? 25 : 100, h: vertical ? 100 : 25, turret };
+    const visual = context.KoshiBrickVisuals.decorateBrick(node(), brick, [brick]);
+    const group = visual.symbol.children[0];
+    assert.equal(group.attributes.transform, vertical ? 'rotate(90)' : 'rotate(0)');
+    const children = group.children;
+    assert.equal(children[0].attributes.d, 'M-24 15 A24 24 0 0 1 24 15 Z');
+    const barrel = children.find(child => child.attributes.class === 'turret-barrel');
+    assert.equal(barrel.tag, 'rect');
+    assert.equal(barrel.attributes.transform, 'rotate(-45)');
+    assert.equal(barrel.attributes.width, '24');
+    assert.equal(barrel.attributes.height, '8');
+    assert.equal(barrel.attributes['stroke-linejoin'], 'miter');
+    const fill = children.find(child => child.attributes.class === 'item-color');
+    assert.equal(fill.attributes.d, children[0].attributes.d);
+    assert.equal(fill.attributes.fill, turret === 'laser' ? '#3b82f6' : '#ef4545');
+    assert.ok(!children.some(child => ['turret-type', 'turret-ray'].includes(child.attributes.class)));
+    assert.equal(children.some(child => child.attributes.class === 'turret-shot'), false);
+  }
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = arena('laser', options), regions = brickRegions(game.bricks, game.width, game.height);
+    for (const brick of game.bricks) {
+      const visual = context.KoshiBrickVisuals.decorateBrick(node(), { ...brick, turret: 'laser' }, [brick], game.width, game.height);
+      const rotation = { top: 180, right: -90, bottom: 0, left: 90 }[regions.get(brick.id).edge];
+      assert.equal(visual.symbol.children[0].attributes.transform, `rotate(${rotation})`);
+    }
+  }
+});
+
 test('touching a turret brick enters its dome, protects Koshi, and exits after three shots', () => {
   const game = arena();
   const brick = topTurret(game), geometry = enter(game, brick);
@@ -131,12 +169,16 @@ test('laser damages every enemy on its line and leaves shielded enemies alive', 
   enemies[1].shield = null;
   enemies[1].invulnerableUntil = 0;
   game.robots.push(...enemies);
+  const obstruction = game.createObstruction(enemies[1], { type: 'obstruction-circle', destructible: true });
+  game.obstructions.push(obstruction);
   assert.equal(game.fireTurretAt(turret.center.x + turret.direction.x * 250,
     turret.center.y + turret.direction.y * 250), true);
   assert.equal(enemies[0].shield, 'red');
   assert.ok(game.robots.includes(enemies[0]));
   assert.ok(!game.robots.includes(enemies[1]));
   assert.equal(game.enemies, 1);
+  assert.ok(game.obstructions.includes(obstruction), 'laser damage never destroys a marked obstruction');
+  assert.equal(game.obstructionDestructions.length, 0);
 });
 
 test('fireball blast damages enemies in its area but not pickups', () => {
@@ -149,6 +191,9 @@ test('fireball blast damages enemies in its area but not pickups', () => {
   game.robots.push(...enemies);
   const pickup = { x: target.x, y: target.y, type: 'smiley-cookie', expires: 100 };
   game.items.push(pickup);
+  const obstruction = game.createObstruction({ x: target.x + 180, y: target.y },
+    { type: 'obstruction-circle', width: 160, destructible: true });
+  game.obstructions.push(obstruction);
   assert.equal(game.fireTurretAt(target.x, target.y), true);
   assert.equal(game.turretProjectiles.length, 1);
   game.updateTurrets(2);
@@ -157,6 +202,8 @@ test('fireball blast damages enemies in its area but not pickups', () => {
   assert.ok(!game.robots.includes(enemies[1]));
   assert.ok(!game.robots.includes(enemies[2]), 'expanded blast reaches enemies 105 pixels from the impact');
   assert.ok(game.items.includes(pickup));
+  assert.ok(!game.obstructions.includes(obstruction), 'fireball blast destroys an obstruction touched only at its edge');
+  assert.equal(game.obstructionDestructions.length, 1);
 });
 
 test('turret drawing faces inward, shows Koshi through blue glass, anchors its barrel, and places counters on the dome', () => {
@@ -211,6 +258,29 @@ test('turret drawing faces inward, shows Koshi through blue glass, anchors its b
   const arcCount = arcs.length;
   drawing.drawTurretTimer(context, turret);
   assert.equal(arcs.length, arcCount, 'expired timer shrinks to a point');
+  turret.type = 'laser'; turret.remaining = 5;
+  calls.length = 0;
+  drawing.drawTurretTimer(context, turret);
+  assert.ok(calls.some(([name, value]) => name === 'strokeStyle' && value === '#3b82f6'));
+  assert.ok(calls.some(([name, value]) => name === 'shadowColor' && value === '#60a5fa'));
+  turret.type = 'fireball'; calls.length = 0;
+  drawing.drawTurretTimer(context, turret);
+  assert.ok(calls.some(([name, value]) => name === 'strokeStyle' && value === '#ff4545'));
   const html = readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.doesNotMatch(html, /id="turret-status"|id="turret-count"/);
+});
+
+test('laser effects use light blue beams and glow with a pale blue core', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const calls = [], ctx = new Proxy({}, {
+    get: (target, name) => name in target ? target[name] : () => {},
+    set: (target, name, value) => { calls.push([name, value]); target[name] = value; return true; },
+  });
+  const context = vm.createContext({ ctx, game: { turretProjectiles: [],
+    turretEffects: [{ type: 'laser', age: .05, start: { x: 10, y: 20 }, end: { x: 100, y: 150 } }] } });
+  vm.runInContext(source.slice(source.indexOf('function drawTurretEffects('), source.indexOf('function render(now)')), context);
+  context.drawTurretEffects(ctx);
+  assert.ok(calls.some(([name, color]) => name === 'strokeStyle' && color === '#7dd3fc'));
+  assert.ok(calls.some(([name, color]) => name === 'strokeStyle' && color === '#e0f2fe'));
+  assert.ok(calls.some(([name, color]) => name === 'shadowColor' && color === '#7dd3fc'));
 });

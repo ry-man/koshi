@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, SWORDS, ITEMS, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
@@ -530,7 +530,7 @@ function makeBrickButtons() {
       }
       container.append(conveyor);
     }
-    const special = decorateBrick(button, brick, members);
+    const special = decorateBrick(button, brick, members, game.width, game.height);
     exposePortalCloud(special, container);
     exposeBrickInfo(special, container, brick, game.width, game.height);
     return { brick, button, members, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
@@ -715,8 +715,9 @@ function syncUI() {
     document.querySelector('#game-status').textContent = 'Click a brick to move. Change course anytime.';
   }
   if (turret) {
-    document.querySelector('#game-status').textContent = 'Tap or click a point to aim and fire. Watch the red arc on the turret.';
-    gameCanvas.setAttribute('aria-label', `Inside ${turret.type} turret. ${turret.shotsRemaining} shots remain; the red arc shows time remaining. Click or tap a point to aim and fire.`);
+    const color = turret.type === 'laser' ? 'blue' : 'red';
+    document.querySelector('#game-status').textContent = `Tap or click a point to aim and fire. Watch the ${color} arc on the turret.`;
+    gameCanvas.setAttribute('aria-label', `Inside ${turret.type} turret. ${turret.shotsRemaining} shots remain; the ${color} arc shows time remaining. Click or tap a point to aim and fire.`);
   } else {
     gameCanvas.setAttribute('aria-label', 'Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center. In a turret, click or tap to aim and fire.');
   }
@@ -1555,10 +1556,10 @@ function drawTurretTimer(context, turret, opacity = 1) {
   context.beginPath();
   context.moveTo(turret.domeRadius, 0);
   context.arc(0, 0, turret.domeRadius, 0, Math.PI * fraction);
-  context.strokeStyle = '#ff4545';
+  context.strokeStyle = turret.type === 'laser' ? '#3b82f6' : '#ff4545';
   context.lineWidth = 6;
   context.lineCap = 'round';
-  context.shadowColor = '#ff3030';
+  context.shadowColor = turret.type === 'laser' ? '#60a5fa' : '#ff3030';
   context.shadowBlur = 9;
   context.stroke();
   context.restore();
@@ -1617,11 +1618,11 @@ function drawTurretEffects(context) {
     context.globalAlpha *= 1 - progress;
     if (effect.type === 'laser') {
       context.lineCap = 'round';
-      context.shadowColor = '#ff3434'; context.shadowBlur = 20;
-      context.strokeStyle = '#ff3434'; context.lineWidth = 10;
+      context.shadowColor = '#7dd3fc'; context.shadowBlur = 20;
+      context.strokeStyle = '#7dd3fc'; context.lineWidth = 10;
       context.beginPath(); context.moveTo(effect.start.x, effect.start.y); context.lineTo(effect.end.x, effect.end.y); context.stroke();
       context.shadowBlur = 0;
-      context.strokeStyle = '#fff4dc'; context.lineWidth = 3;
+      context.strokeStyle = '#e0f2fe'; context.lineWidth = 3;
       context.beginPath(); context.moveTo(effect.start.x, effect.start.y); context.lineTo(effect.end.x, effect.end.y); context.stroke();
     } else {
       const radius = 12 + progress * 75;
@@ -1646,6 +1647,7 @@ function render(now) {
   ctx.strokeStyle = '#9dbb9e09'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
   for (const obstruction of game.obstructions) drawObstruction(ctx, obstruction);
+  for (const effect of game.obstructionDestructions) drawObstructionDestruction(ctx, effect);
   const streamRows = powerupStreamRows(game);
   drawMusicStream(game, streamRows.music);
   drawSunglassesStream(game, streamRows.sunglasses);
@@ -1811,20 +1813,11 @@ function render(now) {
   if (game.weapon) {
     const color = SWORDS[game.weapon.type].color;
     const swordX = game.cat.x + 30, swordY = game.cat.y - 20;
-    drawSword(swordX, swordY, color);
     const timedWeapon = !Number.isFinite(game.weapon.uses);
     const remaining = timedWeapon
       ? Math.ceil(Math.max(0, game.weapon.expires - game.elapsed)) : game.weapon.uses;
-    const label = `${remaining}${timedWeapon ? 's' : ''}`;
-    const badgeX = game.cat.x - 30, badgeY = swordY - 23;
-    ctx.save();
-    ctx.font = 'bold 12px "Space Grotesk", sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.beginPath(); ctx.arc(badgeX, badgeY, Math.max(10, ctx.measureText(label).width / 2 + 5), 0, Math.PI * 2);
-    ctx.fillStyle = '#17212a'; ctx.fill();
-    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#fff8e6'; ctx.fillText(label, badgeX, badgeY);
-    ctx.restore();
+    const label = String(remaining);
+    drawSword(swordX, swordY, color, label);
   }
   drawTurretEffects(ctx);
   ctx = boardCtx;
@@ -2105,8 +2098,21 @@ function drawObjectLifetime(item) {
   ctx.restore();
 }
 
-function drawSpawnCue({ kind, x, y, progress }) {
+function drawSpawnCue({ kind, x, y, progress, obstruction }) {
   ctx.save();
+  if (obstruction) {
+    const { radius, width, height } = globalThis.KoshiGame.obstructionGeometry(obstruction);
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = '#f1f3f2'; ctx.lineWidth = 2;
+    ctx.setLineDash([3, 5]); ctx.beginPath();
+    const shape = globalThis.KoshiGame.OBJECTS[obstruction.type].obstruction;
+    if (shape === 'circle') ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    else if (shape === 'rectangle') ctx.rect(-width / 2, -height / 2, width, height);
+    else {
+      ctx.moveTo(0, -radius); ctx.lineTo(radius, 0); ctx.lineTo(0, radius); ctx.lineTo(-radius, 0); ctx.closePath();
+    }
+    ctx.stroke(); ctx.restore();
+  }
   ctx.translate(x, y);
   const fade = Math.min(1, progress * 5) * Math.min(1, (1 - progress) * 5);
   if (kind === 'enemy' || kind === 'heart') {
@@ -2188,7 +2194,7 @@ function drawSpawnCue({ kind, x, y, progress }) {
   ctx.restore();
 }
 
-function drawSword(x, y, color) {
+function drawSword(x, y, color, label) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(.5);
   ctx.fillStyle = color; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
   ctx.beginPath(); ctx.moveTo(0, -23); ctx.lineTo(6, -14); ctx.lineTo(4, 10); ctx.lineTo(-4, 10); ctx.lineTo(-6, -14); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -2196,6 +2202,18 @@ function drawSword(x, y, color) {
   line([[0, 12], [0, 22]], '#8a6953', 5);
   line([[-10, 10], [10, 10]], '#17212a', 6);
   line([[-10, 10], [10, 10]], color, 4);
+  if (label !== undefined) {
+    const [red, green, blue] = color.slice(1).match(/../g).map(component => {
+      const value = parseInt(component, 16) / 255;
+      return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+    });
+    const luminance = .2126 * red + .7152 * green + .0722 * blue;
+    ctx.fillStyle = (luminance + .05) / .05 >= 1.05 / (luminance + .05) ? '#000000' : '#ffffff';
+    ctx.translate(0, -5);
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, 0, 0, 9);
+  }
   ctx.restore();
 }
 
@@ -2868,7 +2886,7 @@ function drawRoboCow(enemy, deathProgress = null, damageColor = null) {
     ? 5 + Math.sin(age * 11) * 2 : 0;
   ctx.save();
   ctx.rotate(enemy.facingAngle ?? 0);
-  ctx.scale(-1, 1);
+  ctx.scale((enemy.afraid ? enemy.fleeDirection ?? 1 : enemy.cowDirection ?? 1) < 0 ? 1 : -1, 1);
   const collapse = deathProgress === null ? 0 : Math.max(0, (progress - .3) / .7);
   const bodyDrop = collapse * collapse * 48;
   const bodyAlpha = Math.max(0, 1 - collapse / .88);

@@ -61,7 +61,7 @@ test('goalie validates placements, shields, spawners, custom cast, preview symbo
   assert.ok(spawnSymbol({ kind: 'enemy', type: 'goalie' }));
   assert.equal(spawnColor({ kind: 'enemy', type: 'goalie' }), '#27a6b0');
   assert.ok(GUIDE.flatMap(chapter => chapter.sections).some(([, , picture]) => picture === 'enemy:goalie'));
-  for (const level of LEVELS) {
+  for (const level of LEVELS.filter(level => level.worldId !== '3')) {
     assert.ok(!level.enemies.some(([, type]) => type === 'goalie'));
     assert.ok(!(level.events ?? []).some(event => event.type === 'goalie'));
     assert.ok(!level.brickTypes.some(brick => brick.spawner?.type === 'goalie'));

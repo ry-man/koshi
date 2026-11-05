@@ -148,12 +148,12 @@ function applyBrickTypes(bricks, entries = []) {
   }
 }
 const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', tom: 'Tom the Duck' };
-const SCENE_THEMES = ['garden', 'workshop'];
+const SCENE_THEMES = ['garden', 'workshop', 'foundry'];
 
 function validateCutscene(value) {
   const fail = message => { throw new TypeError(`Cutscene: ${message}`); };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('expected an object.');
-  if (!SCENE_THEMES.includes(value.theme)) fail('theme must be garden or workshop.');
+  if (!SCENE_THEMES.includes(value.theme)) fail('theme must be garden, workshop or foundry.');
   if (!Array.isArray(value.lines) || !value.lines.length || value.lines.length > 100) fail('provide 1–100 dialogue lines.');
   return {
     theme: value.theme,
@@ -673,6 +673,263 @@ const LEVELS = [
   };
 });
 
+// World 3 (Robot Foundry) uses its own builder so the generated World 1-2 layouts stay unchanged.
+const FOUNDRY_KINDS = { 0: 'slow', 8: 'slow', 17: 'slow', 4: 'fast', 13: 'fast', 21: 'fast' };
+// Each layout has 21 starting blocks: three doubles (14%) and one triple (5%).
+const FOUNDRY_LAYOUTS = {
+  x: [[2, 4], [12, 14], [19, 21], [16, 18, 20]],
+  y: [[3, 5], [13, 15], [18, 20], [2, 4, 6]],
+  z: [[5, 7], [20, 22], [2, 4], [13, 15, 17]],
+};
+const FOUNDRY_FOOD_ORDER = ['S', 'P', 'B', 'C', 'L', 'F', 'H'];
+// Fixed food spots stay clear of the quadrant objects and Koshi's starting point in every orientation.
+const FOUNDRY_FOOD_SPOTS = [
+  [[.35, .5], [.5, .35], [.65, .5]], [[.5, .2], [.15, .5], [.85, .5]], [[.5, .65], [.35, .5], [.5, .8]],
+  [[.5, .35], [.85, .5], [.5, .8]], [[.15, .5], [.5, .2], [.65, .5]], [[.5, .65], [.5, .2], [.35, .5]],
+];
+const foundryTime = (duration, i) => 3 + Math.floor(i * (duration - 12) / 6);
+const randomFood = duration => FOUNDRY_FOOD_ORDER.map((type, i) => [foundryTime(duration, i),
+  ['L3', 'L3', 'C3', 'L3', 'C3', 'R3', 'S'][i], type, Math.min(25, duration - foundryTime(duration, i))]);
+const placedFood = duration => FOUNDRY_FOOD_ORDER.flatMap((type, i) => {
+  const time = foundryTime(duration, i);
+  return (type === 'H' ? [[.5, .65]] : FOUNDRY_FOOD_SPOTS[i % FOUNDRY_FOOD_SPOTS.length]).map(([x, y]) =>
+    ({ time, kind: 'food', type, x, y, lifetime: Math.min(25, duration - time) }));
+});
+const placed = (kind, entries) => entries.map(([time, type, x, y, extra]) => ({ time, kind, type, x, y, ...extra }));
+const QUADRANTS = [[.22, .25], [.78, .25], [.22, .75], [.78, .75]];
+const FOUNDRY_LEVELS = [
+  {
+    name: 'Tom\'s foundry kickoff', concept: 'robo goalies', duration: 150, goalsGoal: 5, layout: 'x',
+    enemies: [[1,'goalie',2],[20,'mouse',3],[40,'goalie',1],[60,'mouse',3],[80,'goalie',1,'red'],[100,'wheel',2]],
+    weapons: [[16,'bronze'],[50,'silver'],[95,'bronze']],
+    bricks: [[2,{ kind: 'goal' }],[12,{ kind: 'goal' }],[19,{ kind: 'goal' }],[16,{ springs: true }],[5,{ crumbler: 4 }]],
+    items: [[30,'music-box'],[90,'music-box']],
+    events: placed('object', [[6,'soccer-ball',.35,.35],[22,'soccer-ball',.65,.65],[38,'soccer-ball',.65,.35],
+      [54,'soccer-ball',.35,.65],[70,'soccer-ball',.5,.25],[86,'soccer-ball',.5,.75],[102,'soccer-ball',.3,.5],[118,'soccer-ball',.7,.5]]),
+    dialogue: [
+      ['tom', 'Quack quack! Surprised, Koshi? I am Tom the Duck, master of the Robot Foundry. Every robot you have battled was built here, and soon my machines will rule the whole world!'],
+      ['koshi', 'So you are behind it all! Your robots keep stealing the world\'s food. I will shut down your factory, save the world, and taste every snack you have hidden away.'],
+      ['goalie', 'Robo Goalies guard the Goal bricks. We slide across each goal mouth to block soccer balls. We cannot hurt you, but we never stop defending!'],
+      ['koshi', 'A sword can clear a goalie away, and a Music Box puts robots to sleep. I will score 5 goals before time runs out, then celebrate with a burger!'],
+    ],
+  },
+  {
+    name: 'Painting the pancake path', concept: 'paint brushes', duration: 100, goal: 40, layout: 'y',
+    enemies: [[6,'mouse',3],[26,'wheel',2],[48,'ram',2],[70,'mouse',1,'red']],
+    weapons: [[20,'bronze'],[60,'bronze']],
+    bricks: [[18,{ conveyor: true }],[23,{ crumbler: 3 }]],
+    items: [[5,'paint-wide-blue'],[18,'paint-pencil-blue'],[32,'paint-roller-blue'],[40,'stopwatch'],
+      [50,'paint-wide-red'],[64,'paint-pencil-red'],[80,'paint-roller-red']],
+    dialogue: [
+      ['tom', 'My Foundry painted these bricks for my robots! Robo Mice and Wheels, keep that hungry cat away from my pancake stash.'],
+      ['koshi', 'I found Paintbrushes! The next bricks I touch change color: blue paint makes a brick Slow with a 15 second cooldown, and red paint makes it Fast at 3 seconds.'],
+      ['tom', 'A thin brush paints 1 brick, a wide brush 3 and a roller 5. My workers are only delivering blue paint right now. Enjoy waiting, kitty!'],
+      ['koshi', 'Then I will save blue for bricks I rarely need and grab the red brushes when they arrive later. Fast routes mean 40 food points of pancakes for me!'],
+    ],
+  },
+  {
+    name: 'Caped cat cafe', concept: 'kitty cape', duration: 80, survive: true, layout: 'z',
+    enemies: [[4,'mouse',4],[14,'wheel',3],[26,'ball',2],[36,'ram',2],[48,'mouse',3],[58,'snake',1],[62,'ball',1,'red']],
+    weapons: [[18,'bronze'],[50,'silver']],
+    bricks: [[20,{ springs: true }],[5,{ warped: 10 }]],
+    items: [[8,'kitty-cape'],[22,'spooky-mask'],[30,'kitty-cape'],[40,'paint-roller-red'],[52,'kitty-cape'],[70,'kitty-cape']],
+    dialogue: [
+      ['tom', 'No more snacking! My robots will swarm this cafe until your ninth life runs out. Mice, wheels, balls and rams, attack!'],
+      ['koshi', 'That is a lot of robots... but look, a Kitty Cape! Wearing it doubles my speed for 10 seconds, even while I am already flying across the arena.'],
+      ['tom', 'Speed will not save you forever. Another cape only refreshes the 10 seconds. It never stacks!'],
+      ['koshi', 'Then I will dash from cape to cape and dodge until the clock hits zero. Survive 80 seconds, then the cafe\'s cakes are all mine!'],
+    ],
+  },
+  {
+    name: 'Laser light lunch', concept: 'laser turret', duration: 120, killGoal: 15, layout: 'x',
+    enemies: [[4,'mouse',4],[12,'wheel',3],[24,'ram',3],[36,'ball',3],[50,'mouse',4],[62,'bucket',2],
+      [74,'snake',2],[86,'mouse',3],[98,'ball',1,'red'],[104,'ram',1]],
+    weapons: [[30,'bronze'],[80,'bronze']],
+    bricks: [[2,{ turret: 'laser' }],[5,{ turret: 'laser' }],[22,{ turret: 'laser' }],[16,{ toggle: 2 }],
+      [19,{ slimed: true, slimeColor: 'green' }]],
+    items: [[20,'battery'],[45,'battery'],[55,'music-box'],[70,'battery'],[95,'battery']],
+    dialogue: [
+      ['tom', 'My assembly line never stops! Twenty-six robots will pour into the lunch hall. You cannot sword them all, Koshi.'],
+      ['koshi', 'I do not need to. A blue Laser Turret brick puts me inside a protective dome. I click to aim, and the beam hits every robot along its line!'],
+      ['tom', 'Each turret gives only 3 shots or 10 seconds, and it works once. Without a Battery, it stays empty!'],
+      ['koshi', 'Batteries are rolling off your conveyor belts too. I will recharge the turrets, blast 15 enemy points of robots, then raid the lunch counter.'],
+    ],
+  },
+  {
+    name: 'Blocked buffet', concept: 'obstructions', duration: 100, goal: 35, killGoal: 4, layout: 'y',
+    enemies: [[6,'mouse',3],[20,'wheel',2],[40,'ball',2],[60,'mouse',2],[75,'ram',1,'red']],
+    bricks: [[3,{ portal: 'purple' }],[18,{ portal: 'purple' }],[23,{ spikes: true }]],
+    events: [
+      ...placed('object', QUADRANTS.map(([x, y], i) => [0, i % 3 ? 'obstruction-diamond' : 'obstruction-circle', x, y])),
+      ...placedFood(100),
+      ...placed('weapon', [[14,'bronze',.5,.2],[50,'silver',.5,.8]]),
+      ...placed('item', [[30,'kitty-cape',.15,.5],[70,'kitty-cape',.85,.5]]),
+    ],
+    dialogue: [
+      ['tom', 'I have bolted steel Obstructions to the buffet floor. Nothing can break them! Let my mice and wheels corner you.'],
+      ['koshi', 'Obstructions block me and the robots alike. When I hit one I slide along its edge, so I must aim around them to reach the food.'],
+      ['tom', 'My wheels turn back when they bump into them too. Collect 35 food points and earn 4 enemy points... if you can find a path!'],
+      ['koshi', 'A Kitty Cape will help me zip around the corners. Strawberries, cheese and fish, here I come!'],
+    ],
+  },
+  {
+    name: 'Snail-paced soup', concept: 'robo snail', duration: 100, goal: 35, killGoal: 3, layout: 'z',
+    enemies: [[4,'robo-snail',1],[10,'mouse',3],[30,'wheel',2],[40,'robo-snail',1],[55,'mouse',3],[70,'robo-snail',1]],
+    weapons: [[22,'bronze'],[60,'bronze']],
+    bricks: [[5,{ crumbler: 3 }],[20,{ conveyor: true }],[23,{ slimed: true, slimeColor: 'red' }]],
+    items: [[35,'magic-sunglasses'],[75,'magic-sunglasses']],
+    dialogue: [
+      ['tom', 'Meet my slowest invention, the Robo Snail! Let it crawl around my soup kitchen while my mice guard the pots.'],
+      ['robo-snail', 'Touch me and I hurt you. Defeat me and every brick cooldown freezes for 20 seconds. Bricks you use during the freeze wait until it ends to recharge!'],
+      ['koshi', 'So beating a snail slows me down. I will earn 3 enemy points from the mice instead, and Magical Sunglasses let me select bricks even while they recharge.'],
+      ['tom', 'You still need 35 food points of soup. Take your time... my snails certainly will!'],
+    ],
+  },
+  {
+    name: 'Pinball pantry', concept: 'bumpers', duration: 100, goal: 40, layout: 'x',
+    enemies: [[6,'mouse',3],[24,'ball',2],[44,'wheel',2],[60,'bucket',1],[75,'mouse',2],[85,'ball',1,'red']],
+    bricks: [[16,{ springs: true }],[7,{ barrier: true }],[22,{ barrier: true }]],
+    events: [
+      ...placed('object', [[0,'bumper-red',.3,.3],[0,'bumper-blue',.7,.3],[0,'bumper-green',.3,.7],[0,'bumper-red',.7,.7]]),
+      ...placedFood(100),
+      ...placed('weapon', [[18,'bronze',.5,.2],[55,'silver',.5,.8]]),
+      ...placed('item', [[35,'smiley-cookie',.15,.5],[72,'smiley-cookie',.85,.5]]),
+    ],
+    dialogue: [
+      ['tom', 'Welcome to my pinball pantry! Bumpers are bolted across the floor, and my mice and balls are ready to play.'],
+      ['koshi', 'When I hit a Bumper I bounce away. Red bumpers launch me 25% faster, green ones keep my speed, and blue ones slow me to 75%.'],
+      ['tom', 'Bounce around wildly and you will never reach 40 food points of treats!'],
+      ['koshi', 'Or I can plan bank shots and bounce straight into dinner. A Smiley Cookie will pull every snack on the board right to me.'],
+    ],
+  },
+  {
+    name: 'Bubble tea trouble', concept: 'bubbles', duration: 110, goal: 25, killGoal: 5, layout: 'y',
+    enemies: [[6,'mouse',3],[20,'ram',2],[36,'ball',2],[52,'mouse',3],[68,'wheel',2],[84,'ram',1,'green']],
+    bricks: [[7,{ warped: 10 }],[18,{ boost: true }]],
+    events: [
+      ...placed('object', [[0,'bumper-green',.15,.25],[0,'bumper-green',.85,.75],[0,'bubble-green',.3,.3],
+        [15,'bubble-blue',.7,.7],[30,'bubble-red',.7,.3],[50,'bubble-green',.3,.7],[70,'bubble-blue',.3,.3],[90,'bubble-red',.7,.7]]),
+      ...placedFood(110),
+      ...placed('weapon', [[16,'bronze',.5,.2],[45,'silver',.5,.8],[75,'bronze',.85,.5]]),
+      ...placed('item', [[40,'music-box',.5,.65]]),
+    ],
+    dialogue: [
+      ['tom', 'Bubbles float through my bottling plant! Trap that cat while my mice and rams close in.'],
+      ['koshi', 'Touching a Bubble pulls me to its center and holds me: blue for 5 seconds, green for 3 and red for 1. Robots can still reach me, but I can still swing my sword.'],
+      ['tom', 'Each bubble pops after one catch, and my Bumpers will bounce you right into them!'],
+      ['koshi', 'Then I will pop them when the coast is clear. 25 food points and 5 enemy points, then bubble tea for everyone!'],
+    ],
+  },
+  {
+    name: 'Fireball fry-up', concept: 'fireball turret', duration: 120, killGoal: 14, layout: 'z',
+    enemies: [[4,'mouse',4],[14,'bucket',2],[26,'ram',3],[40,'ball',3],[54,'mouse',4],[66,'jackolantern',1],
+      [78,'wheel',3],[90,'mouse',3],[100,'ram',1,'red']],
+    weapons: [[25,'bronze'],[70,'bronze']],
+    bricks: [[5,{ turret: 'fireball' }],[12,{ turret: 'fireball' }],[23,{ turret: 'fireball' }],[20,{ crumbler: 3 }],[3,{ springs: true }]],
+    items: [[40,'battery'],[60,'spooky-mask'],[80,'battery']],
+    dialogue: [
+      ['tom', 'My mice and Robo Buckets are lining up for the grand assembly! Twenty-four robots, and nowhere for you to hide.'],
+      ['koshi', 'A red Fireball Turret works like the laser dome: 3 shots or 10 seconds. Each fireball explodes and damages every robot near the blast.'],
+      ['tom', 'Each turret fires once per attempt. Only a Battery recharges it, and I built just 2 of them!'],
+      ['koshi', 'Then I will wait for crowds before I fire. 14 enemy points, then a fish fry-up for dinner!'],
+    ],
+  },
+  {
+    name: 'Demolition dinner', concept: 'destructible obstructions', duration: 110, goal: 30, killGoal: 4, layout: 'x',
+    enemies: [[6,'mouse',3],[18,'wheel',2],[34,'ball',2],[50,'mouse',3],[66,'ram',1,'red'],[80,'bucket',1]],
+    bricks: [[7,{ turret: 'fireball' }],[2,{ toggle: 2 }],[16,{ slimed: true, slimeColor: 'green' }]],
+    events: [
+      ...placed('object', QUADRANTS.map(([x, y], i) => [0, i % 3 ? 'obstruction-diamond' : 'obstruction-circle', x, y,
+        { destructible: i % 2 === 0 }])),
+      ...placedFood(110),
+      ...placed('weapon', [[16,'bronze',.5,.2],[55,'silver',.5,.8]]),
+      ...placed('item', [[30,'battery',.15,.5],[45,'paint-wide-red',.5,.65],[70,'battery',.85,.5]]),
+    ],
+    dialogue: [
+      ['tom', 'I rebuilt my dining hall walls! My mice and wheels will trap you between them.'],
+      ['koshi', 'Some of these Obstructions are destructible. They carry a TNT sign, and any fireball blast that touches one breaks the whole wall instantly!'],
+      ['tom', 'Walls without a TNT sign stay put. You have only 1 Fireball Turret, kitty, and just 2 Batteries will roll out!'],
+      ['koshi', 'Then every shot must hit walls and robots together. 30 food points and 4 enemy points, and a red Paintbrush will speed up my routes!'],
+    ],
+  },
+  {
+    name: 'Surprise wall supper', concept: 'appearing obstructions', duration: 90, survive: true, layout: 'y',
+    enemies: [[4,'mouse',3],[14,'wheel',2],[30,'robo-snail',1],[40,'ram',2],[48,'ram',1,'blue'],[55,'ball',2],[70,'mouse',3]],
+    bricks: [[13,{ springs: true }],[7,{ conveyor: true }]],
+    events: [
+      ...placed('object', [[10,'obstruction-circle',...QUADRANTS[0]],[25,'obstruction-diamond',...QUADRANTS[3]],
+        [40,'obstruction-circle',...QUADRANTS[1]],[55,'obstruction-diamond',...QUADRANTS[2]]]),
+      ...placedFood(90),
+      ...placed('weapon', [[14,'bronze',.5,.2],[48,'silver',.5,.8]]),
+      ...placed('item', [[30,'music-box',.5,.65],[60,'spooky-mask',.5,.35]]),
+    ],
+    dialogue: [
+      ['tom', 'My crane can drop new Obstructions anywhere it likes! Stand underneath one and you are flattened instantly, hearts or not.'],
+      ['koshi', 'A twinkling preview warns me 2 seconds before each wall lands. I just have to move out of the marked space in time!'],
+      ['tom', 'Robots and snacks caught underneath are crushed too. Survive 90 seconds of my mice and wheels, if you can!'],
+      ['koshi', 'Eyes open, paws moving. When the timer hits zero, supper is served!'],
+    ],
+  },
+  {
+    name: 'Stampede steakhouse', concept: 'robo cows', duration: 120, killGoal: 8, layout: 'x',
+    enemies: [[4,'robo-cow',1],[10,'mouse',2],[20,'robo-cow',1],[30,'ball',2],[45,'robo-cow',1,'red'],[55,'mouse',2],
+      [70,'robo-cow',1],[85,'ball',1]],
+    weapons: [[40,'wood']],
+    bricks: [[2,{ boost: true }],[7,{ boost: true }],[22,{ boost: true }],[12,{ barrier: true }],[23,{ barrier: true }]],
+    items: [[35,'music-box'],[60,'kitty-cape']],
+    dialogue: [
+      ['tom', 'Robo Cows, graze on Koshi\'s bricks! Every brick you munch turns to useless cinder.'],
+      ['robo-cow', 'Moo. I walk the edge of the board, stop, and eat the brick under my hooves. After 5 seconds it becomes Cinder. Barrier fences turn me around!'],
+      ['koshi', 'Only 1 wood sword here, so my 3 Boost bricks are my best weapons. A Boost launch smashes robots... if the cows do not eat those bricks first.'],
+      ['tom', 'Earn 8 enemy points with your little rockets. My cows are hungry, and so am I!'],
+    ],
+  },
+  {
+    name: 'Unicorn dessert dash', concept: 'robo unicorns', duration: 120, goal: 45, layout: 'z',
+    enemies: [[2,'robo-unicorn',1],[12,'mouse',2],[30,'robo-unicorn',1],[55,'mouse',3],[62,'robo-unicorn',1,'green'],[80,'ball',2]],
+    food: [5, 15, 25, 35, 45, 55, 65, 75, 85, 95].map((time, i) =>
+      [time, i % 2 ? 'C3' : 'L3', ['S', 'P', 'B', 'C', 'L', 'F', 'H', 'L', 'C', 'F'][i], 20]),
+    weapons: [[14,'bronze'],[50,'silver']],
+    bricks: [[20,{ spawner: { kind: 'food', type: 'H', lifetime: 25 } }],[5,{ springs: true }],[23,{ crumbler: 4 }]],
+    items: [[15,'eggplant'],[40,'eggplant'],[50,'smiley-cookie'],[65,'eggplant'],[90,'eggplant']],
+    dialogue: [
+      ['tom', 'Behold my finest invention, the Robo Unicorn! It eats every snack it can see. Your dessert will vanish before you can taste it!'],
+      ['robo-unicorn', 'I pause to aim at the nearest food, then charge and gobble it up. When no food is left, I turn red and race around even faster!'],
+      ['koshi', 'Hey, those desserts are mine! I must grab food before the unicorns do, and dodge the Eggplants. Each one takes away 10 food points.'],
+      ['tom', 'Collect 45 food points if you can. My unicorns are already drooling!'],
+      ['koshi', 'A Smiley Cookie pulls every snack on the board straight to me. Dessert first, then I save the world!'],
+    ],
+  },
+].map((entry, offset) => {
+  const index = LEVELS.length + offset;
+  const groups = FOUNDRY_LAYOUTS[entry.layout];
+  const brickTypes = entry.bricks.flatMap(([id, attributes]) =>
+    (attributes.kind === 'goal' ? groups.find(group => group[0] === id) ?? [id] : [id])
+      .map(member => campaignBrick(member, { kind: FOUNDRY_KINDS[member] ?? 'normal', ...attributes })));
+  const events = entry.events ?? [];
+  const food = entry.food ?? (events.some(event => event.kind === 'food') ? [] : randomFood(entry.duration));
+  const foodPoints = food.reduce((sum, [, method, type]) => sum + (method === 'S' ? 1 : Number(method.slice(1))) * FOODS[type].value, 0)
+    + events.reduce((sum, event) => sum + (event.kind === 'food' ? FOODS[event.type].value : 0), 0)
+    + brickTypes.reduce((sum, brick) => sum + (brick.spawner?.kind === 'food' ? FOODS[brick.spawner.type].value : 0), 0);
+  const cast = [...new Set([
+    ...entry.dialogue.map(([speaker]) => speaker).filter(speaker => !['koshi', 'tom'].includes(speaker)),
+    ...entry.enemies.map(([, type]) => type),
+  ])].slice(0, 2);
+  return {
+    id: `1-${index + 1}`, worldId: '3', number: `3-${offset + 1}`,
+    name: entry.name, concept: entry.concept, duration: entry.duration,
+    goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: entry.survive ?? false,
+    // At most five hearts even if every food point is collected.
+    heartCost: Math.ceil(foodPoints / 5),
+    brickSet: 3, brickTypes, brickGroups: groups.map(members => ({ owner: members[0], members })),
+    food, enemies: entry.enemies, items: entry.items ?? [], weapons: entry.weapons ?? [],
+    ...(events.length ? { events } : {}),
+    ...(entry.goalsGoal ? { goalsGoal: entry.goalsGoal } : {}),
+    cutscene: story('foundry', entry.dialogue, cast),
+  };
+});
+LEVELS.push(...FOUNDRY_LEVELS);
+
 function portalPairIssues(bricks) {
   return Object.keys(PORTALS).flatMap(color => {
     const count = bricks.filter(brick => brick.portal === color && brick.absorbedBy == null).length;
@@ -701,6 +958,19 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
         fail(`${name} has an invalid obstruction ${field}.`);
       }
       result[field] = item[field];
+    }
+    for (const field of ['width', 'height', 'destructible']) {
+      if (item[field] === undefined) continue;
+      if (!obstruction) fail(`${name}: ${field} is only supported for obstructions.`);
+      if (field === 'destructible' ? typeof item[field] !== 'boolean'
+        : !Number.isFinite(item[field]) || item[field] < 1 || item[field] > 10000) {
+        fail(`${name} has an invalid obstruction ${field}.`);
+      }
+      result[field] = item[field];
+    }
+    if (obstruction && OBJECTS[item.type].obstruction !== 'rectangle'
+      && item.width !== undefined && item.height !== undefined && item.width !== item.height) {
+      fail(`${name}: circles and diamonds require equal width and height.`);
     }
   };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Level must be a JSON object.');
@@ -799,6 +1069,13 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
           const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
+          if (spawn.x !== undefined || spawn.y !== undefined) {
+            override.spawner.x = number(spawn.x, 0, 1, `Brick override ${i + 1} spawn X`);
+            override.spawner.y = number(spawn.y, 0, 1, `Brick override ${i + 1} spawn Y`);
+            if (spawn.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(spawn.type)) {
+              Object.assign(override.spawner, snapWheel(override.spawner.x, override.spawner.y));
+            }
+          }
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
           obstructionAppearance(spawn, override.spawner, `Brick override ${i + 1}`);
           if (spawn.kind === 'object' && spawn.lifetime != null) fail(`Brick override ${i + 1}: objects cannot have a lifetime.`);
@@ -1442,6 +1719,10 @@ function circleContact(x, y, dx, dy, radius) {
 
 function obstructionGeometry(obstruction) {
   const definition = OBJECTS[obstruction.type];
+  if (definition.obstruction !== 'rectangle' && (obstruction.width !== undefined || obstruction.height !== undefined)) {
+    const size = obstruction.width ?? obstruction.height;
+    return { radius: size / 2, width: size, height: size };
+  }
   const radius = obstruction.radius ?? definition.radius ?? OBSTRUCTION_RADIUS;
   const scale = radius / (definition.radius ?? OBSTRUCTION_RADIUS);
   return { radius, width: obstruction.width ?? (definition.width ? definition.width * scale : radius * 2),
@@ -1570,6 +1851,7 @@ class Game {
     this.bubbles = [];
     this.bumpers = [];
     this.obstructions = [];
+    this.obstructionDestructions = [];
     this.goalEffects = [];
     this.activationsRemaining = this.level.activationLimit ?? null;
     this.boomHelmet = null;
@@ -1911,6 +2193,21 @@ class Game {
   spawnFromBrick(brick) {
     const spawn = brick.spawner;
     brick.spawned = true;
+    if (spawn.x !== undefined && spawn.y !== undefined) {
+      const position = spawn.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(spawn.type)
+        ? snapWheel(spawn.x, spawn.y) : { x: spawn.x, y: spawn.y };
+      const items = spawn.kind === 'heart' ? [this.pointFromRelative(spawn.x, spawn.y)]
+        : this.createCustomSpawn({ ...spawn, ...position, time: this.elapsed });
+      if (spawn.kind === 'object' && OBJECTS[spawn.type].obstruction) {
+        this.pendingSpawns.set({}, { kind: 'obstruction', time: this.elapsed + 2, duration: 2, items });
+      } else {
+        const target = spawn.kind === 'enemy' ? this.robots : spawn.kind === 'food' ? this.food
+          : spawn.kind === 'weapon' ? this.weapons : spawn.kind === 'item' ? this.items : spawn.kind === 'heart' ? this.healing
+            : OBJECTS[spawn.type].bumper ? this.bumpers : OBJECTS[spawn.type].bubble ? this.bubbles : this.soccerBalls;
+        target.push(...items);
+      }
+      return;
+    }
     if (spawn.kind === 'enemy') {
       const enemies = this.createEnemies([this.elapsed, spawn.type, 1, spawn.shield]);
       for (const enemy of enemies) this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
@@ -1923,7 +2220,10 @@ class Game {
       const point = this.randomPoint();
       if (OBJECTS[spawn.type].bumper) this.bumpers.push(this.createBumper(point, spawn.type));
       else if (OBJECTS[spawn.type].bubble) this.bubbles.push(this.createBubble(point, spawn.type));
-      else if (OBJECTS[spawn.type].obstruction) this.obstructions.push(this.createObstruction(point, spawn));
+      else if (OBJECTS[spawn.type].obstruction) {
+        const obstruction = this.createObstruction(point, spawn);
+        this.pendingSpawns.set({}, { kind: 'obstruction', time: this.elapsed + 2, duration: 2, items: [obstruction] });
+      }
       else this.soccerBalls.push(this.createSoccerBall(point));
     }
     else this.food.push({ ...this.randomPoint(), id: this.foodId++, type: spawn.type,
@@ -2027,6 +2327,18 @@ class Game {
         this.damageTurretEnemy(enemy);
       }
     }
+    this.obstructions = this.obstructions.filter(obstruction => {
+      if (!obstruction.destructible || obstructionSurface(point.x, point.y, obstruction).gap > TURRET_BLAST_RADIUS + 1e-9) return true;
+      this.obstructionDestructions.push({ ...obstruction, age: 0, duration: 1.2 });
+      return false;
+    });
+  }
+
+  updateObstructionDestructions(seconds) {
+    this.obstructionDestructions = this.obstructionDestructions.filter(effect => {
+      effect.age += seconds;
+      return effect.age < effect.duration - 1e-9;
+    });
   }
 
   updateTurrets(seconds) {
@@ -2182,8 +2494,10 @@ class Game {
     const prepare = (events, index, kind, create, timeOf = event => event[0]) => {
       for (let i = index; i < events.length; i++) {
         const event = events[i], time = timeOf(event);
-        if (time > this.elapsed + 1 + 1e-9) break;
-        if (!this.pendingSpawns.has(event)) this.pendingSpawns.set(event, { kind: kind ?? event.kind, time, items: create(event) });
+        if (time > this.elapsed + 2 + 1e-9) break;
+        const duration = event.kind === 'object' && OBJECTS[event.type]?.obstruction ? 2 : 1;
+        if (time > this.elapsed + duration + 1e-9) continue;
+        if (!this.pendingSpawns.has(event)) this.pendingSpawns.set(event, { kind: kind ?? event.kind, time, duration, items: create(event) });
       }
     };
     prepare(this.customEvents, this.nextCustom, null, event => this.createCustomSpawn(event), event => event.time);
@@ -2194,10 +2508,11 @@ class Game {
   }
 
   get spawnCues() {
-    return [...this.pendingSpawns.values()].flatMap(({ kind, time, items }) => {
+    return [...this.pendingSpawns.values()].flatMap(({ kind, time, duration = 1, items }) => {
       if (time <= this.elapsed + 1e-9) return [];
-      const progress = Math.max(0, Math.min(1, this.elapsed - (time - 1)));
-      return items.map(({ x, y }) => ({ kind, x, y, progress }));
+      const progress = Math.max(0, Math.min(1, (this.elapsed - (time - duration)) / duration));
+      return items.map(item => ({ kind, x: item.x, y: item.y, progress,
+        ...(OBJECTS[item.type]?.obstruction ? { obstruction: item } : {}) }));
     });
   }
 
@@ -2287,6 +2602,7 @@ class Game {
   }
 
   spawnCustomEvents() {
+    const appearing = [];
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
       const event = this.customEvents[this.nextCustom++];
       const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items
@@ -2298,7 +2614,9 @@ class Game {
         for (const enemy of items) this.initializeRoboKoshi(enemy, spawn.time, spawn);
       }
       target.push(...items);
+      if (target === this.obstructions) appearing.push(...items);
     }
+    for (const obstruction of appearing) this.clearAppearingObstruction(obstruction);
   }
 
   createCustomSpawn(event) {
@@ -2350,7 +2668,29 @@ class Game {
   createObstruction(point, appearance) {
     return { ...point, type: appearance.type, ...obstructionGeometry(appearance),
       color: appearance.color ?? OBJECTS[appearance.type].color,
-      pattern: appearance.pattern ?? 'solid', patternColor: appearance.patternColor ?? '#dbe6ed' };
+      pattern: appearance.pattern ?? 'solid', patternColor: appearance.patternColor ?? '#dbe6ed',
+      destructible: appearance.destructible ?? false };
+  }
+
+  clearAppearingObstruction(obstruction) {
+    const overlaps = (actor, radius = actor.radius ?? 14) =>
+      obstructionSurface(actor.x, actor.y, obstruction).gap < radius - 1e-7;
+    if (overlaps(this.cat)) {
+      this.hearts = 0;
+      this.tookDamage = true;
+      this.cat.vx = 0; this.cat.vy = 0;
+      this.boosted = false; this.target = null;
+      this.state = 'lost';
+    }
+    this.robots = this.robots.filter(enemy => {
+      const parts = enemy.type === 'snake' ? this.snakeSegments(enemy) : [enemy];
+      if (!parts.some(part => overlaps(part, part.radius + (part.index ? 5 : 0)))) return true;
+      this.defeatEnemy(enemy, false);
+      return false;
+    });
+    for (const field of ['food', 'items', 'weapons', 'healing', 'soccerBalls', 'bubbles', 'bumpers']) {
+      this[field] = this[field].filter(item => !overlaps(item));
+    }
   }
 
   moveAroundObstructions(actor, old, singleSegment = false) {
@@ -2427,6 +2767,14 @@ class Game {
       const travel = ((enemy.distance - old.distance + perimeter / 2) % perimeter + perimeter) % perimeter - perimeter / 2;
       enemy.distance = old.distance + travel * contact;
       this.placeWheel(enemy);
+      const direction = enemy.afraid ? enemy.fleeDirection ?? 1
+        : enemy.type === 'robo-cow' ? enemy.cowDirection : enemy.barrierDirection ?? 1;
+      // Collision passes can revisit the same step after it has already reversed.
+      if (contact < 1 - 1e-9 && Math.sign(travel) === direction) {
+        if (enemy.type === 'robo-cow') enemy.cowDirection = -direction;
+        else enemy.barrierDirection = -direction;
+        enemy.fleeDirection = -direction;
+      }
     } else {
       this.moveAroundObstructions(enemy, old);
     }
@@ -2985,17 +3333,10 @@ class Game {
   }
 
   initializeRoboCow(enemy) {
-    const perimeter = 2 * (this.bounds().right - this.bounds().left + this.bounds().bottom - this.bounds().top);
-    const distances = this.perimeter.map(id => this.perimeterBrickDistance(id));
     enemy.cowDirection = 1;
-    enemy.cowBrickIndex = distances.reduce((best, distance, index) => {
-      const gap = Math.min((distance - enemy.distance + perimeter) % perimeter,
-        (enemy.distance - distance + perimeter) % perimeter);
-      return gap < best.gap ? { index, gap } : best;
-    }, { index: 0, gap: Infinity }).index;
     enemy.cowEating = false;
     enemy.cowEatTime = 0;
-    this.chooseCowTarget(enemy);
+    this.chooseCowWalkDistance(enemy);
     this.placeWheel(enemy);
     this.updateRoboCowFacing(enemy);
   }
@@ -3013,30 +3354,13 @@ class Game {
     enemy.facingAngle += Math.max(-step, Math.min(step, delta));
   }
 
-  chooseCowTarget(enemy) {
+  chooseCowWalkDistance(enemy) {
     const stepsByRoll = [2, 3, 3, 4, 4, 4, 4, 5, 5, 6];
     const steps = stepsByRoll[Math.min(9, Math.floor(this.random() * stepsByRoll.length))];
-    const currentId = this.perimeter[enemy.cowBrickIndex];
-    const owner = this.bricks[currentId].absorbedBy ?? currentId;
-    const merged = this.perimeter.filter(id => (this.bricks[id].absorbedBy ?? id) === owner).length > 1
-      && !['cinder', 'goal'].includes(this.bricks[owner].kind);
-    let distance = steps;
-    if (merged) {
-      let available = 1;
-      while (available < steps) {
-        const id = this.perimeter[(enemy.cowBrickIndex + available) % this.perimeter.length];
-        if ((this.bricks[id].absorbedBy ?? id) !== owner) break;
-        available++;
-      }
-      distance = Math.min(distance, available);
-    }
-    enemy.cowDirection = 1;
-    const offset = merged ? Math.max(0, distance - 1) : distance;
-    const index = (enemy.cowBrickIndex + offset) % this.perimeter.length;
-    enemy.cowTargetIndex = index;
-    enemy.cowTargetDistance = this.perimeterBrickDistance(this.perimeter[index]);
-    const target = this.bricks[this.perimeter[index]];
-    enemy.cowTargetId = target.absorbedBy ?? target.id;
+    const b = this.bounds(), perimeter = 2 * (b.right - b.left + b.bottom - b.top);
+    enemy.cowWalkRemaining = steps * perimeter / this.perimeter.length;
+    enemy.cowTargetIndex = null;
+    enemy.cowTargetId = null;
   }
 
   updateRoboCow(enemy, seconds) {
@@ -3045,28 +3369,60 @@ class Game {
       if (enemy.cowEatTime >= COW_EAT_DURATION - 1e-9) {
         const brick = this.bricks[enemy.cowTargetId];
         if (brick && !['cinder', 'goal'].includes(brick.kind)) this.convertBrickToCinder(brick, this.brickParts());
-        enemy.cowBrickIndex = enemy.cowTargetIndex;
         enemy.cowEating = false;
         enemy.cowEatTime = 0;
-        this.chooseCowTarget(enemy);
+        this.chooseCowWalkDistance(enemy);
       }
       this.placeWheel(enemy);
       return;
     }
-    const b = this.bounds(), perimeter = 2 * (b.right - b.left + b.bottom - b.top);
-    const remaining = ((enemy.cowTargetDistance - enemy.distance) % perimeter + perimeter) % perimeter;
-    if (remaining <= 190 * seconds + 1e-9) {
-      enemy.distance = enemy.cowTargetDistance;
-      const brick = this.bricks[enemy.cowTargetId];
-      if (!brick || ['cinder', 'goal'].includes(brick.kind)) {
-        enemy.cowBrickIndex = enemy.cowTargetIndex;
-        this.chooseCowTarget(enemy);
-      } else {
-        enemy.cowEating = true;
-        enemy.cowEatTime = 0;
-      }
-    } else enemy.distance += 190 * seconds;
+    const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top, perimeter = 2 * (w + h);
+    const corners = [0, w, w + h, 2 * w + h];
+    const fences = this.barrierParts();
+    const centers = this.perimeter.map(id => this.perimeterBrickDistance(id));
+    let remaining = 190 * seconds;
     this.placeWheel(enemy);
+    while (remaining > 1e-9) {
+      const direction = enemy.cowDirection;
+      const d = ((enemy.distance % perimeter) + perimeter) % perimeter;
+      const cornerDistance = Math.min(...corners.map(corner => {
+        const gap = ((corner - d) * direction % perimeter + perimeter) % perimeter;
+        return gap > 1e-9 ? gap : perimeter;
+      }));
+      const centerDistance = enemy.cowWalkRemaining > 1e-9 ? Infinity : Math.min(...centers.map(center => {
+        const gap = ((center - d) * direction % perimeter + perimeter) % perimeter;
+        return Math.min(gap, perimeter - gap) < 1e-9 ? 0 : gap;
+      }));
+      if (centerDistance === 0) break;
+      const step = Math.min(remaining, cornerDistance,
+        enemy.cowWalkRemaining > 1e-9 ? enemy.cowWalkRemaining : centerDistance);
+      const old = { x: enemy.x, y: enemy.y, distance: enemy.distance };
+      enemy.distance += direction * step;
+      this.placeWheel(enemy);
+      this.blockEnemyWithBarriers(enemy, old, fences);
+      this.blockEnemyWithObstructions(enemy, old);
+      const traveled = Math.min(step, Math.max(0, direction * (enemy.distance - old.distance)));
+      enemy.cowWalkRemaining = Math.max(0, enemy.cowWalkRemaining - traveled);
+      remaining -= traveled;
+      if (enemy.cowDirection !== direction || traveled < step - 1e-9) break;
+      if (step === centerDistance) break;
+    }
+    if (enemy.cowWalkRemaining > 1e-9) return;
+    const d = ((enemy.distance % perimeter) + perimeter) % perimeter;
+    const index = centers.findIndex(center => {
+      const gap = Math.abs(center - d);
+      return Math.min(gap, perimeter - gap) < 1e-9;
+    });
+    if (index === -1) return;
+    const section = this.bricks[this.perimeter[index]];
+    const brick = this.bricks[section.absorbedBy ?? section.id];
+    if (['cinder', 'goal'].includes(brick.kind)) this.chooseCowWalkDistance(enemy);
+    else {
+      enemy.cowTargetIndex = index;
+      enemy.cowTargetId = brick.id;
+      enemy.cowEating = true;
+      enemy.cowEatTime = 0;
+    }
   }
 
   initializeRoboUnicorn(enemy) {
@@ -3351,7 +3707,12 @@ class Game {
     const incoming = Math.cos(angle) * normal.x + Math.sin(angle) * normal.y;
     const reflected = Math.atan2(Math.sin(angle) - 2 * incoming * normal.y,
       Math.cos(angle) - 2 * incoming * normal.x);
-    if (enemy.type === 'wheel') {
+    if (enemy.type === 'robo-cow') {
+      enemy.distance = old.distance + (enemy.distance - old.distance) * contact;
+      enemy.cowDirection = -(enemy.cowDirection ?? 1);
+      enemy.fleeDirection = -(enemy.fleeDirection ?? 1);
+      this.placeWheel(enemy);
+    } else if (enemy.type === 'wheel') {
       enemy.distance = old.distance;
       this.placeWheel(enemy);
       enemy.barrierDirection = -(enemy.barrierDirection ?? 1);
@@ -3513,6 +3874,19 @@ class Game {
       enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
     };
     const aPerimeter = ['wheel', 'snake', 'robo-cow'].includes(a.type), bPerimeter = ['wheel', 'snake', 'robo-cow'].includes(b.type);
+    const aEating = a.type === 'robo-cow' && a.cowEating, bEating = b.type === 'robo-cow' && b.cowEating;
+    if (aEating && bEating) return;
+    if ((aEating || bEating) && !(aPerimeter && bPerimeter)) {
+      const other = aEating ? b : a, sign = aEating ? -1 : 1;
+      other.x += sign * nx * overlap; other.y += sign * ny * overlap;
+      clamp(other);
+      if (Math.hypot(a.x - b.x, a.y - b.y) < a.radius + b.radius) {
+        const radius = a.radius + b.radius + 1e-7;
+        other.x = Math.max(bounds.left + radius, Math.min(bounds.right - radius, other.x));
+        other.y = Math.max(bounds.top + radius, Math.min(bounds.bottom - radius, other.y));
+      }
+      return;
+    }
     if (a.type === 'goalie' && b.type === 'goalie') {
       const leader = (a.goaliePushPriority ?? a.y) >= (b.goaliePushPriority ?? b.y) ? a : b;
       const yielding = leader === a ? b : a;
@@ -3535,7 +3909,7 @@ class Game {
     } else if (aPerimeter && bPerimeter) {
       const perimeter = 2 * (bounds.right - bounds.left + bounds.bottom - bounds.top);
       const ahead = ((b.distance - a.distance) % perimeter + perimeter) % perimeter;
-      const behind = ahead > 0 && ahead < perimeter / 2 ? a : b;
+      const behind = aEating ? b : bEating ? a : ahead > 0 && ahead < perimeter / 2 ? a : b;
       const distance = behind.distance;
       if (a.type === 'snake' || b.type === 'snake' || a.owner?.type === 'snake' || b.owner?.type === 'snake') {
         const other = behind === a ? b : a, radius = a.radius + b.radius + 1e-7;
@@ -3675,6 +4049,7 @@ class Game {
       const before = this.snakeSegments({ ...snake, distance: previous.get(snake).distance });
       for (const segment of segmentsFor(snake).slice(1)) {
         for (const other of roaming) {
+          if (other.type === 'robo-cow' && other.cowEating) continue;
           const old = previous.get(other), oldSegment = before[segment.index];
           const x = old.x - oldSegment.x, y = old.y - oldSegment.y;
           const dx = other.x - segment.x - x, dy = other.y - segment.y - y;
@@ -3821,7 +4196,7 @@ class Game {
     for (const enemy of this.robots) {
       if (enemy.type === 'snake') this.blockSnakeWithBarriers(enemy, previous.get(enemy), fences);
       else {
-        this.blockEnemyWithBarriers(enemy, previous.get(enemy), fences);
+        if (enemy.type !== 'robo-cow' || enemy.afraid) this.blockEnemyWithBarriers(enemy, previous.get(enemy), fences);
         this.clearBarrierOverlap(enemy, fences);
       }
       if (enemy.type === 'jackolantern') this.releaseJackolanternStomp(enemy, parts);
@@ -4119,6 +4494,7 @@ class Game {
       this.updateGoalEffects(seconds);
       this.updatePickups(seconds);
       this.updateBrickDestructions(seconds);
+      this.updateObstructionDestructions(seconds);
     }
     if (this.state !== 'playing') return;
     let remaining = Math.min(seconds, this.timeLimit - this.elapsed);
@@ -4142,6 +4518,7 @@ class Game {
     this.updateGoalEffects(dt);
     this.updatePickups(dt);
     this.updateBrickDestructions(dt);
+    this.updateObstructionDestructions(dt);
     const sunglassesWereActive = this.sunglassesActive;
     const capeWasActive = this.capeActive;
     this.elapsed = Math.min(this.timeLimit, this.elapsed + dt);
@@ -4160,6 +4537,7 @@ class Game {
     this.updateBarriers(dt);
     this.prepareSpawns();
     this.spawnCustomEvents();
+    if (this.state !== 'playing') { this.tickStart = null; return; }
     while (this.nextEvent < this.level.food.length && this.level.food[this.nextEvent][0] <= this.elapsed + 1e-9) {
       this.spawn(this.level.food[this.nextEvent++]);
     }
@@ -4178,7 +4556,13 @@ class Game {
         this.healing.push(...pending.items);
         this.pendingSpawns.delete(event);
       }
+      if (pending.kind === 'obstruction' && pending.time <= this.elapsed + 1e-9) {
+        this.obstructions.push(...pending.items);
+        for (const obstruction of pending.items) this.clearAppearingObstruction(obstruction);
+        this.pendingSpawns.delete(event);
+      }
     }
+    if (this.state !== 'playing') { this.tickStart = null; return; }
     this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();

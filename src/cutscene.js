@@ -264,7 +264,7 @@ class CutscenePlayer {
     this.paused = document.hidden;
     this.positions = new Map();
     this.displayedIndex = -1;
-    document.querySelector('#cutscene-heading').textContent = `Level ${level} / ${scene.theme === 'garden' ? 'The garden path' : 'Clockwork Pantry'}`;
+    document.querySelector('#cutscene-heading').textContent = `Level ${level} / ${{ garden: 'The garden path', workshop: 'Clockwork Pantry', foundry: 'Robot Foundry' }[scene.theme]}`;
     this.dialog.showModal();
     this.update(0);
     this.next.focus({ preventScroll: true });
@@ -322,10 +322,10 @@ class CutscenePlayer {
     const ctx = this.stage.getContext('2d');
     const backgroundScale = Math.max(w / 960, h / 540);
     ctx.setTransform(backgroundScale, 0, 0, backgroundScale, (w - 960 * backgroundScale) / 2, (h - 540 * backgroundScale) / 2);
-    const garden = scene.theme === 'garden';
+    const garden = scene.theme === 'garden', foundry = scene.theme === 'foundry';
     const sky = ctx.createLinearGradient(0, 0, 0, 540);
-    sky.addColorStop(0, garden ? '#264e60' : '#18222f');
-    sky.addColorStop(1, garden ? '#a7bc8a' : '#465957');
+    sky.addColorStop(0, garden ? '#264e60' : foundry ? '#1d1418' : '#18222f');
+    sky.addColorStop(1, garden ? '#a7bc8a' : foundry ? '#8a4a2c' : '#465957');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
     if (garden) {
       ctx.fillStyle = '#efdea0'; ctx.beginPath(); ctx.arc(780, 95, 48, 0, Math.PI * 2); ctx.fill();
@@ -336,6 +336,22 @@ class CutscenePlayer {
         ctx.fillStyle = '#675448'; ctx.fillRect(x - 12, 150, 24, 230);
         ctx.fillStyle = '#294f44'; ctx.beginPath(); ctx.arc(x, 160, 85, 0, Math.PI * 2); ctx.fill();
       }
+    } else if (foundry) {
+      for (const [x, top] of [[90, 70], [240, 120], [720, 100], [870, 60]]) {
+        ctx.fillStyle = '#3a2a2a'; ctx.fillRect(x - 28, top, 56, 300 - top);
+        ctx.fillStyle = '#e8743a'; ctx.fillRect(x - 28, top, 56, 10);
+      }
+      ctx.strokeStyle = '#f0a04b88'; ctx.lineWidth = 6;
+      for (const x of [330, 630]) {
+        ctx.beginPath(); ctx.arc(x, 200, 52, 0, Math.PI * 2); ctx.stroke();
+        for (let i = 0; i < 8; i++) {
+          const a = i * Math.PI / 4;
+          ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 52, 200 + Math.sin(a) * 52);
+          ctx.lineTo(x + Math.cos(a) * 68, 200 + Math.sin(a) * 68); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = '#f2c46b'; ctx.fillRect(370, 70, 220, 60);
+      ctx.fillStyle = '#2b1b1b'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('ROBOT FOUNDRY', 480, 108);
     } else {
       ctx.strokeStyle = '#819b9855'; ctx.lineWidth = 12;
       for (const x of [110, 475, 850]) { ctx.strokeRect(x, 50, 90, 260); }
@@ -344,8 +360,8 @@ class CutscenePlayer {
       ctx.fillStyle = '#c9db8d'; ctx.fillRect(370, 85, 220, 60);
       ctx.fillStyle = '#20302e'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('CLOCKWORK PANTRY', 480, 123);
     }
-    ctx.fillStyle = garden ? '#54734b' : '#303e43'; ctx.fillRect(0, 375, 960, 165);
-    ctx.fillStyle = garden ? '#ad9873' : '#596465'; ctx.beginPath();
+    ctx.fillStyle = garden ? '#54734b' : foundry ? '#3b2b26' : '#303e43'; ctx.fillRect(0, 375, 960, 165);
+    ctx.fillStyle = garden ? '#ad9873' : foundry ? '#6e5146' : '#596465'; ctx.beginPath();
     ctx.moveTo(420, 300); ctx.lineTo(540, 300); ctx.lineTo(800, 540); ctx.lineTo(140, 540); ctx.fill();
     for (let x = 0; x < 960; x += 80) {
       ctx.fillStyle = ['#83bca1', '#7eacdb', '#df8c81'][x / 80 % 3];
@@ -368,7 +384,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-cow': 29, 'robo-unicorn': 33 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);

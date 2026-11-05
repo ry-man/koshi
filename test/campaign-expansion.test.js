@@ -8,7 +8,7 @@ const concepts = [
   'saw blade', 'robo snake', 'magical sunglasses', 'soccer goals and balls',
   'ditto stamp', 'spooky mask', 'barrier blocks', 'robo jackolantern', 'boom helmet and boom times',
 ];
-const added = LEVELS.slice(19);
+const added = LEVELS.slice(19, 34);
 const indexOf = concept => LEVELS.findIndex(level => level.concept === concept);
 const itemConcept = type => type.startsWith('stopwatch') ? 'stopwatches'
   : type.startsWith('boom-time') ? 'boom helmet and boom times'
@@ -20,7 +20,7 @@ const style = brick => JSON.stringify([
 ]);
 
 test('15 appended lessons introduce each requested element once, with level-appropriate explanatory scenes', () => {
-  assert.equal(LEVELS.length, 34);
+  assert.equal(LEVELS.filter(level => level.worldId !== '3').length, 34);
   assert.deepEqual(added.map(level => level.concept), concepts);
   assert.deepEqual(LEVELS.map(level => level.id), LEVELS.map((_, index) => `1-${index + 1}`));
   const seen = new Set();

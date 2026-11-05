@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, obstructionGeometry, brickShape, brickEnabled, goalTiles } = engine;
+const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, obstructionGeometry, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
 const FLAME = 'M0 20 C-24 16 -22 -6 -10 -12 Q-8 -2 -3 -5 Q7 -14 3 -24 C26 -7 26 16 0 20 Z';
 const FENCE = 'M-22 -6 H22 M-22 6 H22 M-18 -14 V14 M-6 -14 V14 M6 -14 V14 M18 -14 V14';
 const BOOM_TIME_TYPES = new Set(['boom-time-red', 'boom-time-green', 'boom-time-blue']);
@@ -170,7 +170,7 @@ function brickInfoBounds(brick, members) {
   const center = anchors.reduce((best, point) => Math.hypot(point.x - cx, point.y - cy) < Math.hypot(best.x - cx, best.y - cy) ? point : best);
   return { x: center.x - brick.w / 2, y: center.y - brick.h / 2, w: brick.w, h: brick.h };
 }
-function decorateBrick(button, brick, members) {
+function decorateBrick(button, brick, members, width, height) {
   let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
   const infoBounds = brickInfoBounds(brick, members);
@@ -252,7 +252,7 @@ function decorateBrick(button, brick, members) {
     const boomTime = brick.spawner?.kind === 'item' && BOOM_TIME_TYPES.has(brick.spawner.type);
     symbol = svgNode('svg', { class: `brick-item-symbol${brick.boost ? ' brick-boost-symbol' : ''}`,
       viewBox: boomTime ? '-28 -40 56 68' : '-28 -28 56 56', 'aria-hidden': 'true' });
-    const d = brick.turret ? 'M-22 13 A22 22 0 0 1 22 13'
+    const d = brick.turret ? 'M-24 15 A24 24 0 0 1 24 15 Z'
       : brick.barrier ? FENCE : brick.boost ? FLAME : spawnSymbol(brick.spawner);
     if (brick.spawner) {
       symbol.style.setProperty('--item-color', spawnColor(brick.spawner));
@@ -277,19 +277,18 @@ function decorateBrick(button, brick, members) {
         symbol.append(svgNode('path', { class: 'item-outline', d }));
       }
     } else if (brick.turret) {
-      symbol.style.setProperty('--item-color', brick.turret === 'laser' ? '#e85252' : '#ff703a');
-      symbol.append(svgNode('path', { class: 'item-outline', d }));
-      symbol.append(svgNode('path', { class: 'turret-barrel', d: 'M-4 0 H7 V-7 H21',
-        fill: 'none', stroke: '#59636a', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
-      symbol.append(svgNode('path', { d: 'M-4 0 H7 V-7 H21', fill: 'none', stroke: '#aeb7bd',
-        'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
-      if (brick.turret === 'laser') {
-        symbol.append(svgNode('path', { class: 'turret-shot', d: 'M23 -7 H29',
-          fill: 'none', stroke: '#ff4545', 'stroke-width': 4, 'stroke-linecap': 'round' }));
-      } else {
-        symbol.append(svgNode('circle', { class: 'turret-shot', cx: 27, cy: -7, r: 5,
-          fill: '#ff5547', stroke: '#9d2925', 'stroke-width': 2 }));
-      }
+      const color = brick.turret === 'laser' ? '#3b82f6' : '#ef4545';
+      symbol.style.setProperty('--item-color', color);
+      const edge = width === undefined ? vertical ? 'left' : 'bottom'
+        : brickRegions([brick], width, height).get(brick.id).edge;
+      const rotation = { top: 180, right: -90, bottom: 0, left: 90 }[edge];
+      const group = svgNode('g', { class: 'turret-icon', transform: `rotate(${rotation})` });
+      group.append(svgNode('path', { class: 'item-outline', d }));
+      group.append(svgNode('path', { class: 'item-color', d, fill: color }));
+      group.append(svgNode('rect', { class: 'turret-barrel', x: 4, y: -4, width: 24, height: 8,
+        transform: 'rotate(-45)', fill: '#aeb7bd', stroke: '#17212a', 'stroke-width': 2,
+        'stroke-linejoin': 'miter' }));
+      symbol.append(group);
     }
     if (!boomTime && !brick.turret) {
       symbol.append(svgNode('path', { class: 'item-color', d, ...(brick.barrier
@@ -486,7 +485,67 @@ function drawObstruction(ctx, obstruction) {
   ctx.restore();
   trace();
   ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2.5; ctx.stroke();
+  if (obstruction.destructible) {
+    ctx.save();
+    const face = ctx.createLinearGradient(-18, -13, 18, 13);
+    face.addColorStop(0, '#fff');
+    face.addColorStop(.45, '#f8fafc');
+    face.addColorStop(1, '#b8c1cb');
+    ctx.shadowColor = '#0009'; ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = face; ctx.fillRect(-18, -13, 36, 26);
+    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    const rim = ctx.createLinearGradient(-18, -13, 18, 13);
+    rim.addColorStop(0, '#ff8880');
+    rim.addColorStop(.35, '#e53632');
+    rim.addColorStop(1, '#891e25');
+    ctx.strokeStyle = rim; ctx.lineWidth = 3; ctx.strokeRect(-18, -13, 36, 26);
+    ctx.strokeStyle = '#ffffffb3'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-16, 11); ctx.lineTo(-16, -11); ctx.lineTo(16, -11); ctx.stroke();
+    ctx.fillStyle = '#000'; ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('TNT', 0, 1, 30);
+    ctx.restore();
+  }
   ctx.restore();
+}
+
+function drawObstructionDestruction(ctx, effect) {
+  const progress = Math.min(1, effect.age / effect.duration);
+  const { width, height } = obstructionGeometry(effect);
+  const columns = Math.min(8, Math.max(2, Math.ceil(width / 32)));
+  const rows = Math.min(8, Math.max(2, Math.ceil(height / 32)));
+  for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
+    const x = effect.x - width / 2 + column * width / columns;
+    const y = effect.y - height / 2 + row * height / rows;
+    const cx = x + width / columns / 2, cy = y + height / rows / 2;
+    const cell = row * columns + column + 1;
+    const angle = Math.atan2(cy - effect.y, cx - effect.x);
+    const offset = progress * (18 + cell % 7 * 3);
+    const jitterX = Math.sin(cell * 2.4) * Math.min(14, width / columns * .3);
+    const jitterY = Math.cos(cell * 3.1) * Math.min(14, height / rows * .3);
+    ctx.save();
+    ctx.globalAlpha *= Math.max(0, 1 - progress * 2);
+    ctx.translate(Math.cos(angle) * offset, Math.sin(angle) * offset + progress * progress * 35);
+    ctx.beginPath(); ctx.rect(x, y, width / columns, height / rows); ctx.clip();
+    drawObstruction(ctx, { ...effect, destructible: false });
+    ctx.restore();
+    const shape = OBJECTS[effect.type].obstruction;
+    const dx = cx - effect.x, dy = cy - effect.y;
+    if (shape === 'circle' ? Math.hypot(dx, dy) > width / 2
+      : shape === 'diamond' && Math.abs(dx) + Math.abs(dy) > width / 2) continue;
+    ctx.save();
+    ctx.globalAlpha *= Math.sin(Math.PI * progress) * .7;
+    ctx.fillStyle = '#92979b';
+    ctx.beginPath(); ctx.arc(cx + jitterX + Math.cos(angle) * offset, cy + jitterY + Math.sin(angle) * offset - progress * 18,
+      4 + progress * Math.min(24, Math.max(width / columns, height / rows)) * (.7 + cell % 4 * .1), 0, Math.PI * 2); ctx.fill();
+    if ((row + column) % 2 === 0) {
+      ctx.globalAlpha *= Math.max(0, 1 - progress);
+      ctx.fillStyle = '#ef5633'; ctx.beginPath(); ctx.arc(cx + jitterX, cy + jitterY, 3 + Math.sin(progress * Math.PI) * 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffb543'; ctx.beginPath(); ctx.arc(cx + jitterX - 1, cy + jitterY - 1, 2 + Math.sin(progress * Math.PI) * 3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
 }
 
 function drawBumper(ctx, bumper, time = 0) {
@@ -510,7 +569,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

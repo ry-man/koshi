@@ -21,13 +21,15 @@ test('World Select shares the bottom action bar and styling with the level menu 
   assert.doesNotMatch(picker.slice(0, picker.indexOf('</header>')), /world-map-back/);
 });
 
-test('worlds partition all 34 unchanged campaign identities into themed groups of 10 and 24', () => {
-  assert.deepEqual(WORLDS.map(world => worldLevels(world).length), [10, 24]);
-  assert.deepEqual(WORLDS.map(world => world.theme), ['garden', 'workshop']);
+test('worlds partition all 47 campaign identities into themed groups of 10, 24 and 13', () => {
+  assert.deepEqual(WORLDS.map(world => worldLevels(world).length), [10, 24, 13]);
+  assert.deepEqual(WORLDS.map(world => world.theme), ['garden', 'workshop', 'foundry']);
   assert.deepEqual(WORLDS.flatMap(world => worldLevels(world)), LEVELS);
   assert.equal(LEVELS[9].number, '1-10');
   assert.equal(LEVELS[10].number, '2-1');
-  assert.equal(LEVELS.at(-1).number, '2-24');
+  assert.equal(LEVELS[33].number, '2-24');
+  assert.equal(LEVELS[34].number, '3-1');
+  assert.equal(LEVELS.at(-1).number, '3-13');
   assert.deepEqual(LEVELS.map(level => level.id), LEVELS.map((_, i) => `1-${i + 1}`));
   for (const [i, level] of LEVELS.entries()) {
     assert.equal(nextLevelIndex(i), i === LEVELS.length - 1 ? -1 : i + 1);
@@ -81,10 +83,12 @@ test('map icons describe actual schedules, placed events and spawner contents, w
     assert.equal(features.some(feature => feature.picture === 'brick:normal'),
       kinds.some(kind => ['normal', 'slow', 'fast'].includes(kind)), `${level.number}: steering cooldowns share one preview`);
   }
-  const pictures = levelFeatures(LEVELS.at(-1)).map(feature => feature.picture);
+  const pictures = levelFeatures(LEVELS[33]).map(feature => feature.picture);
   assert.ok(pictures.includes('special:boom-helmet'));
   assert.ok(pictures.includes('brick:conveyor'));
   assert.ok(pictures.includes('brick:warped'));
+  const turrets = levelFeatures(LEVELS.find(level => level.concept === 'laser turret')).map(feature => feature.picture);
+  assert.ok(turrets.includes('special:turret'));
 });
 
 function mapFixture(profile = { guest: true, completed: [], results: {} }, custom = null, game = engine, graph = worlds,
@@ -147,15 +151,15 @@ test('two-tier map selects worlds separately, moves Koshi, and reveals only that
   const fixture = mapFixture();
   const { map, selection, text, pictures } = fixture;
   map.open();
-  assert.equal(map.map.querySelectorAll('.map-node').length, 2);
+  assert.equal(map.map.querySelectorAll('.map-node').length, 3);
   map.selectWorld(WORLDS[1]);
   assert.equal(selection.value, '0', 'world selection alone does not commit a level');
-  assert.equal(map.map.querySelector('.map-koshi').style.left, '85%');
+  assert.equal(map.map.querySelector('.map-koshi').style.left, '50%');
   assert.equal(map.play.hidden, true);
   map.showWorld(WORLDS[1]);
   assert.equal(map.map.querySelectorAll('.map-node').length, 24);
   assert.equal(selection.value, '10');
-  map.selectLevel(LEVELS.at(-1));
+  map.selectLevel(LEVELS[33]);
   assert.equal(selection.value, '33');
   const details = text(map.details);
   for (const value of ['2-24', 'The final countdown feast', '35', '🕒 100s', 'Moves to beat',
@@ -298,10 +302,10 @@ test('custom editor play remains available outside worlds and switching back res
 
 test('an optional special-world definition appears as a separate branch and opens only its assigned levels', () => {
   const graph = [
-    { ...WORLDS[0], next: ['2', 'S2'] }, WORLDS[1],
+    { ...WORLDS[0], next: ['2', 'S2'] }, { ...WORLDS[1], next: [] },
     { id: 'S2', name: 'Extra challenge', theme: 'workshop', special: true, next: ['2'] },
   ];
-  const levels = [...LEVELS, { ...LEVELS[0], id: 'special-first', worldId: 'S2', number: 'S2-1' }];
+  const levels = [...LEVELS.filter(level => level.worldId !== '3'), { ...LEVELS[0], id: 'special-first', worldId: 'S2', number: 'S2-1' }];
   const { map, selection, text } = mapFixture(undefined, null, { ...engine, LEVELS: levels }, {
     ...worlds, WORLDS: graph, worldLevels: world => worldLevels(world, levels),
   });
@@ -366,8 +370,13 @@ test('victory map moves from the completed stop to the next, including world bou
   marker = map.map.querySelector('.map-koshi');
   assert.equal(marker.animation.frames.length, 2);
   map.advanceFrom(33);
-  assert.equal(selection.value, '33');
-  assert.equal(map.map.querySelectorAll('.map-node').length, 24);
+  assert.equal(map.world.id, '3');
+  assert.equal(selection.value, '34');
+  assert.equal(map.map.querySelectorAll('.map-node').length, 14);
+  assert.equal(map.map.querySelectorAll('.map-node')[0].dataset.node, LEVELS[33].id);
+  map.advanceFrom(LEVELS.length - 1);
+  assert.equal(selection.value, String(LEVELS.length - 1));
+  assert.equal(map.map.querySelectorAll('.map-node').length, 13);
   assert.equal(map.map.querySelector('.map-koshi').animation, undefined, 'no invented level after the finale');
 });
 

@@ -190,6 +190,48 @@ test('sword blades, guards and handles have thin dark outlines and bronze has a 
   assert.notEqual(SWORDS.bronze.color, SWORDS.wood.color);
 });
 
+test('sword blade counts face the tip, use larger high-contrast text and fit the blade width', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const texts = [], transforms = [];
+  const ctx = new Proxy({}, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'measureText') return text => ({ width: text.length * parseFloat(target.font.slice(5)) * .7 });
+      if (name === 'fillText') return (...args) => texts.push({
+        args, color: target.fillStyle, font: target.font, align: target.textAlign, baseline: target.textBaseline,
+      });
+      if (name === 'translate' || name === 'rotate') return (...args) => transforms.push([name, ...args]);
+      return () => {};
+    },
+  });
+  const context = vm.createContext({ ctx, line() {} });
+  vm.runInContext(source.slice(source.indexOf('function drawSword('), source.indexOf('function drawGameItem(')), context);
+  const luminance = color => {
+    const rgb = color.slice(1).match(/../g).map(hex => parseInt(hex, 16) / 255)
+      .map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+    return rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+  };
+  for (const color of [...Object.values(SWORDS).map(sword => sword.color), '#111111']) {
+    for (const label of ['1', '3', '5', '15s', '9s', '0s', '10000s']) {
+      texts.length = 0; transforms.length = 0;
+      context.drawSword(430, 280, color, label);
+      assert.equal(texts.length, 1);
+      const text = texts[0], size = parseFloat(text.font.slice(5)), background = luminance(color);
+      const foreground = luminance(text.color);
+      const contrast = (Math.max(background, foreground) + .05) / (Math.min(background, foreground) + .05);
+      assert.ok(contrast >= 4.5, `${color}: ${contrast} contrast`);
+      assert.equal(size, 12, 'counts are larger than the previous 7px text');
+      assert.deepEqual(text.args, [label, 0, 0, 9], 'long labels condense to the blade width without reducing height');
+      assert.equal(text.align, 'center');
+      assert.equal(text.baseline, 'middle');
+      assert.deepEqual(transforms, [['translate', 430, 280], ['rotate', .5], ['translate', 0, -5]]);
+    }
+    texts.length = 0;
+    context.drawSword(0, 0, color);
+    assert.equal(texts.length, 0, 'ground, guide and pickup-flight swords have no count');
+  }
+});
+
 test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fireball', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const operations = [], stack = [];

@@ -63,7 +63,7 @@ test('moves count successful steering and mid-flight redirects, not invalid clic
   assert.equal(game.moves, 0);
 });
 
-test('weapon status announces remaining attacks or seconds and the sword badge shows the count', () => {
+test('weapon status announces remaining attacks or seconds and the sword blade shows the count', () => {
   const { SWORDS } = require('../src/game.js');
   const root = path.resolve(__dirname, '..');
   const app = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
@@ -84,15 +84,15 @@ test('weapon status announces remaining attacks or seconds and the sword badge s
   game.weapon = null;
   vm.runInContext(display, context);
   assert.equal(weaponStatus.textContent, 'Weapon: no sword equipped');
-  assert.match(app, /drawSword\(swordX, swordY, color\)[\s\S]*const label = `\$\{remaining\}\$\{timedWeapon \? 's' : ''\}`/);
+  assert.match(app, /const label = String\(remaining\);[\s\S]*drawSword\(swordX, swordY, color, label\)/);
 });
 
-test('weapon counters sit above Koshi on the left without moving the sword on the right', () => {
+test('weapon counts are passed to the equipped sword without a separate badge', () => {
   const { SWORDS } = require('../src/game.js');
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const start = app.indexOf('  if (game.weapon) {', app.indexOf('function render('));
   const body = app.slice(start, app.indexOf('  drawTurretEffects(ctx);', start));
-  for (const [type, uses, label] of [['wood', 3, '3'], ['gold', Infinity, '12s']]) {
+  for (const [type, uses, label] of [['wood', 3, '3'], ['gold', Infinity, '12']]) {
     const arcs = [], texts = [], swords = [];
     const ctx = new Proxy({}, {
       get(target, name) {
@@ -104,9 +104,9 @@ test('weapon counters sit above Koshi on the left without moving the sword on th
     });
     const game = { cat: { x: 400, y: 300 }, elapsed: 5, weapon: { type, uses, expires: 17 } };
     vm.runInNewContext(body, { game, SWORDS, ctx, drawSword: (...args) => swords.push(args) });
-    assert.deepEqual(swords[0], [430, 280, SWORDS[type].color]);
-    assert.deepEqual(texts[0], [label, 370, 257]);
-    assert.deepEqual(arcs[0].slice(0, 2), [370, 257]);
+    assert.deepEqual(swords[0], [430, 280, SWORDS[type].color, label]);
+    assert.deepEqual(texts, []);
+    assert.deepEqual(arcs, []);
   }
 });
 

@@ -38,7 +38,7 @@ test('cape placements and spawners round-trip, collect once, expire on the groun
   assert.ok(visuals.spawnSymbol({ kind: 'item', type: 'kitty-cape' }));
   assert.equal(visuals.spawnColor({ kind: 'item', type: 'kitty-cape' }), '#b5d77c');
   assert.ok(GUIDE.flatMap(chapter => chapter.sections).some(([, , picture]) => picture === 'item:kitty-cape'));
-  for (const campaign of LEVELS) {
+  for (const campaign of LEVELS.filter(level => level.worldId !== '3')) {
     assert.ok(!campaign.items.some(([, type]) => type === 'kitty-cape'));
     assert.ok(!(campaign.events ?? []).some(event => event.type === 'kitty-cape'));
     assert.ok(!campaign.brickTypes.some(brick => brick.spawner?.type === 'kitty-cape'));

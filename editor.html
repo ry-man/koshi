@@ -52,7 +52,7 @@
           <label class="inline-label"><input id="scene-enabled" type="checkbox"> Optional pre-level cutscene</label>
           <p class="editor-help">The game clock stays stopped during the scene. Each line has a speaker, dialogue, and on-stage cast. Apply the scene before playtesting or exporting.</p>
           <fieldset id="scene-fields" disabled>
-            <label>World background <select id="scene-theme"><option value="garden">Garden path</option><option value="workshop">Clockwork Pantry workshop</option></select></label>
+            <label>World background <select id="scene-theme"><option value="garden">Garden path</option><option value="workshop">Clockwork Pantry workshop</option><option value="foundry">Robot Foundry</option></select></label>
             <div id="scene-lines"></div>
             <button id="scene-add-line" type="button">Add dialogue line</button>
           </fieldset>
@@ -69,6 +69,7 @@
             <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
             <div id="playable-area" aria-hidden="true"></div>
             <div id="markers"></div>
+            <svg id="spawn-links" aria-hidden="true"></svg>
             <div id="selection-box" aria-hidden="true" hidden></div>
           </div>
           <div class="timeline-controls">
@@ -80,8 +81,10 @@
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
           <fieldset id="inspector-access" class="access-fields">
-          <details id="brick-panel" class="brick-inspector" aria-label="Brick inspector">
-            <summary>Bricks &amp; surfaces</summary>
+          <p class="eyebrow">CATEGORY</p>
+          <div id="category-palette" class="visual-palette" role="group" aria-label="Category"></div>
+          <section id="brick-panel" class="brick-inspector" aria-label="Brick inspector" hidden>
+            <h2>Bricks &amp; surfaces</h2>
             <p id="brick-selection" class="editor-help">Select a boundary brick to change its cooldown type.</p>
             <div class="file-actions"><button id="combine-bricks" type="button" disabled>Combine</button><button id="split-bricks" type="button" disabled>Split</button></div>
             <div id="combine-owner-panel" hidden>
@@ -113,35 +116,38 @@
             <label>Portal color<select id="brick-portal-color" disabled><option value="red">Red</option><option value="orange">Orange</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="purple">Purple</option></select></label>
             <label>Activations until enabled<select id="brick-toggle-clicks" disabled><option value="1">1 · Red switch</option><option value="2">2 · Green switch</option><option value="4">4 · Blue switch</option></select></label>
             <label>Spawning item<select id="brick-spawn-item" disabled></select></label>
+            <fieldset id="brick-spawn-position" disabled>
+              <legend>Spawn location</legend>
+              <label><input id="brick-spawn-fixed" type="checkbox"> Use a specific location</label>
+              <div class="input-pair"><label>X (%)<input id="brick-spawn-x" type="number" min="0" max="100" step="any" value="50"></label><label>Y (%)<input id="brick-spawn-y" type="number" min="0" max="100" step="any" value="50"></label></div>
+              <button id="connect-spawn" type="button" aria-pressed="false">Connect placed object</button>
+              <p class="editor-help">Select one spawning brick, choose Connect, then click a placed object. It becomes a spawn-only template, keeping its type, position and attributes instead of appearing on its old schedule. Fixed-location templates can be dragged in the play area. Uncheck specific location for random spawning. Boundary enemies snap to the nearest edge.</p>
+            </fieldset>
             <label>Spawned object lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" placeholder="Until level ends" disabled></label>
             <label>Spawned enemy shield<select id="brick-spawn-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <fieldset id="brick-spawn-obstruction" hidden disabled>
-              <legend>Obstruction texture</legend>
+              <legend>Obstruction</legend>
+              <div class="input-pair"><label>Width (board units)<input id="brick-spawn-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="brick-spawn-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
+              <label><input id="brick-spawn-destructible" type="checkbox"> Destructible by fireball turrets</label>
               <label>Base color<input id="brick-spawn-color" type="color" value="#718596"></label>
               <label>Pattern<select id="brick-spawn-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
               <label>Pattern color<input id="brick-spawn-patternColor" type="color" value="#dbe6ed"></label>
             </fieldset>
             <label>Turret type<select id="brick-turret-type" disabled><option value="fireball">Fireball</option><option value="laser">Laser</option></select></label>
-            <details class="inspector-help"><summary>Mechanics &amp; reset</summary>
-              <p class="editor-help">Changes apply immediately to selected bricks. Contact surfaces replace one another; modifiers can combine with any surface. Crumbler counts selections; Warped absorbs neighbors temporarily. Slime holds Koshi; Springs reflect him; Spikes hurt; Conveyor carries; Boost launches from rest at double speed. Turrets protect Koshi while he aims and fires three shots, then return him to play after 10 seconds.</p>
-              <p class="editor-help">Set portals one brick at a time or in groups. Each used color must have exactly two bricks before playtest or export. Warnings do not prevent editing or saving drafts. Recoloring or removing an endpoint does not change its partner.</p>
-              <p class="editor-help">Toggles start disabled: red 1, green 2, blue 4. Every successful activation counts, including the Toggle itself. At zero it enables; the next activation resets it. Failed clicks do not count.</p>
-              <p class="editor-help">Spawners glow through dark rainbow colors until physical contact spawns one item, then turn dark grey. Clicking alone does not spawn. Restart restores the charge.</p>
-              <button id="reset-brick-types" type="button">Reset brick types to preset</button>
-            </details>
-          </details>
-          <details id="event-panel" open>
-            <summary>Objects &amp; timing</summary>
+          </section>
+          <section id="event-panel" aria-label="Objects and timing">
           <p class="eyebrow" id="inspector-heading">NEW PLACEMENT</p>
           <form id="event-form">
-            <label>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option><option value="item">Item</option><option value="object">Object</option></select></label>
+            <label hidden>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option><option value="item">Item</option><option value="object">Object</option></select></label>
             <label>Object <select id="event-type"></select></label>
             <fieldset id="event-obstruction" hidden disabled>
-              <legend>Obstruction texture</legend>
+              <legend>Obstruction</legend>
+              <div class="input-pair"><label>Width (board units)<input id="event-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="event-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
+              <label class="inline-label"><input id="event-destructible" type="checkbox"> Destructible by fireball turrets</label>
               <label>Base color<input id="event-color" type="color" value="#718596"></label>
               <label>Pattern<select id="event-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
               <label>Pattern color<input id="event-patternColor" type="color" value="#dbe6ed"></label>
-              <p class="editor-help">Obstructions are fixed solids. Circles and diamonds come in normal and double-size versions; long rectangles also come in horizontal and vertical versions. Koshi slides or sticks against them without changing his intended direction or speed. Choose from 100 shared color presets or use the color inputs for custom colors. Colors and patterns do not affect collisions.</p>
+              <p class="editor-help">Each shape choice starts at its fixed default size. Resize in board units, or select a placed obstruction and drag a corner or side of its bounding rectangle. Blank dimensions restore defaults. Circles and diamonds stay square; rectangles allow independent width and height. Appearing obstructions destroy overlapping objects and enemies; Koshi loses all hearts if caught inside. Destructible obstructions carry an item-sized TNT sign and crumble when any part touches a fireball turret's blast. Colors and patterns do not affect collisions.</p>
             </fieldset>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <div class="input-pair">
@@ -160,7 +166,7 @@
           </form>
           <p class="editor-help">Lifetimes start when an object appears. Leave item and weapon lifetimes blank to keep them until the level ends. This does not change an equipped sword's attacks or a collected power-up's duration. Food still requires a lifetime. Soccer balls are neutral, persistent kickable objects, not pickups; they have no lifetime or shield. Place Goal bricks to score.</p>
           <div class="inspector-actions"><button id="new-event">New event</button><button id="duplicate-event" disabled>Duplicate</button><button id="delete-event" disabled>Delete</button></div>
-          </details>
+          </section>
           </fieldset>
         </section>
       </div>

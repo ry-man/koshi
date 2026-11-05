@@ -20,13 +20,12 @@ test('all campaign scenes validate and every story character speaks', () => {
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character =>
-    !['goalie', 'robo-koshi', 'robo-snail', 'robo-cow', 'robo-unicorn'].includes(character)).sort());
-  assert.ok(!speakers.has('goalie'), 'custom-only goalie does not change campaign scenes');
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => character !== 'robo-koshi').sort());
   assert.ok(!speakers.has('robo-koshi'), 'custom-only Robo Koshi does not change campaign scenes');
-  assert.ok(!speakers.has('robo-snail'), 'custom-only Robo Snail does not change campaign scenes');
-  assert.ok(!speakers.has('robo-cow'), 'custom-only Robo Cow does not change campaign scenes');
-  assert.ok(!speakers.has('robo-unicorn'), 'custom-only Robo Unicorn does not change campaign scenes');
+  const earlierSpeakers = new Set(LEVELS.filter(level => level.worldId !== '3').flatMap(level => level.cutscene.lines.map(line => line.speaker)));
+  for (const character of ['goalie', 'robo-snail', 'robo-cow', 'robo-unicorn']) {
+    assert.ok(!earlierSpeakers.has(character), 'World 3 enemies do not change earlier campaign scenes');
+  }
   const originalSpeakers = new Set(LEVELS.slice(0, 19).flatMap(level => level.cutscene.lines.map(line => line.speaker)));
   for (const character of ['ball', 'jackolantern', 'snake']) assert.ok(!originalSpeakers.has(character), 'new actors do not change original campaign scenes');
 });

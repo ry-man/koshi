@@ -48,7 +48,7 @@ test('all nine brushes support editor placements, spawners, lifetimes, guide pic
     assert.equal(item.paintUses, { pencil: 1, wide: 3, roller: 5 }[item.brush]);
   }
   assert.equal(symbols.size, 3);
-  for (const campaign of LEVELS) {
+  for (const campaign of LEVELS.filter(level => level.worldId !== '3')) {
     assert.ok(!(campaign.items ?? []).some(([, type]) => ITEMS[type]?.paintUses));
     assert.ok(!(campaign.events ?? []).some(event => ITEMS[event.type]?.paintUses));
     assert.ok(!campaign.brickTypes.some(brick => ITEMS[brick.spawner?.type]?.paintUses));

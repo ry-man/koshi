@@ -279,7 +279,9 @@ class WorldMap {
         const shape = document.createElementNS(ns, 'path');
         shape.setAttribute('d', node.theme === 'garden'
           ? 'M24 36V18 M24 26C2 28 4 6 4 6S26 5 24 26 M24 19C43 21 44 2 44 2S22 0 24 19'
-          : 'M15 4H33V10H39V16H45V26H39V32H33V38H15V32H9V26H3V16H9V10H15Z M24 13A8 8 0 1 0 24 29A8 8 0 1 0 24 13');
+          : node.theme === 'foundry'
+            ? 'M22 2H26V10H38V36H10V10H22Z M16 16V24H22V16Z M26 16V24H32V16Z M17 28V31H31V28Z'
+            : 'M15 4H33V10H39V16H45V26H39V32H33V38H15V32H9V26H3V16H9V10H15Z M24 13A8 8 0 1 0 24 29A8 8 0 1 0 24 13');
         shape.setAttribute('fill-rule', 'evenodd');
         emblem.append(shape); button.prepend(emblem);
         const subtitle = document.createElement('small'); subtitle.textContent = node.subtitle; button.append(subtitle);

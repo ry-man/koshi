@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Game } = require('../src/game.js');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 
 const custom = events => ({
   version: 1, id: 'Spawn preview', duration: 30, goal: 1000, heartCost: null, brickSet: 1, events,
@@ -95,6 +98,93 @@ test('custom previews begin exactly one second before spawning and reserve exact
   }
 });
 
+test('obstructions warn for two seconds with exact shape geometry without changing scheduled appearance times', () => {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-horizontal']) {
+    const events = [
+      { time: 3, kind: 'object', type, x: .5, y: .5, width: 160, height: type.includes('rectangle') ? 60 : 160 },
+      ...placements(3),
+    ];
+    const game = new Game(() => .3, { customLevel: custom(events) });
+    game.start(); game.update(.99);
+    assert.equal(game.spawnCues.length, 0);
+    game.update(.01);
+    assert.equal(game.spawnCues.length, 1);
+    const cue = game.spawnCues[0];
+    assert.equal(cue.progress, 0);
+    assert.equal(cue.obstruction.type, type);
+    assert.equal(cue.obstruction.width, 160);
+    game.update(1);
+    assert.equal(game.spawnCues.length, 5);
+    assert.ok(Math.abs(game.spawnCues.find(cue => cue.obstruction).progress - .5) < 1e-8);
+    assert.equal(game.obstructions.length, 0);
+    game.pause(); game.update(2);
+    assert.ok(Math.abs(game.spawnCues.find(cue => cue.obstruction).progress - .5) < 1e-8);
+    game.resume(); game.update(1);
+    assert.equal(game.obstructions.length, 1);
+    assert.equal(game.spawnCues.length, 0);
+    assert.ok(Math.abs(game.elapsed - 3) < 1e-8);
+  }
+});
+
+test('obstruction spawners reserve a position and wait two seconds before becoming solid', () => {
+  const game = new Game(() => .5, { customLevel: custom([]) });
+  game.start();
+  const brick = game.bricks[0];
+  brick.spawner = { kind: 'object', type: 'obstruction-diamond', width: 200, height: 200 };
+  game.spawnFromBrick(brick);
+  assert.equal(game.obstructions.length, 0);
+  const cue = game.spawnCues[0];
+  assert.equal(cue.obstruction.width, 200);
+  game.update(1.99);
+  assert.equal(game.obstructions.length, 0);
+  game.update(.01);
+  assert.equal(game.obstructions.length, 1);
+  assert.deepEqual(point(game.obstructions[0]), point(cue));
+  assert.equal(game.spawnCues.length, 0);
+  assert.equal(game.pendingSpawns.size, 0);
+});
+
+test('obstruction warnings trace the actual dotted shape while retaining the twinkling star', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-horizontal']) {
+    const calls = [], stack = [], gradient = { addColorStop() {} };
+    const ctx = new Proxy({ globalAlpha: 1 }, {
+      get(target, name) {
+        if (name in target) return target[name];
+        if (name === 'save') return () => stack.push({ ...target });
+        if (name === 'restore') return () => Object.assign(target, stack.pop());
+        if (name === 'createRadialGradient') return () => gradient;
+        return (...args) => calls.push([name, ...args]);
+      },
+    });
+    const context = vm.createContext({ ctx, KoshiGame: require('../src/game.js') });
+    vm.runInContext(source.slice(source.indexOf('function drawSpawnCue('), source.indexOf('function drawSword(')), context);
+    context.drawSpawnCue({ kind: 'object', x: 100, y: 200, progress: .5, obstruction: { type, width: 160, height: type.includes('rectangle') ? 60 : 160 } });
+    assert.ok(calls.some(([name, dash]) => name === 'setLineDash' && String(dash) === '3,5'));
+    if (type.includes('circle')) assert.ok(calls.some(([name, x, y, radius]) => name === 'arc' && radius === 80));
+    else if (type.includes('rectangle')) assert.ok(calls.some(call => JSON.stringify(call) === JSON.stringify(['rect', -80, -30, 160, 60])));
+    else for (const [x, y] of [[80, 0], [0, 80], [-80, 0]]) {
+      assert.ok(calls.some(call => JSON.stringify(call) === JSON.stringify(['lineTo', x, y])));
+    }
+    assert.ok(calls.some(([name]) => name === 'stroke'));
+    assert.ok(calls.some(([name]) => name === 'fill'), 'the star still twinkles');
+    assert.equal(stack.length, 0);
+  }
+});
+
+test('early obstruction warnings are shortened and time-zero solids remain immediate', () => {
+  for (const time of [0, .5]) {
+    const game = new Game(() => .5, { customLevel: custom([{ time, kind: 'object', type: 'obstruction-circle', x: .2, y: .2 }]) });
+    game.start();
+    if (time) {
+      assert.ok(Math.abs(game.spawnCues[0].progress - .75) < 1e-8);
+      assert.equal(game.obstructions.length, 0);
+      game.update(time);
+    }
+    assert.equal(game.obstructions.length, 1);
+    assert.equal(game.spawnCues.length, 0);
+  }
+});
 test('every random food pattern, enemy in a wave, and sword uses its reserved preview location once', () => {
   for (const options of [{}, { portrait: true, scale: .5 }]) {
     let calls = 0;

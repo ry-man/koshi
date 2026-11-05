@@ -11,8 +11,9 @@ The game opens on a title screen with original artwork of a heroic, sword-wieldi
 Worlds group levels and may contain different numbers of levels. The demonstration
 splits the existing campaign into **World 1: Garden Path** (10 levels, 1-1 to 1-10)
 and **World 2: Clockwork Pantry** (24 levels, 2-1 to 2-24), without changing any
-layouts, objectives, schedules or dialogue. Each world carries a graphical theme,
-shown through map colors and leaf/gear emblems; additional gameplay theming can
+layouts, objectives, schedules or dialogue. **World 3: Robot Foundry** (13 levels,
+3-1 to 3-13) follows them. Each world carries a graphical theme,
+shown through map colors and leaf/gear/robot-head emblems; additional gameplay theming can
 be added later.
 
 The high-level map groups each world into a single clickable stop. Koshi's
@@ -210,8 +211,9 @@ gameplay, pausing a normal attempt or discarding tutorial practice.
 
 Any level may define an optional cutscene before gameplay. The top two-thirds
 of the screen show the cast interacting against a background matching the
-level's world: a garden path for Levels 1-1 through 1-10 and the Clockwork Pantry
-workshop for Levels 2-1 through 2-24. The bottom third is a retro RPG dialogue box,
+level's world: a garden path for Levels 1-1 through 1-10, the Clockwork Pantry
+workshop for Levels 2-1 through 2-24, and the smoky Robot Foundry, with chimneys
+and gears, for Levels 3-1 through 3-13. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
 dialogue in the locally bundled Space Grotesk font on the right. Speaker names,
 scene headings, and controls use the same clear, rounded font.
@@ -645,7 +647,7 @@ Koshi dies if he either runs out of hearts or if he runs off of the edge of the 
 
 ### Campaign: The food rescue
 
-The old five levels were replaced by 19 lessons, now extended to 34. The complete level names,
+The old five levels were replaced by 19 lessons, then extended to 34 and now 47. The complete level names,
 concept order, durations, and victory targets are listed in the
 [campaign table](./README.md#how-to-play-and-interactive-tutorial).
 Food-only, enemy-only, combined, and survival missions all use the same engine rules.
@@ -750,3 +752,31 @@ blue appear later. Charges must be collected before the helmet reaches zero.
 Campaign progress uses a new save key; old five-level saves remain untouched
 and cannot skip these new lessons. Existing 19-level saves retain all their
 completed levels and resume at 2-10, using the same current save key.
+
+### World 3: Robot Foundry
+
+Tom the Duck opens World 3 in Level 3-1 by revealing himself as the master of the
+Robot Foundry, where every robot is built. Koshi vows to shut the factory down,
+save the world, and taste every snack along the way. Each level introduces one
+concept in this order: Robo Goalies, Paintbrushes, Kitty Cape, Laser Turret,
+Obstructions, Robo Snail, Bumpers, Bubbles, Fireball Turret, destructible
+Obstructions, appearing Obstructions, Robo Cows, and Robo Unicorns. Every
+cutscene explains its new concept within that story and shows only Koshi, Tom,
+and robots that are both already introduced and present in that level.
+
+- 3-1 requires 5 soccer goals; Robo Goalies spawn before the first ball.
+- 3-2 delivers blue (Slow) brushes first and red (Fast) brushes later.
+- 3-4 has 26 robots, Laser Turrets and four Batteries.
+- 3-10 has exactly one Fireball Turret, two Batteries, and two TNT obstructions.
+- 3-11 is the first level whose obstructions appear during play.
+- 3-12 supplies one wood sword; three Boost bricks earn its enemy target.
+- 3-13 has a food target, spawns unicorns before food, and adds Eggplants.
+
+Objectives vary among food, enemy and soccer-goal targets (alone or combined) and
+survival. Each layout has 21 starting blocks: three doubles (14%), one triple (5%)
+and 17 standard blocks, with slow and fast steering bricks mixed in. Shields are
+rare: nine red, two green and one blue shielded spawn across the world. Heart
+cost is `ceil(total possible food points / 5)`, so at most five hearts appear.
+Each level reuses one to four earlier brick types and one or two earlier items
+or objects. Placed food, weapons and items stay clear of the obstruction spots
+in desktop and portrait play.
