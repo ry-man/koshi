@@ -22,7 +22,7 @@ test('Robo Snail is available in custom placements and the editor, not in campai
     { time: 0, kind: 'enemy', type: 'robo-snail', x: .9, y: .9 },
   ]));
   assert.equal(custom.events[0].type, 'robo-snail');
-  assert.ok(LEVELS.filter(level => level.worldId !== '3').every(campaign => !campaign.enemies.some(([, type]) => type === 'robo-snail')));
+  assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(campaign => !campaign.enemies.some(([, type]) => type === 'robo-snail')));
 
   const editor = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   assert.match(editor, /\['robo-snail', 'Robo Snail'\]/);

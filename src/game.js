@@ -74,6 +74,13 @@ function needsBrickSpawnClearance(type) {
   return type === 'ditto-stamp' || type === 'saw-blade' || Boolean(ITEMS[type]?.paintUses);
 }
 const SOCCER_FRICTION = 100;
+// Minimum distance between randomly placed pickups (food, weapons, items and hearts).
+const SPAWN_SPACING = 80;
+function nearestGap(point, others) {
+  let gap = Infinity;
+  for (const other of others) gap = Math.min(gap, Math.hypot(point.x - other.x, point.y - other.y));
+  return gap;
+}
 const GOALIE_SPEED = 67.5;
 const GOALIE_MAX_SPEED = 135;
 const TURRET_DURATION = 10;
@@ -900,6 +907,20 @@ const FOUNDRY_LEVELS = [
       ['koshi', 'A Smiley Cookie pulls every snack on the board straight to me. Dessert first, then I save the world!'],
     ],
   },
+  {
+    name: 'Copycat showdown', concept: 'robo koshi', duration: 110, goal: 30, killGoal: 4, layout: 'y',
+    enemies: [[3,'robo-koshi',1],[10,'mouse',3],[25,'wheel',2],[40,'robo-koshi',1],[55,'mouse',1,'red'],[70,'ram',2],[85,'robo-koshi',1]],
+    weapons: [[16,'bronze'],[50,'silver'],[80,'bronze']],
+    bricks: [[3,{ portal: 'orange' }],[18,{ portal: 'orange' }],[13,{ springs: true }]],
+    items: [[20,'kitty-cape'],[45,'music-box'],[65,'kitty-cape']],
+    dialogue: [
+      ['tom', 'You wrecked my whole foundry, Koshi! So I built my ultimate robot... a perfect copy of YOU!'],
+      ['robo-koshi', 'Beep. I am Robo Koshi. One second after I arrive, I race to where you stood and then follow your exact path, a few seconds behind you. Touch me and you get hurt!'],
+      ['koshi', 'A copycat that chases my own trail? Then I must never double back. Portals and Springs will send me somewhere new, and a Kitty Cape will pull me far ahead.'],
+      ['tom', 'Collect 30 food points and earn 4 enemy points while your shadow hunts you down. Quack!'],
+      ['koshi', 'A sword works on copies too. Once this foundry falls, the whole world gets a feast, and I get first helpings!'],
+    ],
+  },
 ].map((entry, offset) => {
   const index = LEVELS.length + offset;
   const groups = FOUNDRY_LAYOUTS[entry.layout];
@@ -929,6 +950,287 @@ const FOUNDRY_LEVELS = [
   };
 });
 LEVELS.push(...FOUNDRY_LEVELS);
+
+// World 3S (Tom's Gauntlet) is an optional challenge branch from World 2. Each level declares its own
+// brick groups and slow/fast colors; static objects sit on QUADRANTS so placed spawns stay reachable.
+const CHALLENGE_SPOTS = [[.5, .2], [.85, .5], [.5, .8], [.15, .5], [.5, .35], [.5, .65]];
+const SOCCER_SPOTS = [[.35, .35], [.65, .65], [.65, .35], [.35, .65], [.5, .25], [.5, .75], [.3, .5], [.7, .5]];
+const spread = (kind, entries, start = 0) => placed(kind, entries.map(([time, type], i) =>
+  [time, type, ...CHALLENGE_SPOTS[(i + start) % CHALLENGE_SPOTS.length]]));
+const soccerBalls = times => placed('object', times.map((time, i) => [time, 'soccer-ball', ...SOCCER_SPOTS[i % SOCCER_SPOTS.length]]));
+const atQuadrants = entries => placed('object', entries.map(([time, type, quadrant, extra]) => [time, type, ...QUADRANTS[quadrant], extra]));
+const CHALLENGE_LEVELS = [
+  {
+    name: 'Goalie gauntlet', concept: 'goalie gauntlet', duration: 150, goalsGoal: 6,
+    groups: [[18, 16, 14], [15, 17], [2, 4], [7, 5], [10, 0]],
+    kinds: { 24: 'slow', 7: 'slow', 23: 'slow', 2: 'fast', 12: 'fast', 21: 'fast' },
+    bricks: [[18,{ kind: 'goal' }],[15,{ kind: 'goal' }],[10,{ springs: true }],[2,{ conveyor: true, conveyorDirection: 'clockwise' }],[23,{ crumbler: 3 }]],
+    enemies: [[1,'goalie',2],[3,'robo-cow',1],[12,'mouse',3],[30,'goalie',1,'red'],[45,'robo-cow',1],[60,'mouse',3],
+      [80,'goalie',1],[95,'robo-cow',1,'green'],[110,'mouse',2]],
+    events: [
+      ...atQuadrants([[0,'bumper-red',1],[0,'bumper-blue',2]]),
+      ...soccerBalls([6, 20, 34, 48, 62, 76, 90, 104, 118]),
+      ...placedFood(150),
+      ...spread('weapon', [[20,'bronze'],[45,'wood'],[70,'silver'],[95,'silver'],[115,'bronze']]),
+      ...spread('item', [[35,'kitty-cape'],[90,'kitty-cape']], 3),
+    ],
+    dialogue: [
+      ['tom', 'Quack! So you found my secret Gauntlet. I am Tom the Duck, ruler of every robot in the world, and no cat has ever left here with a single snack!'],
+      ['koshi', 'Your robots have been stealing food all over the world. I took the hard road to stop you, so bring on your toughest machines!'],
+      ['goalie', 'Robo Goalies guard both goal mouths, and Robo Cows graze the edges, turning bricks into cinder. Goal bricks never burn, so we defend forever!'],
+      ['koshi', 'The red Bumper flings balls faster and the blue one slows them. I will bank shots off them, score 6 goals, then grab a hamburger!'],
+    ],
+  },
+  {
+    name: 'Unicorn smorgasbord', concept: 'unicorn buffet', duration: 110, goal: 60,
+    groups: [[22, 20], [0, 2, 4], [13, 15], [9, 7], [3, 1]],
+    kinds: { 22: 'slow', 14: 'slow', 9: 'slow', 0: 'fast', 17: 'fast', 3: 'fast' },
+    bricks: [[12,{ spawner: { kind: 'food', type: 'H', lifetime: 20 } }],[0,{ portal: 'blue' }],[19,{ portal: 'blue' }],[9,{ warped: 8 }],
+      [24,{ slimed: true, slimeColor: 'green' }]],
+    enemies: [[1,'robo-unicorn',1],[2,'snake',1],[15,'ball',2],[35,'robo-unicorn',1,'red'],[55,'ball',1],[70,'robo-unicorn',1],[85,'snake',1,'green']],
+    food: [[3,'L3','P',18],[9,'C3','B',18],[15,'L3','C',18],[21,'R3','L',18],[27,'L3','F',18],[33,'S','H',12],[42,'C3','C',18],
+      [51,'L3','L',18],[60,'R3','B',18],[69,'C3','F',18],[78,'L3','C',18],[87,'S','H',12],[94,'C3','L',15]],
+    weapons: [[10,'bronze'],[30,'wood'],[50,'silver'],[75,'bronze'],[95,'silver']],
+    items: [[8,'eggplant'],[22,'smiley-cookie'],[40,'eggplant'],[60,'stopwatch'],[75,'eggplant'],[95,'smiley-cookie']],
+    dialogue: [
+      ['tom', 'Welcome to my secret buffet, Koshi! My Robo Unicorns have fasted all week, and my Robo Snakes slither between the tables.'],
+      ['robo-unicorn', 'I aim at the nearest snack, then charge and gobble it up. The snakes block your path, and Eggplants spoil your plate by 10 food points!'],
+      ['koshi', 'Blue Portals zip me across the hall, and the Spawner brick serves a fresh hamburger. A Smiley Cookie pulls every snack to me before the unicorns bite.'],
+      ['tom', 'Sixty food points, kitty, and Warped bricks will scramble your routes. Bon appetit... quack!'],
+    ],
+  },
+  {
+    name: 'Laser lockdown', concept: 'turret crossfire', duration: 130, killGoal: 22,
+    groups: [[16, 14, 12, 10], [8, 11], [19, 21], [5, 3]],
+    kinds: { 16: 'slow', 13: 'slow', 22: 'slow', 6: 'fast', 23: 'fast', 1: 'fast' },
+    bricks: [[16,{ turret: 'laser' }],[8,{ turret: 'fireball' }],[19,{ turret: 'laser' }],[2,{ toggle: 2 }],[25,{ spikes: true }],[5,{ toggle: 1 }]],
+    enemies: [[1,'robo-snail',1],[3,'mouse',4],[10,'bucket',2],[20,'ram',3],[32,'mouse',4],[44,'robo-snail',1],[52,'ram',2,'red'],
+      [64,'bucket',2],[76,'mouse',4],[88,'ram',2],[100,'bucket',1,'green'],[110,'mouse',3]],
+    weapons: [[8,'wood'],[24,'bronze'],[50,'silver'],[80,'bronze'],[105,'bronze']],
+    items: [[15,'battery'],[40,'music-box'],[60,'battery'],[90,'battery']],
+    dialogue: [
+      ['tom', 'This is my locked armory! Robo Snails, Mice, Buckets and Rams will flood in while my Toggle switches keep you guessing.'],
+      ['robo-snail', 'Defeat me and every brick cooldown freezes for 20 seconds. Spikes wait on the bottom wall, and Toggles only wake after enough selections!'],
+      ['koshi', 'Two Laser Turrets and a Fireball Turret are built into the walls. Each fires once until a Battery recharges it, so I will only shoot into a crowd.'],
+      ['tom', 'Earn 22 enemy points before the clock runs out. A Music Box will not save you forever!'],
+    ],
+  },
+  {
+    name: 'Bubble bend-it', concept: 'bubble bank shots', duration: 140, goal: 30, goalsGoal: 4,
+    groups: [[2, 4, 6], [24, 22], [17, 19], [7, 5]],
+    kinds: { 24: 'fast', 13: 'fast', 0: 'fast', 17: 'slow', 9: 'slow', 12: 'slow' },
+    bricks: [[2,{ kind: 'goal' }],[24,{ boost: true }],[17,{ slimed: true, slimeColor: 'red' }],[7,{ warped: 10 }],[3,{ barrier: true }]],
+    enemies: [[1,'jackolantern',1],[4,'wheel',2],[20,'mouse',3],[40,'jackolantern',1,'red'],[60,'wheel',2],[80,'mouse',3],[100,'jackolantern',1]],
+    events: [
+      ...atQuadrants([[0,'bumper-green',0],[0,'bumper-red',3],[0,'bubble-green',1],[20,'bubble-blue',2],[45,'bubble-red',1],
+        [70,'bubble-green',2],[100,'bubble-blue',1]]),
+      ...soccerBalls([6, 22, 38, 54, 70, 86, 102]),
+      ...placedFood(140),
+      ...spread('weapon', [[15,'bronze'],[35,'wood'],[60,'silver'],[85,'silver'],[105,'bronze']]),
+      ...spread('item', [[30,'kitty-cape'],[85,'kitty-cape']], 2),
+    ],
+    dialogue: [
+      ['tom', 'Bubbles drift beside my goal and Bumpers guard the corners. My Robo Jackolanterns and Wheels will make sure you never score!'],
+      ['jackolantern', 'I stomp every 4 seconds, and a square ring of fire grows from each stomp. Get stuck in a Bubble and you cannot dodge it!'],
+      ['koshi', 'A Barrier fence on the left wall stops their fire but lets me through. A Boost brick and a Kitty Cape help me score 4 goals on the side wall and gather 30 food points too.'],
+      ['tom', 'Red Slime holds you for a second. Warped bricks grow and shrink. Every second counts, quack!'],
+    ],
+  },
+  {
+    name: 'Copycat penalty kicks', concept: 'copycat penalties', duration: 130, killGoal: 8, goalsGoal: 4,
+    groups: [[20, 18], [12, 10], [11, 13], [23, 25], [5, 3, 1]],
+    kinds: { 22: 'slow', 23: 'slow', 4: 'slow', 12: 'fast', 5: 'fast', 15: 'fast' },
+    bricks: [[20,{ kind: 'goal' }],[11,{ kind: 'goal' }],[12,{ portal: 'green' }],[23,{ portal: 'green' }],[5,{ crumbler: 3 }],[6,{ spikes: true }]],
+    enemies: [[1,'goalie',2],[3,'robo-koshi',1],[14,'mouse',3],[28,'goalie',1],[40,'robo-koshi',1,'red'],[55,'mouse',3],[70,'wheel',2],
+      [85,'robo-koshi',1],[100,'mouse',2]],
+    weapons: [[16,'bronze'],[30,'wood'],[45,'silver'],[70,'silver'],[90,'bronze'],[110,'bronze']],
+    items: [[25,'spooky-mask'],[35,'ditto-stamp'],[75,'spooky-mask']],
+    events: soccerBalls([5, 20, 35, 50, 65, 80, 95]),
+    dialogue: [
+      ['tom', 'Penalty time! Two goal mouths, Robo Goalies in both, and my Robo Koshi copying every step you take.'],
+      ['robo-koshi', 'Beep. I follow your exact path a few seconds behind you. Chase a ball, double back, and you run straight into me.'],
+      ['koshi', 'Green Portals let me shoot from the far side. A Spooky Mask scares robots away, and a Ditto Stamp copies a brick, like a portal, onto another.'],
+      ['tom', 'Score 4 goals AND earn 8 enemy points. My goalies never get tired, quack!'],
+    ],
+  },
+  {
+    name: 'Cinder stampede', concept: 'cinder stampede', duration: 120, goal: 35, killGoal: 8,
+    groups: [[24, 22, 20], [0, 2], [15, 17], [21, 23], [9, 7]],
+    kinds: { 24: 'slow', 0: 'slow', 13: 'slow', 18: 'fast', 4: 'fast', 21: 'fast', 3: 'fast' },
+    bricks: [[14,{ boost: true }],[21,{ boost: true }],[0,{ barrier: true }],[9,{ barrier: true }],[16,{ crumbler: 3 }],[5,{ springs: true }]],
+    enemies: [[1,'robo-cow',2],[6,'mouse',3],[18,'bucket',1],[30,'robo-cow',1],[42,'mouse',3],[55,'bucket',1,'red'],[68,'robo-cow',1,'green'],
+      [80,'mouse',3],[95,'bucket',1]],
+    weapons: [[20,'wood'],[40,'wood'],[60,'bronze'],[85,'bronze']],
+    items: [[12,'saw-blade'],[30,'paint-roller-red'],[70,'paint-wide-red']],
+    dialogue: [
+      ['tom', 'Stampede! My Robo Cows will chew your Boost bricks into cinder while my mice and Buckets keep you busy.'],
+      ['robo-cow', 'Moo. We eat the brick beneath our hooves until it turns to Cinder. Barrier fences turn us around, and a Saw Blade makes cinder even faster!'],
+      ['koshi', 'Only wood and bronze swords this time, so my two Boost bricks must do the heavy lifting. Red Paint will turn my favorite bricks Fast again.'],
+      ['tom', 'Earn 8 enemy points and 35 food points before my herd finishes lunch!'],
+    ],
+  },
+  {
+    name: 'Obstacle cup', concept: 'obstacle course', duration: 140, goalsGoal: 5,
+    groups: [[14, 12], [4, 6, 8], [19, 21], [25, 9]],
+    kinds: { 14: 'slow', 3: 'slow', 17: 'slow', 19: 'fast', 0: 'fast', 24: 'fast' },
+    bricks: [[4,{ kind: 'goal' }],[25,{ turret: 'fireball' }],[19,{ toggle: 2 }],[1,{ conveyor: true, conveyorDirection: 'counterclockwise' }]],
+    enemies: [[1,'goalie',1],[2,'wheel',2],[10,'snake',1],[25,'goalie',1,'red'],[35,'wheel',2],[50,'snake',1],[70,'mouse',3],
+      [90,'goalie',1],[105,'wheel',2]],
+    events: [
+      ...atQuadrants([[0,'obstruction-diamond',0,{ destructible: true }],[0,'obstruction-circle',2],
+        [40,'obstruction-circle',1,{ destructible: true }],[75,'obstruction-diamond',3,{ destructible: true }]]),
+      ...soccerBalls([6, 20, 34, 48, 62, 76, 90, 104]),
+      ...placedFood(140),
+      ...spread('weapon', [[18,'bronze'],[40,'wood'],[65,'silver'],[90,'bronze'],[120,'silver']]),
+      ...spread('item', [[15,'battery'],[55,'battery'],[95,'battery']], 2),
+    ],
+    dialogue: [
+      ['tom', 'Welcome to the Obstacle Cup! Walls are bolted to my pitch, and my crane drops more mid-match. Robo Goalies and Wheels are warming up.'],
+      ['snake', 'Hsss. I slither along the inner perimeter, and only my head takes hits. Walls with a TNT sign break in a fireball blast.'],
+      ['koshi', 'The Fireball Turret clears those walls, and three Batteries will let me fire again. Then I need clean shots at the side goal.'],
+      ['tom', 'Score 5 goals, and watch for the twinkle before a wall lands on you. Quack!'],
+    ],
+  },
+  {
+    name: 'Boom helmet bakery', concept: 'boom bakery', duration: 120, goal: 50, activationLimit: 8,
+    groups: [[22, 20, 18], [2, 4], [17, 19], [7, 5], [23, 25]],
+    kinds: { 22: 'slow', 7: 'slow', 23: 'slow', 2: 'fast', 15: 'fast', 12: 'fast' },
+    bricks: [[16,{ conveyor: true, conveyorDirection: 'clockwise' }],[2,{ springs: true }],[17,{ warped: 8 }],[7,{ toggle: 4 }],
+      [12,{ spawner: { kind: 'food', type: 'L', lifetime: 20 } }]],
+    enemies: [[1,'robo-snail',1],[3,'ram',2],[15,'ball',2],[35,'robo-snail',1],[45,'ram',1,'red'],[60,'ball',2],[80,'ram',2],[95,'robo-snail',1]],
+    weapons: [[12,'bronze'],[35,'wood'],[60,'silver'],[85,'bronze'],[105,'silver']],
+    items: [[30,'magic-sunglasses'],[70,'magic-sunglasses']],
+    events: spread('item', [[4,'boom-time-blue'],[25,'boom-time-green'],[40,'boom-time-red'],[55,'boom-time-blue'],
+      [75,'boom-time-green'],[95,'boom-time-red']], 4),
+    dialogue: [
+      ['tom', 'My bakery runs on Boom Helmets! You start with only 8 charges, and every brick selection spends one. At zero... kaboom!'],
+      ['robo-snail', 'Defeat me and every cooldown freezes. Lucky for you, Magical Sunglasses let you select bricks while they recharge.'],
+      ['koshi', 'Boom Times add charges, and Conveyors and Springs carry me without a click. The Spawner brick bakes chicken legs too.'],
+      ['tom', 'Collect 50 food points while my Rams and Robo Balls crash through the ovens. Do not waste a click!'],
+    ],
+  },
+  {
+    name: 'Jackolantern junkyard', concept: 'fire and fences', duration: 120, killGoal: 14,
+    groups: [[18, 16], [0, 2, 4], [13, 15], [19, 21, 23], [3, 1]],
+    kinds: { 18: 'slow', 11: 'slow', 7: 'slow', 12: 'fast', 0: 'fast', 25: 'fast' },
+    bricks: [[18,{ spikes: true }],[0,{ portal: 'yellow' }],[19,{ portal: 'yellow' }],[7,{ slimed: true, slimeColor: 'blue' }],[10,{ barrier: true }],
+      [5,{ barrier: true }]],
+    enemies: [[1,'jackolantern',2],[5,'mouse',3],[18,'ball',2],[30,'jackolantern',1,'red'],[42,'mouse',3],[55,'ball',2],[68,'jackolantern',2],
+      [80,'mouse',3],[92,'ball',1,'blue'],[102,'jackolantern',1]],
+    events: [
+      ...atQuadrants([[0,'obstruction-diamond-large',0],[0,'obstruction-circle-large',3]]),
+      ...placedFood(120),
+      ...spread('weapon', [[14,'gold'],[30,'wood'],[50,'bronze'],[85,'silver'],[105,'bronze']]),
+      ...spread('item', [[25,'saw-blade'],[60,'stopwatch']], 3),
+    ],
+    dialogue: [
+      ['tom', 'My junkyard is piled with giant scrap. Robo Jackolanterns will fill every gap with fire while my mice and Robo Balls close in!'],
+      ['jackolantern', 'Each stomp sends a square ring of fire outward. Only bricks, Barrier fences and Obstructions stop the flames!'],
+      ['koshi', 'Then I will build fences, warp through Yellow Portals, and keep clear of the Blue Slime. A Gold Sword strikes everything for 15 seconds!'],
+      ['tom', 'Earn 14 enemy points. Watch for the Saw Blade, though. It turns bricks into cinder!'],
+    ],
+  },
+  {
+    name: 'Grand slam', concept: 'triple threat', duration: 150, goal: 30, killGoal: 6, goalsGoal: 3,
+    groups: [[24, 22], [12, 10], [2, 4], [15, 17, 19], [9, 7]],
+    kinds: { 12: 'slow', 21: 'slow', 3: 'slow', 24: 'fast', 6: 'fast', 9: 'fast' },
+    bricks: [[15,{ kind: 'goal' }],[2,{ spawner: { kind: 'weapon', type: 'bronze' } }],[24,{ springs: true }],
+      [9,{ conveyor: true, conveyorDirection: 'counterclockwise' }]],
+    enemies: [[1,'robo-unicorn',1],[2,'goalie',1],[8,'robo-koshi',1],[15,'mouse',3],[35,'robo-unicorn',1,'red'],[50,'mouse',3],[65,'goalie',1],
+      [80,'robo-koshi',1],[95,'mouse',3],[110,'robo-unicorn',1]],
+    events: [
+      ...atQuadrants([[0,'bubble-red',0],[30,'bubble-green',3],[60,'bubble-red',1],[90,'bubble-blue',2]]),
+      ...soccerBalls([5, 25, 45, 65, 85, 105]),
+      ...placedFood(150),
+      ...spread('weapon', [[18,'bronze'],[40,'wood'],[70,'silver'],[95,'silver'],[125,'bronze']]),
+      ...spread('item', [[25,'kitty-cape'],[45,'smiley-cookie'],[100,'kitty-cape']], 2),
+    ],
+    dialogue: [
+      ['tom', 'The Grand Slam! Food, robots AND goals. My Robo Unicorns eat, my Robo Goalies defend, and my Robo Koshi hunts you down.'],
+      ['robo-unicorn', 'Every snack on this board is mine. Red bubbles hold you for one second, blue ones for five!'],
+      ['koshi', 'The Weapon Spawner brick hands me a Bronze Sword. A Smiley Cookie pulls food out of the unicorns\' reach, and a Kitty Cape keeps me ahead of my copy.'],
+      ['tom', 'Score 3 goals, earn 6 enemy points and collect 30 food points. All three, kitty!'],
+    ],
+  },
+  {
+    name: 'Turret derby', concept: 'turret derby', duration: 140, killGoal: 12, goalsGoal: 4,
+    groups: [[20, 18, 16], [0, 2], [6, 8], [11, 13], [21, 23, 25]],
+    kinds: { 0: 'slow', 11: 'slow', 5: 'slow', 14: 'fast', 6: 'fast', 9: 'fast' },
+    bricks: [[20,{ kind: 'goal' }],[0,{ turret: 'laser' }],[21,{ turret: 'laser' }],[6,{ toggle: 2 }],[11,{ toggle: 1 }],
+      [7,{ slimed: true, slimeColor: 'green' }]],
+    enemies: [[1,'robo-cow',1],[2,'goalie',2],[6,'mouse',4],[18,'ram',2],[30,'robo-cow',1,'red'],[42,'mouse',4],[55,'ram',2],
+      [70,'goalie',1,'green'],[80,'mouse',4],[95,'robo-cow',1],[105,'ram',2]],
+    events: [
+      ...atQuadrants([[0,'bumper-red',2],[0,'bumper-blue',3]]),
+      ...soccerBalls([5, 20, 35, 50, 65, 80, 95]),
+      ...placedFood(140),
+      ...spread('weapon', [[8,'wood'],[20,'bronze'],[45,'silver'],[75,'bronze'],[100,'silver'],[120,'bronze']]),
+      ...spread('item', [[12,'battery'],[40,'spooky-mask'],[60,'battery'],[100,'battery']], 1),
+    ],
+    dialogue: [
+      ['tom', 'Welcome to the derby! My Robo Cows graze the walls, my Robo Goalies guard the top goal, and my mice and rams swarm the pitch.'],
+      ['robo-cow', 'Moo. Those Laser Turret bricks look tasty. Once I chew one into cinder, it never fires again!'],
+      ['koshi', 'Then I fire before they arrive. Lasers blast robots in a line, and Batteries recharge them. The Toggle bricks need a few selections first.'],
+      ['tom', 'Score 4 goals and earn 12 enemy points. Bumpers bounce the balls everywhere, quack quack!'],
+    ],
+  },
+  {
+    name: 'The duck\'s last stand', concept: 'last stand', duration: 160, goal: 40, goalsGoal: 4,
+    groups: [[22, 20], [14, 12, 10, 0], [4, 6], [13, 15, 17], [25, 9], [3, 1]],
+    kinds: { 14: 'slow', 8: 'slow', 25: 'slow', 22: 'fast', 2: 'fast', 21: 'fast', 5: 'fast' },
+    bricks: [[13,{ kind: 'goal' }],[14,{ boost: true }],[4,{ portal: 'red' }],[25,{ portal: 'red' }],[19,{ spikes: true }],
+      [3,{ conveyor: true, conveyorDirection: 'clockwise' }],[16,{ barrier: true }]],
+    enemies: [[1,'robo-koshi',1],[2,'robo-unicorn',1],[6,'jackolantern',1],[20,'robo-koshi',1],[35,'robo-unicorn',1,'green'],
+      [50,'jackolantern',1,'red'],[65,'robo-koshi',1],[85,'robo-unicorn',1],[100,'jackolantern',1],[120,'robo-koshi',1,'red']],
+    events: [
+      ...atQuadrants([[0,'bubble-blue',0],[30,'obstruction-circle',1],[60,'bubble-red',0],[70,'obstruction-diamond',3],
+        [110,'obstruction-circle',2]]),
+      ...soccerBalls([5, 22, 39, 56, 73, 90, 107, 124]),
+      ...placedFood(160),
+      ...spread('weapon', [[15,'bronze'],[35,'wood'],[55,'silver'],[80,'silver'],[100,'bronze'],[130,'bronze']]),
+      ...spread('item', [[10,'eggplant'],[25,'kitty-cape'],[40,'magic-sunglasses'],[60,'eggplant'],[90,'kitty-cape'],[115,'eggplant']], 3),
+    ],
+    dialogue: [
+      ['tom', 'Enough! This is my last stand. My Robo Koshi, Robo Unicorns and Robo Jackolanterns will defend my gauntlet together!'],
+      ['robo-koshi', 'Beep. I follow your path. The unicorns eat your food, and Tom\'s crane drops walls wherever it likes.'],
+      ['koshi', 'Red Portals and a giant Boost brick get me across the field, and a Barrier fence blocks the jackolantern fire. Magical Sunglasses let me select bricks even while they recharge.'],
+      ['tom', 'Collect 40 food points and score 4 goals in the bottom net. Dodge my Eggplants too!'],
+      ['koshi', 'When this gauntlet falls, the whole world gets a feast, and I get the first bite!'],
+    ],
+  },
+].map((entry, offset) => {
+  const index = LEVELS.length + offset;
+  const attributes = new Map([...campaignRegions.keys()].map(id => [id, { kind: entry.kinds[id] ?? 'normal' }]));
+  for (const [id, brick] of entry.bricks) {
+    for (const member of brick.kind === 'goal' ? entry.groups.find(group => group[0] === id) ?? [id] : [id]) {
+      Object.assign(attributes.get(member), brick);
+    }
+  }
+  const brickTypes = [...attributes].map(([id, brick]) => campaignBrick(id, brick));
+  const events = entry.events ?? [];
+  const food = entry.food ?? (events.some(event => event.kind === 'food') ? [] : randomFood(entry.duration));
+  const foodPoints = food.reduce((sum, [, method, type]) => sum + (method === 'S' ? 1 : Number(method.slice(1))) * FOODS[type].value, 0)
+    + events.reduce((sum, event) => sum + (event.kind === 'food' ? FOODS[event.type].value : 0), 0)
+    + brickTypes.reduce((sum, brick) => sum + (brick.spawner?.kind === 'food' ? FOODS[brick.spawner.type].value : 0), 0);
+  const cast = [...new Set([
+    ...entry.dialogue.map(([speaker]) => speaker).filter(speaker => !['koshi', 'tom'].includes(speaker)),
+    ...entry.enemies.map(([, type]) => type),
+  ])].slice(0, 2);
+  return {
+    id: `1-${index + 1}`, worldId: '3S', number: `3S-${offset + 1}`,
+    name: entry.name, concept: entry.concept, duration: entry.duration,
+    goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, survive: false,
+    // Challenge levels allow at most four hearts even if every food point is collected.
+    heartCost: Math.ceil(foodPoints / 4),
+    brickSet: 3, brickTypes, brickGroups: entry.groups.map(members => ({ owner: members[0], members })),
+    food, enemies: entry.enemies, items: entry.items ?? [], weapons: entry.weapons ?? [],
+    ...(events.length ? { events } : {}),
+    ...(entry.goalsGoal ? { goalsGoal: entry.goalsGoal } : {}),
+    ...(entry.activationLimit ? { activationLimit: entry.activationLimit } : {}),
+    cutscene: story('foundry', entry.dialogue, cast),
+  };
+});
+LEVELS.push(...CHALLENGE_LEVELS);
 
 function portalPairIssues(bricks) {
   return Object.keys(PORTALS).flatMap(color => {
@@ -1176,6 +1478,17 @@ function turretGeometry(brick, width, height, catRadius = 21) {
         : { x: brick.x, y: brick.y + brick.h / 2 };
   const center = { x: anchor.x + direction.x * catRadius, y: anchor.y + direction.y * catRadius };
   return { edge, anchor, center, direction, domeRadius: TURRET_DOME_RADIUS };
+}
+
+function turretSourceBrick(owner, bricks, perimeter) {
+  const ids = new Set(bricks.filter(brick => brick.id === owner.id || brick.absorbedBy === owner.id).map(brick => brick.id));
+  if (ids.size < 2) return owner;
+  const n = perimeter.length;
+  const first = perimeter.findIndex((id, i) => ids.has(id) && !ids.has(perimeter[(i + n - 1) % n]));
+  const start = first < 0 ? perimeter.indexOf(owner.id) : first;
+  const chain = Array.from({ length: n }, (_, k) => perimeter[(start + k) % n]).filter(id => ids.has(id));
+  // The perimeter runs clockwise, so even-sized merges round to the clockwise middle sub-brick.
+  return bricks[chain[Math.floor(chain.length / 2)]];
 }
 
 function brickEditRegions(bricks) {
@@ -2213,7 +2526,7 @@ class Game {
       for (const enemy of enemies) this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       this.robots.push(...enemies);
     }
-    else if (spawn.kind === 'heart') this.healing.push(this.randomPoint());
+    else if (spawn.kind === 'heart') this.healing.push(this.randomPickupPoint());
     else if (spawn.kind === 'weapon') this.weapons.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
     else if (spawn.kind === 'item') this.items.push(this.createCollectible(this.elapsed, spawn.type, spawn.lifetime));
     else if (spawn.kind === 'object') {
@@ -2226,7 +2539,7 @@ class Game {
       }
       else this.soccerBalls.push(this.createSoccerBall(point));
     }
-    else this.food.push({ ...this.randomPoint(), id: this.foodId++, type: spawn.type,
+    else this.food.push({ ...this.randomPickupPoint(), id: this.foodId++, type: spawn.type,
       born: this.elapsed, lifetime: spawn.lifetime, expires: this.elapsed + spawn.lifetime });
   }
 
@@ -2249,7 +2562,7 @@ class Game {
     }
     if (brick.spawned) return;
     brick.spawned = true;
-    const geometry = turretGeometry(brick, this.width, this.height, this.cat.radius);
+    const geometry = turretGeometry(turretSourceBrick(brick, this.bricks, this.perimeter), this.width, this.height, this.cat.radius);
     this.activeTurret = {
       brickId: brick.id, type: brick.turret, ...geometry,
       aim: geometry.direction, remaining: TURRET_DURATION, shotsRemaining: TURRET_SHOTS,
@@ -2535,30 +2848,63 @@ class Game {
   }
 
   createFood([time, method, type, lifetime]) {
-    const items = [];
     const count = method === 'S' ? 1 : Number(method.slice(1));
-    const angle = this.random() * Math.PI * 2;
     const margin = this.portrait ? 8 + 45 / this.scale + 35 : 95;
-    const center = this.portrait
-      ? { x: margin + 88 + this.random() * (this.width - 2 * (margin + 88)), y: margin + 88 + this.random() * (this.height - 2 * (margin + 88)) }
-      : { x: 240 + this.random() * 480, y: 205 + this.random() * 190 };
-    for (let i = 0; i < count; i++) {
-      let x = center.x, y = center.y;
-      if (method.startsWith('L')) {
-        const offset = (i - (count - 1) / 2) * 55;
-        x += Math.cos(angle) * offset;
-        y += Math.sin(angle) * offset;
-      } else if (method.startsWith('C')) {
-        const theta = angle + i * Math.PI * 2 / count;
-        x += Math.cos(theta) * 88;
-        y += Math.sin(theta) * 88;
-      } else if (method.startsWith('R')) {
-        x = margin + this.random() * (this.width - margin * 2);
-        y = margin + this.random() * (this.height - margin * 2);
+    const crowd = this.collectiblePoints();
+    // Line and circle patterns stay whole within the wider fallback area.
+    const reach = method.startsWith('L') ? (count - 1) / 2 * 55 : method.startsWith('C') ? 88 : 0;
+    const layout = wide => {
+      const angle = this.random() * Math.PI * 2;
+      const b = this.bounds();
+      const center = wide
+        ? { x: b.left + reach + this.random() * Math.max(0, b.right - b.left - 2 * reach),
+          y: b.top + reach + this.random() * Math.max(0, b.bottom - b.top - 2 * reach) }
+        : this.portrait
+          ? { x: margin + 88 + this.random() * (this.width - 2 * (margin + 88)), y: margin + 88 + this.random() * (this.height - 2 * (margin + 88)) }
+          : { x: 240 + this.random() * 480, y: 205 + this.random() * 190 };
+      const points = [];
+      for (let i = 0; i < count; i++) {
+        let x = center.x, y = center.y;
+        if (method.startsWith('L')) {
+          const offset = (i - (count - 1) / 2) * 55;
+          x += Math.cos(angle) * offset;
+          y += Math.sin(angle) * offset;
+        } else if (method.startsWith('C')) {
+          const theta = angle + i * Math.PI * 2 / count;
+          x += Math.cos(theta) * 88;
+          y += Math.sin(theta) * 88;
+        } else if (method.startsWith('R')) {
+          // Scattered food keeps its distance from other pickups and from earlier pieces of this scatter.
+          let best = null, bestGap = -Infinity;
+          for (let attempt = 0; attempt < 64; attempt++) {
+            const point = { x: margin + this.random() * (this.width - margin * 2), y: margin + this.random() * (this.height - margin * 2) };
+            const gap = nearestGap(point, [...crowd, ...points]);
+            if (gap > bestGap) { best = point; bestGap = gap; }
+            if (gap >= SPAWN_SPACING) break;
+          }
+          ({ x, y } = best);
+        }
+        points.push({ x, y });
       }
-      items.push({ id: this.foodId++, x, y, type, born: time, expires: time + lifetime, lifetime });
+      return points;
+    };
+    // Patterned food keeps its shape but moves the whole pattern away from other pickups,
+    // widening from the central zone to the full play area when the center is crowded.
+    let points = null, bestGap = -Infinity;
+    for (let attempt = 0; attempt < 160; attempt++) {
+      const candidate = layout(attempt >= 32);
+      const gap = Math.min(...candidate.map(point => nearestGap(point, crowd)));
+      if (gap > bestGap) { points = candidate; bestGap = gap; }
+      if (gap >= SPAWN_SPACING) break;
     }
-    return items;
+    return points.map(({ x, y }) => ({ id: this.foodId++, x, y, type, born: time, expires: time + lifetime, lifetime }));
+  }
+
+  // Live and queued pickups that new random pickup spawns keep their distance from.
+  collectiblePoints() {
+    const pending = [...this.pendingSpawns.values()]
+      .filter(spawn => ['food', 'item', 'weapon', 'heart'].includes(spawn.kind)).flatMap(spawn => spawn.items);
+    return [...this.food, ...this.items, ...this.weapons, ...this.healing, ...pending];
   }
 
   bounds() {
@@ -2568,12 +2914,20 @@ class Game {
     };
   }
 
-  randomPoint(isSafe = null) {
+  randomPoint(isSafe = null, spacing = 0) {
     const b = this.bounds();
-    for (let attempt = 0; attempt < 64; attempt++) {
+    const crowd = spacing ? this.collectiblePoints() : [];
+    let best = null, bestGap = -Infinity;
+    for (let attempt = 0; attempt < (spacing ? 160 : 64); attempt++) {
       const point = { x: b.left + this.random() * (b.right - b.left), y: b.top + this.random() * (b.bottom - b.top) };
-      if (!isSafe || isSafe(point)) return point;
+      if (isSafe && !isSafe(point)) continue;
+      if (!spacing) return point;
+      // Retry until the spawn is far enough from other pickups, keeping the roomiest spot as a fallback.
+      const gap = nearestGap(point, crowd);
+      if (gap >= spacing) return point;
+      if (gap > bestGap) { best = point; bestGap = gap; }
     }
+    if (best) return best;
     // A deterministic fallback also handles constant random sources without hanging.
     for (let row = 0; row <= 16; row++) {
       for (let column = 0; column <= 16; column++) {
@@ -2591,9 +2945,13 @@ class Game {
       point.y - Math.max(part.y, Math.min(part.y + part.h, point.y))) >= clearance);
   }
 
-  randomStampPoint() {
+  randomStampPoint(spacing = SPAWN_SPACING) {
     const parts = this.brickParts();
-    return this.randomPoint(point => this.stampSpawnClear(point, parts));
+    return this.randomPoint(point => this.stampSpawnClear(point, parts), spacing);
+  }
+
+  randomPickupPoint() {
+    return this.randomPoint(null, SPAWN_SPACING);
   }
 
   pointFromRelative(x, y) {
@@ -2649,7 +3007,7 @@ class Game {
     return [enemy];
   }
 
-  createCollectible(time, type, lifetime, point = needsBrickSpawnClearance(type) ? this.randomStampPoint() : this.randomPoint()) {
+  createCollectible(time, type, lifetime, point = needsBrickSpawnClearance(type) ? this.randomStampPoint() : this.randomPickupPoint()) {
     return { ...point, type, ...(lifetime == null ? {} : { born: time, lifetime, expires: time + lifetime }) };
   }
 
@@ -2839,10 +3197,37 @@ class Game {
           ...segment, radius: segment.radius + (index ? 5 : 0), oldX: before[index].x, oldY: before[index].y,
         }));
       })];
+    const scored = new Set();
+    const solids = ball => [
+      ...this.obstructions.map(target => ({ kind: 'obstruction', target })),
+      ...this.bumpers.map(target => ({ kind: 'bumper', target })),
+      ...this.bubbles.map(target => ({ kind: 'bubble', target })),
+      ...this.soccerBalls.filter(other => other !== ball && !scored.has(other)).map(target => ({ kind: 'ball', target })),
+    ];
+    const surface = (ball, { kind, target }) => {
+      if (kind === 'obstruction') {
+        const { gap, nx, ny } = obstructionSurface(ball.x, ball.y, target);
+        return { gap: gap - ball.radius, normal: { x: nx, y: ny } };
+      }
+      const distance = Math.hypot(ball.x - target.x, ball.y - target.y);
+      return { gap: distance - ball.radius - target.radius,
+        normal: distance > 1e-9 ? { x: (ball.x - target.x) / distance, y: (ball.y - target.y) / distance } : { x: 1, y: 0 } };
+    };
     this.soccerBalls = this.soccerBalls.filter(ball => {
       contain(ball);
       // Growing fences move a ball clear before its next swept movement.
       this.clearBarrierOverlap(ball, fences);
+      // Spawned or nudged balls never start a step inside an object or another ball.
+      for (let pass = 0; pass < 4; pass++) {
+        let overlap = false;
+        for (const solid of solids(ball)) {
+          const { gap, normal } = surface(ball, solid);
+          if (gap >= -1e-7) continue;
+          ball.x -= normal.x * (gap - .01); ball.y -= normal.y * (gap - .01);
+          overlap = true;
+        }
+        if (!overlap) break;
+      }
       contain(ball);
       let remaining = dt;
       for (let bounce = 0; remaining > 1e-9 && bounce < 12; bounce++) {
@@ -2850,7 +3235,7 @@ class Game {
         const movingTime = Math.min(remaining, speed / SOCCER_FRICTION);
         const travel = Math.max(0, speed * movingTime - SOCCER_FRICTION * movingTime * movingTime / 2);
         const dx = speed ? ball.vx / speed * travel : 0, dy = speed ? ball.vy / speed * travel : 0;
-        let contact = 1, obstacle = null, actorHit = null, goal = false;
+        let contact = 1, obstacle = null, actorHit = null, objectHit = null, goal = false;
         const closedWalls = walls.filter(wall => !goals.some(part => goalEdge(part) === wall.edge
           && Number.isFinite(this.goalEntry(ball, dx, dy, part, wall.edge))));
         for (const part of [...bricks, ...fences, ...closedWalls]) {
@@ -2862,13 +3247,19 @@ class Game {
           const time = Number.isFinite(entry) ? entry : brickContact(ball.x, ball.y, dx, dy, ball.radius, part);
           if (time <= contact) { contact = time; obstacle = part; actorHit = null; goal = Number.isFinite(entry); }
         }
+        for (const solid of solids(ball)) {
+          const { kind, target } = solid;
+          const time = kind === 'obstruction' ? obstructionContact(ball.x, ball.y, dx, dy, ball.radius, target)
+            : circleContact(ball.x - target.x, ball.y - target.y, dx, dy, ball.radius + target.radius);
+          if (time < contact) { contact = time; objectHit = solid; obstacle = null; goal = false; }
+        }
         const elapsed = dt - remaining;
         for (const actor of actors) {
           const avx = (actor.x - actor.oldX) / dt, avy = (actor.y - actor.oldY) / dt;
           const ax = actor.oldX + avx * elapsed, ay = actor.oldY + avy * elapsed;
           const time = circleContact(ball.x - ax, ball.y - ay, dx - avx * remaining,
             dy - avy * remaining, ball.radius + actor.radius);
-          if (time < contact) { contact = time; actorHit = { actor, ax, ay, avx, avy }; obstacle = null; goal = false; }
+          if (time < contact) { contact = time; actorHit = { actor, ax, ay, avx, avy }; obstacle = null; objectHit = null; goal = false; }
         }
         ball.x += dx * contact; ball.y += dy * contact;
         ball.angle += travel * contact / ball.radius;
@@ -2879,11 +3270,35 @@ class Game {
         if (goal) {
           this.goals++;
           this.goalEffects.push({ x: ball.x, y: ball.y, age: 0, duration: .65 });
+          scored.add(ball);
           return false;
         }
-        if (!obstacle && !actorHit) break;
+        if (!obstacle && !actorHit && !objectHit) break;
         let normal;
-        if (actorHit) {
+        if (objectHit) {
+          const { kind, target } = objectHit;
+          ({ normal } = surface(ball, objectHit));
+          if (kind === 'ball') {
+            // Equal-mass balls exchange most of their speed along the line of impact.
+            const incoming = (ball.vx - target.vx) * normal.x + (ball.vy - target.vy) * normal.y;
+            if (incoming < 0) {
+              const impulse = -(1 + .9) * incoming / 2;
+              ball.vx += impulse * normal.x; ball.vy += impulse * normal.y;
+              target.vx -= impulse * normal.x; target.vy -= impulse * normal.y;
+            }
+          } else {
+            Object.assign(ball, reflectVelocity(ball.vx, ball.vy, normal));
+            if (kind === 'bumper') {
+              ball.vx *= OBJECTS[target.type].speedMultiplier; ball.vy *= OBJECTS[target.type].speedMultiplier;
+              target.hitAt = this.elapsed;
+              target.hitNormal = normal;
+            }
+          }
+          for (const moving of kind === 'ball' ? [ball, target] : [ball]) {
+            const limit = Math.hypot(moving.vx, moving.vy);
+            if (limit > 650) { moving.vx *= 650 / limit; moving.vy *= 650 / limit; }
+          }
+        } else if (actorHit) {
           const { actor, ax, ay, avx, avy } = actorHit;
           const x = ax + avx * spent, y = ay + avy * spent;
           const distance = Math.hypot(ball.x - x, ball.y - y);
@@ -4711,7 +5126,7 @@ class Game {
     });
     while (this.score >= this.nextHeart) {
       const event = { time: this.elapsed + 1 };
-      this.pendingSpawns.set(event, { kind: 'heart', time: event.time, items: [this.randomPoint()] });
+      this.pendingSpawns.set(event, { kind: 'heart', time: event.time, items: [this.randomPickupPoint()] });
       this.nextHeart += this.level.heartCost;
     }
     const startX = cat.x, startY = cat.y;
@@ -4822,7 +5237,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, OBJECTS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, OBJECTS, SCHEDULE, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, turretSourceBrick, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

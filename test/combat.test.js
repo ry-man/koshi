@@ -24,7 +24,7 @@ function equip(game, type) {
 }
 
 test('new campaign levels require both goals and count the final real sword defeat', () => {
-  for (const level of LEVELS.flatMap((entry, index) => entry.goal > 0 && entry.killGoal > 0 ? [index] : [])) {
+  for (const level of LEVELS.flatMap((entry, index) => entry.goal > 0 && entry.killGoal > 0 && !entry.goalsGoal ? [index] : [])) {
     for (const options of [{}, { portrait: true, scale: .6 }]) {
       const game = arena({ level, ...options });
       game.score = game.level.goal;

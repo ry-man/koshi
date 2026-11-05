@@ -289,3 +289,52 @@ test('shared soccer artwork is black and white with pentagonal patches and balan
   assert.equal(operations.filter(op => op[0] === 'closePath').length, 6);
   assert.ok(operations.some(op => op[0] === 'rotate' && op[1] === .5));
 });
+
+test('soccer balls bounce off obstructions, bumpers, bubbles and each other', () => {
+  const game = arena();
+  const cx = game.width / 2, cy = game.height / 2;
+  game.cat.x = 120; game.cat.y = 120;
+  game.obstructions = [game.createObstruction({ x: cx + 100, y: cy }, { type: 'obstruction-circle' })];
+  const first = ball(game, cx - 20, cy); first.vx = 300;
+  roll(game, .6);
+  assert.ok(first.vx < 0, 'rebounds from the obstruction');
+  assert.ok(first.x < cx + 100 - game.obstructions[0].radius - first.radius + 1);
+
+  for (const [type, factor] of [['bumper-red', 1.25], ['bumper-blue', .75]]) {
+    game.obstructions = []; game.soccerBalls = [];
+    game.bumpers = [game.createBumper({ x: cx + 100, y: cy }, type)];
+    const shot = ball(game, cx, cy); shot.vx = 300;
+    const before = 300 - SOCCER_FRICTION * (100 - 24 - 16) / 300;
+    roll(game, .4);
+    assert.ok(shot.vx < 0, type);
+    assert.ok(Math.abs(Math.abs(shot.vx) / before - factor) < .12, `${type} scales the rebound`);
+    assert.equal(game.bumpers[0].hitAt, game.elapsed, 'the bumper flashes');
+  }
+
+  game.bumpers = []; game.soccerBalls = [];
+  game.bubbles = [game.createBubble({ x: cx + 100, y: cy }, 'bubble-blue')];
+  const bubbleShot = ball(game, cx, cy); bubbleShot.vx = 300;
+  roll(game, .4);
+  assert.ok(bubbleShot.vx < 0, 'rebounds from the bubble');
+  assert.equal(game.bubbles.length, 1);
+
+  game.bubbles = []; game.soccerBalls = [];
+  const striker = ball(game, cx - 60, cy), target = ball(game, cx + 20, cy);
+  striker.vx = 400;
+  roll(game, .3);
+  assert.ok(target.vx > 250, 'the struck ball takes most of the speed');
+  assert.ok(Math.abs(striker.vx) < 60, 'the striker nearly stops');
+  assert.ok(target.x - striker.x >= striker.radius + target.radius - 1e-6);
+});
+
+test('soccer balls placed overlapping an object or another ball are pushed apart', () => {
+  const game = arena();
+  const cx = game.width / 2, cy = game.height / 2;
+  game.cat.x = 120; game.cat.y = 120;
+  game.bumpers = [game.createBumper({ x: cx, y: cy }, 'bumper-green')];
+  const inside = ball(game, cx + 5, cy);
+  const twin = ball(game, cx + 300, cy), other = ball(game, cx + 305, cy);
+  roll(game, 1 / 60);
+  assert.ok(Math.hypot(inside.x - cx, inside.y - cy) >= 24 + 16 - 1e-6);
+  assert.ok(Math.hypot(twin.x - other.x, twin.y - other.y) >= 32 - 1e-6);
+});

@@ -21,18 +21,20 @@ test('World Select shares the bottom action bar and styling with the level menu 
   assert.doesNotMatch(picker.slice(0, picker.indexOf('</header>')), /world-map-back/);
 });
 
-test('worlds partition all 47 campaign identities into themed groups of 10, 24 and 13', () => {
-  assert.deepEqual(WORLDS.map(world => worldLevels(world).length), [10, 24, 13]);
-  assert.deepEqual(WORLDS.map(world => world.theme), ['garden', 'workshop', 'foundry']);
+test('worlds partition all 60 campaign identities into themed groups of 10, 24, 14 and 12', () => {
+  assert.deepEqual(WORLDS.map(world => worldLevels(world).length), [10, 24, 14, 12]);
+  assert.deepEqual(WORLDS.map(world => world.theme), ['garden', 'workshop', 'foundry', 'foundry']);
   assert.deepEqual(WORLDS.flatMap(world => worldLevels(world)), LEVELS);
   assert.equal(LEVELS[9].number, '1-10');
   assert.equal(LEVELS[10].number, '2-1');
   assert.equal(LEVELS[33].number, '2-24');
   assert.equal(LEVELS[34].number, '3-1');
-  assert.equal(LEVELS.at(-1).number, '3-13');
+  assert.equal(LEVELS[47].number, '3-14');
+  assert.equal(LEVELS[48].number, '3S-1');
+  assert.equal(LEVELS.at(-1).number, '3S-12');
   assert.deepEqual(LEVELS.map(level => level.id), LEVELS.map((_, i) => `1-${i + 1}`));
   for (const [i, level] of LEVELS.entries()) {
-    assert.equal(nextLevelIndex(i), i === LEVELS.length - 1 ? -1 : i + 1);
+    assert.equal(nextLevelIndex(i), [47, LEVELS.length - 1].includes(i) ? -1 : i + 1);
     assert.equal(level.cutscene.theme, WORLDS.find(world => world.id === level.worldId).theme);
   }
 });
@@ -151,7 +153,8 @@ test('two-tier map selects worlds separately, moves Koshi, and reveals only that
   const fixture = mapFixture();
   const { map, selection, text, pictures } = fixture;
   map.open();
-  assert.equal(map.map.querySelectorAll('.map-node').length, 3);
+  assert.equal(map.map.querySelectorAll('.map-node').length, 4, 'three main worlds and the World 3S branch');
+  assert.equal(map.map.children[0].children.length, 3, 'main path and the World 3S branch are drawn');
   map.selectWorld(WORLDS[1]);
   assert.equal(selection.value, '0', 'world selection alone does not commit a level');
   assert.equal(map.map.querySelector('.map-koshi').style.left, '50%');
@@ -305,7 +308,7 @@ test('an optional special-world definition appears as a separate branch and open
     { ...WORLDS[0], next: ['2', 'S2'] }, { ...WORLDS[1], next: [] },
     { id: 'S2', name: 'Extra challenge', theme: 'workshop', special: true, next: ['2'] },
   ];
-  const levels = [...LEVELS.filter(level => level.worldId !== '3'), { ...LEVELS[0], id: 'special-first', worldId: 'S2', number: 'S2-1' }];
+  const levels = [...LEVELS.filter(level => ['1', '2'].includes(level.worldId)), { ...LEVELS[0], id: 'special-first', worldId: 'S2', number: 'S2-1' }];
   const { map, selection, text } = mapFixture(undefined, null, { ...engine, LEVELS: levels }, {
     ...worlds, WORLDS: graph, worldLevels: world => worldLevels(world, levels),
   });
@@ -372,12 +375,17 @@ test('victory map moves from the completed stop to the next, including world bou
   map.advanceFrom(33);
   assert.equal(map.world.id, '3');
   assert.equal(selection.value, '34');
-  assert.equal(map.map.querySelectorAll('.map-node').length, 14);
+  assert.equal(map.map.querySelectorAll('.map-node').length, 15);
   assert.equal(map.map.querySelectorAll('.map-node')[0].dataset.node, LEVELS[33].id);
-  map.advanceFrom(LEVELS.length - 1);
-  assert.equal(selection.value, String(LEVELS.length - 1));
-  assert.equal(map.map.querySelectorAll('.map-node').length, 13);
+  map.advanceFrom(47);
+  assert.equal(selection.value, '47');
+  assert.equal(map.map.querySelectorAll('.map-node').length, 14);
   assert.equal(map.map.querySelector('.map-koshi').animation, undefined, 'no invented level after the finale');
+  map.advanceFrom(LEVELS.length - 1);
+  assert.equal(map.world.id, '3S');
+  assert.equal(selection.value, String(LEVELS.length - 1));
+  assert.equal(map.map.querySelectorAll('.map-node').length, 12);
+  assert.equal(map.map.querySelector('.map-koshi').animation, undefined, 'the optional World 3S ends without a route onward');
 });
 
 test('completed level stops and fully completed worlds carry flags, but partial worlds do not', () => {

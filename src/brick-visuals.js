@@ -5,6 +5,7 @@ const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, obstructionGeometry,
 const FLAME = 'M0 20 C-24 16 -22 -6 -10 -12 Q-8 -2 -3 -5 Q7 -14 3 -24 C26 -7 26 16 0 20 Z';
 const FENCE = 'M-22 -6 H22 M-22 6 H22 M-18 -14 V14 M-6 -14 V14 M6 -14 V14 M18 -14 V14';
 const BOOM_TIME_TYPES = new Set(['boom-time-red', 'boom-time-green', 'boom-time-blue']);
+const TURRET_USED_COLOR = '#8a9399';
 const SAW_TEETH = Array.from({ length: 12 }, (_, i) => {
   const angle = i * Math.PI / 6, step = Math.PI / 6;
   const point = (offset, radius) => [Math.cos(angle + offset * step) * radius, Math.sin(angle + offset * step) * radius];
@@ -170,11 +171,12 @@ function brickInfoBounds(brick, members) {
   const center = anchors.reduce((best, point) => Math.hypot(point.x - cx, point.y - cy) < Math.hypot(best.x - cx, best.y - cy) ? point : best);
   return { x: center.x - brick.w / 2, y: center.y - brick.h / 2, w: brick.w, h: brick.h };
 }
-function decorateBrick(button, brick, members, width, height) {
-  let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null;
+function decorateBrick(button, brick, members, width, height, turretSource = null) {
+  let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null, turretFill = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
-  const infoBounds = brickInfoBounds(brick, members);
-  const vertical = brick.h > brick.w;
+  const source = brick.turret && turretSource && turretSource.id !== brick.id ? turretSource : null;
+  const infoBounds = source ? { x: source.x, y: source.y, w: source.w, h: source.h } : brickInfoBounds(brick, members);
+  const vertical = (source ?? brick).h > (source ?? brick).w;
   if (brick.kind === 'goal') {
     const net = svgNode('svg', { class: 'brick-goal', viewBox: `${shape.x} ${shape.y} ${shape.w} ${shape.h}`,
       preserveAspectRatio: 'none', 'aria-hidden': 'true' });
@@ -280,11 +282,13 @@ function decorateBrick(button, brick, members, width, height) {
       const color = brick.turret === 'laser' ? '#3b82f6' : '#ef4545';
       symbol.style.setProperty('--item-color', color);
       const edge = width === undefined ? vertical ? 'left' : 'bottom'
-        : brickRegions([brick], width, height).get(brick.id).edge;
+        : brickRegions([source ?? brick], width, height).get((source ?? brick).id).edge;
       const rotation = { top: 180, right: -90, bottom: 0, left: 90 }[edge];
       const group = svgNode('g', { class: 'turret-icon', transform: `rotate(${rotation})` });
+      turretFill = svgNode('path', { class: 'item-color', d, fill: color });
+      turretFill.turretColor = color;
       group.append(svgNode('path', { class: 'item-outline', d }));
-      group.append(svgNode('path', { class: 'item-color', d, fill: color }));
+      group.append(turretFill);
       group.append(svgNode('rect', { class: 'turret-barrel', x: 4, y: -4, width: 24, height: 8,
         transform: 'rotate(-45)', fill: '#aeb7bd', stroke: '#17212a', 'stroke-width': 2,
         'stroke-linejoin': 'miter' }));
@@ -324,7 +328,7 @@ function decorateBrick(button, brick, members, width, height) {
     toggle.append(group);
     place(toggle, 'toggle');
   }
-  const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerCount, warpCount };
+  const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerCount, warpCount, turretFill };
   updateBrick(visual, brick, 0);
   return visual;
 }
@@ -346,6 +350,11 @@ function updateBrick(visual, brick, elapsed, sunglassesActive = false) {
     visual.symbol.dataset.spawnReady = String(Boolean((brick.spawner || brick.turret) && !brick.spawned));
     visual.symbol.style.opacity = brick.boost ? '.8' : '1';
     if (brick.spawner?.type === 'magic-sunglasses') visual.symbol.style.setProperty('--item-color', `hsl(${elapsed * 140 % 360}, 85%, 70%)`);
+  }
+  if (visual.turretFill) {
+    const used = Boolean(brick.spawned);
+    visual.turretFill.setAttribute('fill', used ? TURRET_USED_COLOR : visual.turretFill.turretColor);
+    if (visual.symbol.dataset) visual.symbol.dataset.turretUsed = String(used);
   }
   if (visual.crumblerCount) visual.crumblerCount.textContent = `C:${brick.usesLeft ?? brick.crumbler}`;
   if (visual.warpCount) {

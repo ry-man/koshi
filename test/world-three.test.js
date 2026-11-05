@@ -5,10 +5,10 @@ const assert = require('node:assert/strict');
 const { Game, LEVELS, FOODS, validateCustomLevel, validateCutscene } = require('../src/game.js');
 
 const world = LEVELS.filter(level => level.worldId === '3');
-const earlier = LEVELS.filter(level => level.worldId !== '3');
+const earlier = LEVELS.filter(level => ['1', '2'].includes(level.worldId));
 const CONCEPTS = ['robo goalies', 'paint brushes', 'kitty cape', 'laser turret', 'obstructions', 'robo snail', 'bumpers',
-  'bubbles', 'fireball turret', 'destructible obstructions', 'appearing obstructions', 'robo cows', 'robo unicorns'];
-const NEW_ENEMIES = { 'robo goalies': 'goalie', 'robo snail': 'robo-snail', 'robo cows': 'robo-cow', 'robo unicorns': 'robo-unicorn' };
+  'bubbles', 'fireball turret', 'destructible obstructions', 'appearing obstructions', 'robo cows', 'robo unicorns', 'robo koshi'];
+const NEW_ENEMIES = { 'robo goalies': 'goalie', 'robo snail': 'robo-snail', 'robo cows': 'robo-cow', 'robo unicorns': 'robo-unicorn', 'robo koshi': 'robo-koshi' };
 const byConcept = concept => world.find(level => level.concept === concept);
 const events = (level, kind, test = () => true) => (level.events ?? []).filter(event => event.kind === kind && test(event));
 const firstTime = (level, predicate) => Math.min(...[
@@ -16,7 +16,7 @@ const firstTime = (level, predicate) => Math.min(...[
   ...(level.events ?? []).filter(event => predicate(event.kind, event.type)).map(event => event.time),
 ]);
 
-test('World 3 appends thirteen levels introducing one concept each, in order, after the unchanged campaign', () => {
+test('World 3 appends fourteen levels introducing one concept each, in order, after the unchanged campaign', () => {
   assert.equal(earlier.length, 34);
   assert.deepEqual(world.map(level => level.concept), CONCEPTS);
   assert.deepEqual(world.map(level => level.number), CONCEPTS.map((_, i) => `3-${i + 1}`));
@@ -144,6 +144,11 @@ test('level-specific concept requirements', () => {
   const unicornTime = Math.min(...unicorns.enemies.filter(([, type]) => type === 'robo-unicorn').map(([time]) => time));
   assert.ok(unicornTime < Math.min(...unicorns.food.map(([time]) => time)));
   assert.ok(unicorns.items.some(([, type]) => type === 'eggplant'));
+
+  const copycat = byConcept('robo koshi');
+  assert.equal(copycat, world.at(-1));
+  assert.equal(copycat.enemies[0][1], 'robo-koshi');
+  assert.ok(copycat.enemies.filter(([, type]) => type === 'robo-koshi').length >= 2);
 });
 
 test('every World 3 level runs and resets cleanly in each orientation', () => {

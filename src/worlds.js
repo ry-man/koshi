@@ -6,8 +6,9 @@ const { LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS } = engine;
 
 const WORLDS = [
   { id: '1', name: 'Garden Path', theme: 'garden', special: false, next: ['2'] },
-  { id: '2', name: 'Clockwork Pantry', theme: 'workshop', special: false, next: ['3'] },
+  { id: '2', name: 'Clockwork Pantry', theme: 'workshop', special: false, next: ['3', '3S'] },
   { id: '3', name: 'Robot Foundry', theme: 'foundry', special: false, next: [] },
+  { id: '3S', name: 'Tom\'s Gauntlet', theme: 'foundry', special: true, next: [] },
 ];
 
 function worldLevels(world, levels = LEVELS) {

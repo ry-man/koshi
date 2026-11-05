@@ -17,7 +17,7 @@ test('Robo Unicorn is available in custom placements and brick spawners, not cam
   assert.equal(CHARACTERS['robo-unicorn'], 'Robo Unicorn');
   const placement = { time: 0, kind: 'enemy', type: 'robo-unicorn', x: .5, y: .5 };
   assert.equal(validateCustomLevel(level([placement])).events[0].type, 'robo-unicorn');
-  assert.ok(LEVELS.filter(level => level.worldId !== '3').every(campaign => !campaign.enemies.some(([, type]) => type === 'robo-unicorn')));
+  assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(campaign => !campaign.enemies.some(([, type]) => type === 'robo-unicorn')));
   const game = arena();
   game.bricks[0].spawner = { kind: 'enemy', type: 'robo-unicorn' };
   game.spawnFromBrick(game.bricks[0]);

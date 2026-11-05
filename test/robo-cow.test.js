@@ -17,7 +17,7 @@ test('Robo Cow is available in custom placements and brick spawners without camp
   assert.equal(CHARACTERS['robo-cow'], 'Robo Cow');
   const placement = { time: 0, kind: 'enemy', type: 'robo-cow', x: .5, y: 0 };
   assert.equal(validateCustomLevel(level([placement])).events[0].type, 'robo-cow');
-  assert.ok(LEVELS.filter(level => level.worldId !== '3').every(campaign => !campaign.enemies.some(([, type]) => type === 'robo-cow')));
+  assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(campaign => !campaign.enemies.some(([, type]) => type === 'robo-cow')));
 
   const game = arena();
   const cow = game.createCustomSpawn(placement)[0];

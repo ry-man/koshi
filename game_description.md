@@ -11,8 +11,10 @@ The game opens on a title screen with original artwork of a heroic, sword-wieldi
 Worlds group levels and may contain different numbers of levels. The demonstration
 splits the existing campaign into **World 1: Garden Path** (10 levels, 1-1 to 1-10)
 and **World 2: Clockwork Pantry** (24 levels, 2-1 to 2-24), without changing any
-layouts, objectives, schedules or dialogue. **World 3: Robot Foundry** (13 levels,
-3-1 to 3-13) follows them. Each world carries a graphical theme,
+layouts, objectives, schedules or dialogue. **World 3: Robot Foundry** (14 levels,
+3-1 to 3-14) follows them. **World 3S: Tom's Gauntlet** (12 levels, 3S-1 to
+3S-12) is an optional challenge world that branches from World 2 below the
+main path. Each world carries a graphical theme,
 shown through map colors and leaf/gear/robot-head emblems; additional gameplay theming can
 be added later.
 
@@ -213,7 +215,7 @@ Any level may define an optional cutscene before gameplay. The top two-thirds
 of the screen show the cast interacting against a background matching the
 level's world: a garden path for Levels 1-1 through 1-10, the Clockwork Pantry
 workshop for Levels 2-1 through 2-24, and the smoky Robot Foundry, with chimneys
-and gears, for Levels 3-1 through 3-13. The bottom third is a retro RPG dialogue box,
+and gears, for Levels 3-1 through 3-14. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
 dialogue in the locally bundled Space Grotesk font on the right. Speaker names,
 scene headings, and controls use the same clear, rounded font.
@@ -425,6 +427,11 @@ Random enemy spawns never overlap Koshi, including perimeter enemies and the
 full Robo-Snake body. Reserved random enemy previews are rechecked when the
 enemy appears; only an unsafe position is rerolled. Enemy spawners use the same
 rule, while explicit editor enemy placements keep their chosen positions.
+Random food, item, weapon and heart spawns (including spawner bricks) stay at
+least 80 pixels from other pickups already on the board or queued to appear.
+A spot that is too close is rerolled; if the board is too crowded, the roomiest
+spot found is used. Food patterns keep their shape and move as a whole, while
+random scatter food spaces each piece. Explicit editor placements are unchanged.
 After pickup it follows Koshi until his first stop on a non-Portal brick, then
 presses onto that brick's center to capture its properties and returns beside
 him with matching ink. His next landing presses onto the destination's center
@@ -473,7 +480,9 @@ boost; rejected selections, Spring bounces, and Portal travel do not.
 A **Soccer Ball** is an ordinary black-and-white ball with pentagonal patches.
 It is a neutral object, not an enemy or pickup. Koshi kicks it by bumping into
 it while moving; an off-center bump changes the kick direction. The ball rolls
-and bounces off bricks, enemies and Barrier fences. Boundary gaps and collision
+and bounces off bricks, enemies, Barrier fences, obstructions, bumpers (which
+change its speed like Koshi's), bubbles (without popping them) and other soccer
+balls. Boundary gaps and collision
 push-outs cannot send a ball behind the enclosing bricks; escaped balls are
 returned inside. Goal openings still admit scoring shots.
 When Koshi kicks a ball wedged near two corner walls, the kick and separation
@@ -647,7 +656,8 @@ Koshi dies if he either runs out of hearts or if he runs off of the edge of the 
 
 ### Campaign: The food rescue
 
-The old five levels were replaced by 19 lessons, then extended to 34 and now 47. The complete level names,
+The old five levels were replaced by 19 lessons, then extended to 34 and then 48, plus
+12 optional challenge levels in World 3S (60 in total). The complete level names,
 concept order, durations, and victory targets are listed in the
 [campaign table](./README.md#how-to-play-and-interactive-tutorial).
 Food-only, enemy-only, combined, and survival missions all use the same engine rules.
@@ -760,7 +770,7 @@ Robot Foundry, where every robot is built. Koshi vows to shut the factory down,
 save the world, and taste every snack along the way. Each level introduces one
 concept in this order: Robo Goalies, Paintbrushes, Kitty Cape, Laser Turret,
 Obstructions, Robo Snail, Bumpers, Bubbles, Fireball Turret, destructible
-Obstructions, appearing Obstructions, Robo Cows, and Robo Unicorns. Every
+Obstructions, appearing Obstructions, Robo Cows, Robo Unicorns, and Robo Koshi. Every
 cutscene explains its new concept within that story and shows only Koshi, Tom,
 and robots that are both already introduced and present in that level.
 
@@ -771,12 +781,52 @@ and robots that are both already introduced and present in that level.
 - 3-11 is the first level whose obstructions appear during play.
 - 3-12 supplies one wood sword; three Boost bricks earn its enemy target.
 - 3-13 has a food target, spawns unicorns before food, and adds Eggplants.
+- 3-14 introduces Robo Koshi, which spawns first and retraces Koshi's path, so the
+  player must avoid doubling back while collecting 30 food and 4 enemy points.
 
 Objectives vary among food, enemy and soccer-goal targets (alone or combined) and
 survival. Each layout has 21 starting blocks: three doubles (14%), one triple (5%)
 and 17 standard blocks, with slow and fast steering bricks mixed in. Shields are
-rare: nine red, two green and one blue shielded spawn across the world. Heart
+rare: ten red, two green and one blue shielded spawn across the world. Heart
 cost is `ceil(total possible food points / 5)`, so at most five hearts appear.
 Each level reuses one to four earlier brick types and one or two earlier items
 or objects. Placed food, weapons and items stay clear of the obstruction spots
 in desktop and portrait play.
+
+### World 3S: Tom's Gauntlet (optional challenge)
+
+World 3S branches from World 2 (`next: ['3', '3S']`) for advanced players; the
+main path still continues to World 3, and save-slot **Continue** never requires
+World 3S. Level 3S-1 introduces Tom the Duck for players who arrive before
+World 3. The 12 levels combine any existing elements, and every level uses a
+distinct mix of robots, bricks, items and objects. Every cutscene shows only
+Koshi, Tom and robots in that level, and explains the level's combination.
+
+- Difficulty: robots always arrive before the first weapon or power-up, though
+  every level then supplies four to six swords. Shields
+  are more common than in World 3 (red, then green, then rarest blue). Heart
+  cost is `ceil(total possible food points / 4)`, so at most four hearts appear.
+- Objectives are balanced: soccer goals in seven levels, food in six and enemy
+  points in six (single, paired and one triple target, 3S-10). There are no
+  survival levels.
+- Each level declares its own groups of standard, double, triple and quadruple
+  blocks (some forming corner L-shapes), plus its own slow/fast colors.
+- Soccer balls appear only in levels with a goal objective. Every level with
+  Robo Jackolanterns (3S-4, 3S-9, 3S-12) has at least one Barrier brick.
+- Levels with static bumpers, bubbles or obstructions place those objects on the
+  four quadrant spots and place all food, weapons and items elsewhere.
+
+| Level | Name | Objective | Featured combination |
+|-------|------|-----------|----------------------|
+| 3S-1 | Goalie gauntlet | 6 goals | Goalies and Robo Cows, two goal mouths, bumpers |
+| 3S-2 | Unicorn smorgasbord | 60 food | Robo Unicorns, snakes, Eggplants, hamburger spawner, portals |
+| 3S-3 | Laser lockdown | 22 enemy | Two Laser Turrets and a Fireball Turret, Robo Snails, toggles |
+| 3S-4 | Bubble bend-it | 4 goals, 30 food | Bubbles and bumpers around a side goal, Jackolanterns, a Barrier |
+| 3S-5 | Copycat penalty kicks | 4 goals, 8 enemy | Robo Koshi, goalies, portals, Ditto Stamp |
+| 3S-6 | Cinder stampede | 35 food, 8 enemy | Robo Cows eating two Boost bricks, barriers, Saw Blade |
+| 3S-7 | Obstacle cup | 5 goals | Fixed, TNT and appearing obstructions, Fireball Turret |
+| 3S-8 | Boom helmet bakery | 50 food | 8-charge Boom Helmet, Boom Times, Robo Snails, Sunglasses |
+| 3S-9 | Jackolantern junkyard | 14 enemy | Jackolanterns, barriers, large obstructions, gold sword |
+| 3S-10 | Grand slam | 3 goals, 6 enemy, 30 food | Unicorns, goalies, Robo Koshi, sword spawner, bubbles |
+| 3S-11 | Turret derby | 4 goals, 12 enemy | Robo Cows threatening Laser Turrets, goalies, bumpers |
+| 3S-12 | The duck's last stand | 4 goals, 40 food | Robo Koshi, unicorns, Jackolanterns, a Barrier, appearing walls |

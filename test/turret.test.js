@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, brickEditRegions, brickRegions, turretGeometry, validateCustomLevel } = require('../src/game.js');
+const { Game, brickEditRegions, brickRegions, turretGeometry, turretSourceBrick, validateCustomLevel } = require('../src/game.js');
 
 const blank = () => ({ version: 1, id: 'Turret test', duration: 120, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 
@@ -123,6 +123,51 @@ test('Koshi moves into the turret, then stays in place as it exits', () => {
   assert.equal(game.activeTurret, null);
   assert.deepEqual({ x: game.cat.x, y: game.cat.y }, seated);
   assert.equal(game.target, null);
+});
+
+test('merged turret bricks spawn and draw their icon on the middle sub-brick, rounding clockwise', () => {
+  const base = new Game(() => .5), top = base.perimeter.slice(1, 4);
+  const node = (_namespace, tag) => ({
+    tag, attributes: {}, children: [], dataset: {}, style: { setProperty() {} },
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    append(...children) { this.children.push(...children); },
+  });
+  const context = vm.createContext({ KoshiGame: require('../src/game.js'), document: { createElementNS: node } });
+  vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8'), context);
+  for (const [members, middle] of [[top, top[1]], [top.slice(0, 2), top[1]], [base.perimeter.slice(1, 5), top[2]]]) {
+    const owner = members[0], region = brickEditRegions(base.bricks).get(owner);
+    const customLevel = { ...blank(), brickTypes: [{ ...region, kind: 'normal', turret: 'laser' }], brickGroups: [{ owner, members }] };
+    const game = new Game(() => .5, { customLevel });
+    game.start();
+    const brick = game.bricks[owner], source = turretSourceBrick(brick, game.bricks, game.perimeter);
+    assert.equal(source.id, middle);
+    game.touchTurret(brick);
+    assert.deepEqual(game.activeTurret.anchor, turretGeometry(game.bricks[middle], game.width, game.height).anchor);
+    const parts = game.brickParts().filter(part => part.id === owner);
+    const visual = context.KoshiBrickVisuals.decorateBrick(node(), brick, parts, game.width, game.height, source);
+    assert.deepEqual({ ...visual.infoBounds }, { x: source.x, y: source.y, w: source.w, h: source.h });
+  }
+});
+
+test('turret brick icons turn grey once the turret is used and regain color when recharged', () => {
+  const node = (_namespace, tag) => ({
+    tag, attributes: {}, children: [], dataset: {}, style: { setProperty() {} },
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    append(...children) { this.children.push(...children); },
+  });
+  const context = vm.createContext({ KoshiGame: require('../src/game.js'), document: { createElementNS: node } });
+  vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8'), context);
+  const brick = { id: 0, x: 0, y: 0, w: 100, h: 25, turret: 'fireball', spawned: false };
+  const visual = context.KoshiBrickVisuals.decorateBrick(node(), brick, [brick]);
+  const fill = visual.symbol.children[0].children.find(child => child.attributes.class === 'item-color');
+  assert.equal(fill.attributes.fill, '#ef4545');
+  brick.spawned = true;
+  context.KoshiBrickVisuals.updateBrick(visual, brick, 1);
+  assert.equal(fill.attributes.fill, '#8a9399');
+  assert.equal(visual.symbol.dataset.turretUsed, 'true');
+  brick.spawned = false;
+  context.KoshiBrickVisuals.updateBrick(visual, brick, 2);
+  assert.equal(fill.attributes.fill, '#ef4545');
 });
 
 test('physical contact with the configured brick enters the turret automatically', () => {

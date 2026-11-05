@@ -55,7 +55,7 @@ test('one object per shape supports every texture, schedules, spawners, persiste
     assert.ok(spawnSymbol(placement(shape)));
     assert.equal(spawnColor(placement(shape, appearance)), appearance.color);
   }
-  assert.ok(LEVELS.filter(level => level.worldId !== '3').every(level => !(level.events ?? []).some(event => OBJECTS[event.type]?.obstruction)));
+  assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(level => !(level.events ?? []).some(event => OBJECTS[event.type]?.obstruction)));
 });
 
 test('large obstructions double both dimensions and rectangles retain their four-to-one aspect ratio', () => {

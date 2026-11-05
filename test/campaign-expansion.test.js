@@ -20,7 +20,7 @@ const style = brick => JSON.stringify([
 ]);
 
 test('15 appended lessons introduce each requested element once, with level-appropriate explanatory scenes', () => {
-  assert.equal(LEVELS.filter(level => level.worldId !== '3').length, 34);
+  assert.equal(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).length, 34);
   assert.deepEqual(added.map(level => level.concept), concepts);
   assert.deepEqual(LEVELS.map(level => level.id), LEVELS.map((_, index) => `1-${index + 1}`));
   const seen = new Set();

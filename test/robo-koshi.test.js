@@ -13,7 +13,7 @@ function arena(options = {}) {
   return game;
 }
 
-test('Robo Koshi is available in custom levels, spawners, the editor and cutscenes without campaign changes', () => {
+test('Robo Koshi is available in custom levels, spawners, the editor and cutscenes without changing Worlds 1-2', () => {
   const type = 'robo-koshi';
   const custom = { ...blank(),
     events: [{ time: 2, kind: 'enemy', type, x: .3, y: .7, shield: 'green' }],
@@ -35,7 +35,7 @@ test('Robo Koshi is available in custom levels, spawners, the editor and cutscen
   assert.deepEqual(validateCutscene(cutscene), cutscene);
   assert.ok(spawnSymbol({ kind: 'enemy', type }).includes('M-7 -13'));
   assert.equal(spawnColor({ kind: 'enemy', type }), '#454d52');
-  assert.ok(LEVELS.every(level => level.enemies.every(([, enemyType]) => enemyType !== type)));
+  assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(level => level.enemies.every(([, enemyType]) => enemyType !== type)));
 
   const editor = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   assert.match(editor, /\['robo-koshi', 'Robo Koshi'\]/);
