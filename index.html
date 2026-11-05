@@ -76,8 +76,8 @@
       <header class="learning-heading">
         <h2 id="level-picker-heading">World map</h2>
       </header>
-      <p>Click a world to move Koshi; click it again to enter. Choose a level to play. Waving flags mark completed stops.</p>
-      <div class="map-layout">
+      <p>Waving flags mark completed stops.</p>
+      <div id="map-layout" class="map-layout">
         <div class="map-viewport"><div id="world-map" class="world-map" role="group" aria-label="Adventure map"></div></div>
         <section id="map-details" class="map-details" aria-live="polite" aria-atomic="true"></section>
       </div>
@@ -167,7 +167,7 @@
           <div class="tutorial-heading"><label for="tutorial-step">Tutorial <select id="tutorial-step"></select></label><span id="tutorial-progress"></span></div>
           <p id="tutorial-instruction" aria-live="polite" aria-atomic="true"></p>
           <div class="tutorial-actions">
-            <label id="tutorial-sword-label" hidden>Sword <select id="tutorial-sword"><option value="wood">Wood / 1 hit</option><option value="bronze">Bronze / 3 hits</option><option value="silver" selected>Silver / 10 hits</option><option value="gold">Gold / 15 seconds</option></select></label>
+            <label id="tutorial-sword-label" hidden>Sword <select id="tutorial-sword"><option value="wood">Wood / 1 hit</option><option value="bronze">Bronze / 3 hits</option><option value="silver" selected>Silver / 5 hits</option><option value="gold">Gold / 15 seconds</option></select></label>
             <span id="tutorial-result" role="status" aria-live="polite"></span>
             <button id="tutorial-prev" type="button">Previous</button><button id="tutorial-retry" type="button">Retry step</button><button id="tutorial-next" type="button">Next</button><button id="tutorial-exit" type="button">Exit tutorial</button>
           </div>

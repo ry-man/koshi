@@ -16,6 +16,7 @@ test('World Select shares the bottom action bar and styling with the level menu 
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const picker = html.slice(html.indexOf('<dialog id="level-picker"'), html.indexOf('<dialog id="save-slots"'));
   const actions = picker.slice(picker.indexOf('<div class="save-actions">'));
+  assert.doesNotMatch(picker, /Click a world to move Koshi/);
   assert.match(actions, /id="world-map-back" class="title-secondary"[\s\S]*id="level-picker-close" class="title-secondary"/);
   assert.match(actions, /id="world-map-back"[^>]*>World Select<\/button>/);
   assert.match(actions, /id="skip-cutscene-option"[^>]*>[\s\S]*id="skip-cutscene" type="checkbox"[\s\S]*Skip cutscene/);
@@ -174,6 +175,45 @@ test('skip cutscene starts unchecked and defaults on after the selected scene ha
     assert.equal(elements.get('#skip-cutscene').checked, expected);
     assert.equal(elements.get('#level-picker-close').hidden, true);
   }
+});
+
+test('world overview hides the text panel and shows aggregate completion icons on centered nodes', () => {
+  const { map, elements } = mapFixture();
+  map.open();
+  assert.equal(map.details.hidden, true);
+  assert.equal(elements.get('#map-layout').dataset.view, 'worlds');
+  const nodes = map.map.querySelectorAll('.map-node');
+  const hasIcon = (node, prefix) => node.children.some(child => typeof child.className === 'string'
+    && child.className.startsWith(prefix));
+  assert.ok(nodes.every(node => hasIcon(node, 'completion-flag')));
+  assert.ok(nodes.every(node => hasIcon(node, 'map-node-star')));
+  assert.ok(nodes.every(node => hasIcon(node, 'map-node-cat-block')));
+  assert.ok(nodes.every(node => !node.children.some(child => typeof child.className === 'string'
+    && (child.className.includes('earned') || child.className.includes('found')))));
+  assert.equal(nodes.find(node => node.dataset.node === '2').children
+    .find(child => typeof child.className === 'string' && child.className.startsWith('map-node-cat-block')).title,
+  '0 of 0 Cat Blocks found');
+
+  const levels = worldLevels(WORLDS[0]);
+  const completeProfile = {
+    guest: false,
+    completed: levels.map(level => level.id),
+    results: Object.fromEntries(levels.map((level, index) => [`win-${index}`, {
+      levelId: level.id, outcome: 'won', damageFree: true,
+    }])),
+    catBlocks: levels.filter(level => level.catBlock).map(level => level.id),
+  };
+  const completedMap = mapFixture(completeProfile).map;
+  completedMap.open();
+  const garden = completedMap.map.querySelectorAll('.map-node').find(node => node.dataset.node === '1');
+  assert.ok(garden.children.some(child => child.className === 'completion-flag completion-flag-earned'));
+  assert.ok(garden.children.some(child => child.className === 'map-node-star map-node-star-earned'));
+  assert.ok(garden.children.some(child => child.className === 'map-node-cat-block map-node-cat-block-found'));
+  assert.match(garden.getAttribute('aria-label'), /all levels completed, 10 of 10 gold stars earned, 10 of 10 Cat Blocks found/);
+
+  const styles = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(styles, /\.map-layout\[data-view="worlds"\] \{[^}]*justify-items: center;/);
+  assert.match(styles, /\.map-layout\[data-view="worlds"\] \.map-viewport \{ width: min\(100%, 760px\); \}/);
 });
 
 test('two-tier map selects worlds separately, moves Koshi, and reveals only that world and its complete level details', () => {
@@ -454,8 +494,8 @@ test('an optional special-world definition appears as a separate branch and open
   assert.equal(map.map.querySelectorAll('.map-node').length, 3);
   assert.equal(map.map.children[0].children.length, 3, 'main path, branch, and rejoin are all drawn');
   map.selectWorld(graph[2]);
-  assert.ok(text(map.details).includes('Optional extra difficulty'));
-  assert.ok(text(map.details).includes('World 2'));
+  assert.equal(map.details.hidden, true);
+  assert.equal(map.details.children.length, 0);
   map.showWorld(graph[2]);
   assert.equal(map.map.querySelectorAll('.map-node').length, 1);
   assert.equal(selection.value, '34');
@@ -526,13 +566,14 @@ test('victory map moves from the completed stop to the next, including world bou
   assert.equal(map.map.querySelector('.map-koshi').animation, undefined, 'the optional World 3S ends without a route onward');
 });
 
-test('completed level stops and fully completed worlds carry flags, but partial worlds do not', () => {
+test('completed level stops carry flags and world flags remain unfilled until every level is completed', () => {
   const { map } = mapFixture({ completed: LEVELS.slice(0, 10).map(level => level.id), results: {} });
-  const flag = node => node.children.find(child => child.className === 'completion-flag');
+  const flag = node => node.children.find(child => typeof child.className === 'string'
+    && child.className.startsWith('completion-flag'));
   map.open();
   const nodes = map.map.querySelectorAll('.map-node');
-  assert.ok(flag(nodes[0]));
-  assert.equal(flag(nodes[1]), undefined);
+  assert.equal(flag(nodes[0]).className, 'completion-flag completion-flag-earned');
+  assert.equal(flag(nodes[1]).className, 'completion-flag');
   assert.equal(flag(nodes[0]).children[0].className, 'flag-cloth');
   map.showWorld(WORLDS[0]);
   assert.ok(map.map.querySelectorAll('.map-node').every(flag));

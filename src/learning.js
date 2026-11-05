@@ -2,11 +2,12 @@
 'use strict';
 
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { Game, COOLDOWNS, SLIMES, FOODS, ITEMS, SWORDS, LEVELS, brickRegions, levelObjective } = engine;
+const { Game, COOLDOWNS, SLIMES, FOODS, ITEMS, OBJECTS, SWORDS, LEVELS, SPEED, COW_SPEED, brickRegions, levelObjective } = engine;
 
 const GUIDE = [
   {
     title: 'Movement & controls',
+    practice: 'aim',
     sections: [
       ['Aim at bricks, not objects', 'Click or tap a boundary brick. Koshi travels toward that exact spot, collecting anything along his path. He stops at the first solid brick he touches. Pick another brick to leave it.'],
       ['Change course', 'Select a different available brick while Koshi is moving to redirect him immediately. A blocked or invalid selection does not use a cooldown or a Crumbler selection.'],
@@ -16,8 +17,12 @@ const GUIDE = [
   },
   {
     title: 'Power-ups & risky items',
+    practice: 'cookie',
     sections: [
       [ITEMS['smiley-cookie'].name, 'Koshi opens wide and vacuums every food item on the board toward his moving mouth. He keeps moving normally, scores each snack, then licks his lips.', 'item:smiley-cookie'],
+      [ITEMS.key.name, 'Collect keys from pickups or defeated key-carrying enemies. The Keys counter shows your stock. Touch a treasure chest with enough keys to spend the required number and open it.', 'item:key'],
+      [ITEMS['treasure-chest'].name, 'A chest is a locked Cat Block source, not a regular pickup. Collect the required keys first, then touch the chest to open it. A chest without enough keys stays in place.', 'item:treasure-chest'],
+      [ITEMS['cat-block'].name, 'Collect the Cat Block from its pickup, a marked carrier, or an unlocked chest. In campaign play it is kept on a win; leaving or losing forfeits an unbanked block. Each level can award it only once per profile.', 'item:cat-block'],
       ...Object.entries(ITEMS).filter(([, item]) => item.counts).map(([type, item]) => [
         item.name, `A bomb-shaped clock adds ${item.counts} activation${item.counts === 1 ? '' : 's'} to an equipped Boom Helmet. It does not add time to the level clock. Without a helmet it is collected with no effect.`, `item:${type}`,
       ]),
@@ -25,22 +30,23 @@ const GUIDE = [
         item.name, `Adds ${item.seconds} seconds to the level clock. The +${item.seconds}s is printed on its face. Stopwatch bonuses add together.`, `item:${type}`,
       ]),
       [ITEMS.battery.name, 'Adds one charge to the battery stockpile. The swirling lightning bolt shows how many you hold. Touch a used spawning brick to make it produce its item again; each new touch spends one battery.', 'item:battery'],
-      [ITEMS['music-box'].name, 'Puts every enemy to sleep for ten seconds. Sleeping robots cannot hurt Koshi. A scrolling musical score lasts for the whole effect; another box refreshes ten seconds. Simultaneous timed power-up banners occupy separate rows. Pause freezes the effect and animation.', 'item:music-box'],
+      [ITEMS['music-box'].name, 'Puts enemies to sleep for ten seconds. Most sleeping enemies cannot hurt Koshi, but Robo Snake’s spiked body remains dangerous. A scrolling musical score lasts for the whole effect; another box refreshes ten seconds. Simultaneous timed power-up banners occupy separate rows. Pause freezes the effect and animation.', 'item:music-box'],
       [ITEMS['kitty-cape'].name, 'A green cape like Koshi’s title-screen cape doubles his movement speed for ten seconds, including his current flight. Boost launches double that speed again; conveyors keep their normal pace. A translucent banner of cat heads and lightning bolts scrolls behind the arena for the whole effect. Another cape refreshes ten seconds without stacking. Pause freezes the power and animation; restart clears both. Available for custom-level placements and spawners.', 'item:kitty-cape'],
       [ITEMS.eggplant.name, 'A harmful pickup: subtracts 10 food points, but never lowers your score below zero.', 'item:eggplant'],
-      [ITEMS['saw-blade'].name, 'Koshi instantly grows a ring of ears shaped into rapidly spinning saw teeth. His next non-cinder brick contact permanently turns the entire current brick shape into cinder, overriding its contact effects. It shakes, smokes, and fades into concrete, then Koshi returns to normal. Existing cinder blocks do not use the saw; extra saw pickups do not stack. Cracker Causeway introduces it.', 'item:saw-blade'],
+      [ITEMS['saw-blade'].name, 'Koshi instantly grows a ring of ears shaped into rapidly spinning saw teeth. His next brick contact other than Cinder or Goal permanently turns the entire current brick shape into Cinder, overriding its contact effects. It shakes, smokes, and fades into concrete, then Koshi returns to normal. Existing Cinder and Goal bricks do not use the saw; extra saw pickups do not stack. Cracker Causeway introduces it.', 'item:saw-blade'],
       [ITEMS['ditto-stamp'].name, 'An orange wooden stamp follows Koshi without sparkles. His first stop after pickup captures that brick’s properties with a press onto its center. The stamp returns beside him with matching ink, then presses onto his next landing brick’s center to copy the properties before contact effects run, preserving destination size and merged shape. Cooldown, Crumbler uses, Toggle counter, spawner and warp timers start fresh. Portals never act as sources or consume the stamp; merging Warped bricks can be copied. Spring bounces do not capture a source because Koshi does not stop. Pickup while resting waits for a new landing. Midair redirects keep the captured copy. Extra stamps do not stack. A colored ripple marks the change. A held Saw Blade takes priority and leaves the stamp unused.', 'item:ditto-stamp'],
       ...Object.entries(ITEMS).filter(([, item]) => item.paintUses).map(([type, item]) => [
         item.name, `${{ pencil: 'A thin pencil-like brush with a painted tip', wide: 'A wide brush with dripping paint', roller: 'A soaked paint roller with drips' }[item.brush]} paints the next ${item.paintUses} eligible brick contact${item.paintUses === 1 ? '' : 's'} ${item.name.split(' ')[0].toLowerCase()}. This changes its cooldown to ${COOLDOWNS[item.paintKind]} seconds and makes it ready, preserving its other attributes and merged shape. Matching-color bricks do not activate the brush, spend paint, or refresh cooldowns. Goal and Cinder bricks do not spend paint. Spring and Portal contacts count; remaining against a brick does not spend more uses. Another brush replaces the held brush and its uses. The brush floats beside Koshi with its remaining count. A Saw Blade takes priority; Ditto Stamp acts before paint. Random spawns use Ditto Stamp clearance, while explicit editor placements keep their markers. Pause freezes play; restart clears paint. Available for custom levels and spawners only.`, `item:${type}`,
       ]),
-      [ITEMS['magic-sunglasses'].name, 'Sparkling rainbow frames fly onto Koshi’s face for ten seconds. All bricks glow in the same cycling colors as the frames. All non-cinder bricks are selectable despite cooldowns, Toggle locks, or exhausted Crumblers; clicks do not add cooldowns, spend Crumbler uses, or change Toggle counters. Slime and other contact effects still apply. A translucent rectangle of stars and smiling cats slides behind the arena on a separate row from other active power-up banners; the power ends when it exits, then the glasses fade away. All brick cooldowns finish at expiry; Toggle locks and exhausted Crumblers resume their stored state. Another pair restarts the ten seconds; pause freezes the effect. Switchboard Supper introduces them.', 'item:magic-sunglasses'],
+      [ITEMS['magic-sunglasses'].name, 'Sparkling rainbow frames fly onto Koshi’s face for ten seconds. All bricks glow in the same cycling colors as the frames. Every selectable brick can be selected despite cooldowns, Toggle locks, or exhausted Crumblers; Cinder and Goal remain unselectable. Clicks do not add cooldowns, spend Crumbler uses, or change Toggle counters. Slime and other contact effects still apply. A translucent rectangle of stars and smiling cats slides behind the arena on a separate row from other active power-up banners; the power ends when it exits, then the glasses fade away. All brick cooldowns finish at expiry; Toggle locks and exhausted Crumblers resume their stored state. Another pair restarts the ten seconds; pause freezes the effect. Switchboard Supper introduces them.', 'item:magic-sunglasses'],
       ['On-screen lifetimes', 'Items and weapons can have an optional lifetime in seconds, starting when they appear. Leave it blank in the editor to keep them until the level ends. Timed objects show a lifetime bar; pause freezes expiry. Pickup does not shorten an equipped sword or power-up effect.'],
-      [ITEMS['spooky-mask'].name, 'A red devil mask with yellow snake eyes, small outlined ears, horns and sharp teeth flies onto Koshi’s head for ten seconds. A translucent banner of ghosts and demon heads scrolls behind gameplay throughout the fear effect, on a separate row from other active power-up banners. Enemies look scared and shed flying sweat drops while moving away at a constant pace of 64 units per second. Mice do not rest and Rams do not target or charge while afraid. Wheels stay on the perimeter; Buckets pause their bomb-throwing timer. Scared enemies cannot hurt Koshi on contact or throw new bombs. Existing bombs keep animating but cannot damage him during fear. Movement bounds and shields stay unchanged. Sleep overrides fleeing. Normal movement, attacks and damage resume at expiry. Newly spawned enemies are also afraid. Another mask restarts ten seconds; pause freezes the effect, and the mask fades after expiry.', 'item:spooky-mask'],
+      [ITEMS['spooky-mask'].name, 'A red devil mask with yellow snake eyes, small outlined ears, horns and sharp teeth flies onto Koshi’s head for ten seconds. A translucent banner of ghosts and demon heads scrolls behind gameplay throughout the fear effect, on a separate row from other active power-up banners. Enemies look scared and shed flying sweat drops while moving away at a constant pace of 64 units per second. Mice do not rest and Rams do not target or charge while afraid. Wheels stay on the perimeter; Buckets pause their bomb-throwing timer. Most enemies cannot hurt Koshi or launch new attacks while afraid, but Robo Snake’s body remains dangerous. Existing bombs keep animating but cannot damage him during fear. Movement bounds and shields stay unchanged. Sleep overrides fleeing. Normal movement, attacks and damage resume at expiry. Newly spawned enemies are also afraid. Another mask restarts ten seconds; pause freezes the effect, and the mask fades after expiry.', 'item:spooky-mask'],
       ['Pickup sparkle', 'Collected food, items, and swords briefly pop larger, then shrink and fade into a burst of sparkles. Food also shows the points earned.'],
     ],
   },
   {
     title: 'Cooldown bricks',
+    practice: 'cooldown',
     sections: [
       ...Object.entries(COOLDOWNS).map(([kind, seconds]) => [
         `${kind[0].toUpperCase() + kind.slice(1)} / ${{ slow: 'blue', normal: 'green', fast: 'red' }[kind]}`,
@@ -54,7 +60,29 @@ const GUIDE = [
     ],
   },
   {
+    title: 'Bumpers, bubbles & obstructions',
+    practice: 'bumper',
+    sections: [
+      ...Object.entries(OBJECTS).filter(([, object]) => object.bumper).map(([type, object]) => [
+        object.name,
+        `A stationary bumper bounces Koshi and robots on contact. The ${type.slice(7)} bumper ${object.speedMultiplier === 1 ? 'keeps' : object.speedMultiplier > 1 ? 'increases' : 'reduces'} Koshi’s speed${object.speedMultiplier === 1 ? '' : ` by ${Math.round(Math.abs(object.speedMultiplier - 1) * 100)}%`}.`,
+        `object:${type}`,
+      ]),
+      ...Object.entries(OBJECTS).filter(([, object]) => object.bubble).map(([type, object]) => [
+        object.name,
+        `A bubble captures Koshi and holds him at its center for ${SLIMES[object.bubbleColor].duration} seconds. He cannot steer while trapped; enemies can still hurt him. The bubble then bursts. Matching colors use the same durations as slime.`,
+        `object:${type}`,
+      ]),
+      ...Object.entries(OBJECTS).filter(([, object]) => object.obstruction).map(([type]) => [
+        OBJECTS[type].name,
+        'A fixed obstruction blocks Koshi, enemies and soccer balls. Koshi slides along its edge when moving into it. Some campaign obstructions appear during play; custom levels can also set an obstruction to destructible, in which case a Fireball Turret can destroy it.',
+        `object:${type}`,
+      ]),
+    ],
+  },
+  {
     title: 'Crumblers & Warped',
+    practice: 'crumbler',
     sections: [
       ['Crumblers / C counter', 'Jagged Crumblers have limited selections. Each successful selection deepens their chips and cracks and reduces C by one. At C:0 the brick stays solid, but cannot be selected until restart. Its cooldown animation stops.', 'brick:crumbler'],
       ['Warped / W counter', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes. The first absorption starts W; further selections do not restart it.', 'brick:warped'],
@@ -64,6 +92,7 @@ const GUIDE = [
   },
   {
     title: 'Brick surfaces',
+    practice: 'slime-red',
     sections: [
       ...Object.entries(SLIMES).map(([color, { duration }]) => [
         `${color[0].toUpperCase() + color.slice(1)} slime / ${duration} second${duration === 1 ? '' : 's'}`,
@@ -84,6 +113,7 @@ const GUIDE = [
   },
   {
     title: 'Food & healing',
+    practice: 'food',
     sections: [
       ...Object.entries(FOODS).map(([type, food]) => [`${food.icon} ${food.name} / +${food.value}`, `Adds ${food.value} food point${food.value === 1 ? '' : 's'} when touched. Food may appear alone, in lines, in circles, or scattered around the arena.`, `food:${type}`]),
       ['Food expires', 'The small bar above food shows its remaining lifetime. Expired snacks disappear; pause freezes their lifetime.'],
@@ -92,6 +122,7 @@ const GUIDE = [
   },
   {
     title: 'Robots & swords',
+    practice: 'snake',
     sections: [
       ['Robo Mouse', 'Mice patrol at 75 board units per second in curved paths and periodically stop to bare their two large front teeth. They do not chase or shoot.', 'enemy:mouse'],
       ['Robo Wheel', 'Wheels roll along the inner perimeter. Intercept them near a wall while armed.', 'enemy:wheel'],
@@ -101,6 +132,10 @@ const GUIDE = [
       ['Robo Jackolantern', 'An orange pumpkin robot with grey mechanical eyes and an antenna instead of a stem. It wanders slowly, pauses for a half-second warning, and stomps every four seconds. A square fire ring expands from the stomp location at 120 board units per second. Touching it costs one heart. Bricks and barriers extinguish only the blocked portions; the rest keeps growing. Fear prevents stomps and fire damage; sleep freezes it. On defeat its yellow nose and mouth dim grey, its antenna snaps, and the pumpkin bursts into pieces. Available for custom levels.', 'enemy:jackolantern'],
       ['Robo Snake', 'A long grey robot follows the inner perimeter at the same pace as a Wheel. It has four segments: a yellow-eyed head with black slit pupils and a flicking forked tongue emerging beneath its shell, then spiked panels with a grey plus sign, thin oval buttons and unlettered red circular buttons. Large symmetric grey shapes and red stripes decorate the segments. Only its head can be attacked with a sword or Boost; body contacts hurt Koshi even while the snake is asleep or afraid, respecting normal damage invulnerability. Fear makes it flee slowly along the border; sleep stops it. On defeat its segments fall apart and fade, and its tongue spins away. Available for custom levels.', 'enemy:snake'],
       ['Robo Goalie', 'An egg-shaped robot with three antenna hairs, a long metal nose, and a colorful striped soccer jersey with badges. He spawns at a normal enemy location or custom marker, then moves slowly toward the nearest Goal brick to guard it. If his goal is removed, he travels to the nearest remaining one. Once there, he moves across its mouth to intercept incoming soccer balls. He gently sways around his defensive target, proactively tracking nearby balls and anticipating their rolling motion; incoming scoring threats take priority. Overlapping goalies draw with the lowest on screen in front. He cannot hurt Koshi, but swords and Boost can destroy him; shields work normally. Music Box freezes him, and Spooky Mask makes him retreat along the goal mouth rather than leaving it. On defeat his jersey falls, revealing a plain mechanical shell; he blushes pink, then explodes. Without any Goal brick he immediately plays that defeat animation without awarding points. Available in custom levels and enemy spawners; Level 3-1 introduces him.', 'enemy:goalie'],
+      ['Robo Snail', 'The green, spiral-shelled Snail wanders continuously and does not pause like a Mouse. Defeating it freezes all brick cooldowns for 20 seconds; cooldowns already running resume afterward, and new ones wait until the freeze ends. Available in the campaign and custom levels.', 'enemy:robo-snail'],
+      ['Robo Cow', 'The Cow walks only along the board perimeter. After walking past several brick lengths, it stops to eat a boundary brick; after five seconds, that brick and its merged group become Cinder. Cinder and Goal bricks cannot be eaten. A Spooky Mask cancels eating and makes it flee. It can be defeated with a sword or Boost.', 'enemy:robo-cow'],
+      ['Robo Unicorn', 'The Unicorn pauses to aim, then charges toward the nearest food and eats it. With no food left, it turns red and moves faster. Protect your food and use a sword or Boost to defeat it.', 'enemy:robo-unicorn'],
+      ['Robo Koshi', 'This robotic copy waits one second, rushes to the place Koshi stood when it spawned, then follows Koshi’s recorded path a short time behind. Keep moving or change direction to avoid meeting your own trail; a sword or Boost can defeat it.', 'enemy:robo-koshi'],
       ['Damage & defeats', 'Unarmed contact with hostile robots costs one heart; Robo Goalie is harmless. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
       ...Object.entries(SWORDS).map(([type, sword]) => [
         sword.name,
@@ -112,6 +147,7 @@ const GUIDE = [
   },
   {
     title: 'Spawn warnings',
+    practice: 'warnings',
     sections: [
       ['Purple cloudy skull / enemy', 'Materializes at each robot’s starting location one second before it appears. Wheel warnings sit on the inner perimeter. Keep clear unless armed.'],
       ['Golden swirl / weapon', 'Grows from a point and dissipates over one second to reveal a sword at the same location.'],
@@ -122,6 +158,7 @@ const GUIDE = [
   },
   {
     title: 'Objectives',
+    practice: 'objectives',
     sections: [
       ['Campaign win conditions', 'The 48 main campaign levels introduce one concept each, and optional World 3S adds 12 challenge levels that combine them. Some require food points, enemy points, soccer goals, combined targets, or survival until time runs out. The briefing and gold HUD counters show the targets; combined progress follows the least-complete objective.'],
       ['Custom win conditions', 'Choose any combination of food, enemy and soccer-goal targets, or survive until the timer reaches zero. Every level starts with an objectives popup and a Start button. Required score counters show / target in gold; survival highlights the countdown in gold. All required scores must be reached.'],
@@ -151,6 +188,11 @@ const LESSONS = [
   { id: 'springs', title: 'Springs', instruction: 'Aim at the outlined brown Spring. Koshi bounces instead of stopping. Try redirecting him during the bounce.' },
   { id: 'mouse', title: 'Swords & Robo Mouse', instruction: 'Choose a sword below, then aim at the outlined brick. Pick up the sword before reaching the mouse; attacks are automatic. Try each sword with Retry.' },
   { id: 'wheel', title: 'Robo Wheel', instruction: 'Aim at the outlined brick to collect a sword and intercept a wheel at the inner perimeter. Unlike a mouse, it keeps rolling along the wall.' },
+  { id: 'goalie', title: 'Robo Goalie', instruction: 'Collect a sword and intercept the Goalie. It guards a Goal and cannot hurt Koshi, but it can block soccer shots.' },
+  { id: 'robo-snail', title: 'Robo Snail', instruction: 'Collect a sword and defeat the continuously wandering Snail. Watch every brick cooldown freeze for 20 seconds after the defeat.' },
+  { id: 'robo-cow', title: 'Robo Cow', instruction: 'Collect a sword and intercept the Cow on the perimeter. If left alone, it eats a boundary brick and turns it into Cinder after five seconds.' },
+  { id: 'robo-unicorn', title: 'Robo Unicorn', instruction: 'Collect a sword and intercept the Unicorn. It aims at and eats food; with no food left it turns red and speeds up.' },
+  { id: 'robo-koshi', title: 'Robo Koshi', instruction: 'Collect a sword, keep moving, and watch the robotic copy return to the place you stood before following your path.' },
   { id: 'ram', title: 'Robo Ram', instruction: 'Collect the sword, then watch the ram pause as its eyes sparkle and it aims at Koshi. It lines up before a fast straight charge. Avoid the rush or intercept it while armed; bricks make it ricochet and slow down.' },
   { id: 'bucket', title: 'Robo Bucket', instruction: 'Collect a sword and intercept the bucket. Its blue bombs bounce harmlessly for three seconds before their expanding red flames can hurt you.' },
   { id: 'ball', title: 'Robo Ball', instruction: 'Collect a sword and intercept the bouncing basketball robot. It rebounds off walls and other enemies; defeat it to see it shrivel and pop its eyes into the air.' },
@@ -164,6 +206,7 @@ const LESSONS = [
   { id: 'portal', title: 'Portal pairs', instruction: 'Aim at the outlined purple Portal. Koshi emerges from its partner at the center, heading straight into the arena. Matching smoke colors identify pairs.' },
   { id: 'toggle', title: 'Toggle switches', instruction: 'The outlined red Toggle starts at 1. Successfully activate another brick to reach zero and enable it. The next successful activation, including the Toggle itself, disables it again.' },
   { id: 'spawner', title: 'Spawning bricks', instruction: 'Aim at the outlined spawning brick and physically touch it. Its rainbow-glowing heart outline turns dark grey as one healing heart appears at a random safe location. Merely clicking is not enough.' },
+  { id: 'turret', title: 'Turret bricks', instruction: 'Touch the outlined Laser Turret to enter its dome. After the entry animation, aim and fire at the robot; turrets have three shots or ten seconds before releasing Koshi.' },
   { id: 'boost', title: 'Boost launches', instruction: 'Koshi rests against the outlined Boost. Select a brick across the board to launch at double speed in a fireball, defeating the robot on the way. Another successful selection ends the boost.' },
   { id: 'barrier', title: 'Barrier fences', instruction: 'Select the outlined fence brick to extend its barrier. Koshi passes through, but enemies and bombs cannot. Select it again after its cooldown to retract the fence.' },
   { id: 'spikes', title: 'Spikes', instruction: 'Touch the outlined white Spikes. You lose one heart and stop, even with a sword. Wait against them: they cannot hurt again until you leave and touch them again. Then select another brick to leave.' },
@@ -171,6 +214,22 @@ const LESSONS = [
   { id: 'cinder', title: 'Cinder blocks', instruction: 'Koshi starts stopped against a grey Cinder block. It is solid but cannot be selected or absorbed, and has no special effects. Tap the outlined brick across the board to leave the Cinder and land safely.' },
   { id: 'larger', title: 'Larger bricks', instruction: 'Aim anywhere on the outlined double brick. Both segments share one cooldown and the owner’s attributes; they are not separate targets. Land on it and watch the entire surface recharge together.' },
   { id: 'warped-crumbler', title: 'Warped Crumblers', instruction: 'Select the outlined Warped Crumbler once. It absorbs a neighbor but uses its last selection. C:0 and W:X mean it stays solid and enlarged even after its 8-second timer; only restart or absorption can restore it.' },
+  { id: 'bumper', title: 'Bumpers', instruction: 'Aim through the red bumper. It bounces Koshi away and increases his speed; green preserves speed and blue reduces it.' },
+  { id: 'bubble', title: 'Bubbles', instruction: 'Touch the blue bubble and wait until it releases Koshi. Bubbles hold for the matching slime duration: blue 5 seconds, green 3, red 1.' },
+  { id: 'obstruction', title: 'Obstructions', instruction: 'Steer into the fixed circle, then choose another brick to route around it. Obstructions block Koshi, robots, and soccer balls.' },
+  { id: 'cookie', title: 'Smiley Cookie', instruction: 'Collect the Smiley Cookie and travel through the strawberries. It attracts food across the board while Koshi keeps moving.' },
+  { id: 'stopwatch', title: 'Stopwatches', instruction: 'Collect the red Stopwatch to add ten seconds to the level clock. Green adds 30 seconds; blue adds 60.' },
+  { id: 'boom-time', title: 'Boom Times', instruction: 'Collect the blue Boom Time before steering. It adds eight activations to this practice helmet; red adds one and green adds three.' },
+  { id: 'battery', title: 'Battery recharge', instruction: 'Collect the Battery, then touch the already-used heart spawner to spend it and make the spawner produce an item again.' },
+  { id: 'music-box', title: 'Music Box', instruction: 'Collect the Music Box to put the nearby robot to sleep for ten seconds. Sleeping enemies are usually harmless; watch out for the Robo Snake’s body.' },
+  { id: 'spooky-mask', title: 'Spooky Mask', instruction: 'Collect the mask to frighten the robot. Enemies flee and most attacks stop for ten seconds; the Robo Snake’s body remains dangerous.' },
+  { id: 'kitty-cape', title: 'Kitty Cape', instruction: 'Collect the cape and steer. Your current movement and the next launches travel at double speed for ten seconds.' },
+  { id: 'magic-sunglasses', title: 'Magical Sunglasses', instruction: 'Collect the glasses while traveling, then select the outlined recharging brick. Sunglasses bypass cooldowns, but Cinder and Goal bricks remain unselectable.' },
+  { id: 'eggplant', title: 'Eggplant', instruction: 'Collect the Eggplant to see its penalty: it subtracts ten food points, but never takes your score below zero.' },
+  { id: 'saw-blade', title: 'Saw Blade', instruction: 'Collect the Saw Blade, then touch the outlined brick. Its whole merged shape becomes permanent Cinder.' },
+  { id: 'ditto-stamp', title: 'Ditto Stamp', instruction: 'Collect the stamp and land on one brick to copy its properties. Land on another to apply them; the destination keeps its shape.' },
+  { id: 'paintbrush', title: 'Paintbrushes', instruction: 'Collect the green brush, then touch a different brick. It changes that brick to a ready Normal brick; red paints Fast and blue paints Slow.' },
+  { id: 'keys', title: 'Keys, chests & Cat Blocks', instruction: 'Collect the key, then touch the chest to spend it and collect the Cat Block. Campaign Cat Blocks are kept only after a win.' },
 ];
 
 class Tutorial {
@@ -191,8 +250,12 @@ class Tutorial {
     this.paused = false;
     this.previewSeen = false;
     this.rideSeen = false;
+    this.bubbleSeen = false;
+    this.obstructionSeen = false;
+    this.stampCaptured = false;
     this.currentComplete = false;
-    const level = { version: 1, id: `Practice ${index + 1}`, duration: 3600, goal: 1000, heartCost: 10, brickSet: 1, events: [] };
+    const level = { version: 1, id: `Practice ${index + 1}`, duration: 3600, goal: 1000, heartCost: 10, brickSet: 1, events: [],
+      ...(this.lesson.id === 'boom-time' ? { activationLimit: 2 } : {}) };
     const game = new Game(() => .5, { ...options, customLevel: level });
     // Only the objectives lesson uses normal victory rules.
     game.level.duration = Infinity;
@@ -266,21 +329,53 @@ class Tutorial {
     }
     if (id === 'toggle') { this.target.toggle = 1; this.target.toggleRemaining = 1; }
     if (id === 'spawner') this.target.spawner = { kind: 'heart', type: 'heart' };
+    if (id === 'battery') this.target.spawner = { kind: 'item', type: 'stopwatch' };
+    if (id === 'battery') this.target.spawned = true;
+    if (id === 'turret') this.target.turret = 'laser';
     if (id === 'barrier') this.target.barrier = true;
+    if (id === 'bumper') game.bumpers.push(game.createCustomSpawn({
+      kind: 'object', type: 'bumper-red', x: (along(.52).x - game.bounds().left) / (game.bounds().right - game.bounds().left),
+      y: (along(.52).y - game.bounds().top) / (game.bounds().bottom - game.bounds().top),
+    })[0]);
+    if (id === 'bubble') game.bubbles.push(game.createCustomSpawn({
+      kind: 'object', type: 'bubble-blue', x: (along(.52).x - game.bounds().left) / (game.bounds().right - game.bounds().left),
+      y: (along(.52).y - game.bounds().top) / (game.bounds().bottom - game.bounds().top),
+    })[0]);
+    if (id === 'obstruction') game.obstructions.push(game.createCustomSpawn({
+      kind: 'object', type: 'obstruction-circle', x: (along(.58).x - game.bounds().left) / (game.bounds().right - game.bounds().left),
+      y: (along(.58).y - game.bounds().top) / (game.bounds().bottom - game.bounds().top),
+    })[0]);
     if (id === 'boost') {
       this.target.boost = true;
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(id)) {
+    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+      'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(id)) {
       addSword();
-      if (['wheel', 'snake'].includes(id)) {
+      if (['wheel', 'snake', 'robo-cow'].includes(id)) {
         const bounds = game.bounds();
-        const enemy = game.createCustomSpawn({ kind: 'enemy', type: id, x: 1, y: (start.y - bounds.top) / (bounds.bottom - bounds.top) })[0];
-        // Start upstream so the moving wheel meets the launch path near arrival.
-        enemy.distance -= 95 * (bounds.right - start.x) / engine.SPEED;
-        game.placeWheel(enemy);
+        const type = id;
+        const cowMeetingTime = (bounds.right - start.x) / SPEED;
+        const enemyY = id === 'robo-cow' ? start.y - COW_SPEED * cowMeetingTime : start.y;
+        const enemy = game.createCustomSpawn({ kind: 'enemy', type, x: 1,
+          y: (enemyY - bounds.top) / (bounds.bottom - bounds.top) })[0];
+        if (id !== 'robo-cow') {
+          // Start upstream so the moving perimeter enemy meets the launch path near arrival.
+          enemy.distance -= 95 * (bounds.right - start.x) / SPEED;
+          game.placeWheel(enemy);
+        }
         game.robots.push(enemy);
+      } else if (id === 'goalie') {
+        const goal = game.bricks.find(brick => regions.get(brick.id).edge === 'left' && brick.absorbedBy === null);
+        goal.kind = 'goal';
+        game.brickRevision++;
+        const bounds = game.bounds();
+        const enemy = game.createCustomSpawn({ kind: 'enemy', type: id,
+          x: (along(.8).x - bounds.left) / (bounds.right - bounds.left),
+          y: (along(.8).y - bounds.top) / (bounds.bottom - bounds.top) })[0];
+        game.robots.push(enemy);
+        game.soccerBalls.push(game.createSoccerBall(along(.45)));
       } else if (id === 'ram') {
         const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'ram', x: .72, y: .5 })[0];
         game.robots.push(enemy);
@@ -295,11 +390,43 @@ class Tutorial {
         const enemy = { ...along(.8), type: 'jackolantern', radius: 19, phase: Math.PI,
           age: 0, touching: false };
         game.initializeJackolantern(enemy); game.robots.push(enemy);
-      } else {
+      } else if (id === 'mouse' || id === 'objectives') {
         game.robots.push({ ...along(.8), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
+      } else {
+        const bounds = game.bounds(), point = along(.8);
+        const enemy = game.createCustomSpawn({ kind: 'enemy', type: id,
+          x: (point.x - bounds.left) / (bounds.right - bounds.left),
+          y: (point.y - bounds.top) / (bounds.bottom - bounds.top) })[0];
+        game.robots.push(enemy);
       }
     }
+    const addItem = (type, fraction = .2) => game.items.push(game.createCollectible(0, type, null, along(fraction)));
+    if (id === 'cookie') {
+      addItem('smiley-cookie');
+      for (const fraction of [.45, .65, .85]) addFood(fraction);
+    }
+    if (id === 'stopwatch') addItem('stopwatch');
+    if (id === 'boom-time') addItem('boom-time-blue');
+    if (id === 'battery') addItem('battery');
+    if (id === 'music-box' || id === 'spooky-mask') addItem(id);
+    if (id === 'kitty-cape') addItem(id);
+    if (id === 'magic-sunglasses') {
+      game.items.push(game.createCollectible(0, id, null, { x: game.cat.x - 50, y: game.cat.y }));
+    }
+    if (id === 'eggplant') { game.score = 10; addItem('eggplant'); }
+    if (id === 'saw-blade' || id === 'ditto-stamp') addItem(id);
+    if (id === 'paintbrush') addItem('paint-wide-green');
+    if (id === 'keys') {
+      addItem('key');
+      const chest = game.createCollectible(0, 'treasure-chest', null, along(.8));
+      chest.keysRequired = 1;
+      game.items.push(chest);
+    }
+    if (['music-box', 'spooky-mask'].includes(id)) {
+      game.robots.push({ ...along(.8), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
+    }
     if (id === 'objectives') addFood(.55);
+    if (id === 'robo-unicorn') addFood(.55);
     if (id === 'healing') {
       game.hearts = 2; game.score = 9; addFood(.55);
       const bounds = game.bounds();
@@ -315,6 +442,7 @@ class Tutorial {
     }
     game.brickRevision++;
     game.start();
+    if (id === 'magic-sunglasses') this.target.readyAt = 8;
     this.game = game;
     return game;
   }
@@ -336,6 +464,12 @@ class Tutorial {
     if (game.stuckUntil > game.elapsed + 1e-9) this.held = true;
     if (game.spawnCues.length) this.previewSeen = true;
     if (game.conveyorRide?.id === this.target.id) this.rideSeen = true;
+    if (game.bubbleTrap) this.bubbleSeen = true;
+    if (game.obstructions.some(obstruction =>
+      Math.hypot(game.cat.x - obstruction.x, game.cat.y - obstruction.y) <= game.cat.radius + obstruction.radius + .05)) {
+      this.obstructionSeen = true;
+    }
+    if (game.dittoStamp && game.dittoSource) this.stampCaptured = true;
     const success = {
       aim: this.actions > 0 && !game.cat.vx && !game.cat.vy && Math.hypot(game.cat.x - this.origin.x, game.cat.y - this.origin.y) > 10,
       redirect: this.redirected,
@@ -346,6 +480,11 @@ class Tutorial {
       springs: this.target.hitAt !== null,
       mouse: game.enemies >= 1,
       wheel: game.enemies >= 1,
+      goalie: game.enemies >= 1,
+      'robo-snail': game.enemies >= 1 && game.snailStreamUntil > game.elapsed,
+      'robo-cow': game.enemies >= 1,
+      'robo-unicorn': game.enemies >= 1,
+      'robo-koshi': game.enemies >= 1,
       ram: game.enemies >= 1,
       bucket: game.enemies >= 1,
       ball: game.enemies >= 1,
@@ -359,6 +498,7 @@ class Tutorial {
       portal: game.portalTrips > 0,
       toggle: this.target.toggleRemaining === 0,
       spawner: this.target.spawned,
+      turret: game.turretEffects.length > 0 || game.turretProjectiles.length > 0,
       boost: game.enemies >= 1 && this.actions > 0,
       barrier: game.barriers.some(fence => fence.id === this.target.id && fence.length > 20),
       spikes: game.hearts === 2 && this.actions > 0 && !game.cat.vx && !game.cat.vy,
@@ -366,6 +506,22 @@ class Tutorial {
       cinder: this.actions > 0 && !game.cat.vx && !game.cat.vy && Math.hypot(game.cat.x - this.origin.x, game.cat.y - this.origin.y) > 10,
       larger: this.target.readyAt > 0 && !game.cat.vx && !game.cat.vy,
       'warped-crumbler': this.warpSeen && this.target.usesLeft === 0 && game.elapsed >= this.target.warpUntil,
+      bumper: game.bumpers.some(bumper => bumper.hitAt > 0),
+      bubble: this.bubbleSeen && game.bubbleTrap === null && this.actions > 0,
+      obstruction: this.obstructionSeen && this.actions > 1 && this.lastBrick !== this.target.id,
+      cookie: game.score >= 3 && !game.items.some(item => item.type === 'smiley-cookie'),
+      stopwatch: game.timeBonus >= 10,
+      'boom-time': game.activationsRemaining > 2,
+      battery: game.batteries === 0 && this.target.spawned && game.items.some(item => item.type === 'stopwatch'),
+      'music-box': game.musicStreamUntil > game.elapsed,
+      'spooky-mask': game.maskActive && game.robots.some(enemy => enemy.afraid),
+      'kitty-cape': game.capeActive,
+      'magic-sunglasses': game.sunglassesActive && this.actions > 1 && this.lastBrick === this.target.id,
+      eggplant: game.score === 0,
+      'saw-blade': this.target.kind === 'cinder',
+      'ditto-stamp': this.stampCaptured && this.actions > 1 && !game.dittoStamp && game.dittoSource === null,
+      paintbrush: this.target.kind === 'normal',
+      keys: game.catBlockCollected && game.catBlockEvents.includes('chest'),
     }[id] ?? (id.startsWith('slime-') && this.held && game.stuckUntil === 0);
     if (success) { this.completed.add(id); this.currentComplete = true; }
     return this.currentComplete;

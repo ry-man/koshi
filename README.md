@@ -55,6 +55,10 @@ dashed route below the main path and contains 12 levels (3S–1 through 3S–12)
 
 The high-level map shows one stop per world. Click a world to move Koshi's
 marker; clicking the world Koshi is already on zooms into its individual level stops.
+World stops show a flag, star and Cat Block icon. The flag fills when all levels
+are completed, the star when all gold stars are earned, and the Cat Block when
+all available Cat Blocks in that world are found. The overview omits the world
+detail panel and centers the map.
 Click a level to move Koshi and see its number, name, objectives, time limit,
 Boom Helmet activation limit when applicable, fastest winning time, fewest moves, highest food
 and enemy points, win/loss/quit totals, and win percentage (wins divided by all
@@ -216,22 +220,18 @@ writes after confirmation without changing previously saved progress.
 
 The title screen includes two learning paths:
 
-- **How to play** opens an eight-topic walkthrough of movement and controls,
-  cooldown colors, Cinder blocks, larger groups, Crumblers/Warped combinations,
-  all nine contact surfaces and Toggle switches, every food and healing
-  item, all eight robots and all swords, spawn warnings, and current objectives.
-  Labeled pictures show every cooldown brick, Crumbler/Warped combination,
-  slime color, spring and spike surface, food, healing heart, robot, and sword.
+- **How to play** opens a ten-topic walkthrough of movement and controls,
+  cooldown and special bricks, larger groups and Crumblers/Warped combinations,
+  all contact surfaces, every food and item (including keys, chests and Cat
+  Blocks), all 12 robots and swords, soccer balls, bumpers, bubbles, obstructions,
+  spawn warnings, and objectives. Labeled pictures illustrate every brick,
+  enemy, item, object, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
-- **Tutorial** opens 32 interactive practice steps on the real game board:
-  aiming/stopping, redirecting, food, recharge, Crumblers, Warped restoration,
-  each of the three slime colors, Springs, mouse/sword combat, wheel interception,
-  ram and bucket combat, Robo Ball, Jackolantern and Snake combat, soccer goals,
-  healing, spawn warnings, pause/resume, a combined food/defeat challenge,
-  Portal pairs, Toggle switches, spawning bricks, Boost launches, Spikes,
-  Conveyor riding and steering away, leaving solid Cinder blocks, larger
-  shared-cooldown bricks, and frozen Warped Crumblers.
+- **Tutorial** opens 54 interactive practice steps on the real game board. It
+  includes hands-on combat with every robot, practice for each item mechanic,
+  the contact surfaces and special bricks, and bumper, bubble, and obstruction
+  interactions, alongside movement, food, healing, spawn warnings, and objectives.
   An outlined brick suggests where to aim; keyboard labels identify it too.
   Completion is earned by performing the mechanic, not just visiting the page.
 

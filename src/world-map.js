@@ -38,6 +38,7 @@ class WorldMap {
     this.picture = picture;
     this.custom = custom;
     this.map = document.querySelector('#world-map');
+    this.layout = document.querySelector('#map-layout');
     this.details = document.querySelector('#map-details');
     this.heading = document.querySelector('#level-picker-heading');
     this.back = document.querySelector('#world-map-back');
@@ -53,6 +54,8 @@ class WorldMap {
   }
   open() {
     this.view = 'worlds';
+    this.layout.dataset.view = 'worlds';
+    this.details.hidden = true;
     const level = LEVELS[Number(this.selection.value)];
     this.world = WORLDS.find(world => world.id === level?.worldId) ?? WORLDS[0];
     this.heading.textContent = 'World map';
@@ -65,9 +68,18 @@ class WorldMap {
     const nodes = WORLDS.map(world => {
       const parent = WORLDS.find(entry => entry.next.includes(world.id));
       const column = world.special ? Math.max(0, main.indexOf(parent)) + .5 : main.indexOf(world);
+      const levels = worldLevels(world);
+      const profile = this.profile();
+      const catBlockLevels = levels.filter(level => level.catBlock);
+      const foundCatBlocks = new Set(profile?.catBlocks ?? []);
+      const goldStars = levels.filter(level => levelStats(profile?.results, level.id).goldStar).length;
+      const catBlocks = catBlockLevels.filter(level => foundCatBlocks.has(level.id)).length;
       return { id: world.id, label: `World ${world.id}`, subtitle: world.name,
         x: 15 + column * 70 / columns, y: world.special ? 73 : 30,
         theme: world.theme, special: world.special, completed: this.completed(world),
+        goldStar: levels.length > 0 && goldStars === levels.length,
+        catBlockFound: catBlockLevels.length > 0 && catBlocks === catBlockLevels.length,
+        worldProgress: { goldStars, totalGoldStars: levels.length, catBlocks, totalCatBlocks: catBlockLevels.length },
         action: () => {
           if (this.world === world && !this.map.querySelector('.map-koshi').hidden) this.showWorld(world);
           else this.selectWorld(world);
@@ -84,6 +96,8 @@ class WorldMap {
       button.addEventListener('click', () => {
         this.selection.value = 'custom';
         this.details.replaceChildren(this.objectives(custom));
+        this.layout.dataset.view = 'levels';
+        this.details.hidden = false;
         this.play.hidden = false;
         this.setCutsceneOption(custom);
         for (const node of this.map.querySelectorAll('.map-node')) node.setAttribute('aria-pressed', 'false');
@@ -101,17 +115,13 @@ class WorldMap {
     this.mark(world.id);
     this.play.hidden = true;
     this.setCutsceneOption(null);
-    const levels = worldLevels(world), completed = this.profile()?.completed ?? [];
     this.details.replaceChildren();
-    const heading = document.createElement('h3'), text = document.createElement('p');
-    heading.textContent = `World ${world.id} - ${world.name}`;
-    text.textContent = `${levels.length} levels · ${levels.filter(level => completed.includes(level.id)).length} completed. ${
-      world.special ? 'Optional extra difficulty.' : 'Main adventure path.'} Click this world again to zoom in.${
-      world.next.length ? ` Routes to ${world.next.map(id => `World ${id}`).join(' or ')}.` : ''}`;
-    this.details.append(heading, text);
+    this.details.hidden = true;
   }
   showWorld(world, departure = null) {
     this.view = 'levels';
+    this.layout.dataset.view = 'levels';
+    this.details.hidden = false;
     this.world = world;
     this.heading.textContent = `World ${world.id} - ${world.name}`;
     this.back.hidden = false; this.play.hidden = false;
@@ -316,7 +326,13 @@ class WorldMap {
       button.dataset.node = node.id; button.dataset.theme = node.theme;
       button.style.left = `${node.x}%`; button.style.top = `${node.y}%`;
       button.setAttribute('aria-pressed', 'false');
-      button.setAttribute('aria-label', `${node.label}${node.subtitle ? ` - ${node.subtitle}` : ''}${node.completed ? ', completed' : ''}${node.goldStar ? ', gold star earned' : ''}${node.catBlock ? `, Cat Block available${node.catBlockFound ? ', found' : ''}` : ''}`);
+      const worldNode = this.view === 'worlds';
+      const worldStatus = worldNode ? `, ${node.completed ? 'all levels completed' : 'not all levels completed'}, ${
+        node.worldProgress.goldStars} of ${node.worldProgress.totalGoldStars} gold stars earned, ${
+        node.worldProgress.catBlocks} of ${node.worldProgress.totalCatBlocks} Cat Blocks found` : '';
+      button.setAttribute('aria-label', `${node.label}${node.subtitle ? ` - ${node.subtitle}` : ''}${
+        worldNode ? worldStatus : `${node.completed ? ', completed' : ''}${node.goldStar ? ', gold star earned' : ''}${
+          node.catBlock ? `, Cat Block available${node.catBlockFound ? ', found' : ''}` : ''}`}`);
       const name = document.createElement('strong'); name.textContent = node.label;
       button.append(name);
       if (node.subtitle && this.view === 'worlds') {
@@ -336,23 +352,26 @@ class WorldMap {
       if (node.subtitle && this.view === 'levels') {
         const subtitle = document.createElement('small'); subtitle.textContent = node.subtitle; button.append(subtitle);
       }
-      if (node.completed) {
-        button.classList.add('completed');
+      if (node.completed || worldNode) {
+        if (node.completed) button.classList.add('completed');
         const flag = document.createElement('span'), cloth = document.createElement('span');
-        flag.className = 'completion-flag'; flag.setAttribute('aria-hidden', 'true');
+        flag.className = `completion-flag${node.completed ? ' completion-flag-earned' : ''}`;
+        flag.setAttribute('aria-hidden', 'true');
         cloth.className = 'flag-cloth'; flag.append(cloth); button.append(flag);
       }
-      if (this.view === 'levels') {
+      if (this.view === 'levels' || worldNode) {
         const star = document.createElement('span');
         star.className = `map-node-star${node.goldStar ? ' map-node-star-earned' : ''}`;
         star.append(goldStarIcon(node.goldStar, document));
         star.setAttribute('aria-hidden', 'true');
         button.append(star);
       }
-      if (node.catBlock) {
+      if (node.catBlock || worldNode) {
         const catBlock = document.createElement('span');
         catBlock.className = `map-node-cat-block${node.catBlockFound ? ' map-node-cat-block-found' : ''}`;
-        catBlock.title = `Cat Block: ${node.catBlock.description}`;
+        catBlock.title = worldNode
+          ? `${node.worldProgress.catBlocks} of ${node.worldProgress.totalCatBlocks} Cat Blocks found`
+          : `Cat Block: ${node.catBlock.description}`;
         catBlock.setAttribute('aria-hidden', 'true');
         catBlock.append(catBlockIcon(node.catBlockFound, document));
         button.append(catBlock);

@@ -21,6 +21,10 @@ be added later.
 The high-level map groups each world into a single clickable stop. Koshi's
 marker shows the selected world. Click a different world to move him there;
 click the world he is already on to zoom into its low-level map.
+World stops show a flag, star and Cat Block icon. The flag fills when all levels
+are completed, the star when all gold stars are earned, and the Cat Block when
+all available Cat Blocks in that world are found. The overview omits the world
+detail panel and centers the map.
 Only that world's individual level stops are shown, connected by a path.
 Clicking a stop moves Koshi along the map and displays the level's number,
 name, win objectives, time to beat, Boom Helmet moves to beat when applicable,
@@ -189,24 +193,22 @@ Built-in level content and schedules are unchanged.
 
 The title screen offers **How to play** and **Tutorial**.
 
-How to play is a browsable, nine-topic rules walkthrough. Players can select
+How to play is a browsable, ten-topic rules walkthrough. Players can select
 topics freely or move with Previous/Next. It describes movement and keyboard
-controls, all cooldown and special bricks, robot enemies, soccer balls and goals, every food,
-heart healing, all four swords, spawn warnings, and current level goals.
-Labeled pictures illustrate every cooldown brick, Crumbler, Warped and combined
-brick, slime color, spring and spike surface, food, healing heart, enemy, and
-weapon using the gameplay shapes. Story instructions are not part of this guide.
-Each topic links to a related tutorial step. Escape or Back to title
-closes the guide.
+controls, every cooldown and special brick, contact surfaces, grouped bricks,
+all food and item types, all 12 robot enemies and swords, soccer balls, bumpers,
+bubbles, obstructions, spawn warnings, and current objectives. Labeled pictures
+illustrate every brick, enemy, item, object, and weapon using the gameplay shapes.
+Story instructions are not part of this guide. Each topic links to a related
+tutorial step. Escape or Back to title closes the guide.
 
-The interactive tutorial uses the actual game board and mechanics in 32 isolated
-practice steps. It teaches aiming/stopping, redirection, food, recharge,
-Crumblers, Warped restoration, red/green/blue slime, Springs, mouse combat and
-swords, wheel interception, ram and bucket combat, healing, spawn previews, pause/resume, and combined
-food/robot objectives, Portals, Toggles, Spawning, Boost launches, Spikes,
-Conveyors, Cinder blocks, larger shared-cooldown bricks, and frozen Warped
-Crumblers. An outlined brick provides a suggested target, and action
-feedback marks a step complete only after the mechanic has been performed.
+The interactive tutorial uses the actual game board and mechanics in 54 isolated
+practice steps. It includes a hands-on defeat lesson for every robot, exercises
+for every item mechanic and contact surface, special brick interactions, and
+bumper, bubble, and obstruction practice, as well as movement, food, healing,
+spawn previews, pause/resume, and objectives. An outlined brick provides a
+suggested target, and action feedback marks a step complete only after the
+mechanic has been performed.
 
 Players can freely choose any step, use Previous/Next, retry, or exit at any
 time. Combat steps offer all sword types. Practice has no countdown or story

@@ -1129,7 +1129,10 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-instruction').textContent = tutorial.lesson.instruction;
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
-  document.querySelector('#tutorial-sword-label').hidden = !['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(tutorial.lesson.id);
+  document.querySelector('#tutorial-sword-label').hidden = ![
+    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives',
+  ].includes(tutorial.lesson.id);
   makeBrickButtons();
   displayedState = null;
   displayedStuck = false;
@@ -1330,8 +1333,7 @@ document.querySelector('#guide-topic').addEventListener('change', event => showG
 document.querySelector('#guide-prev').addEventListener('click', () => showGuideChapter(guideIndex - 1));
 document.querySelector('#guide-next').addEventListener('click', () => showGuideChapter(guideIndex + 1));
 document.querySelector('#guide-practice').addEventListener('click', () => {
-  const id = GUIDE[guideIndex].title === 'Robots & swords'
-    ? 'snake' : ['aim', 'cooldown', 'crumbler', 'slime-red', 'food', 'mouse', 'warnings', 'objectives'][guideIndex];
+  const id = GUIDE[guideIndex].practice;
   startTutorial(LESSONS.findIndex(lesson => lesson.id === id));
 });
 function togglePause() {

@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Game, LEVELS, CHARACTERS, Cutscene, validateCutscene, validateCustomLevel } = require('../src/game.js');
+const { GUIDE, LESSONS } = require('../src/learning.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -207,7 +208,9 @@ test('snake portraits are animated and full-size rendering uses world-space help
   const cutscene = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   assert.match(app, /'jackolantern', 'snake', 'objectives'/);
-  assert.match(app, /GUIDE\[guideIndex\]\.title === 'Robots & swords'\s*\?\s*'snake'/);
+  assert.match(app, /const id = GUIDE\[guideIndex\]\.practice;/);
+  assert.ok(GUIDE.some(chapter => chapter.title === 'Robots & swords' && chapter.practice === 'snake'));
+  assert.ok(LESSONS.some(lesson => lesson.id === 'snake'));
   const portraitContext = vm.createContext({});
   vm.runInContext(cutscene.slice(cutscene.indexOf('function drawPortrait('), cutscene.indexOf('class CutscenePlayer')), portraitContext);
   const portrait = speaking => {

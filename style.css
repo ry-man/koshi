@@ -265,6 +265,8 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 .world-picker .learning-heading { height: 64px; overflow: auto; }
 .world-picker .learning-heading h2 { font-size: 24px; }
 .map-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; min-height: 0; }
+.map-layout[data-view="worlds"] { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.map-layout[data-view="worlds"] .map-viewport { width: min(100%, 760px); }
 .map-viewport { height: 100%; min-height: 0; overflow: auto; scrollbar-gutter: stable; border-radius: 14px; }
 .world-picker .save-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 12px; background: var(--panel); }
 .world-picker .save-actions button { min-width: 0; min-height: 48px; margin: 0; padding: 10px; white-space: nowrap; font-size: 12px; }
@@ -293,6 +295,7 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 .map-node[aria-pressed="true"] { outline: 3px solid #ffdc75; outline-offset: 3px; }
 .completion-flag { position: absolute; right: -9px; top: -22px; width: 25px; height: 30px; border-left: 3px solid #e8dfc7; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
 .flag-cloth { display: block; width: 24px; height: 17px; background: #e8b94e; clip-path: polygon(0 0, 100% 10%, 80% 50%, 100% 90%, 0 100%); transform-origin: left center; animation: flag-wave 1.4s ease-in-out infinite alternate; }
+.completion-flag:not(.completion-flag-earned) .flag-cloth { background: #829096; }
 .map-node-star { position: absolute; left: -8px; bottom: -8px; width: 20px; height: 20px; color: #829096; pointer-events: none; filter: drop-shadow(0 1px 2px #0008); }
 .map-node-star-earned { color: #ffd34e; }
 .map-node-cat-block { position: absolute; right: -9px; bottom: -8px; width: 23px; height: 23px; filter: drop-shadow(0 1px 2px #0008); }

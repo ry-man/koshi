@@ -13,6 +13,7 @@ const CAPE_DURATION = 10;
 const CAPE_SPEED_MULTIPLIER = 2;
 const MASK_DURATION = 10;
 const FEAR_SPEED = 64;
+const COW_SPEED = 190;
 const COW_EAT_DURATION = 5;
 const OBSTRUCTION_RADIUS = 48;
 const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
@@ -3911,7 +3912,7 @@ class Game {
     const corners = [0, w, w + h, 2 * w + h];
     const fences = this.barrierParts();
     const centers = this.perimeter.map(id => this.perimeterBrickDistance(id));
-    let remaining = 190 * seconds;
+    let remaining = COW_SPEED * seconds;
     this.placeWheel(enemy);
     while (remaining > 1e-9) {
       const direction = enemy.cowDirection;
@@ -5397,7 +5398,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, turretSourceBrick, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, turretSourceBrick, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {
