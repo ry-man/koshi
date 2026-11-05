@@ -228,6 +228,13 @@ canvas { display: block; width: 100%; height: 100%; }
 .control-icon { margin-right: 4px; }
 .pause-icon { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
 .pause-icon [hidden] { display: none; }
+.exit-icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vertical-align: middle; }
+.exit-icon .exit-door { fill: currentColor; fill-opacity: .25; }
+.exit-icon .exit-knob { fill: currentColor; stroke: none; }
+.exit-confirm h2 { text-align: center; }
+.exit-confirm p { margin: 0 0 18px; font-size: 14px; line-height: 1.5; text-align: center; }
+.exit-confirm .save-actions { justify-content: center; }
+.exit-confirm .primary { margin: 0; }
 .game-status { margin: 0; padding: 0 20px 14px; color: var(--muted); font-size: 11px; }
 .game-toolbar button, #back-to-editor { color: #c5d0d1; background: #ffffff05; border: 1px solid #ffffff15; border-radius: 6px; padding: 7px 11px; font-size: 11px; white-space: nowrap; }
 .game-toolbar button:hover, #back-to-editor:hover { background: #ffffff12; }
@@ -429,7 +436,7 @@ body:has(.learning-guide[open]) { overflow: hidden; }
 @media (max-width: 480px) {
   .title-actions { display: grid; grid-template-columns: 1fr 1fr; width: min(100%, 350px); }
   .title-actions .primary { grid-column: 1 / -1; }
-  .title-actions #title-saves, .title-actions #title-levels { grid-column: 1 / -1; }
+  .title-actions #title-saves { grid-column: 1 / -1; }
   .title-art { max-height: 38svh; }
   .title-secondary { padding: 10px; }
   .learning-guide { padding: 12px; gap: 10px; }

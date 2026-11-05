@@ -188,11 +188,30 @@ function saveProgress(slot) {
     : `${slot.completed.length} / ${LEVELS.length} levels completed. Continue at Level ${LEVELS[next].number} on the map.`;
 }
 
+function recentSave() {
+  try {
+    return saves.recent();
+  } catch (error) {
+    console.error('Campaign save:', error);
+    return null;
+  }
+}
+
+function updateStartButton() {
+  const button = document.querySelector('#title-start'), recent = recentSave();
+  const label = recent ? `Continue as ${recent.slot.owner}` : 'Start adventure';
+  const arrow = document.createElement('span');
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '→';
+  button.replaceChildren(`${label} `, arrow);
+}
+
 function updateSaveProfile() {
   const text = activeSave
     ? `Save slot ${activeSave.index + 1}: ${activeSave.slot.owner}. ${saveProgress(activeSave.slot)}`
     : 'Guest play - progress is not saved.';
   document.querySelector('#save-profile').textContent = text;
+  updateStartButton();
 }
 
 function flushSaves() {
@@ -241,6 +260,7 @@ function saveResult() {
 
 function continueSave(index, id, fresh = false) {
   const slots = saves.load(), slot = saves.slot(slots, index, id);
+  saves.markRecent(index, id);
   activeSave = { index, slot };
   updateSaveProfile();
   openLevelPicker({ insideWorld: !fresh, level: fresh ? 0 : saves.resumeLevel(slot) });
@@ -341,7 +361,8 @@ document.querySelector('#save-guest').addEventListener('click', () => {
   activeSave = null;
   runSave = null;
   updateSaveProfile();
-  closeSaves();
+  saveDialog.close();
+  openLevelPicker({ level: 0 });
 });
 for (const id of ['#save-retry', '#save-title-retry', '#save-menu-retry']) {
   document.querySelector(id).addEventListener('click', () => {
@@ -895,10 +916,9 @@ play.addEventListener('click', () => {
 });
 restart.addEventListener('click', begin);
 document.querySelector('#title-start').addEventListener('click', () => {
-  openLevelPicker({ level: 0 });
-});
-document.querySelector('#title-levels').addEventListener('click', () => {
-  openLevelPicker();
+  const recent = recentSave();
+  if (recent) saveAttempt(() => continueSave(recent.index, recent.slot.id));
+  else openLevelPicker({ level: 0 });
 });
 function openLevelPicker({ insideWorld = false, level = null, advance = false } = {}) {
   autoPause();
@@ -917,7 +937,7 @@ function closeLevelPicker() {
   levelSelect.value = levelBeforePicker;
   levelPicker.close();
   titleScreen.showModal();
-  document.querySelector('#title-levels').focus({ preventScroll: true });
+  document.querySelector('#title-start').focus({ preventScroll: true });
 }
 document.querySelector('#level-picker-close').addEventListener('click', closeLevelPicker);
 levelPicker.addEventListener('cancel', event => { event.preventDefault(); closeLevelPicker(); });
@@ -956,30 +976,59 @@ titleScreen.addEventListener('cancel', event => {
   event.preventDefault();
   dismissTitle();
 });
+function resetBoard() {
+  game = createGame();
+  makeBrickButtons();
+  displayedState = null;
+  displayedStuck = false;
+  toast.textContent = '';
+  trail = [];
+  resize();
+  syncUI();
+}
+function leaveTutorial() {
+  tutorial = null;
+  runSave = null;
+  document.body.classList.remove('tutorial-active');
+  document.querySelector('#tutorial-panel').hidden = true;
+}
 function showTitle() {
   autoPause();
   phaseTransition.run(() => {
     if (tutorial) {
-      tutorial = null;
-      runSave = null;
-      document.body.classList.remove('tutorial-active');
-      document.querySelector('#tutorial-panel').hidden = true;
-      game = createGame();
-      makeBrickButtons();
-      displayedState = null;
-      displayedStuck = false;
-      toast.textContent = '';
-      trail = [];
-      resize();
-      syncUI();
+      leaveTutorial();
+      resetBoard();
     }
     if (!titleScreen.open) titleScreen.showModal();
     updateSaveProfile();
     document.querySelector('#title-tutorial').focus({ preventScroll: true });
   });
 }
-document.querySelector('#title-menu').addEventListener('click', showTitle);
 document.querySelector('#tutorial-exit').addEventListener('click', showTitle);
+const exitConfirm = document.querySelector('#exit-confirm');
+function closeExitConfirm() {
+  exitConfirm.close();
+  document.querySelector('#exit-level').focus({ preventScroll: true });
+}
+document.querySelector('#exit-level').addEventListener('click', () => {
+  autoPause();
+  exitConfirm.showModal();
+  document.querySelector('#exit-confirm-cancel').focus({ preventScroll: true });
+});
+document.querySelector('#exit-confirm-cancel').addEventListener('click', closeExitConfirm);
+exitConfirm.addEventListener('cancel', event => { event.preventDefault(); closeExitConfirm(); });
+exitConfirm.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeExitConfirm(); }
+});
+document.querySelector('#exit-confirm-end').addEventListener('click', () => {
+  exitConfirm.close();
+  phaseTransition.run(() => {
+    if (tutorial) leaveTutorial();
+    // Discard the abandoned attempt so it cannot be resumed from the menus.
+    resetBoard();
+    openLevelPicker({ insideWorld: true, level: levelSelect.value === 'custom' ? null : game.levelIndex });
+  });
+});
 
 function updateTutorial() {
   const completed = tutorial.observe();

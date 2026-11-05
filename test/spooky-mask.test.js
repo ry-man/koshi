@@ -34,13 +34,13 @@ test('mask placements and spawners round-trip, collect once, and support ground 
 
 for (const options of [{}, { portrait: true, scale: .5 }]) {
   for (const type of ['mouse', 'bucket', 'ram']) {
-    test(`${type} flees at the shared constant slow speed within ${options.portrait ? 'portrait' : 'desktop'} bounds`, () => {
+    test(`${type} flees at the shared constant speed within ${options.portrait ? 'portrait' : 'desktop'} bounds`, () => {
       const game = arena(options), enemy = enemyFor(game, type);
       game.collectItem({ type: 'spooky-mask' });
       const initial = Math.hypot(enemy.x - game.cat.x, enemy.y - game.cat.y);
       game.update(.2);
       const moved = Math.hypot(enemy.x - game.cat.x, enemy.y - game.cat.y) - initial;
-      assert.ok(Math.abs(moved - .2 * 32) < 1e-6);
+      assert.ok(Math.abs(moved - .2 * 64) < 1e-6);
       assert.equal(enemy.afraid, true); assert.equal(enemy.fleeMoving, true);
       game.update(8);
       const bounds = game.bounds();
@@ -68,18 +68,18 @@ test('fear overrides Mouse rests and keeps emitting moving sweat', () => {
   game.update(.5);
   assert.equal(enemy.resting, false);
   assert.equal(enemy.fleeMoving, true);
-  assert.ok(Math.abs(Math.hypot(enemy.x - position.x, enemy.y - position.y) - 16) < 1e-6);
+  assert.ok(Math.abs(Math.hypot(enemy.x - position.x, enemy.y - position.y) - 32) < 1e-6);
   game.update(1.1);
   assert.equal(enemy.resting, false); assert.equal(enemy.fleeMoving, true);
 });
 
-test('afraid Wheels reverse away from Koshi and remain on the perimeter at the shared slow speed', () => {
+test('afraid Wheels reverse away from Koshi and remain on the perimeter at the shared fear speed', () => {
   const game = arena(), enemy = enemyFor(game, 'wheel'), bounds = game.bounds();
   enemy.distance = 150; game.placeWheel(enemy);
   game.cat.x = enemy.x + 100; game.cat.y = bounds.top + 80;
   const initialDistance = enemy.distance, separation = Math.hypot(enemy.x - game.cat.x, enemy.y - game.cat.y);
   game.collectItem({ type: 'spooky-mask' }); game.update(.2);
-  assert.ok(Math.abs(enemy.distance - (initialDistance - 6.4)) < 1e-6);
+  assert.ok(Math.abs(enemy.distance - (initialDistance - 12.8)) < 1e-6);
   assert.ok(Math.hypot(enemy.x - game.cat.x, enemy.y - game.cat.y) > separation);
   for (let i = 0; i < 100; i++) {
     game.update(.03);
@@ -93,12 +93,12 @@ test('afraid Rams move constantly instead of targeting and charging, then resume
   game.collectItem({ type: 'spooky-mask' });
   game.update(.5);
   assert.equal(enemy.state, 'targeting'); assert.equal(enemy.stateTime, 0);
-  assert.ok(Math.abs(enemy.x - (game.width / 2 + 126)) < 1e-6);
+  assert.ok(Math.abs(enemy.x - (game.width / 2 + 142)) < 1e-6);
   game.update(.56);
   assert.equal(enemy.state, 'targeting'); assert.equal(enemy.stateTime, 0);
   const before = { x: enemy.x, y: enemy.y };
   game.update(.02);
-  assert.ok(Math.abs(enemy.x - before.x - .64) < 1e-6);
+  assert.ok(Math.abs(enemy.x - before.x - 1.28) < 1e-6);
   game.cat.y += 80;
   game.update(.02);
   assert.ok(enemy.y < before.y, 'fleeing follows Koshi instead of a locked charge');
@@ -113,7 +113,7 @@ test('a currently charging Ram slows immediately and freezes its charge timer', 
   const game = arena(), enemy = enemyFor(game, 'ram');
   enemy.state = 'charging'; enemy.stateTime = .4; enemy.angle = Math.PI; enemy.speed = 300;
   game.collectItem({ type: 'spooky-mask' }); game.update(.02);
-  assert.ok(Math.abs(enemy.x - (game.width / 2 + 110 + .64)) < 1e-6);
+  assert.ok(Math.abs(enemy.x - (game.width / 2 + 110 + 1.28)) < 1e-6);
   assert.equal(enemy.speed, 300);
   assert.equal(enemy.stateTime, .4);
 });

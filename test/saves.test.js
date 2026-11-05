@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { LEVELS } = require('../src/game.js');
-const { SaveSlots, SAVE_KEY, SLOT_COUNT, levelStats } = require('../src/saves.js');
+const { SaveSlots, SAVE_KEY, RECENT_KEY, SLOT_COUNT, levelStats } = require('../src/saves.js');
 
 const levelIds = LEVELS.map(level => level.id);
 
@@ -18,6 +18,22 @@ function fixture() {
   const saves = new SaveSlots(levelIds, () => storage, () => `profile-${++id}`);
   return { data, storage, saves };
 }
+
+test('the most recent slot is remembered, with fallback to the first occupied slot', () => {
+  const { storage, saves } = fixture();
+  assert.equal(saves.recent(), null, 'no saves means no continue option');
+  const first = saves.create(0, 'First');
+  const third = saves.create(2, 'Third');
+  assert.deepEqual(saves.recent(), { index: 0, slot: saves.load()[0] }, 'older saves without a marker use the first slot');
+  saves.markRecent(2, third.id);
+  assert.equal(storage.getItem(RECENT_KEY), third.id);
+  assert.equal(new SaveSlots(levelIds, () => storage).recent().slot.owner, 'Third', 'marker persists across reloads');
+  assert.throws(() => saves.markRecent(1, third.id), /changed or was deleted/);
+  saves.remove(2, third.id);
+  assert.equal(saves.recent().slot.id, first.id, 'deleted recent slot falls back');
+  saves.remove(0, first.id);
+  assert.equal(saves.recent(), null);
+});
 
 test('three named slots persist independently, reject overwriting, and rename without losing progress', () => {
   const { data, storage, saves } = fixture();
@@ -331,9 +347,13 @@ test('UI records losses once, ignores abandoned attempts, and tracks guest resul
 
 test('slot UI renders owner names as text, resumes saved levels, and confirms deletion', () => {
   const { context, elements, saves } = uiFixture();
+  const startLabel = () => elements.get('#title-start').children[0];
+  context.updateSaveProfile();
+  assert.equal(startLabel(), 'Start adventure ');
   const slot = saves.create(0, '<b>Player</b>');
   saves.complete(0, slot.id, levelIds[0]);
   context.renderSaveSlots();
+  assert.equal(startLabel(), 'Continue as <b>Player</b> ', 'owner name is inserted as plain text');
   const sections = elements.get('#save-slot-list').children;
   assert.equal(sections.length, 3);
   assert.equal(sections[0].children[0].textContent, 'Slot 1 - <b>Player</b>');
@@ -353,6 +373,7 @@ test('slot UI renders owner names as text, resumes saved levels, and confirms de
   remove.listeners.click();
   assert.equal(saves.load()[0], null);
   assert.equal(context.activeSave, null);
+  assert.equal(startLabel(), 'Start adventure ', 'deleting the last save restores Start adventure');
 });
 
 test('loading opens the last-played level map while a newly created slot opens world selection', () => {
@@ -368,6 +389,9 @@ test('loading opens the last-played level map while a newly created slot opens w
   context.continueSave(1, fresh.id, true);
   assert.equal(openings[1].insideWorld, false);
   assert.equal(openings[1].level, 0);
+  assert.equal(saves.recent().slot.id, fresh.id, 'continuing or creating marks the slot most recent');
+  context.continueSave(0, slot.id);
+  assert.equal(saves.recent().index, 0);
 });
 
 test('starting campaign play queues last-played persistence and storage failures can be retried', () => {

@@ -60,7 +60,6 @@
         <div class="title-actions">
           <button id="title-start" class="primary" type="button" autofocus>Start adventure <span aria-hidden="true">→</span></button>
           <button id="title-saves" class="title-secondary" type="button" aria-haspopup="dialog">Save slots</button>
-          <button id="title-levels" class="title-secondary" type="button" aria-haspopup="dialog">Choose a level</button>
           <button id="title-help" class="title-secondary" type="button" aria-haspopup="dialog">How to play</button>
           <button id="title-tutorial" class="title-secondary" type="button">Tutorial</button>
           <button class="title-secondary" id="install-button" type="button" aria-haspopup="dialog">📲 Install app</button>
@@ -123,6 +122,14 @@
         <button id="level-results-continue" class="primary" type="button">Continue to map →</button>
       </div>
     </dialog>
+    <dialog id="exit-confirm" class="install-dialog exit-confirm" aria-labelledby="exit-confirm-heading" aria-describedby="exit-confirm-message">
+      <h2 id="exit-confirm-heading">Quit this level?</h2>
+      <p id="exit-confirm-message">Do you really want to quit and return to the world map? Progress in this attempt will be lost.</p>
+      <div class="save-actions">
+        <button id="exit-confirm-end" class="primary" type="button">End Level</button>
+        <button id="exit-confirm-cancel" class="title-secondary" type="button">Cancel</button>
+      </div>
+    </dialog>
     <main>
       <header class="masthead">
         <div class="masthead-links">
@@ -145,7 +152,7 @@
           </div>
           <div class="game-toolbar">
             <a id="back-to-editor" href="./editor.html" aria-label="Back to editor" title="Back to editor" hidden><span class="control-icon" aria-hidden="true">&larr;</span><span class="control-label">Back to editor</span></a>
-            <button id="title-menu" type="button" aria-label="Menu" title="Menu" aria-haspopup="dialog"><span class="control-icon" aria-hidden="true">☰</span><span class="control-label">Menu</span></button>
+            <button id="exit-level" type="button" aria-label="Exit level" title="Exit level" aria-haspopup="dialog"><svg class="control-icon exit-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="exit-frame" d="M4 21 V3 H17 V21"/><path class="exit-door" d="M4 3 L12 5.5 V22.5 L4 21 Z"/><circle class="exit-knob" cx="10" cy="13" r="1"/><path class="exit-floor" d="M2 21 H21"/></svg><span class="control-label">Exit level</span></button>
             <button id="pause" type="button" aria-label="Pause" title="Pause" disabled><svg class="control-icon pause-icon" viewBox="0 0 24 24" aria-hidden="true"><g class="pause-bars"><rect x="5" y="4" width="5" height="16"/><rect x="14" y="4" width="5" height="16"/></g><path class="resume-triangle" d="M7 4 L20 12 L7 20 Z" hidden/></svg><span class="control-label">Pause</span></button>
             <button id="restart" type="button" aria-label="Restart" title="Restart"><span class="control-icon" aria-hidden="true">↻</span><span class="control-label">Restart</span></button>
           </div>

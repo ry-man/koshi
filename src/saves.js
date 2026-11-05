@@ -2,6 +2,7 @@
 'use strict';
 
 const SAVE_KEY = 'koshi-campaign-saves-v2';
+const RECENT_KEY = 'koshi-campaign-recent-save';
 const SLOT_COUNT = 3;
 
 function validateResult(result, levelIds) {
@@ -138,6 +139,17 @@ class SaveSlots {
     }
     return slot;
   }
+  markRecent(index, id) {
+    this.slot(this.load(), index, id);
+    this.storage().setItem(RECENT_KEY, id);
+  }
+  // Older saves have no recent marker, and deleted slots leave a stale one; fall back to the first occupied slot.
+  recent(slots = this.load()) {
+    const id = this.storage().getItem(RECENT_KEY);
+    let index = slots.findIndex(slot => slot && slot.id === id);
+    if (index < 0) index = slots.findIndex(slot => slot);
+    return index < 0 ? null : { index, slot: slots[index] };
+  }
   resumeLevel(slot) {
     return slot.lastPlayed === undefined ? this.nextLevel(slot) : this.levelIds.indexOf(slot.lastPlayed);
   }
@@ -147,7 +159,7 @@ class SaveSlots {
   }
 }
 
-const api = { SaveSlots, SAVE_KEY, SLOT_COUNT, levelStats };
+const api = { SaveSlots, SAVE_KEY, RECENT_KEY, SLOT_COUNT, levelStats };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiSaves = api;
 })();

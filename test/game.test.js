@@ -248,7 +248,7 @@ test('title screen provides accessible artwork and explicit game entry without e
   const artwork = readFileSync(path.join(root, 'icons', 'title-scene.svg'), 'utf8');
   assert.match(html, /<dialog id="title-screen"[^>]+aria-labelledby="title-heading"[^>]+aria-describedby="title-tagline"/);
   assert.match(html, /id="title-start"[^>]+autofocus/);
-  assert.match(html, /id="title-levels"/);
+  assert.doesNotMatch(html, /id="title-levels"|>Choose a level</);
   assert.match(html, /id="title-help"[^>]+>How to play<\/button>/);
   assert.match(html, /<dialog id="how-to-play"/);
   assert.match(html, /id="title-tagline">Save the world from evil robots with brute kitty force!</);
@@ -256,7 +256,7 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.doesNotMatch(html, /field-guide|THE FIELD GUIDE/);
   const controls = html.slice(html.indexOf('<div class="game-controls">'), html.indexOf('<section id="tutorial-panel"'));
   assert.ok(controls, 'game controls share a container');
-  for (const id of ['timer', 'level-number', 'title-menu', 'pause', 'restart']) {
+  for (const id of ['timer', 'level-number', 'exit-level', 'pause', 'restart']) {
     assert.ok(controls.includes(`id="${id}"`), `${id} belongs to the control row`);
   }
   assert.ok(!controls.includes('id="level-select"'), 'level selection is not on the game screen');
@@ -264,7 +264,6 @@ test('title screen provides accessible artwork and explicit game entry without e
   const title = html.slice(html.indexOf('<dialog id="title-screen"'), html.indexOf('</dialog>', html.indexOf('<dialog id="title-screen"')));
   assert.ok(!title.includes('id="level-select"'));
   assert.match(html, /<dialog id="level-picker"[^>]+aria-labelledby="level-picker-heading"[\s\S]*?<select id="level-select"[\s\S]*?<\/dialog>/);
-  assert.match(html, /id="title-levels"[^>]+aria-haspopup="dialog"/);
   assert.match(html, /class="pause-bars"><rect[^>]+\/><rect[^>]+\/>/);
   const hud = html.slice(html.indexOf('<div class="hud">'), html.indexOf('<div class="objective">'));
   assert.ok(!hud.includes('weapon-status'), 'weapon status is announced without taking up HUD space');
@@ -279,9 +278,15 @@ test('title screen provides accessible artwork and explicit game entry without e
   const mobileHud = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
   assert.match(mobileHud, /\.stat-label \{ font-size: 8px;/);
   assert.match(mobileHud, /\.stat\.lives \.stat-label \{ max-width: 62px;[\s\S]*?font-size: 8px;[\s\S]*?white-space: normal;/);
-  for (const [id, label] of [['title-menu', 'Menu'], ['pause', 'Pause'], ['restart', 'Restart']]) {
+  for (const [id, label] of [['exit-level', 'Exit level'], ['pause', 'Pause'], ['restart', 'Restart']]) {
     assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
   }
+  assert.doesNotMatch(controls, /☰/, 'the old menu glyph is gone');
+  assert.match(controls, /id="exit-level"[^>]*><svg class="control-icon exit-icon"[^>]*>[\s\S]*?class="exit-door"/);
+  assert.match(html, /<dialog id="exit-confirm"[\s\S]*?id="exit-confirm-end"[^>]*>End Level<\/button>[\s\S]*?id="exit-confirm-cancel"[^>]*>Cancel<\/button>[\s\S]*?<\/dialog>/);
+  const appSource = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
+  const endHandler = appSource.slice(appSource.indexOf("querySelector('#exit-confirm-end')"));
+  assert.match(endHandler.slice(0, endHandler.indexOf('\n});')), /openLevelPicker\(\{ insideWorld: true/);
   assert.match(html, /src="\.\/icons\/title-scene\.svg"[^>]+alt="[^"]+Koshi[^"]+Robo Mouse[^"]+Robo Wheel/);
   assert.match(artwork, /<title>.+<\/title>/);
   assert.match(artwork, /<desc>.+<\/desc>/);
@@ -436,10 +441,10 @@ test('level popup commits only on Play and cancellation restores selection and m
     KoshiWorldMap: class { open() {} },
     begin() { starts++; element('#level-picker').close(); },
   });
-  vm.runInContext(source.slice(source.indexOf("document.querySelector('#title-levels').addEventListener"),
+  vm.runInContext(source.slice(source.indexOf('function openLevelPicker('),
     source.indexOf('function dismissTitle()')), context);
   const picker = element('#level-picker');
-  const open = () => element('#title-levels').listeners.click();
+  const open = () => context.openLevelPicker();
   open();
   assert.equal(picker.open, true);
   assert.equal(titleScreen.open, false);
@@ -454,7 +459,7 @@ test('level popup commits only on Play and cancellation restores selection and m
     assert.equal(picker.open, false);
     assert.equal(titleScreen.open, true);
     assert.equal(levelSelect.value, '3');
-    assert.equal(element('#title-levels').focused, true);
+    assert.equal(element('#title-start').focused, true);
     assert.equal(starts, 0);
     open();
   }
@@ -466,21 +471,29 @@ test('level popup commits only on Play and cancellation restores selection and m
   assert.equal(starts, 1);
 });
 
-test('new adventure and title Escape require world selection instead of starting gameplay', () => {
+test('the main button continues the most recent save, or starts a guest adventure without saves', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const actions = [], listeners = {};
+  let recent = null;
   const context = vm.createContext({
     document: { querySelector: () => ({ addEventListener: (name, listener) => { listeners[name] = listener; } }) },
     openLevelPicker: options => actions.push(options),
+    recentSave: () => recent,
+    saveAttempt: action => action(),
+    continueSave: (index, id) => actions.push(['continue', index, id]),
     game: { customLevel: null },
     phaseTransition: { run: action => action() },
     titleScreen: { close() { actions.push('close'); } },
     play: { focus() { actions.push('focus'); } },
   });
   const start = source.indexOf("document.querySelector('#title-start').addEventListener");
-  vm.runInContext(source.slice(start, source.indexOf("document.querySelector('#title-levels').addEventListener", start)), context);
+  vm.runInContext(source.slice(start, source.indexOf('function openLevelPicker(', start)), context);
   listeners.click();
   assert.equal(actions[0].level, 0);
+  recent = { index: 2, slot: { id: 'slot-c', owner: 'Mia' } };
+  listeners.click();
+  assert.deepEqual(actions[1], ['continue', 2, 'slot-c']);
+  actions.splice(1);
   const dismiss = source.indexOf('function dismissTitle()');
   vm.runInContext(source.slice(dismiss, source.indexOf("titleScreen.addEventListener('cancel'", dismiss)), context);
   context.dismissTitle();

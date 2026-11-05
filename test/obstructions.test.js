@@ -383,6 +383,31 @@ test('bumper deflection forecasts continue to the obstruction with the correct n
   assert.ok(Math.hypot(points.at(-1)[0] - game.cat.x, points.at(-1)[1] - game.cat.y) < .02);
 });
 
+test('bumper forecasts predict one bounce and end at the next spring or bumper, with or without obstructions', () => {
+  for (const withObstruction of [false, true]) {
+    const game = arena();
+    for (const brick of game.bricks) brick.springs = true;
+    if (withObstruction) game.obstructions.push(game.createObstruction({ x: 480, y: 120 }, placement()));
+    game.bumpers.push(game.createBumper({ x: 700, y: 300 }, 'bumper-red'), game.createBumper({ x: 300, y: 300 }, 'bumper-red'));
+    Object.assign(game.cat, { x: 600, y: 300, vx: 420, vy: 0 });
+    game.target = { x: 900, y: 300 };
+    const points = game.trajectory(), end = points.at(-1);
+    assert.ok(points[1][0] < 700 && points[1][0] > 600, 'first segment ends at the bumper');
+    assert.ok(Math.abs(end[0] - (300 + game.bumpers[1].radius + game.cat.radius)) < .1, `stops at the second bumper (${withObstruction})`);
+    assert.ok(Math.abs(end[1] - 300) < 1e-6);
+
+    // Spring first: forecast ends at the bumper after one reflected segment.
+    const spring = arena();
+    for (const brick of spring.bricks) brick.springs = true;
+    if (withObstruction) spring.obstructions.push(spring.createObstruction({ x: 480, y: 120 }, placement()));
+    spring.bumpers.push(spring.createBumper({ x: 300, y: 300 }, 'bumper-red'));
+    Object.assign(spring.cat, { x: 600, y: 300, vx: 420, vy: 0 });
+    const route = spring.trajectory();
+    assert.ok(route[1][0] > 800, 'first segment reaches the right spring');
+    assert.ok(Math.abs(route.at(-1)[0] - (300 + spring.bumpers[0].radius + spring.cat.radius)) < .1, 'ends at the bumper');
+  }
+});
+
 test('invalid obstruction textures fail explicitly instead of being silently dropped', () => {
   for (const extra of [{ color: 'red' }, { color: '#123' }, { patternColor: 10 }, { pattern: 'unknown' }]) {
     assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', extra)] }), /invalid obstruction/);

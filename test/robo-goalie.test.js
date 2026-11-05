@@ -333,7 +333,7 @@ test('sleep freezes defense, fear retreats along the goal, and pause freezes all
   game.cat.x = area.vertical ? game.width / 2 : enemy.x - 50;
   game.cat.y = area.vertical ? enemy.y - 50 : game.height / 2;
   game.update(.1);
-  near(along(area, enemy) - along(area, start), 3.2);
+  near(along(area, enemy) - along(area, start), 6.4);
   near(area.vertical ? enemy.x : enemy.y, area.normal);
   const position = { x: enemy.x, y: enemy.y };
   game.pause(); game.update(20);

@@ -86,7 +86,7 @@ test('Ball bounces from barriers, sleeps, flees harmlessly and pauses', () => {
   game.enemiesSleepUntil = 0; game.collectItem({ type: 'spooky-mask' });
   const distance = Math.hypot(enemy.x - game.cat.x, enemy.y - game.cat.y);
   game.update(.1);
-  assert.ok(Math.abs(Math.hypot(enemy.x - game.cat.x, enemy.y - game.cat.y) - distance - 3.2) < .01);
+  assert.ok(Math.abs(Math.hypot(enemy.x - game.cat.x, enemy.y - game.cat.y) - distance - 6.4) < .01);
   assert.equal(enemy.afraid, true); assert.equal(enemy.fleeMoving, true);
   game.pause(); const position = [enemy.x, enemy.y]; game.update(1);
   assert.deepEqual([enemy.x, enemy.y], position);

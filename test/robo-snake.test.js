@@ -89,7 +89,7 @@ test('sleep freezes the snake; fear slows it on the border; pause/reset and deat
   game.collectItem({ type: 'music-box' }); const distance = enemy.distance;
   game.update(.2); assert.equal(enemy.distance, distance);
   game.enemiesSleepUntil = 0; game.collectItem({ type: 'spooky-mask' });
-  game.update(.1); assert.ok(Math.abs(Math.abs(enemy.distance - distance) - 3.2) < 1e-6);
+  game.update(.1); assert.ok(Math.abs(Math.abs(enemy.distance - distance) - 6.4) < 1e-6);
   assert.equal(enemy.afraid, true);
   game.pause(); const segments = game.snakeSegments(enemy);
   game.update(1); assert.deepEqual(game.snakeSegments(enemy), segments);

@@ -23,9 +23,12 @@ blocks the npm script. Both direct `file://` access and HTTP hosting are support
 ## Controls and rules
 
 The title screen features original artwork of a sword-wielding Koshi facing
-Robo Mouse and Robo Wheel among green, blue, and red bricks. **Start adventure**
-opens world selection for a new adventure (initially World 1); **Choose a level**
-also opens the two-tier world map. Escape on the title opens the map rather
+Robo Mouse and Robo Wheel among green, blue, and red bricks. The green main
+button reads **Continue as [owner]** when a campaign save exists and resumes the
+most recently played slot (opening its level map as **Continue** does). With no
+saves it reads **Start adventure** and opens world selection for a guest
+adventure (initially World 1). The title has no separate level-select button.
+Escape on the title opens the map rather
 than bypassing selection. Custom-level playtest links and the
 `#install` troubleshooting link bypass the title. The artwork is bundled for
 offline and direct-file play.
@@ -107,7 +110,7 @@ use the new numbers; both old and new campaign URLs are accepted.
 
 ### Campaign saves
 
-Open **Save slots** from the title screen or in-game **Menu**. There are **three
+Open **Save slots** from the title screen. There are **three
 slots**, each with an owner name (1-32 characters). **Create & play** starts a
 new campaign at world selection. **Continue** opens the level map inside the
 world of the last level actually started, with that level selected, including
@@ -124,7 +127,10 @@ level never removes progress; choosing levels out of order still records each
 completed level separately. Failed attempts and restarting do not erase wins.
 **Save name** renames the owner without resetting progress. **Delete save**
 requires confirmation and erases only that slot. **Play as guest** disables
-saving for the current session. Custom levels and tutorials never change
+saving for the current session and opens world selection. The most recently
+continued or created slot is remembered for the title's **Continue as**
+button; if that slot was deleted (or older saves have no record), the first
+occupied slot is used instead. Custom levels and tutorials never change
 campaign saves. Quitting, restarting or leaving before a result counts as neither
 a win nor a loss. Guest statistics are kept only for the current page visit.
 Fastest times use wins only; highest food, enemy and soccer-goal scores use all
@@ -185,7 +191,9 @@ time limit or story scenes, and a failed attempt can be retried or skipped.
 The objectives practice challenge uses real victory rules: collect one food and
 defeat one robot. Finish tutorial returns to the title.
 
-**Menu** in the game toolbar reopens the title, pausing a normal attempt.
+The open-doorway **Exit level** button in the game toolbar pauses play and asks
+whether to quit and return to the world map. **End Level** discards the attempt
+and opens the world map; **Cancel** (or Escape) returns to the paused game.
 Leaving a tutorial discards its practice arena and restores the selected normal
 or custom level to a fresh ready state. Practice never modifies campaign levels
 or editor data. The guide and tutorial work offline and through direct-file
@@ -287,9 +295,10 @@ the board; phones keep compact controls above it without scrolling away from pla
 - The dotted aiming line is subtle and transparent (15% opacity). A small red circle
   with a plus sign and thin black outline marks the exact clicked location,
   drawn above the bricks so it stays visible.
-  When heading toward a trampoline, the line previews the reflected route up to
-  the next wall or trampoline. Only one bounce is predicted, including corner
-  contacts; the preview never traces a chain of bounces.
+  When heading toward a trampoline or bumper, the line previews the reflected
+  route up to the next wall, trampoline or bumper. Springs and bumpers count
+  equally: only one bounce is predicted, including corner contacts; the preview
+  never traces a chain of bounces.
 - Defeated Robo Mice drop their ears, lose their eye color, and fade into a puff
   of smoke. Robo Wheels implode into a mini fireball. Robo Rams fold their horns,
   implode, and fade into smoke. Robo Buckets frown, flatten, and pop their bombs
@@ -525,8 +534,8 @@ The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart butto
 share one row above the stats. The level is centered in the space between the
 logo and toolbar. Save-status text stays in the menu, not on the gameplay HUD;
 save errors and retry controls remain visible. Time, weapon, food, enemies, and health are centered
-in equally spaced columns. **Menu → Choose a level** opens a popup with a level
-selector and **Play Level** button. **Back to menu** or Escape cancels without
+in equally spaced columns. The world map's level selector and **Play Level**
+button choose levels; **Back to menu** or Escape cancels without
 changing the current level; no dropdown appears on the main menu itself.
 Extra mission copy and footer
 are hidden on phones so the page cannot scroll away from play. Landscape phones
@@ -823,7 +832,7 @@ When obstructions are present, the dotted trajectory forecasts Koshi's actual
 no-click motion, curving along obstruction surfaces or ending where he becomes
 stuck instead of continuing through the shape toward the original target.
 The forecast uses gameplay's collision substeps without changing live state,
-and still accounts for spring reflections and bumper deflections.
+and still accounts for one spring reflection or bumper deflection.
 
 The editor lists each shape, size and orientation once. Its **Obstruction texture**
 controls offer the same fixed **100 color presets** for base and pattern colors
@@ -889,7 +898,7 @@ second. Crowded or overlapping guards separate gradually instead of jumping;
 sleeping goalies cannot be displaced.
 He cannot hurt Koshi, but swords and Boost
 defeat him; optional shields and enemy-point awards work normally.
-Music Box stops him; Spooky Mask makes him retreat along his goal at 32 units
+Music Box stops him; Spooky Mask makes him retreat along his goal at 64 units
 per second. His jersey falls off on defeat, exposing a plain robot shell,
 then he blushes pink and explodes in a 1.8-second animation. Without any Goal
 brick he immediately dies without awarding points. Goalies support custom
@@ -990,7 +999,7 @@ Robo Ball (`ball`) is an orange robot basketball with dark grey seams, two beady
 red eyes and a rectangular mouth with a grey tooth grate. It travels at 120
 board units/second in straight lines, bouncing off enclosing bricks, barriers
 and other enemies without pausing or charging. Music Box puts it to sleep;
-Spooky Mask makes it flee slowly and harmlessly with a scared face and sweat.
+Spooky Mask makes it flee harmlessly with a scared face and sweat.
 Standard shields, contact damage, swords and Boost attacks apply. Its 1.1-second
 death animation shrivels the ball, pops both eyes into the air, then fades away.
 Pause freezes movement and death animation; restart clears it. Available as an
@@ -1097,8 +1106,8 @@ eyes, pointed ears and nose, horns, and many sharp teeth. It flies onto Koshi's
 head for ten seconds, then fades away. All enemies, including new spawns, become
 scared and try to move away from Koshi, with widened eyes, open mouths and flying
 small sweat drops flying in independently random directions while moving,
-at two drops per second per enemy. All afraid enemies flee at a constant slow pace of
-32 game units per second. Mice do not pause and Rams do not target or charge;
+at two drops per second per enemy. All afraid enemies flee at a constant pace of
+64 game units per second. Mice do not pause and Rams do not target or charge;
 their normal cycles resume after fear ends. Wheels can reverse but stay on
 their perimeter, and Buckets pause their bomb-throwing timer. The mask's small ears
 have distinct dark outlines and inner-ear shading.

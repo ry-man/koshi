@@ -4,7 +4,7 @@ This document describes the gameplay of a game called Koshi's Quest. The protago
 ## Gameplay
 
 ### Title Screen
-The game opens on a title screen with original artwork of a heroic, sword-wielding Koshi facing a menacing Robo Mouse and Robo Wheel, with green, blue, and red bricks in the background. Start adventure opens world selection for a new adventure (initially World 1); Choose a level opens the two-tier world map without starting the clock. The main menu has no level dropdown. Back to menu or Escape cancels the popup without changing the current level. Escape on the title opens the map rather than skipping selection. Custom-level playtest and install-help links bypass the title.
+The game opens on a title screen with original artwork of a heroic, sword-wielding Koshi facing a menacing Robo Mouse and Robo Wheel, with green, blue, and red bricks in the background. The green main button reads "Continue as [owner]" and resumes the most recently played save slot's level map when any save exists; with no saves it reads "Start adventure" and opens world selection for a new guest adventure (initially World 1). There is no separate level-select button on the title. Save slots' Play as guest opens world selection without saving. The main menu has no level dropdown. Back to menu or Escape cancels the popup without changing the current level. Escape on the title opens the map rather than skipping selection. Custom-level playtest and install-help links bypass the title.
 
 ### Worlds and level selection
 
@@ -82,8 +82,9 @@ Koshi is controlled by clicking locations on one of any of the "bricks" on the s
 Koshi's aiming guide uses a subtle dotted trajectory at 15% opacity.
 The exact clicked location is marked above the bricks by a small red circle
 with a plus sign and a thin black outline.
-When Koshi approaches a trampoline, the guide continues along his reflected
-route until the following wall or trampoline. It predicts only the next bounce,
+When Koshi approaches a trampoline or bumper, the guide continues along his
+reflected route until the following wall, trampoline or bumper. Springs and
+bumpers count equally: it predicts only the next bounce,
 using Koshi's collision radius and the same reflection as actual movement.
 
 The game is level-based, with multiple worlds split into individual levels. Most levels are defined to last a precise amount of time, with various events/triggers designed to occur at specific times. The objective to win each level varies. Conditions for victory in the level consist of:
@@ -172,7 +173,7 @@ accounting for friction. He gently oscillates five units around his defensive
 target, or around the goal center when no balls are nearby. Incoming scoring
 threats take priority over nearby balls. He never damages Koshi, but swords and Boost
 can defeat him, with normal optional shields and enemy-point awards. Music Box
-stops him; Spooky Mask makes him retreat along the goal at 32 units/second.
+stops him; Spooky Mask makes him retreat along the goal at 64 units/second.
 His jersey falls down, revealing a plain mechanical shell; he turns pink with
 embarrassment and explodes, over 1.8 seconds. Pause freezes the animation.
 Without a Goal brick he immediately dies with no enemy-point award. He supports
@@ -206,8 +207,10 @@ Players can freely choose any step, use Previous/Next, retry, or exit at any
 time. Combat steps offer all sword types. Practice has no countdown or story
 scenes and does not change campaign/editor data. Completion badges remain for
 the current visit; retry refreshes the current action and arena. The objectives
-challenge requires one food and one robot defeat. Menu reopens the title from
-gameplay, pausing a normal attempt or discarding tutorial practice.
+challenge requires one food and one robot defeat. The open-doorway **Exit level**
+button in the game toolbar pauses play and asks whether to quit and return to
+the world map; **End Level** discards the attempt (or tutorial practice) and
+opens the map, while **Cancel** or Escape returns to the paused game.
 
 ### Pre-level Story Cutscenes
 
@@ -255,7 +258,7 @@ Spooky Mask is a red devil face with yellow snake eyes, pointed ears and nose,
 horns and sharp teeth. It moves onto Koshi's head for ten seconds. Enemies show
 scared faces and small sweat drops flying in random directions at two drops per
 second per moving enemy while fleeing his current position at a
-constant slow pace of 32 game units per second within movement bounds. Mice
+constant pace of 64 game units per second within movement bounds. Mice
 do not pause and Rams do not target or charge while afraid. Wheels stay on
 the perimeter and Buckets pause their bomb-throwing timer. Normal movement resumes at expiry.
 The mask has smaller, distinctly outlined ears with dark inner-ear shading.
@@ -543,7 +546,7 @@ emerges from beneath the top of the head.
 Only the head accepts sword or Boost hits and shield downgrades. The three body
 segments always damage Koshi on contact, even during sleep, fear or the snake's
 shield invulnerability; Koshi's usual one-second damage immunity still applies.
-Sleep freezes movement; fear slows perimeter movement to 32 game units/second.
+Sleep freezes movement; fear sets perimeter movement to 64 game units/second.
 Every segment blocks other enemies and soccer balls and stays inside the bricks,
 with Barrier fences blocking the entire snake. On defeat the four segments fall
 apart and fade over 1.2 seconds while the detached tongue spins away.

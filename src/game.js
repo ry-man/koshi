@@ -12,7 +12,7 @@ const SUNGLASSES_DURATION = 10;
 const CAPE_DURATION = 10;
 const CAPE_SPEED_MULTIPLIER = 2;
 const MASK_DURATION = 10;
-const FEAR_SPEED = 32;
+const FEAR_SPEED = 64;
 const COW_EAT_DURATION = 5;
 const OBSTRUCTION_RADIUS = 48;
 const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
@@ -2390,11 +2390,12 @@ class Game {
     if (this.obstructions.length) return this.obstructionTrajectory(parts, spikes);
     const distance = Math.hypot(this.width, this.height) * 2;
     const cast = (x, y, vx, vy) => {
-      const dx = vx / speed * distance, dy = vy / speed * distance;
+      const length = Math.hypot(vx, vy);
+      const dx = vx / length * distance, dy = vy / length * distance;
       let contact = Math.min(1,
         dx > 0 ? (this.width - radius - x) / dx : dx < 0 ? (radius - x) / dx : Infinity,
         dy > 0 ? (this.height - radius - y) / dy : dy < 0 ? (radius - y) / dy : Infinity);
-      let contacts = [];
+      let contacts = [], bumpers = [];
       for (const part of parts) {
         const t = brickContact(x, y, dx, dy, radius, part);
         if (t < contact - 1e-9) { contact = t; contacts = [part]; }
@@ -2405,19 +2406,35 @@ class Game {
         if (t < contact - 1e-9) { contact = t; contacts = [spike]; }
         else if (t <= contact + 1e-9) contacts.push(spike);
       }
-      return { x: x + dx * contact, y: y + dy * contact, contacts };
+      for (const bumper of this.bumpers) {
+        const t = circleContact(x - bumper.x, y - bumper.y, dx, dy, radius + bumper.radius);
+        if (t < contact - 1e-9) { contact = t; contacts = []; bumpers = [bumper]; }
+        else if (t <= contact + 1e-9) bumpers.push(bumper);
+      }
+      return { x: x + dx * contact, y: y + dy * contact, contacts, bumpers };
     };
     const hit = cast(x, y, vx, vy);
     const points = [[x, y], [hit.x, hit.y]];
-    if (!hit.contacts.length || !hit.contacts.every(part => this.bricks[part.id].springs)) {
+    // Springs and bumpers count equally: forecast only the first bounce from either.
+    if ((!hit.contacts.length && !hit.bumpers.length)
+      || !hit.contacts.every(part => this.bricks[part.id].springs)) {
       return this.target ? [[x, y], [this.target.x, this.target.y]] : points;
     }
-    let reflected = { vx, vy };
+    let reflected = { vx, vy }, start = { x: hit.x, y: hit.y };
     for (const part of hit.contacts) {
       const normal = brickNormal(hit.x, hit.y, part);
       if (normal) reflected = reflectVelocity(reflected.vx, reflected.vy, normal);
     }
-    const end = cast(hit.x, hit.y, reflected.vx, reflected.vy);
+    for (const bumper of hit.bumpers) {
+      const gap = Math.hypot(start.x - bumper.x, start.y - bumper.y), length = Math.hypot(reflected.vx, reflected.vy);
+      const normal = gap ? { x: (start.x - bumper.x) / gap, y: (start.y - bumper.y) / gap }
+        : { x: -reflected.vx / length, y: -reflected.vy / length };
+      if (reflected.vx * normal.x + reflected.vy * normal.y >= -1e-9) continue;
+      reflected = reflectVelocity(reflected.vx, reflected.vy, normal);
+      start = { x: bumper.x + normal.x * (radius + bumper.radius + .01), y: bumper.y + normal.y * (radius + bumper.radius + .01) };
+    }
+    if (start.x !== hit.x || start.y !== hit.y) points.push([start.x, start.y]);
+    const end = cast(start.x, start.y, reflected.vx, reflected.vy);
     points.push([end.x, end.y]);
     return points;
   }
@@ -2485,7 +2502,7 @@ class Game {
           }
         }
       } else if (bumpers.length) {
-        if (reflections++ >= 8) break;
+        if (reflections++) break;
         for (const bumper of bumpers) {
           const distance = Math.hypot(actor.x - bumper.x, actor.y - bumper.y);
           const normal = distance ? { x: (actor.x - bumper.x) / distance, y: (actor.y - bumper.y) / distance }
