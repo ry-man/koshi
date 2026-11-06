@@ -244,7 +244,7 @@ function recordCatBlockFinds() {
     const levelId = game.level.id;
     const collected = runSave ? activeSave?.slot.catBlocks ?? [] : guestProfile.catBlocks;
     if (!game.customLevel && collected.includes(levelId)) continue;
-    toast.textContent = game.level.catBlock?.messages?.[source] ?? CAT_BLOCK_MESSAGES[source];
+    toast.textContent = CAT_BLOCK_MESSAGES[source];
     if (!game.customLevel) toast.textContent += ' Complete the level to keep it!';
     toastUntil = performance.now() + 3500;
   }
@@ -650,7 +650,7 @@ function levelBriefingText(level) {
   return lines.join('\n');
 }
 
-function renderLevelBriefing(container, level, catBlockAcquired) {
+function renderLevelBriefing(container, level) {
   const conditions = document.createElement('p');
   conditions.className = 'briefing-conditions';
   conditions.textContent = levelBriefingText(level);
@@ -662,7 +662,7 @@ function renderLevelBriefing(container, level, catBlockAcquired) {
     image.src = './icons/cat-building-block.png';
     image.alt = 'Cat Block';
     const hint = document.createElement('p');
-    hint.textContent = catBlockAcquired ? 'Cat Block already acquired!' : level.catBlock.description;
+    hint.textContent = globalThis.KoshiGame.catBlockObjective(level);
     section.append(image, hint);
     container.append(section);
   }
@@ -673,7 +673,7 @@ function showDialog(kicker, title, text, label, icon) {
   document.querySelector('#dialog-kicker').textContent = kicker;
   document.querySelector('#dialog-title').textContent = title;
   const content = document.querySelector('#dialog-text');
-  if (game.state === 'ready') renderLevelBriefing(content, game.level, game.catBlockPreviouslyCollected);
+  if (game.state === 'ready')   renderLevelBriefing(content, game.level);
   else content.textContent = text;
   document.querySelector('#dialog-icon').textContent = icon;
   play.textContent = label;

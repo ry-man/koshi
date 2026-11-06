@@ -829,6 +829,7 @@ test('editor placement and multiselection preserve independent obstruction textu
   const { $, context } = editorFixture();
   $('#event-kind').value = 'object'; $('#event-type').value = 'obstruction-diamond';
   $('#event-time').value = '0'; $('#event-x').value = '50'; $('#event-y').value = '50';
+  $('#event-location').value = 'fixed'; $('#event-formation').value = 'single';
   $('#event-color').value = '#123456'; $('#event-patternColor').value = '#abcdef'; $('#event-pattern').value = 'stripes';
   context.typeOptions('obstruction-diamond');
   assert.equal($('#event-obstruction').hidden, false);

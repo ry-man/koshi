@@ -357,7 +357,8 @@ test('gold stars use matching outlined and filled shapes at the bottom-left of e
 
 test('Cat Block hints are available beside the star on touch and hover, and the map node marks its discovery', () => {
   const levels = [...LEVELS];
-  levels[0] = { ...levels[0], catBlock: { description: 'Find the hidden Cat Block.' } };
+  levels[0] = { ...levels[0], catBlock: { description: 'Find the hidden Cat Block.',
+    trigger: { type: 'spawn' } } };
   const graph = { ...worlds, worldLevels: world => worlds.worldLevels(world, levels) };
   const profile = { guest: false, completed: [], catBlocks: [levels[0].id], results: {} };
   const { map, text } = mapFixture(profile, null, { ...engine, LEVELS: levels }, graph);
@@ -369,10 +370,10 @@ test('Cat Block hints are available beside the star on touch and hover, and the 
   map.selectLevel(levels[0]);
   const button = map.details.children[0].children[2];
   const information = button;
-  const description = map.details.children[1];
-  assert.equal(button.title, 'Find the hidden Cat Block.');
+  const description = map.details.children[0].children[3];
+  assert.equal(button.title, 'To earn Cat Brick: Find during gameplay when it spawns.');
   assert.equal(button.type, 'button');
-  assert.equal(map.details.children[0].children.length, 3, 'no separate information icon');
+  assert.equal(map.details.children[0].children.length, 5, 'hints overlay the heading without separate information icons');
   assert.equal(information.getAttribute('aria-expanded'), 'false');
   assert.equal(information.getAttribute('aria-controls'), description.id);
   assert.match(information.getAttribute('aria-label'), /Cat Block found/);
@@ -390,11 +391,11 @@ test('Cat Block hints are available beside the star on touch and hover, and the 
   information.listeners.mouseleave();
   assert.equal(description.hidden, false);
   assert.equal(information.getAttribute('aria-expanded'), 'true');
-  assert.ok(text(description).includes('Find the hidden Cat Block.'));
+  assert.equal(description.textContent, button.title, 'map uses the exact acquisition text without a suffix');
   information.listeners.click();
   assert.equal(description.hidden, true);
   const star = map.details.children[0].children[1];
-  const starDescription = map.details.children[2];
+  const starDescription = map.details.children[0].children[4];
   assert.equal(star.type, 'button');
   assert.equal(star.getAttribute('aria-controls'), starDescription.id);
   assert.match(text(starDescription), /completing this level without taking any damage/);
@@ -407,11 +408,57 @@ test('Cat Block hints are available beside the star on touch and hover, and the 
     assert.equal(star.getAttribute('aria-expanded'), String(visible));
   }
   star.listeners.click();
+  information.listeners.mouseenter();
+  assert.equal(starDescription.hidden, true, 'opening another hint dismisses the previous popup');
+  assert.equal(description.hidden, false);
+  star.listeners.click();
   star.listeners.keydown({ key: 'Escape' });
   assert.equal(starDescription.hidden, true);
   map.details.scrollTop = 100;
   map.selectLevel(levels[1]);
   assert.equal(map.details.scrollTop, 0);
+});
+
+test('collectible hints float above content and mobile dialogs override browser width constraints', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(css, /\.map-collectible-description \{[^}]*position: absolute;[^}]*z-index: 5;/);
+  assert.match(css, /\.map-level-heading \{[^}]*position: relative;/);
+  const phone = css.slice(css.indexOf('@media (max-width: 760px) {'));
+  assert.match(phone, /\.world-picker \{[^}]*width: 100vw;[^}]*max-width: none;[^}]*inset: 0;/);
+});
+
+test('map Cat Brick hints match generated editor and briefing text for every trigger', () => {
+  for (const [type, definition] of Object.entries(engine.CAT_BLOCK_TRIGGERS)) {
+    const trigger = { type, ...(definition.amount ? { amount: 7 } : {}),
+      ...(definition.enemy ? { enemyType: 'mouse' } : {}),
+      ...(definition.brick ? { brickType: 'slow' } : {}) };
+    const description = engine.catBlockDescription(trigger);
+    const level = { ...LEVELS[0], catBlock: { trigger, description: 'Old hint that must not be displayed.' } };
+    const { map } = mapFixture();
+    map.open();
+    map.showWorld(WORLDS[0]);
+    map.selectLevel(level);
+    const heading = map.details.children[0];
+    assert.equal(heading.children[2].title, description);
+    assert.equal(heading.children[3].textContent, description);
+    assert.equal(heading.children[2].getAttribute('aria-describedby'), heading.children[3].id);
+  }
+});
+
+test('campaign Cat Brick hints use editor wording without changing campaign reward data', () => {
+  const { map } = mapFixture();
+  map.open();
+  map.showWorld(WORLDS[0]);
+  for (const level of LEVELS.filter(level => level.catBlock)) {
+    const original = JSON.stringify(level);
+    const type = level.enemies.some(event => event[4]?.carriesCatBlock) ? 'carrier'
+      : (level.events ?? []).some(event => event.type === 'treasure-chest') ? 'chest' : 'spawn';
+    const expected = engine.catBlockDescription({ type });
+    assert.equal(engine.catBlockObjective(level), expected);
+    map.selectLevel(level);
+    assert.equal(map.details.children[0].children[3].textContent, expected);
+    assert.equal(JSON.stringify(level), original);
+  }
 });
 
 test('uncollected Cat Blocks outline the artwork silhouette in nodes and hints, never feature previews', () => {

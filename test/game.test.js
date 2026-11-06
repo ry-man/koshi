@@ -424,14 +424,14 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
   assert.equal(rebuilt, 2, 'custom playtests can replay without campaign maps');
 });
 
-test('opening briefings list only victory conditions and show optional Cat Block acquisition state', () => {
+test('opening briefings list only victory conditions and the exact Cat Brick objective even after acquisition', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const node = () => ({
     children: [], textContent: '',
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; },
   });
-  const context = vm.createContext({ document: { createElement: node } });
+  const context = vm.createContext({ document: { createElement: node }, KoshiGame: require('../src/game.js') });
   vm.runInContext(source.slice(source.indexOf('function levelBriefingText('), source.indexOf('\nfunction showDialog(')), context);
   for (const [level, expected] of [
     [{ duration: 60, goal: 20 }, 'VICTORY CONDITIONS:\n🍗 Target: 20'],
@@ -452,12 +452,18 @@ test('opening briefings list only victory conditions and show optional Cat Block
       const [image, hint] = container.children[1].children;
       assert.equal(image.src, './icons/cat-building-block.png');
       assert.equal(image.alt, 'Cat Block');
-      assert.equal(hint.textContent, acquired ? 'Cat Block already acquired!' : description);
+      assert.equal(hint.textContent, description);
     }
     context.renderLevelBriefing(container, level, false);
     assert.equal(container.children.length, 1, 'switching levels removes stale Cat Block sections');
   }
-  assert.match(source, /renderLevelBriefing\(content, game\.level, game\.catBlockPreviouslyCollected\)/);
+  for (const level of require('../src/game.js').LEVELS.filter(level => level.catBlock)) {
+    const container = node();
+    context.renderLevelBriefing(container, level);
+    assert.equal(container.children[1].children[1].textContent, context.KoshiGame.catBlockObjective(level));
+    assert.match(container.children[1].children[1].textContent, /^To earn Cat Brick: /);
+  }
+  assert.match(source, /renderLevelBriefing\(content, game\.level\)/);
 });
 
 test('soccer goal and ball guide illustrations use shared artwork', () => {

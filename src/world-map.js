@@ -1,25 +1,29 @@
 (function () {
 'use strict';
 
-const { LEVELS, levelObjective } = globalThis.KoshiGame;
+const { LEVELS, levelObjective, catBlockObjective } = globalThis.KoshiGame;
 const { WORLDS, worldLevels, levelFeatures, nextLevelIndex } = globalThis.KoshiWorlds;
 const { levelStats } = globalThis.KoshiSaves;
 const { catBlockIcon, goldStarIcon, collectibleTotals } = globalThis.KoshiCollectibles;
 
-function collectibleHint(button, id, text) {
+function collectibleHint(button, id, text, activate) {
   const description = document.createElement('p');
   description.id = id;
   description.className = 'map-collectible-description';
+  description.setAttribute('role', 'tooltip');
   description.textContent = text;
   description.hidden = true;
   button.type = 'button';
   button.setAttribute('aria-expanded', 'false');
   button.setAttribute('aria-controls', id);
+  button.setAttribute('aria-describedby', id);
   let pinned = false;
   const reveal = visible => {
+    if (visible) activate(dismiss);
     description.hidden = !visible;
     button.setAttribute('aria-expanded', String(visible));
   };
+  const dismiss = () => { pinned = false; reveal(false); };
   button.addEventListener('mouseenter', () => reveal(true));
   button.addEventListener('mouseleave', () => reveal(pinned));
   button.addEventListener('focus', () => reveal(true));
@@ -199,6 +203,8 @@ class WorldMap {
     this.setCutsceneOption(level);
     this.details.replaceChildren();
     this.details.scrollTop = 0;
+    let hideHint;
+    const activateHint = hide => { if (hideHint !== hide) hideHint?.(); hideHint = hide; };
     const heading = document.createElement('header'), title = document.createElement('h3');
     const objective = this.objectives(level), stats = document.createElement('dl');
     heading.className = 'map-level-heading';
@@ -210,19 +216,20 @@ class WorldMap {
     star.title = result.goldStar ? 'Gold star earned: completed without taking damage' : 'Gold star not earned: complete without taking damage';
     star.setAttribute('aria-label', star.title);
     const starDescription = collectibleHint(star, 'map-star-description',
-      'Earn the gold star by completing this level without taking any damage.');
+      'Earn the gold star by completing this level without taking any damage.', activateHint);
     heading.append(title, star);
     let catBlockDescription;
     if (level.catBlock) {
+      const description = catBlockObjective(level);
       const catBlock = document.createElement('button');
       catBlock.className = 'map-cat-block';
-      catBlock.title = level.catBlock.description;
+      catBlock.title = description;
       const catBlockFound = (profile?.catBlocks ?? []).includes(level.id);
-      catBlock.setAttribute('aria-label', `Cat Block${catBlockFound ? ' found' : ''}: ${level.catBlock.description}`);
+      catBlock.setAttribute('aria-label', `Cat Block${catBlockFound ? ' found' : ''}: ${description}`);
       catBlock.append(catBlockIcon(catBlockFound, document));
       if (catBlockFound) catBlock.classList.add('map-cat-block-found');
       catBlockDescription = collectibleHint(catBlock, 'map-cat-block-description',
-        `${level.catBlock.description} Complete the level without dying or leaving to keep the Cat Block.`);
+        description, activateHint);
       heading.append(catBlock);
     }
     const fields = [
@@ -291,9 +298,9 @@ class WorldMap {
       note.className = 'map-note';
       note.textContent = 'Every started attempt counts as a win, loss or quit. Win percentage is wins divided by all attempts. Earlier saved completions have no recorded statistics.';
     }
+    if (catBlockDescription) heading.append(catBlockDescription);
+    heading.append(starDescription);
     this.details.append(heading);
-    if (catBlockDescription) this.details.append(catBlockDescription);
-    this.details.append(starDescription);
     this.details.append(objective, stats);
     if (note) this.details.append(note);
     this.details.append(featureSection);
@@ -371,7 +378,7 @@ class WorldMap {
         catBlock.className = `map-node-cat-block${node.catBlockFound ? ' map-node-cat-block-found' : ''}`;
         catBlock.title = worldNode
           ? `${node.worldProgress.catBlocks} of ${node.worldProgress.totalCatBlocks} Cat Blocks found`
-          : `Cat Block: ${node.catBlock.description}`;
+          : `Cat Block: ${catBlockObjective(LEVELS.find(level => level.id === node.id))}`;
         catBlock.setAttribute('aria-hidden', 'true');
         catBlock.append(catBlockIcon(node.catBlockFound, document));
         button.append(catBlock);

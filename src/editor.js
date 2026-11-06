@@ -1,7 +1,8 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CAT_BLOCK_MESSAGES, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { catBlockObjective } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
@@ -101,10 +102,6 @@ function syncAccess() {
   for (const selector of writeButtons) $(selector).disabled = locked;
   board.dataset.readOnly = String(locked);
   $('#editor-bricks').setAttribute('aria-label', locked ? 'Read-only boundary bricks' : 'Editable boundary bricks');
-  $('#level-access').textContent = locked
-    ? `${level.number} - ${level.name}: read-only game level. Inspect bricks, events, cutscenes and timing; editing, import, export and draft saving are disabled. Your custom work is preserved. Spawn positions are representative; the game randomizes them each run.`
-    : 'Custom levels are editable. Game levels are available for read-only inspection.';
-  $('#board-hint').hidden = locked;
   $('#playtest').textContent = locked ? 'Play game level →' : 'Playtest →';
 }
 
@@ -493,8 +490,34 @@ function readEvent() {
     event.keysRequired = Number($('#event-keys-required').value || $('#event-keys-required').placeholder || 1);
   }
   if (event.kind === 'object' && OBJECTS[event.type]?.obstruction) Object.assign(event, readObstructionFields('event'));
-  if (event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) Object.assign(event, snapWheel(event.x, event.y));
+  if ($('#event-location').value === 'random') {
+    event.random = true; delete event.x; delete event.y;
+  }
+  if ($('#event-formation').value !== 'single') {
+    event.group = { shape: $('#event-formation').value, count: Number($('#event-count-input').value) };
+    if ($('#event-group-size').value !== '') event.group.size = Number($('#event-group-size').value) / 100;
+    if (event.group.shape === 'line') event.group.angle = Number($('#event-group-angle').value);
+  }
+  if (!event.random && !event.group && event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) Object.assign(event, snapWheel(event.x, event.y));
   return event;
+}
+
+function updateEventPlacement() {
+  const shape = $('#event-formation').value;
+  const grouped = shape === 'line' || shape === 'circle';
+  $('#event-group-options').hidden = !grouped;
+  for (const id of ['#event-count-input', '#event-group-size']) $(id).disabled = !grouped;
+  $('#event-count-input').required = grouped;
+  $('#event-angle-label').hidden = shape !== 'line';
+  $('#event-group-angle').disabled = shape !== 'line';
+  $('#event-group-angle').required = shape === 'line';
+  $('#event-size-label').textContent = shape === 'circle' ? 'Diameter (%)' : 'Length (%)';
+  const random = $('#event-location').value === 'random';
+  $('#event-position').hidden = random;
+  for (const id of ['#event-x', '#event-y']) {
+    $(id).disabled = random;
+    $(id).required = !random && selectedEvents.size <= 1;
+  }
 }
 
 // Multi-event edits show shared values and mark differing fields as "Mixed".
@@ -531,8 +554,8 @@ function populateEventForm() {
     if (kind === MIXED) mixedOption($('#event-kind')); else $('#event-kind').value = kind;
     typeOptions(kind === MIXED ? MIXED : common(items.map(event => event.type)), collectibles.length > 0);
     setNumber('#event-time', items.map(event => event.time));
-    setNumber('#event-x', items.map(event => event.x), 100);
-    setNumber('#event-y', items.map(event => event.y), 100);
+    setNumber('#event-x', items.map(event => event.x ?? .5), 100);
+    setNumber('#event-y', items.map(event => event.y ?? .5), 100);
     if (collectibles.length) {
       const lifetime = common(collectibles.map(event => event.lifetime ?? ''));
       $('#event-lifetime').value = lifetime === MIXED ? '' : lifetime;
@@ -551,6 +574,24 @@ function populateEventForm() {
   if (!multi) for (const [id, fallback] of Object.entries(numbers)) {
     if ($(id).value === '' && (id !== '#event-lifetime' || $('#event-kind').value === 'food')) $(id).value = fallback;
   }
+  for (const [id, values] of [
+    ['#event-location', items.map(event => event.random ? 'random' : 'fixed')],
+    ['#event-formation', items.map(event => event.group?.shape ?? 'single')],
+  ]) {
+    $(id).querySelector('option[value=""]')?.remove();
+    const value = items.length ? common(values) : $(id).value || (id === '#event-location' ? 'fixed' : 'single');
+    if (value === MIXED) mixedOption($(id)); else $(id).value = value;
+  }
+  for (const [id, values, fallback] of [
+    ['#event-count-input', items.map(event => event.group?.count ?? 5), 5],
+    ['#event-group-size', items.map(event => event.group?.size === undefined ? '' : event.group.size * 100), ''],
+    ['#event-group-angle', items.map(event => event.group?.angle ?? 0), 0],
+  ]) {
+    const value = items.length ? common(values) : $(id).value || fallback;
+    $(id).value = value === MIXED ? '' : value;
+    $(id).placeholder = value === MIXED ? 'Mixed' : id === '#event-group-size' ? 'Auto' : '';
+  }
+  updateEventPlacement();
   $('#inspector-heading').textContent = readOnly() ? !items.length ? 'READ-ONLY GAME LEVEL'
     : multi ? `VIEWING ${items.length} EVENTS` : `VIEWING EVENT ${indices[0] + 1}`
     : !items.length ? 'NEW PLACEMENT' : multi ? `EDITING ${items.length} EVENTS` : `EDITING EVENT ${indices[0] + 1}`;
@@ -559,7 +600,6 @@ function populateEventForm() {
   $('#delete-event').disabled = !items.length;
   $('#duplicate-event').textContent = multi ? `Duplicate ${items.length}` : 'Duplicate';
   $('#delete-event').textContent = multi ? `Delete ${items.length}` : 'Delete';
-  $('#multi-event-help').hidden = !multi;
   syncPalettes();
 }
 
@@ -600,7 +640,7 @@ function renderList() {
     button.type = 'button'; button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
     const time = document.createElement('span'); time.className = 'event-time'; time.textContent = `${event.time}s`;
     const location = document.createElement('span'); location.className = 'event-location';
-    location.textContent = `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''} · #${index + 1}`;
+    location.textContent = `${event.random ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''} · #${index + 1}`;
     button.append(time, description(event), location);
     button.addEventListener('click', click => choose('event', index, isAdditive(click)));
     li.append(button); list.append(li);
@@ -684,7 +724,7 @@ function renderBrickInspector(bricks) {
   if (!chosen.length) {
     for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-toggle']) $(selector).disabled = true;
     for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-toggle']) $(selector).indeterminate = false;
-    $('#brick-selection').textContent = 'Select one or more boundary bricks to change their attributes.';
+    $('#brick-selection').textContent = '';
     return;
   }
   const kind = common(chosen.map(brick => brick.kind));
@@ -868,9 +908,10 @@ function renderBoard() {
   const markers = $('#markers'); markers.replaceChildren();
   const templates = spawnTemplates();
   renderSpawnLinks(templates);
-  [...level.events.map((event, index) => ({ event, index })), ...templates].forEach(({ event, index, spawnKey }) => {
+  [...level.events.map((event, index) => ({ event, index })), ...templates]
+    .flatMap(entry => previewGame.customEventPoints(entry.event, { preview: true }).map(point => ({ ...entry, point })))
+    .forEach(({ event, index, spawnKey, point }) => {
     if (!spawnKey && connectingSpawn === null && !$('#show-all').checked && (event.time > time || (event.lifetime != null && event.time + event.lifetime <= time))) return;
-    const point = previewGame.campaignEventPoint(event.x, event.y);
     const marker = document.createElement('button');
     marker.className = spawnKey ? 'marker spawn-template' : 'marker';
     marker.type = 'button'; marker.dataset.kind = event.kind;
@@ -881,7 +922,7 @@ function renderBoard() {
     const selected = spawnKey ? selectedBricks.has(spawnKey) : selectedEvents.has(index);
     marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);
     marker.setAttribute('aria-pressed', String(selected));
-    const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s`;
+    const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s${event.random ? ' · random' : ''}`;
     if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
       const { width, height } = obstructionGeometry(event);
       const frameWidth = Math.max(width + 4, event.destructible ? 40 : 0);
@@ -897,7 +938,7 @@ function renderBoard() {
       context.scale(image.width / frameWidth, image.height / frameHeight);
       drawObstruction(context, { ...event, x: frameWidth / 2, y: frameHeight / 2 });
       marker.append(image, label);
-      if (selected && !readOnly() && connectingSpawn === null) {
+      if (selected && !readOnly() && connectingSpawn === null && !event.random && !event.group) {
         const outline = document.createElement('span');
         outline.className = 'obstruction-resize-box';
         outline.style.cssText = `width:${width / frameWidth * 100}%;height:${height / frameHeight * 100}%`;
@@ -943,7 +984,7 @@ function renderBoard() {
         setSelection([], [spawnKey]); focusSpawnTemplate(spawnKey); return;
       }
       if (!selectedEvents.has(index)) { selectedEvents = new Set([index]); selectedBricks = new Set(); }
-      for (const item of selectedList()) moveEvent(item, level.events[item].x + direction[0] * .01, level.events[item].y + direction[1] * .01);
+      for (const item of selectedList()) moveEvent(item, (level.events[item].x ?? .5) + direction[0] * .01, (level.events[item].y ?? .5) + direction[1] * .01);
       markChanged(); setSelection();
       focusMarker(index);
     });
@@ -1012,6 +1053,7 @@ function updateSpawnTemplateDraft(key, spawn) {
 function connectSpawn(index) {
   const event = level.events[index];
   if (!event || connectingSpawn === null) throw new Error('Choose a placed object to connect.');
+  if (event.random || event.group) throw new Error('Connect requires a single object at a fixed location.');
   const key = connectingSpawn, { time, ...spawn } = event;
   saveSpawnTemplate(key, spawn, index);
   connectingSpawn = null;
@@ -1023,7 +1065,8 @@ function moveEvent(index, x, y) {
   if (readOnly()) return;
   const event = level.events[index];
   let point = { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
-  if (event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) point = snapWheel(point.x, point.y);
+  if (!event.group && event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) point = snapWheel(point.x, point.y);
+  delete event.random;
   Object.assign(event, point);
 }
 
@@ -1064,7 +1107,7 @@ function startGesture(event, target) {
       else { selectedEvents = new Set([target.index]); selectedBricks = new Set(); }
     }
     gesture.start = pointerPosition(event);
-    gesture.origins = new Map(selectedList().map(index => [index, { x: level.events[index].x, y: level.events[index].y }]));
+    gesture.origins = new Map(selectedList().map(index => [index, { ...level.events[index] }]));
   }
   if (target.type === 'resize') {
     gesture.start = pointerPosition(event);
@@ -1128,7 +1171,7 @@ function placeAt(event) {
   if (!form.reportValidity()) return;
   attempt(() => {
     const item = { ...readEvent(), x: point.x, y: point.y };
-    if (item.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(item.type)) Object.assign(item, snapWheel(item.x, item.y));
+    if (!item.random && !item.group && item.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(item.type)) Object.assign(item, snapWheel(item.x, item.y));
     level = validateDraft({ ...level, events: [...level.events, item] });
     markChanged(); render();
     message(`Placed ${description(item)} at ${item.time}s. Keep clicking to place more, or use Select to choose markers.`);
@@ -1165,7 +1208,7 @@ board.addEventListener('pointermove', event => {
     renderBoard();
   } else if (gesture.type === 'marker') {
     const point = pointerPosition(event);
-    for (const [index, origin] of gesture.origins) moveEvent(index, origin.x + point.x - gesture.start.x, origin.y + point.y - gesture.start.y);
+    for (const [index, origin] of gesture.origins) moveEvent(index, (origin.x ?? .5) + point.x - gesture.start.x, (origin.y ?? .5) + point.y - gesture.start.y);
     renderBoard();
   } else drawBox(event);
 });
@@ -1219,7 +1262,7 @@ board.addEventListener('pointercancel', () => {
     gesture = null; render();
     return;
   }
-  if (gesture?.origins) for (const [index, origin] of gesture.origins) Object.assign(level.events[index], origin);
+  if (gesture?.origins) for (const [index, origin] of gesture.origins) level.events[index] = origin;
   gesture = null; $('#selection-box').hidden = true; markChanged(); render();
 });
 board.addEventListener('keydown', event => {
@@ -1431,6 +1474,12 @@ $('#event-carries-key').addEventListener('change', () => touched.add('#event-car
 for (const selector of ['#event-time', '#event-lifetime', '#event-x', '#event-y', '#event-keys-required']) {
   $(selector).addEventListener('input', () => touched.add(selector));
 }
+for (const selector of ['#event-location', '#event-formation']) {
+  $(selector).addEventListener('change', () => { touched.add(selector); updateEventPlacement(); });
+}
+for (const selector of ['#event-count-input', '#event-group-size', '#event-group-angle']) {
+  $(selector).addEventListener('input', () => touched.add(selector));
+}
 
 function applyToSelected() {
   const value = selector => $(selector).value;
@@ -1446,7 +1495,8 @@ function applyToSelected() {
   const textureFields = ['color', 'pattern', 'patternColor'].filter(field => touched.has(`#event-${field}`) && value(`#event-${field}`) !== MIXED);
   const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
   const destructibleChanged = touched.has('#event-destructible');
-  if (!kind && !type && !shieldChanged && !carrierChanged && !keyCarrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle'].some(selector => touched.has(selector));
+  if (!kind && !type && !shieldChanged && !carrierChanged && !keyCarrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -1455,6 +1505,25 @@ function applyToSelected() {
     if (time !== null) next.time = time;
     if (x !== null) next.x = x / 100;
     if (y !== null) next.y = y / 100;
+    if (touched.has('#event-location') && value('#event-location') !== MIXED) {
+      if (value('#event-location') === 'random') { next.random = true; delete next.x; delete next.y; }
+      else { delete next.random; next.x ??= .5; next.y ??= .5; }
+    }
+    if (touched.has('#event-formation') && value('#event-formation') !== MIXED) {
+      if (value('#event-formation') === 'single') delete next.group;
+      else next.group = { shape: value('#event-formation'), count: next.group?.count ?? Number(value('#event-count-input')),
+        ...(next.group?.size !== undefined ? { size: next.group.size } : {}),
+        ...(value('#event-formation') === 'line' ? { angle: Number(value('#event-group-angle')) } : {}) };
+    }
+    if (next.group) {
+      next.group = { ...next.group };
+      if (touched.has('#event-count-input')) next.group.count = Number(value('#event-count-input'));
+      if (touched.has('#event-group-size')) {
+        if (value('#event-group-size') === '') delete next.group.size;
+        else next.group.size = Number(value('#event-group-size')) / 100;
+      }
+      if (touched.has('#event-group-angle') && next.group.shape === 'line') next.group.angle = Number(value('#event-group-angle'));
+    }
     if (next.kind === 'food') {
       if (lifetimeChanged && lifetime === null) throw new Error('Food needs a lifetime in seconds.');
       next.lifetime = lifetime ?? next.lifetime ?? 5;
@@ -1496,7 +1565,7 @@ function applyToSelected() {
         if (size !== undefined) next.width = next.height = size;
       }
     }
-    if (next.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(next.type)) Object.assign(next, snapWheel(next.x, next.y));
+    if (!next.random && !next.group && next.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(next.type)) Object.assign(next, snapWheel(next.x, next.y));
     return next;
   });
   level = validateDraft({ ...level, events });
@@ -1534,6 +1603,24 @@ function deleteSelected() {
   markChanged(); setSelection([]); message(`${plural(count, 'event')} deleted.`);
 }
 $('#delete-event').addEventListener('click', deleteSelected);
+for (const [selector, entries] of [
+  ['#cat-block-trigger', Object.entries({
+    spawn: 'Spawned pickup', carrier: 'Enemy carrier', chest: 'Treasure chest',
+    time: 'Completion time', food: 'Minimum food points', enemyPoints: 'Minimum enemy points',
+    goals: 'Minimum soccer goals', moves: 'Maximum moves', enemyMin: 'Minimum defeats by type',
+    enemyMax: 'Maximum defeats by type', enemiesMax: 'Maximum total defeats',
+    noSwords: 'No sword pickups', noHearts: 'No heart pickups',
+    bricksMin: 'Minimum distinct bricks', bricksMax: 'Maximum distinct bricks',
+    noSelect: 'Never select brick type', noTouch: 'Never touch brick type',
+  })],
+  ['#cat-block-enemy-type', Object.entries(CHARACTERS).filter(([type]) => !['koshi', 'tom'].includes(type))],
+  ['#cat-block-brick-type', Object.entries(CAT_BRICK_TYPES)],
+]) {
+  for (const [value, text] of entries) {
+    const option = document.createElement('option');
+    option.value = value; option.textContent = text; $(selector).append(option);
+  }
+}
 $('#settings-form').addEventListener('submit', event => {
   event.preventDefault();
   attempt(() => {
@@ -1541,12 +1628,8 @@ $('#settings-form').addEventListener('submit', event => {
       ...level, id: $('#level-name').value, duration: Number($('#duration').value),
       survive: $('#win-condition').value === 'survive',
       catBlock: $('#cat-block-enabled').checked ? {
-        description: $('#cat-block-description').value,
-        messages: {
-          item: $('#cat-block-item-message').value,
-          enemy: $('#cat-block-enemy-message').value,
-          chest: $('#cat-block-chest-message').value,
-        },
+        description: readCatBlockTrigger() ? catBlockDescription(readCatBlockTrigger()) : level.catBlock.description,
+        ...(readCatBlockTrigger() ? { trigger: readCatBlockTrigger() } : {}),
       } : undefined,
       goal: $('#win-condition').value === 'survive' ? 0 : Number($('#goal').value),
       killGoal: $('#win-condition').value === 'survive' ? 0 : Number($('#kill-goal').value),
@@ -1556,7 +1639,7 @@ $('#settings-form').addEventListener('submit', event => {
       ...($('#activation-limit').value !== '' || level.activationLimit !== undefined ? {
         activationLimit: $('#activation-limit').value === '' ? null : Number($('#activation-limit').value),
       } : {}),
-      heartCost: $('#heart-cost').value === '' ? null : Number($('#heart-cost').value), brickSet: Number($('#brick-set').value),
+      heartCost: $('#heart-cost').value === '' ? null : Number($('#heart-cost').value),
     });
     level = candidate; markChanged(); populateSettings(); render(); message('Level settings applied.');
   });
@@ -1568,13 +1651,17 @@ function populateSettings() {
   $('#activation-limit').value = level.activationLimit ?? '';
   $('#win-condition').value = level.survive ? 'survive' : 'scores';
   updateWinCondition();
-  $('#heart-cost').value = level.heartCost ?? ''; $('#brick-set').value = level.brickSet;
+  $('#heart-cost').value = level.heartCost ?? '';
   $('#cat-block-enabled').checked = Boolean(level.catBlock);
   $('#cat-block-settings').disabled = !level.catBlock;
-  $('#cat-block-description').value = level.catBlock?.description ?? '';
-  $('#cat-block-item-message').value = level.catBlock?.messages?.item ?? CAT_BLOCK_MESSAGES.item;
-  $('#cat-block-enemy-message').value = level.catBlock?.messages?.enemy ?? CAT_BLOCK_MESSAGES.enemy;
-  $('#cat-block-chest-message').value = level.catBlock?.messages?.chest ?? CAT_BLOCK_MESSAGES.chest;
+  $('#cat-block-settings').hidden = !level.catBlock;
+  const trigger = level.catBlock?.trigger;
+  // Keep old free-form hints intact until an author explicitly selects a trigger.
+  $('#cat-block-trigger').value = trigger?.type ?? (level.catBlock ? '' : 'spawn');
+  $('#cat-block-amount').value = trigger?.amount ?? 1;
+  $('#cat-block-enemy-type').value = trigger?.enemyType ?? 'mouse';
+  $('#cat-block-brick-type').value = trigger?.brickType ?? 'normal';
+  updateCatBlockTrigger();
   $('#timeline').max = level.duration;
   $('#event-time').max = level.duration;
 }
@@ -1587,7 +1674,35 @@ function updateWinCondition() {
 $('#win-condition').addEventListener('change', updateWinCondition);
 $('#cat-block-enabled').addEventListener('change', () => {
   $('#cat-block-settings').disabled = !$('#cat-block-enabled').checked;
+  $('#cat-block-settings').hidden = !$('#cat-block-enabled').checked;
 });
+function readCatBlockTrigger() {
+  const type = $('#cat-block-trigger').value;
+  if (!type) return null;
+  const definition = CAT_BLOCK_TRIGGERS[type];
+  return {
+    type,
+    ...(definition.amount ? { amount: $('#cat-block-amount').value === '' ? NaN : Number($('#cat-block-amount').value) } : {}),
+    ...(definition.enemy ? { enemyType: $('#cat-block-enemy-type').value } : {}),
+    ...(definition.brick ? { brickType: $('#cat-block-brick-type').value } : {}),
+  };
+}
+function updateCatBlockTrigger() {
+  const trigger = readCatBlockTrigger();
+  const definition = trigger ? CAT_BLOCK_TRIGGERS[trigger.type] : {};
+  for (const [field, enabled] of [['amount', definition.amount], ['enemy', definition.enemy], ['brick', definition.brick]]) {
+    $(`#cat-block-${field}-label`).hidden = !enabled;
+    const input = $(field === 'amount' ? '#cat-block-amount' : `#cat-block-${field}-type`);
+    input.disabled = !enabled;
+  }
+  $('#cat-block-amount').min = trigger?.type === 'time' ? '.001' : '0';
+  $('#cat-block-amount').step = trigger?.type === 'time' ? 'any' : '1';
+  $('#cat-block-amount').required = Boolean(definition.amount);
+  $('#cat-block-objective').textContent = trigger ? catBlockDescription(trigger) : catBlockObjective(level);
+}
+for (const selector of ['#cat-block-trigger', '#cat-block-amount', '#cat-block-enemy-type', '#cat-block-brick-type']) {
+  $(selector).addEventListener(selector === '#cat-block-amount' ? 'input' : 'change', updateCatBlockTrigger);
+}
 function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character: 'koshi', x: .28, y: .65 }, { character: 'mouse', x: .67, y: .65 }, { character: 'wheel', x: .82, y: .7 }] }) {
   const row = document.createElement('div');
   row.className = 'scene-line';
@@ -1671,15 +1786,18 @@ $('#timeline').addEventListener('input', () => {
 $('#show-all').addEventListener('change', renderBoard);
 $('#orientation').addEventListener('change', renderBoard);
 new ResizeObserver(renderBoard).observe(board);
+function validateSavedLevel({ draft = false } = {}) {
+  return validateCustomLevel(level, { allowUnpairedPortals: draft, requireCatBlockConsistency: true });
+}
 $('#generate-json').addEventListener('click', () => attempt(() => {
-  const valid = validateCustomLevel(level);
+  const valid = validateSavedLevel();
   $('#level-json').value = JSON.stringify(valid, null, 2); message('JSON generated from the saved level settings and events.');
 }));
 $('#import-json').addEventListener('click', () => attempt(() => {
   replaceLevel(JSON.parse($('#level-json').value)); message('JSON imported. Review the placements or playtest the level.');
 }));
 $('#download-json').addEventListener('click', () => attempt(() => {
-  const valid = validateCustomLevel(level);
+  const valid = validateSavedLevel();
   const url = URL.createObjectURL(new Blob([JSON.stringify(valid, null, 2)], { type: 'application/json' }));
   const anchor = document.createElement('a');
   anchor.href = url; anchor.download = `${level.id.replace(/[^a-z0-9_-]/gi, '-').slice(0, 60)}.json`;
@@ -1700,9 +1818,10 @@ $('#import-file').addEventListener('change', async event => {
   event.target.value = '';
 });
 $('#save-draft').addEventListener('click', () => attempt(() => {
-  localStorage.setItem(storageKey, JSON.stringify(level));
+  const valid = validateSavedLevel({ draft: true });
+  localStorage.setItem(storageKey, JSON.stringify(valid));
   committed = JSON.stringify(level); dirty = false;
-  message(portalPairIssues(previewGame.bricks).length ? 'Draft saved in this browser. Finish the portal pairs before exporting or playtesting.' : 'Draft saved in this browser. Download JSON for a portable backup.');
+  message('Draft saved.');
 }));
 $('#load-draft').addEventListener('click', () => attempt(() => {
   const saved = localStorage.getItem(storageKey);
@@ -1720,7 +1839,7 @@ $('#playtest').addEventListener('click', event => {
   event.preventDefault();
   attempt(() => {
     if (readOnly()) { location.href = $('#playtest').href; return; }
-    validateCustomLevel(level);
+    validateSavedLevel();
     // The fragment carries the snapshot without requiring storage access or a server.
     history.replaceState(history.state, '', `#level=${encodeURIComponent(JSON.stringify(level))}`);
     committed = JSON.stringify(level); dirty = false;

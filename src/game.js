@@ -53,7 +53,58 @@ const CAT_BLOCK_MESSAGES = {
   item: 'Koshi found the Cat Block!',
   enemy: 'Koshi found a Cat Block carried by an enemy!',
   chest: 'Koshi opened the treasure chest and found the Cat Block!',
+  achievement: 'Koshi earned the Cat Brick!',
 };
+const CAT_BRICK_TYPES = {
+  slow: 'Slow', normal: 'Normal', fast: 'Fast', cinder: 'Cinder', goal: 'Goal',
+  crumbler: 'Crumbler', warped: 'Warped', slimed: 'Slimed', springs: 'Springs',
+  spikes: 'Spikes', conveyor: 'Conveyor', portal: 'Portal', toggle: 'Toggle',
+  spawner: 'Spawning', boost: 'Boost', barrier: 'Barrier', turret: 'Turret',
+};
+const CAT_BLOCK_TRIGGERS = {
+  spawn: { text: 'Find during gameplay when it spawns.' },
+  carrier: { text: 'Defeat the enemy carrying it then collect it.' },
+  chest: { text: 'Collect enough keys to open the treasure chest containing it.' },
+  time: { text: 'Complete the level in under [X] seconds.', amount: true },
+  food: { text: 'Complete the level with at least [X] food points.', amount: true },
+  enemyPoints: { text: 'Complete the level with at least [X] enemy points.', amount: true },
+  goals: { text: 'Complete the level with at least [X] soccer goals.', amount: true },
+  moves: { text: 'Complete the level in at most [X] moves.', amount: true },
+  enemyMin: { text: 'Defeat at least [X] of enemy type [Y].', amount: true, enemy: true },
+  enemyMax: { text: 'Defeat no more than [X] of enemy type [Y].', amount: true, enemy: true },
+  enemiesMax: { text: 'Defeat no more than [X] enemies.', amount: true },
+  noSwords: { text: 'Complete the level without collecting any swords.' },
+  noHearts: { text: 'Complete the level without collecting any hearts.' },
+  bricksMin: { text: 'Complete the level with at least [X] distinct bricks of brick type [Y]', amount: true, brick: true },
+  bricksMax: { text: 'Complete the level with at most [X] distinct bricks of brick type [Y]', amount: true, brick: true },
+  noSelect: { text: 'Complete the level without selecting any brick of type [X].', brick: true },
+  noTouch: { text: 'Complete the level without touching any brick of type [X].', brick: true },
+};
+function catBlockDescription(trigger) {
+  const definition = CAT_BLOCK_TRIGGERS[trigger.type];
+  const type = definition.enemy ? CHARACTERS[trigger.enemyType] : CAT_BRICK_TYPES[trigger.brickType];
+  return `To earn Cat Brick: ${definition.text.replace('[X]', definition.amount ? trigger.amount : type).replace('[Y]', type)}`;
+}
+function catBlockObjective(level) {
+  if (!level.catBlock) return '';
+  if (level.catBlock.trigger) return catBlockDescription(level.catBlock.trigger);
+  const events = level.events ?? [];
+  if ((level.enemies ?? []).some(event => event[4]?.carriesCatBlock)
+    || events.some(event => event.kind === 'enemy' && event.carriesCatBlock)) {
+    return catBlockDescription({ type: 'carrier' });
+  }
+  if (events.some(event => event.kind === 'item' && event.type === 'treasure-chest')) {
+    return catBlockDescription({ type: 'chest' });
+  }
+  if ((level.items ?? []).some(event => event[1] === 'cat-block')
+    || events.some(event => event.kind === 'item' && event.type === 'cat-block')) {
+    return catBlockDescription({ type: 'spawn' });
+  }
+  return level.catBlock.description;
+}
+function matchesCatBrickType(brick, type) {
+  return brick.kind === type || Boolean(brick[type]);
+}
 for (const [brush, name, paintUses] of [['pencil', 'Thin Paintbrush', 1], ['wide', 'Wide Paintbrush', 3], ['roller', 'Paint Roller', 5]]) {
   for (const [paintColor, paintKind, color] of [['red', 'fast', '#df8c81'], ['green', 'normal', '#83bca1'], ['blue', 'slow', '#7eacdb']]) {
     ITEMS[`paint-${brush}-${paintColor}`] = {
@@ -1265,7 +1316,7 @@ function portalPairIssues(bricks) {
   });
 }
 
-function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
+function validateCustomLevel(value, { allowUnpairedPortals = false, requireCatBlockConsistency = false } = {}) {
   const fail = message => { throw new TypeError(message); };
   const number = (v, min, max, name) => {
     if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) fail(`${name} must be a number from ${min} to ${max}.`);
@@ -1327,13 +1378,36 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     if (!event || typeof event !== 'object' || Array.isArray(event)) fail(`${name} must be an object.`);
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
-    const x = number(event.x, 0, 1, `${name} X`), y = number(event.y, 0, 1, `${name} Y`);
+    if (event.random !== undefined && typeof event.random !== 'boolean') fail(`${name} random location must be a boolean.`);
+    const random = event.random === true;
+    const x = random ? undefined : number(event.x, 0, 1, `${name} X`);
+    const y = random ? undefined : number(event.y, 0, 1, `${name} Y`);
+    let group;
+    if (event.group !== undefined) {
+      const value = event.group;
+      if (!value || typeof value !== 'object' || Array.isArray(value) || !['line', 'circle'].includes(value.shape)) fail(`${name} group must be a line or circle.`);
+      const count = number(value.count, 2, 100, `${name} group count`);
+      if (!Number.isInteger(count)) fail(`${name} group count must be a whole number.`);
+      group = { shape: value.shape, count };
+      if (value.size !== undefined) group.size = number(value.size, .001, 1, `${name} group size`);
+      if (value.angle !== undefined) {
+        if (value.shape !== 'line') fail(`${name}: only lines support an angle.`);
+        group.angle = number(value.angle, 0, 360, `${name} line angle`);
+      }
+      const angle = (group.angle ?? 0) * Math.PI / 180;
+      if (!random && (((x === 0 || x === 1) && (group.shape === 'circle' || Math.abs(Math.cos(angle)) > 1e-9))
+        || ((y === 0 || y === 1) && (group.shape === 'circle' || Math.abs(Math.sin(angle)) > 1e-9)))) {
+        fail(`${name} group center must leave room for its formation inside the playable area.`);
+      }
+    }
     const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
-    if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
-    if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
-    if (event.kind === 'enemy' && event.type === 'robo-cow' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: Robo Cows must start on an edge of the playable area.`);
-    const result = { time, kind: event.kind, type: event.type, x, y };
+    if (!random && !group) {
+      if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
+      if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
+      if (event.kind === 'enemy' && event.type === 'robo-cow' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: Robo Cows must start on an edge of the playable area.`);
+    }
+    const result = { time, kind: event.kind, type: event.type, ...(random ? { random: true } : { x, y }), ...(group ? { group } : {}) };
     shield(event, result, name);
     obstructionAppearance(event, result, name);
     if (event.carriesCatBlock !== undefined) {
@@ -1359,6 +1433,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     }
     return result;
   });
+  if (events.reduce((sum, event) => sum + (event.group?.count ?? 1), 0) > 2000) fail('Events must spawn at most 2000 game elements in total.');
   const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
   if (value.killGoal !== undefined) result.killGoal = killGoal;
   if (value.goalsGoal !== undefined) result.goalsGoal = goalsGoal;
@@ -1370,15 +1445,28 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
       || typeof catBlock.description !== 'string' || !catBlock.description.trim() || catBlock.description.length > 500) {
       fail('Cat Block description must contain 1–500 characters.');
     }
-    const messages = {};
-    for (const source of Object.keys(CAT_BLOCK_MESSAGES)) {
-      const message = catBlock.messages?.[source] ?? CAT_BLOCK_MESSAGES[source];
-      if (typeof message !== 'string' || !message.trim() || message.length > 200) {
-        fail(`Cat Block ${source} message must contain 1–200 characters.`);
+    result.catBlock = { description: catBlock.description.trim(), messages: { ...CAT_BLOCK_MESSAGES } };
+    if (catBlock.trigger !== undefined) {
+      const trigger = catBlock.trigger;
+      if (!trigger || typeof trigger !== 'object' || Array.isArray(trigger)
+        || !Object.hasOwn(CAT_BLOCK_TRIGGERS, trigger.type)) fail('Cat Brick has an invalid trigger type.');
+      const definition = CAT_BLOCK_TRIGGERS[trigger.type];
+      const saved = { type: trigger.type };
+      if (definition.amount) {
+        saved.amount = number(trigger.amount, trigger.type === 'time' ? .001 : 0, 100000, 'Cat Brick trigger amount');
+        if (trigger.type !== 'time' && !Number.isInteger(saved.amount)) fail('Cat Brick trigger amount must be a whole number.');
       }
-      messages[source] = message.trim();
+      if (definition.enemy) {
+        if (!Object.hasOwn(CHARACTERS, trigger.enemyType) || ['koshi', 'tom'].includes(trigger.enemyType)) fail('Cat Brick has an invalid enemy type.');
+        saved.enemyType = trigger.enemyType;
+      }
+      if (definition.brick) {
+        if (!Object.hasOwn(CAT_BRICK_TYPES, trigger.brickType)) fail('Cat Brick has an invalid brick type.');
+        saved.brickType = trigger.brickType;
+      }
+      result.catBlock.trigger = saved;
+      result.catBlock.description = catBlockDescription(saved);
     }
-    result.catBlock = { description: catBlock.description.trim(), messages };
   }
   if (value.cutscene !== undefined) result.cutscene = validateCutscene(value.cutscene);
   if (value.brickTypes !== undefined) {
@@ -1476,11 +1564,45 @@ function validateCustomLevel(value, { allowUnpairedPortals = false } = {}) {
     });
   }
   applyBrickGroups(bricks, result.brickGroups);
-  const hasCatBlockSource = result.events.some(event =>
-    event.kind === 'item' && ['cat-block', 'treasure-chest'].includes(event.type)
-    || event.kind === 'enemy' && event.carriesCatBlock)
-    || result.brickTypes?.some(brick => brick.spawner?.kind === 'item' && brick.spawner.type === 'cat-block');
+  const spawners = bricks.filter(brick => brick.absorbedBy == null && brick.spawner).map(brick => brick.spawner);
+  const sources = [...result.events, ...spawners];
+  const sourceType = source => source.kind === 'enemy' && source.carriesCatBlock ? 'carrier'
+    : source.kind === 'item' && source.type === 'cat-block' ? 'spawn'
+      : source.kind === 'item' && source.type === 'treasure-chest' ? 'chest' : null;
+  const catSources = sources.filter(source => sourceType(source));
+  const hasCatBlockSource = catSources.length > 0;
   if (hasCatBlockSource && !result.catBlock) fail('Enable Cat Block in level settings and add its collection description.');
+  if (requireCatBlockConsistency && result.catBlock) {
+    const type = result.catBlock.trigger?.type;
+    if (['spawn', 'carrier', 'chest'].includes(type)) {
+      if (!catSources.some(source => sourceType(source) === type)) {
+        fail(`Cat Brick trigger "${type}" requires a matching ${type === 'carrier' ? 'enemy carrying a Cat Block' : type === 'chest' ? 'treasure chest' : 'Cat Block pickup or spawner'}.`);
+      }
+      if (catSources.some(source => sourceType(source) !== type)) {
+        fail(`Cat Brick sources do not match the selected "${type}" trigger. Remove the conflicting pickups, carriers or chests.`);
+      }
+    } else if (type && hasCatBlockSource) {
+      fail('Achievement Cat Brick triggers cannot include Cat Block pickups, carriers or treasure chests.');
+    } else if (!type && !hasCatBlockSource) {
+      fail('Cat Brick requires a collection trigger or a pickup, carrier or treasure chest.');
+    }
+    if (catSources.reduce((sum, source) => sum + (source.group?.count ?? 1), 0) > 1) {
+      fail('A level can include only one Cat Brick source: one pickup, enemy carrier, treasure chest or spawner.');
+    }
+    const chests = catSources.filter(source => sourceType(source) === 'chest');
+    if (chests.length) {
+      const isKey = source => source.kind === 'item' && source.type === 'key'
+        || source.kind === 'enemy' && source.carriesKey;
+      const isBattery = source => source.kind === 'item' && source.type === 'battery';
+      const keySpawners = spawners.filter(isKey).length;
+      const count = entries => entries.reduce((sum, source) => sum + (source.group?.count ?? 1), 0);
+      const batteries = count(sources.filter(isBattery));
+      const keys = count(sources.filter(isKey)) + (keySpawners ? batteries : 0);
+      if (!chests.some(chest => keys >= (chest.keysRequired ?? 1))) {
+        fail('Cat Brick treasure chests require more keys than the level provides. Add keys or key-carrying enemies, or reduce the required keys.');
+      }
+    }
+  }
   const issues = portalPairIssues(bricks);
   if (!allowUnpairedPortals && issues.length) fail(issues.join(' '));
   return result;
@@ -2302,6 +2424,7 @@ class Game {
     this.keys = 0;
     this.catBlockCollected = this.catBlockPreviouslyCollected;
     this.catBlockEvents = [];
+    this.catBlockProgress = { defeated: {}, swords: 0, hearts: 0, selected: new Set(), touched: new Set() };
     this.tookDamage = false;
     this.invulnerableUntil = 0;
     this.nextEvent = 0;
@@ -2459,6 +2582,7 @@ class Game {
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
     if (this.spikeParts(parts).some(({ triangle }) =>
       spikeContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, triangle) <= 1e-9)) return false;
+    this.recordCatBrickTypes(brick, this.catBlockProgress.selected);
     if (!this.sunglassesActive) {
       brick.readyAt = this.elapsed + COOLDOWNS[brick.kind]
         + Math.max(0, this.snailCooldownFreezeUntil - this.elapsed);
@@ -3174,11 +3298,65 @@ class Game {
     for (const obstruction of appearing) this.clearAppearingObstruction(obstruction);
   }
 
+  customEventPoints(event, { preview = false } = {}) {
+    const b = this.bounds(), width = b.right - b.left, height = b.bottom - b.top;
+    const edge = event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type);
+    const snap = point => {
+      if (!edge) return point;
+      const relative = snapWheel((point.x - b.left) / width, (point.y - b.top) / height);
+      return this.pointFromRelative(relative.x, relative.y);
+    };
+    if (!event.group) {
+      const point = event.random
+        ? preview ? this.pointFromRelative(.5, .5)
+          : needsBrickSpawnClearance(event.type) ? this.randomStampPoint()
+            : ['food', 'item', 'weapon'].includes(event.kind) ? this.randomPickupPoint() : this.randomPoint()
+        : this.campaignEventPoint(event.x, event.y);
+      return [snap(point)];
+    }
+    const { shape, count, angle = 0 } = event.group;
+    const short = Math.min(width, height);
+    const areaBounds = { ...b };
+    if (event.random && needsBrickSpawnClearance(event.type)) {
+      const clearance = DITTO_STAMP_RADIUS + this.cat.radius * 4;
+      for (const part of this.brickParts()) {
+        if (part.x + part.w <= b.left) areaBounds.left = Math.max(areaBounds.left, part.x + part.w + clearance);
+        if (part.x >= b.right) areaBounds.right = Math.min(areaBounds.right, part.x - clearance);
+        if (part.y + part.h <= b.top) areaBounds.top = Math.max(areaBounds.top, part.y + part.h + clearance);
+        if (part.y >= b.bottom) areaBounds.bottom = Math.min(areaBounds.bottom, part.y - clearance);
+      }
+    }
+    const requestedSize = event.group.size === undefined
+      ? Math.min(short, shape === 'line' ? (count - 1) * 55 : 176) : event.group.size * short;
+    const size = Math.min(requestedSize, areaBounds.right - areaBounds.left, areaBounds.bottom - areaBounds.top);
+    const offsets = Array.from({ length: count }, (_, i) => {
+      const theta = shape === 'line' ? angle * Math.PI / 180 : i * Math.PI * 2 / count;
+      const radius = shape === 'line' ? size * (i / (count - 1) - .5) : size / 2;
+      return { x: Math.cos(theta) * radius, y: Math.sin(theta) * radius };
+    });
+    const reachX = Math.max(...offsets.map(point => Math.abs(point.x)));
+    const reachY = Math.max(...offsets.map(point => Math.abs(point.y)));
+    let center;
+    if (event.random && !preview) {
+      const area = { left: areaBounds.left + reachX, right: areaBounds.right - reachX,
+        top: areaBounds.top + reachY, bottom: areaBounds.bottom - reachY };
+      const safe = needsBrickSpawnClearance(event.type)
+        ? point => offsets.every(offset => this.stampSpawnClear({ x: point.x + offset.x, y: point.y + offset.y })) : null;
+      center = this.findRandomSpawnPoint(area, this.collectiblePoints(), SPAWN_SPACING + size / 2, safe);
+    } else center = event.random ? this.pointFromRelative(.5, .5) : this.campaignEventPoint(event.x, event.y);
+    // Keep an explicitly centered formation intact when space near an edge is limited.
+    const fit = Math.max(0, Math.min(1,
+      reachX > 1e-9 ? Math.min(center.x - b.left, b.right - center.x) / reachX : 1,
+      reachY > 1e-9 ? Math.min(center.y - b.top, b.bottom - center.y) / reachY : 1));
+    return offsets.map(offset => snap({ x: center.x + offset.x * fit, y: center.y + offset.y * fit }));
+  }
+
   createCustomSpawn(event) {
     if (this.catBlockCollected && event.kind === 'item' && this.isCatBlockSource(event)) return [];
-    let { x, y } = this.campaignEventCoordinates(event.x, event.y);
-    if (event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) ({ x, y } = snapWheel(x, y));
-    const point = this.pointFromRelative(x, y);
+    return this.customEventPoints(event).flatMap(point => this.createCustomEntity(event, point));
+  }
+
+  createCustomEntity(event, point) {
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
     if (event.kind === 'weapon' || event.kind === 'item') {
       const collectible = this.createCollectible(event.time, event.type, event.lifetime, point);
@@ -3201,6 +3379,7 @@ class Game {
     if (event.type === 'goalie') this.initializeGoalie(enemy);
     if (['wheel', 'snake', 'robo-cow'].includes(event.type)) {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
+      const x = (point.x - b.left) / w, y = (point.y - b.top) / h;
       if (event.type === 'robo-cow') enemy.distance = this.perimeterPosition(point);
       else if (y === 0) enemy.distance = x * w;
       else if (x === 1) enemy.distance = w + y * h;
@@ -3763,7 +3942,10 @@ class Game {
   }
 
   defeatEnemy(enemy, awardPoints = true) {
-    if (awardPoints) this.enemies += enemy.defeatPoints ?? 1;
+    if (awardPoints) {
+      this.enemies += enemy.defeatPoints ?? 1;
+      this.catBlockProgress.defeated[enemy.type] = (this.catBlockProgress.defeated[enemy.type] ?? 0) + 1;
+    }
     if (enemy.carriesKey) {
       this.items.push(this.createCollectible(this.elapsed, 'key', null, { x: enemy.x, y: enemy.y }));
       enemy.carriesKey = false;
@@ -3775,6 +3957,7 @@ class Game {
     this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
       bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
     if (enemy.type === 'robo-snail') this.freezeBrickCooldowns();
+    this.checkCatBlockAchievement();
   }
 
   freezeBrickCooldowns() {
@@ -4756,6 +4939,7 @@ class Game {
     // Swept pickups replace the sword in encounter order, not spawn-array order.
     for (const { item } of collected.sort((a, b) => a.entry - b.entry)) {
       const sword = SWORDS[item.type];
+      this.catBlockProgress.swords++;
       this.weapon = { type: item.type, uses: sword.uses, expires: sword.seconds ? this.elapsed + sword.seconds : Infinity };
       this.recordPickup(item, 'weapon');
     }
@@ -4772,7 +4956,7 @@ class Game {
     });
     for (const { item } of collectedItems.sort((a, b) => a.entry - b.entry)) {
       if (this.catBlockCollected && this.isCatBlockSource(item)) continue;
-      this.collectItem(item);
+      if (this.collectItem(item) === false) continue;
       this.recordPickup(item, 'item');
     }
     this.robots = this.robots.filter(enemy => {
@@ -4929,6 +5113,7 @@ class Game {
     this.healing = this.healing.filter(item => {
       if (distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y) > this.cat.radius + 13) return true;
       this.hearts = Math.min(3, this.hearts + 1);
+      this.catBlockProgress.hearts++;
       return false;
     });
   }
@@ -4946,24 +5131,62 @@ class Game {
   }
 
   collectCatBlock(source) {
-    if (this.catBlockCollected) return;
+    if (this.catBlockCollected) return false;
+    const type = this.level.catBlock?.trigger?.type;
+    if (type && source !== 'achievement'
+      && source !== ({ spawn: 'item', carrier: 'enemy', chest: 'chest' })[type]) return false;
     this.catBlockCollected = true;
     this.catBlockEvents.push(source);
     this.items = this.availableSpawns(this.items);
     for (const enemy of this.robots) enemy.carriesCatBlock = false;
     for (const pending of this.pendingSpawns.values()) pending.items = this.availableSpawns(pending.items);
+    return true;
+  }
+
+  recordCatBrickTypes(brick, types) {
+    if (!this.level.catBlock?.trigger) return;
+    for (const type of Object.keys(CAT_BRICK_TYPES)) {
+      if (matchesCatBrickType(brick, type)) types.add(type);
+    }
+  }
+
+  checkCatBlockAchievement() {
+    const trigger = this.level.catBlock?.trigger;
+    if (!trigger || this.catBlockCollected || ['spawn', 'carrier', 'chest'].includes(trigger.type)) return;
+    if (this.state !== 'won' && (trigger.type !== 'enemyMin' || this.state !== 'playing')) return;
+    const progress = this.catBlockProgress;
+    const defeats = progress.defeated[trigger.enemyType] ?? 0;
+    const bricks = () => this.bricks.filter(brick => brick.absorbedBy === null && matchesCatBrickType(brick, trigger.brickType)).length;
+    let earned = false;
+    switch (trigger.type) {
+      case 'time': earned = this.elapsed < trigger.amount - 1e-9; break;
+      case 'food': earned = this.score >= trigger.amount; break;
+      case 'enemyPoints': earned = this.enemies >= trigger.amount; break;
+      case 'goals': earned = this.goals >= trigger.amount; break;
+      case 'moves': earned = this.moves <= trigger.amount; break;
+      case 'enemyMin': earned = defeats >= trigger.amount; break;
+      case 'enemyMax': earned = defeats <= trigger.amount; break;
+      case 'enemiesMax': earned = Object.values(progress.defeated).reduce((sum, count) => sum + count, 0) <= trigger.amount; break;
+      case 'noSwords': earned = progress.swords === 0; break;
+      case 'noHearts': earned = progress.hearts === 0; break;
+      case 'bricksMin': earned = bricks() >= trigger.amount; break;
+      case 'bricksMax': earned = bricks() <= trigger.amount; break;
+      case 'noSelect': earned = !progress.selected.has(trigger.brickType); break;
+      case 'noTouch': earned = !progress.touched.has(trigger.brickType); break;
+    }
+    if (earned) this.collectCatBlock('achievement');
   }
 
   collectItem(item) {
     if (item.type === 'cat-block') {
-      this.collectCatBlock(item.source ?? 'item');
+      return this.collectCatBlock(item.source ?? 'item');
     } else if (item.type === 'key') this.keys++;
     else if (item.type === 'treasure-chest') {
       if (this.catBlockCollected) return false;
       const keysRequired = item.keysRequired ?? 1;
       if (this.keys < keysRequired) return false;
+      if (!this.collectCatBlock('chest')) return false;
       this.keys -= keysRequired;
-      this.collectCatBlock('chest');
     } else if (ITEMS[item.type]?.paintUses) {
       this.paintBrush = { type: item.type, uses: ITEMS[item.type].paintUses };
     } else if (item.type === 'smiley-cookie') {
@@ -5261,6 +5484,9 @@ class Game {
     this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();
+    for (const part of parts) {
+      if (this.touchingPart(part)) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
+    }
     if (this.portalArrival !== null && !parts.some(part => part.id === this.portalArrival && this.touchingPart(part))) this.portalArrival = null;
     for (const id of this.spawnerTouching) {
       if (!parts.some(part => part.id === id && this.touchingPart(part))) this.spawnerTouching.delete(id);
@@ -5396,6 +5622,7 @@ class Game {
       bumperTime = Infinity;
     }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
+    for (const part of contacts) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
     this.attractFoodToCat(dt * contact, endX, endY);
     this.food = this.food.filter(item => {
       if (distanceToSegment(item.x, item.y, cat.x, cat.y, endX, endY) > cat.radius + 12) return true;
@@ -5433,6 +5660,7 @@ class Game {
       if (stampTarget) this.stampBrick(stampTarget, parts);
     }
     this.paintBricks(contacts, sawed);
+    for (const part of contacts) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
     if (sawing || stamping) {
       for (const part of contacts) if (this.bricks[part.id].spikes) spikeIds.add(part.id);
       for (const id of spikeIds) if (!this.bricks[id].spikes) spikeIds.delete(id);
@@ -5511,13 +5739,14 @@ class Game {
       this.elapsed = this.timeLimit;
       this.state = this.level.survive ? 'won' : 'lost';
     }
+    this.checkCatBlockAchievement();
     this.recordCatPosition();
     this.tickStart = null;
   }
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

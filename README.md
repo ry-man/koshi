@@ -73,10 +73,13 @@ starts that selection; **World Select** returns to world selection.
 Levels that offer a Cat Block show its icon beside the star. These detail icons
 stay in fixed positions as levels change, independently of title length.
 Hover or focus the star or Cat Block icon for its collection hint,
-or click/tap the icon to keep the hint open. Press Escape to dismiss it.
+or click/tap the icon to keep the hint open. Hints float above the details content
+without moving the objectives or statistics. Only one hint opens at a time.
+Press Escape to dismiss it.
 The pre-level mission briefing lists only
 active victory targets with emojis. Where applicable, a centered Cat Block image
-appears below them with its collection hint or “Cat Block already acquired!”.
+appears below them with the same `To earn Cat Brick: ...` objective as the editor
+and map, including when the Cat Brick has already been acquired.
 Uncollected stars and Cat Blocks use outlines with the same shape, size and
 position as their collected artwork, both beside map stops and in level details.
 Cat Block outlines follow the artwork's alpha silhouette. Cat Blocks are omitted
@@ -105,7 +108,9 @@ their enemy at a fixed offset without bobbing, using the same unframed artwork
 as collected map icons and the in-game pickup.
 The map window and its map/details panes keep a consistent viewport-relative
 size regardless of the number of stops or preview icons; longer content scrolls
-inside its pane. Level numbers stay on one line. **World Select** and
+inside its pane. On phones the dialog fills the viewport width, overriding the
+browser's default dialog max-width, with both map views centered.
+Level numbers stay on one line. **World Select** and
 **Skip cutscene** share the bottom action bar with **Play Level** when a level
 is selected; **Back to menu** appears there on the world-selection view.
 When a level with a cutscene is selected, **Skip cutscene** replaces **Back to
@@ -807,6 +812,43 @@ food also displays the points earned. Simultaneous events
 spawn in their original list order. Normal pickup/combat rules still apply,
 including automatic collection of objects placed over Koshi's starting point.
 
+The event inspector's **Location** selector supports a fixed center or a random
+location for food, enemies, weapons, items and objects. **Formation** selects a
+single element, a straight line or an equally spaced circle. Groups contain
+2–100 copies of the selected type and remain one timeline entry; selection,
+duplication, deletion and dragging apply to the entire event. A level may spawn
+at most 2000 elements across all events. All copies inherit the event's timing,
+lifetime, shield, carrier flags and object attributes.
+
+Lines accept an angle in degrees (0 is horizontal, 90 points downward). Optional
+**Length (%)** / **Diameter (%)** uses the shorter playable dimension; blank
+uses automatic sizing (55 units between line members, or a 176-unit circle
+diameter, capped to fit). Fixed formations remain centered on their authored
+point and shrink uniformly if necessary to fit near an edge. Their centers must
+leave room on both sides along the formation's axes. Random groups
+choose a center that keeps the whole formation inside the playable area.
+Random Saw Blade, Ditto Stamp and Paintbrush formations also shrink as necessary
+to preserve their required clearance from boundary bricks.
+Wheel, Snake and Robo Cow members each snap to the nearest edge, which can
+change the formation's shape. The editor shows representative random locations
+at the center; actual random locations are selected once per spawn warning and
+reused when the event appears. Dragging or nudging a random marker changes its
+event to a fixed location. Only single fixed events can connect to brick spawners.
+
+JSON represents random locations with `"random": true` instead of `x` and `y`.
+Optional `group` holds `shape` (`"line"` or `"circle"`), `count`, optional
+`size` (0.001–1 of the shorter playable dimension) and an optional line `angle`
+(0–360 degrees). Omitting `group` preserves individual placement behavior:
+
+```json
+{ "time": 5, "kind": "food", "type": "S", "random": true, "lifetime": 10,
+  "group": { "shape": "circle", "count": 8, "size": 0.6 } }
+```
+
+Cat Brick consistency checks count every member of grouped pickups, carriers
+and chests, so grouping cannot bypass the one-Cat-Brick limit. Grouped keys and
+key carriers contribute their full counts toward chest requirements.
+
 ```json
 {
   "version": 1,
@@ -833,9 +875,59 @@ well as the power-ups. A Cat Block can be placed directly, carried by a custom
 enemy (`"carriesCatBlock": true`, dropped when defeated), or put in a chest.
 Chest events accept `"keysRequired"` (a positive whole number, default 1);
 collecting keys adds to the HUD counter, and opening a chest spends the required
-keys. In the editor, enable Cat Block in level settings, write its collection
-hint, and customize the pickup, carrier, and chest messages. Achievement-based
-collection is not implemented yet. `brickSet` is 1
+keys. In the editor, enable Cat Block in level settings and choose its **Trigger
+type**. Only the relevant amount, enemy type, and brick type options appear.
+Hints are generated with the prefix `To earn Cat Brick: ` and shown in the game.
+The editor shows a live, read-only objective reference with the chosen variables
+filled in. This exact text is also used in the starting briefing and the Cat Brick
+hint in level details, without extra text appended to the hint.
+Campaign pickup, enemy-carrier, and treasure-chest rewards also use these standard
+descriptions, without changing their placements, schedules, or requirements.
+The collapsible **Cat Brick** section uses compact trigger names and shows only
+the required parameter fields. Acquisition messages are built into the game,
+not editable per level. Boundary brick presets are no longer selectable in the
+editor; imported levels retain their existing preset and individual bricks remain
+editable. The editor omits instructional helper paragraphs but retains validation
+errors and action status.
+
+The 17 triggers cover spawned pickups, carriers, chests, completion time, food
+points, enemy points, soccer goals, moves, minimum/maximum defeats of a selected
+enemy type, maximum total defeats, no swords, no hearts, minimum/maximum distinct
+bricks of a selected type, and avoiding selecting/touching a selected brick type.
+Pickup/carrier/chest triggers use authored events or spawners; configure chest
+key requirements on the chest event. Achievement rewards are automatic: minimum
+enemy defeats can earn the block during play; all other achievements are checked
+at victory. All rewards require victory to keep.
+
+Distinct bricks are the separate bricks remaining on the board at completion,
+not visits or selections: a merged group counts as one. Brick types include
+base types and modifiers (such as Spawning); selecting/touching restrictions
+remember the types present at the time, even if a brick later changes.
+Defeat counts count enemies, not their shield-dependent point values, and exclude
+enemies removed without awarding defeat points. Picking up a heart counts even
+at full health; swords count even if replaced or exhausted later.
+
+Custom JSON stores `catBlock.trigger` as `{ "type": "food", "amount": 30 }`.
+Trigger type IDs in the order above are `spawn`, `carrier`, `chest`, `time`,
+`food`, `enemyPoints`, `goals`, `moves`, `enemyMin`, `enemyMax`, `enemiesMax`,
+`noSwords`, `noHearts`, `bricksMin`, `bricksMax`, `noSelect`, `noTouch`.
+Enemy-specific triggers also require `enemyType`; brick-specific triggers require
+`brickType` (a base kind or modifier name). Amounts are nonnegative whole numbers,
+except `time`, which accepts positive fractional seconds and uses a strict
+less-than comparison. Descriptions are regenerated from validated triggers.
+Legacy levels without a trigger keep their existing hints and pickup behavior.
+Saving a draft, generating/downloading JSON, and playtesting check that Cat Brick
+sources agree with the selected trigger. Pickup, carrier, and chest triggers
+require a matching source and reject conflicting source types; achievement
+triggers reject physical Cat Block sources. Chests require enough potential keys
+from placements, carriers, or active spawners (including Battery-powered repeats).
+Each level may include at most one physical Cat Brick source across pickups,
+enemy carriers, treasure chests and spawners, including legacy levels without a
+trigger. Checks use the effective, merged board rather than superseded brick overrides.
+Incomplete configurations can be edited and imported but cannot be saved until
+consistent. Existing campaign data is unchanged.
+
+`brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
 Enemy events also accept `"carriesKey": true` (the editor's **Carries a key**
 checkbox). A key floats beside the carrier and drops at its position on defeat,

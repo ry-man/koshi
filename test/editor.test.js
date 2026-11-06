@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, CAT_BLOCK_MESSAGES, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -131,6 +131,7 @@ test('playtesting preserves the editor snapshot in history before navigating wit
   const context = vm.createContext({
     level: draft, committed: 'old draft', dirty: true, location: {},
     readOnly: () => false, validateCustomLevel,
+    validateSavedLevel: () => validateCustomLevel(draft, { requireCatBlockConsistency: true }),
     $: () => ({ href, addEventListener(type, handler) { assert.equal(type, 'click'); click = handler; } }),
     history: {
       state: { preserved: true },
@@ -514,7 +515,7 @@ test('editor settings select exclusive survival or score targets and preserve im
     return nodes.get(selector);
   };
   const messages = [];
-  const context = vm.createContext({ $, level: blank(), CAT_BLOCK_MESSAGES, validateDraft: validateCustomLevel,
+  const context = vm.createContext({ $, level: blank(), CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateDraft: validateCustomLevel,
     attempt: action => action(), markChanged() {}, render() {}, message: text => messages.push(text) });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);
@@ -814,6 +815,7 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
   vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function description(')), context);
   vm.runInContext(source.slice(source.indexOf('function readEvent('), source.indexOf('function setSelection(')), context);
   vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf("form.addEventListener('submit'")), context);
+  $('#event-location').value = 'fixed'; $('#event-formation').value = 'single';
   $('#event-time').value = '2'; $('#event-x').value = '20'; $('#event-y').value = '70';
   for (const [kind, type] of [['item', 'battery'], ['weapon', 'gold']]) {
     $('#event-kind').value = kind; context.typeOptions(type);
@@ -892,6 +894,7 @@ test('snake event selectors and editor placements use Wheel edge snapping', () =
   $('#event-type').value = 'snake';
   $('#event-time').value = '0'; $('#event-x').value = '20'; $('#event-y').value = '70';
   $('#event-shield').value = 'none';
+  $('#event-location').value = 'fixed'; $('#event-formation').value = 'single';
   const placement = context.readEvent();
   assert.deepEqual(JSON.parse(JSON.stringify(placement)), { kind: 'enemy', type: 'snake', time: 0, ...snapWheel(.2, .7), shield: null });
   const snakeSpawner = { kind: 'enemy', type: 'snake' };
