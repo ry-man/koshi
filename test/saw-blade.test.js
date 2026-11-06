@@ -152,7 +152,10 @@ test('existing cinder contacts keep the saw ready, extra pickups do not stack, a
   game.update(1);
   assert.equal(game.sawStartedAt, started);
   assert.equal(game.brickDestructions.length, 0);
-  const other = game.bricks.find(candidate => candidate.id !== brick.id && candidate.kind !== 'cinder');
+  const regions = brickRegions(game.bricks, game.width, game.height);
+  const other = game.bricks.filter(candidate => candidate.id !== brick.id && candidate.kind !== 'cinder'
+    && regions.get(candidate.id).edge === 'bottom')
+    .sort((a, b) => Math.abs(a.x + a.w / 2 - game.cat.x) - Math.abs(b.x + b.w / 2 - game.cat.x))[0];
   launch(game, other);
   assert.equal(game.sawStartedAt, null);
   assert.equal(other.kind, 'cinder');

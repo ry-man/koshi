@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, SPEED, PORTALS, FOODS, SWORDS, CONTACT_SURFACES, brickEnabled, brickRegions, brickShape, validateCustomLevel } = require('../src/game.js');
+const { Game, SPEED, PORTALS, FOODS, SWORDS, CONTACT_SURFACES, brickEnabled, brickRegions, brickShape, middleBrickInGroup, validateCustomLevel } = require('../src/game.js');
 const { Tutorial, LESSONS } = require('../src/learning.js');
 const { spawnSymbol, decorateBrick, updateBrick, specialLabel } = require('../src/brick-visuals.js');
 const { readFileSync } = require('node:fs');
@@ -69,7 +69,7 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
     assert.ok(game.bricks.some(brick => !ids.includes(brick.id) && brick.absorbedBy === owner.id));
     game.elapsed = 1.1; game.restoreWarps();
     for (const brick of game.bricks) assert.equal(brick.absorbedBy, ids.includes(brick.id) && brick.id !== owner.id ? owner.id : null);
-    const exit = game.portalExit({ ...member, id: ownerId }, [{ ...member, id: ownerId }]);
+    const exit = game.portalExit({ ...member, id: ownerId });
     game.cat.x = exit.x - exit.nx * .01; game.cat.y = exit.y - exit.ny * .01;
     game.cat.vx = 0; game.cat.vy = 0;
     game.update(.01);
@@ -103,6 +103,68 @@ test('portal pairing counts combined endpoints rather than their hidden members'
     brickTypes: [...ids.slice(0, 3), ids[5]].map(id => ({ ...base.bricks[id].region, kind: 'normal', portal: 'purple' })) };
   assert.doesNotThrow(() => validateCustomLevel(source));
   assert.throws(() => validateCustomLevel({ ...source, brickGroups: [] }), /exactly two/);
+});
+
+test('merged portal exits and their markers use the clockwise middle brick', () => {
+  const base = arena();
+  for (const count of [2, 4]) {
+    const members = base.perimeter.slice(1, count + 1), ownerId = members[0], endpointId = base.perimeter[15];
+    const source = { ...level(), brickGroups: [{ owner: ownerId, members }], brickTypes: [
+      { ...base.bricks[ownerId].region, kind: 'normal', portal: 'purple' },
+      { ...base.bricks[endpointId].region, kind: 'normal', portal: 'purple' },
+    ] };
+    const game = new Game(() => .5, { customLevel: source }); game.start();
+    const owner = game.bricks[ownerId], center = middleBrickInGroup(owner, game.bricks, game.perimeter);
+    const exit = game.portalExit(owner);
+    assert.equal(center.id, members[Math.floor(count / 2)]);
+    near(exit.x, center.x + center.w / 2);
+    near(exit.y, center.y + center.h + game.cat.radius + .01);
+  }
+});
+
+test('one-brick portal exits at corners shift the oval along the wall and launch straight out', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = arena(options);
+    for (const [cornerX, cornerY] of [[0, 0], [game.width, 0], [0, game.height], [game.width, game.height]]) {
+      for (const brick of game.bricks) brick.portal = null;
+      game.portalUntil = 0;
+      game.portalArrival = null;
+      const destination = [...game.bricks].sort((a, b) =>
+        Math.hypot(a.x + a.w / 2 - cornerX, a.y + a.h / 2 - cornerY)
+        - Math.hypot(b.x + b.w / 2 - cornerX, b.y + b.h / 2 - cornerY))[0];
+      const source = game.bricks.find(brick => brick.id !== destination.id);
+      source.portal = destination.portal = 'blue';
+      const parts = game.brickParts();
+      const exit = game.portalExit(destination, parts);
+      const center = middleBrickInGroup(destination, game.bricks, game.perimeter);
+      const edge = brickRegions(game.bricks, game.width, game.height).get(center.id).edge;
+      const horizontal = edge === 'top' || edge === 'bottom';
+      const base = { x: center.x + center.w / 2, y: center.y + center.h / 2 };
+      assert.ok(horizontal ? exit.markerX !== base.x : exit.markerY !== base.y,
+        `${options.portrait ? 'phone' : 'desktop'} corner oval shifts along the wall`);
+      assert.equal(horizontal ? exit.markerY : exit.markerX, horizontal ? base.y : base.x);
+      assert.ok((horizontal ? exit.markerX - base.x : exit.markerY - base.y)
+        * (horizontal ? game.width / 2 - base.x : game.height / 2 - base.y) > 0,
+      'the oval shifts toward the first clear point in the board direction');
+      const normalOffset = (exit.nx ? center.w : center.h) / 2 + game.cat.radius + .01;
+      near(exit.x, exit.markerX + exit.nx * normalOffset);
+      near(exit.y, exit.markerY + exit.ny * normalOffset);
+      game.cat.x = exit.x;
+      game.cat.y = exit.y;
+      assert.equal(parts.some(part => game.touchingPart(part)), false, 'Koshi clears both corner walls');
+      game.cat.x = game.width / 2;
+      game.cat.y = game.height / 2;
+      game.cat.vx = exit.nx * SPEED;
+      game.cat.vy = exit.ny * SPEED;
+      assert.equal(game.travelPortal(source, parts), true);
+      near(game.cat.vx, exit.nx * SPEED);
+      near(game.cat.vy, exit.ny * SPEED);
+      const before = { x: game.cat.x, y: game.cat.y };
+      game.update(.05);
+      assert.ok(Math.hypot(game.cat.x - before.x, game.cat.y - before.y) > 10,
+        'Koshi leaves the adjusted portal exit without sticking');
+    }
+  }
 });
 
 test('starting groups fill connecting gaps across every corner without filling the arena', () => {
@@ -584,6 +646,20 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     const visual = context.KoshiBrickVisuals.decorateBrick(node(), brick, [brick]);
     assert.equal(visual.cloud.style.color, PORTALS[color]);
     assert.equal(visual.cloud.attributes.viewBox, '0 0 100 25');
+    const marker = visual.cloud.querySelector('.portal-exit-marker');
+    assert.deepEqual(marker.attributes, { class: 'portal-exit-marker', cx: '50', cy: '12.5', rx: '13', ry: '8' });
+    const rings = visual.cloud.children.filter(child => child.attributes.class === 'portal-exit-wave');
+    assert.equal(rings.length, 3);
+    assert.equal(new Set(rings.map(ring => ring.style['--wave-shade'])).size, 3);
+    for (const [index, ring] of rings.entries()) {
+      assert.equal(ring.attributes.cx, marker.attributes.cx);
+      assert.equal(ring.attributes.cy, marker.attributes.cy);
+      assert.ok(Number(ring.attributes.rx) < Number(marker.attributes.rx));
+      assert.ok(Number(ring.attributes.ry) < Number(marker.attributes.ry));
+      assert.equal(ring.style['--wave-delay'], `${-index * .6}s`);
+      assert.match(ring.style['--wave-shade'], /currentColor/);
+    }
+    assert.equal(visual.cloud.querySelector('.portal-vortex-swirl'), undefined);
     assert.equal(visual.cloud.querySelector('.portal-haze').attributes.d, 'M0 0L100 0L100 25L0 25L0 0Z');
     const container = node();
     Object.assign(visual.button.style, { left: '10%', top: '20%', width: '30%', height: '5%' });
@@ -609,6 +685,30 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     context.KoshiBrickVisuals.updateBrick(visual, brick, 3);
     assert.notEqual(puffs.style.opacity, opacity);
   }
+  const members = [
+    { id: 1, x: 0, y: 0, w: 100, h: 25 },
+    { id: 2, x: 100, y: 0, w: 100, h: 25 },
+  ];
+  const mergedBrick = { ...members[0], portal: 'purple' };
+  const mergedVisual = context.KoshiBrickVisuals.decorateBrick(node(), mergedBrick, members, 200, 100, members[1]);
+  const mergedMarker = mergedVisual.cloud.querySelector('.portal-exit-marker');
+  assert.equal(mergedMarker.attributes.cx, '150');
+  assert.equal(mergedMarker.attributes.cy, '12.5');
+  const adjustedVisual = context.KoshiBrickVisuals.decorateBrick(node(), mergedBrick, members, 200, 100, members[1],
+    { markerX: 165, markerY: 20 });
+  const adjustedMarker = adjustedVisual.cloud.querySelector('.portal-exit-marker');
+  assert.equal(adjustedMarker.attributes.cx, '165');
+  assert.equal(adjustedMarker.attributes.cy, '20');
+  for (const ring of adjustedVisual.cloud.children.filter(child => child.attributes.class === 'portal-exit-wave')) {
+    assert.equal(ring.attributes.cx, '165');
+    assert.equal(ring.attributes.cy, '20');
+  }
+  const css = readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(css, /\.portal-exit-marker\s*\{\s*fill:\s*currentColor;[^}]*animation:\s*portal-exit-glow/);
+  assert.match(css, /@keyframes portal-exit-glow\s*\{[^}]*fill-opacity/);
+  assert.match(css, /@keyframes portal-exit-wave\s*\{[^}]*transform:\s*scale\(\.1\)/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce\)\s*\{\s*\.portal-exit-marker,\s*\.portal-exit-wave\s*\{\s*animation:\s*none/);
+  assert.doesNotMatch(css, /portal-vortex-spin/);
   for (const [clicks, color] of [[1, 'red'], [2, 'green'], [4, 'blue']]) {
     const brick = { x: 0, y: 0, w: 25, h: 100, toggle: clicks, toggleRemaining: clicks };
     const visual = context.KoshiBrickVisuals.decorateBrick(node(), brick, [brick]);

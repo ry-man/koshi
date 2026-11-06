@@ -462,6 +462,12 @@ test('warped spike groups cover connecting gaps and restore absorbed surfaces', 
     const bridge = parts.find(part => part.sourceId === undefined);
     const triangles = brickSpikes(parts, game.width, game.height).triangles;
     for (const triangle of triangles) {
+      const [baseStart, tip, baseEnd] = triangle;
+      assert.ok(Math.abs(Math.hypot(baseEnd[0] - baseStart[0], baseEnd[1] - baseStart[1]) - 16) < 1e-6,
+        'merged spikes have a uniform base width');
+      const baseCenter = [(baseStart[0] + baseEnd[0]) / 2, (baseStart[1] + baseEnd[1]) / 2];
+      assert.ok(Math.abs(Math.hypot(tip[0] - baseCenter[0], tip[1] - baseCenter[1]) - 14) < 1e-6,
+        'merged spikes have a uniform depth');
       for (const [x, y] of triangle) assert.ok(parts.some(part => x >= part.x - 1e-6 && x <= part.x + part.w + 1e-6
         && y >= part.y - 1e-6 && y <= part.y + part.h + 1e-6), 'merged spikes stay within the original footprint');
     }

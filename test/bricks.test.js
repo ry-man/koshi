@@ -17,6 +17,20 @@ function recenter(game) {
   game.cat.y = game.height / 2;
 }
 
+test('desktop brick geometry is the rotated phone geometry at the reference scale', () => {
+  const desktop = new Game(() => .5), phone = new Game(() => .5, { portrait: true, scale: 1 });
+  for (const brick of desktop.bricks) {
+    const portrait = phone.bricks[brick.id];
+    assert.deepEqual(
+      { x: brick.x, y: brick.y, w: brick.w, h: brick.h },
+      { x: phone.height - portrait.y - portrait.h, y: portrait.x, w: portrait.h, h: portrait.w },
+    );
+  }
+  assert.equal(desktop.bricks[0].w, 45, 'desktop wall thickness matches the phone reference layout');
+  assert.equal(desktop.bricks[0].y, 8, 'desktop brick inset matches the phone reference layout');
+  assert.equal(desktop.width - desktop.bricks[0].x - desktop.bricks[0].w, 8);
+});
+
 test('slime icing covers only center-facing edges, with curved drips in both layouts and merged rings', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
     const game = setup({ slimed: true, warped: 100 }, options);
@@ -373,7 +387,7 @@ test('Crumblers decrement only successful selections, stay solid at zero, and re
   assert.equal(brick.usesLeft, 0);
   game.update(3);
   assert.equal(aim(game, brick), false);
-  game.cat.x = game.width / 2;
+  game.cat.x = brick.x - game.cat.radius - 10;
   game.cat.y = brick.y + brick.h / 2;
   aim(game, game.bricks[2]);
   // Travel into the exhausted brick to verify it remains a wall.

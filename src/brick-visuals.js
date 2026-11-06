@@ -192,10 +192,10 @@ function brickInfoBounds(brick, members) {
     || (point.scale === best.scale && point.distance < best.distance) ? point : best);
   return { x, y, w, h };
 }
-function decorateBrick(button, brick, members, width, height, turretSource = null) {
+function decorateBrick(button, brick, members, width, height, groupCenterBrick = null, portalExit = null) {
   let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null, turretFill = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
-  const source = brick.turret && turretSource && turretSource.id !== brick.id ? turretSource : null;
+  const source = brick.turret && groupCenterBrick && groupCenterBrick.id !== brick.id ? groupCenterBrick : null;
   const infoBounds = source ? { x: source.x, y: source.y, w: source.w, h: source.h } : brickInfoBounds(brick, members);
   const vertical = (source ?? brick).h > (source ?? brick).w;
   if (brick.kind === 'goal') {
@@ -268,6 +268,33 @@ function decorateBrick(button, brick, members, width, height, turretSource = nul
       `${command}${Number(x) * shape.w} ${Number(y) * shape.h}`);
     for (const layer of ['haze', 'puffs']) {
       cloud.append(svgNode('path', { class: `portal-${layer}`, d: path, 'vector-effect': 'non-scaling-stroke' }));
+    }
+    const center = groupCenterBrick ?? brick;
+    const cx = (portalExit?.markerX ?? center.x + center.w / 2) - shape.x;
+    const cy = (portalExit?.markerY ?? center.y + center.h / 2) - shape.y;
+    cloud.append(svgNode('ellipse', {
+      class: 'portal-exit-marker',
+      cx,
+      cy,
+      rx: 13,
+      ry: 8,
+    }));
+    for (let i = 0; i < 3; i++) {
+      const ring = svgNode('ellipse', {
+        class: 'portal-exit-wave',
+        cx,
+        cy,
+        rx: 11,
+        ry: 6,
+      });
+      ring.style.setProperty('--wave-delay', `${-i * .6}s`);
+      ring.style.setProperty('--wave-scale', (i + 1) / 3);
+      ring.style.setProperty('--wave-shade', [
+        'color-mix(in srgb, currentColor 65%, white)',
+        'color-mix(in srgb, currentColor 80%, white)',
+        'color-mix(in srgb, currentColor 70%, black)',
+      ][i]);
+      cloud.append(ring);
     }
     button.append(cloud);
   }
@@ -579,7 +606,7 @@ function drawObstructionDestruction(ctx, effect) {
 }
 
 function drawBumper(ctx, bumper, time = 0) {
-  const radius = bumper.radius ?? 24;
+  const radius = bumper.radius ?? 48;
   const color = OBJECTS[bumper.type]?.color ?? '#399d4a';
   const pulse = Number.isFinite(bumper.hitAt) ? Math.max(0, 1 - (time - bumper.hitAt) / .2) : 0;
   const compression = Math.sin(pulse * Math.PI) * .06;

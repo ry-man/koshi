@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CAT_BLOCK_MESSAGES, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, turretSourceBrick, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CAT_BLOCK_MESSAGES, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
@@ -761,7 +761,8 @@ function renderBoard() {
     if (merged) element.classList.add('editor-brick-merged');
     if (brick.spikes) element.style.clipPath = body.roundedClipPath;
     const special = decorateBrick(element, brick, members, previewGame.width, previewGame.height,
-      brick.turret ? turretSourceBrick(brick, previewGame.bricks, previewGame.perimeter) : null);
+      brick.turret || brick.portal ? middleBrickInGroup(brick, previewGame.bricks, previewGame.perimeter) : null,
+      brick.portal ? previewGame.portalExit(brick, parts) : null);
     if (brick.slimed || brick.springs || brick.spikes || merged) {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
@@ -869,7 +870,7 @@ function renderBoard() {
   renderSpawnLinks(templates);
   [...level.events.map((event, index) => ({ event, index })), ...templates].forEach(({ event, index, spawnKey }) => {
     if (!spawnKey && connectingSpawn === null && !$('#show-all').checked && (event.time > time || (event.lifetime != null && event.time + event.lifetime <= time))) return;
-    const point = previewGame.pointFromRelative(event.x, event.y);
+    const point = previewGame.campaignEventPoint(event.x, event.y);
     const marker = document.createElement('button');
     marker.className = spawnKey ? 'marker spawn-template' : 'marker';
     marker.type = 'button'; marker.dataset.kind = event.kind;
@@ -972,7 +973,7 @@ function renderSpawnLinks(templates) {
   svg.setAttribute('preserveAspectRatio', 'none');
   for (const { event, spawnKey, brick } of templates) {
     if (!selectedBricks.has(spawnKey)) continue;
-    const point = previewGame.pointFromRelative(event.x, event.y);
+    const point = previewGame.campaignEventPoint(event.x, event.y);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     for (const [name, value] of Object.entries({ x1: brick.x + brick.w / 2, y1: brick.y + brick.h / 2, x2: point.x, y2: point.y })) line.setAttribute(name, value);
     svg.append(line);

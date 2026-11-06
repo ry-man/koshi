@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, turretSourceBrick, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, middleBrickInGroup, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
@@ -599,7 +599,8 @@ function makeBrickButtons() {
       container.append(conveyor);
     }
     const special = decorateBrick(button, brick, members, game.width, game.height,
-      brick.turret ? turretSourceBrick(brick, game.bricks, game.perimeter) : null);
+      brick.turret || brick.portal ? middleBrickInGroup(brick, game.bricks, game.perimeter) : null,
+      brick.portal ? game.portalExit(brick) : null);
     exposePortalCloud(special, container);
     exposeBrickInfo(special, container, brick, game.width, game.height);
     return { brick, button, members, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
@@ -1461,6 +1462,8 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     ctx.fill(); ctx.stroke();
     ctx.restore();
   }
+  const bodyScale = game.cat.radius / 23;
+  ctx.scale(bodyScale, bodyScale);
   ctx.save(); ctx.globalAlpha *= 1 - sawGrowth;
   ctx.beginPath();
   ctx.moveTo(-20, -8); ctx.lineTo(-22, -32); ctx.lineTo(-6, -21);

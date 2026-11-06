@@ -93,6 +93,49 @@ test('Robo Koshi repeatedly damages Koshi who stays in contact, respecting invul
   assert.equal(game.hearts, 1, 'other enemies retain the existing one-hit-per-contact behavior');
 });
 
+test("Robo Koshi ghosts through actors and objects while replaying Koshi's exact path", () => {
+  for (const obstacle of ['enemy', 'obstruction', 'bumper', 'soccer ball', 'barrier']) {
+    const game = arena(), enemy = game.createCustomSpawn({ kind: 'enemy', type: 'robo-koshi', x: .5, y: .5 })[0];
+    let target = { x: game.width / 2, y: game.height / 2 };
+    if (obstacle === 'barrier') {
+      const id = game.perimeter[0];
+      game.bricks[id].barrier = true;
+      game.barriers = [{ id, length: 300, extending: false }];
+      const fence = game.barrierSegments()[0];
+      target = { x: fence.x + fence.nx * fence.length / 2, y: fence.y + fence.ny * fence.length / 2 };
+    }
+
+    game.elapsed = 1;
+    game.cat.x = 100; game.cat.y = 100;
+    game.catHistory = [{ time: 0, ...target }, { time: 1, ...target }];
+    enemy.roboPhase = 'following';
+    enemy.roboDelay = 1;
+    enemy.x = target.x; enemy.y = target.y;
+    game.robots = [enemy];
+    if (obstacle === 'enemy') {
+      const other = game.createCustomSpawn({ kind: 'enemy', type: 'mouse', x: .5, y: .5 })[0];
+      other.x = target.x; other.y = target.y;
+      game.robots.push(other);
+    } else if (obstacle === 'obstruction') {
+      game.obstructions.push(game.createObstruction(target, { type: 'obstruction-circle' }));
+    } else if (obstacle === 'bumper') {
+      game.bumpers.push(game.createBumper(target, 'bumper-red'));
+    } else if (obstacle === 'soccer ball') {
+      game.soccerBalls.push(game.createSoccerBall(target));
+    }
+
+    game.update(.01);
+    assert.equal(enemy.x, enemy.roboPathTarget.x, `${obstacle}: x follows the recorded path`);
+    assert.equal(enemy.y, enemy.roboPathTarget.y, `${obstacle}: y follows the recorded path`);
+  }
+
+  const game = arena(), enemy = game.createCustomSpawn({ kind: 'enemy', type: 'robo-koshi', x: .5, y: .5 })[0];
+  const obstruction = game.createObstruction(enemy, { type: 'obstruction-circle' });
+  game.robots = [enemy];
+  game.clearAppearingObstruction(obstruction);
+  assert.deepEqual(game.robots, [enemy], 'a newly appearing obstruction does not defeat Robo Koshi');
+});
+
 test('Robo Koshi death lasts 1.1 seconds and draws extra smoke puffs', () => {
   const game = arena();
   const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'robo-koshi', x: .9, y: .9 })[0];

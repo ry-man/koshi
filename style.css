@@ -166,6 +166,11 @@ canvas { display: block; width: 100%; height: 100%; }
 .brick-portal-cloud { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; fill: none; stroke: currentColor; }
 .portal-haze { stroke-width: 12px; stroke-linejoin: round; opacity: .55; filter: blur(3px); }
 .portal-puffs { stroke-width: 7px; stroke-dasharray: 2 7; stroke-linecap: round; stroke-linejoin: round; opacity: .8; filter: blur(1px); }
+.portal-exit-marker { fill: currentColor; fill-opacity: .8; stroke: #070e15; stroke-width: 2px; filter: drop-shadow(0 0 2px currentColor); animation: portal-exit-glow 1.4s ease-in-out infinite alternate; }
+.portal-exit-wave { fill: none; stroke: var(--wave-shade, currentColor); stroke-width: 1.2px; transform-box: fill-box; transform-origin: center; transform: scale(var(--wave-scale)); animation: portal-exit-wave 1.8s linear var(--wave-delay) infinite; }
+@keyframes portal-exit-wave { from { transform: scale(.1); opacity: 0; } 20% { opacity: .9; } to { transform: scale(1); opacity: 0; } }
+@keyframes portal-exit-glow { to { fill-opacity: 1; filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor); } }
+@media (prefers-reduced-motion: reduce) { .portal-exit-marker, .portal-exit-wave { animation: none; } }
 .brick-info { position: absolute; pointer-events: none; overflow: visible; z-index: 2; }
 .brick-info > svg { overflow: visible; }
 .brick-number-badge text { font-family: 'DM Sans', sans-serif; }

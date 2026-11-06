@@ -29,11 +29,13 @@ test('bumpers are custom objects with scheduled and brick-spawned placements', (
   const game = arena(level);
   game.update(.01);
   assert.deepEqual(game.bumpers.map(bumper => bumper.type), ['bumper-red', 'bumper-green', 'bumper-blue']);
+  assert.ok(game.bumpers.every(bumper => bumper.radius === 48), 'bumpers have a 96-unit diameter');
   assert.equal(game.soccerBalls.length, 0);
   const blue = game.bumpers[2];
   const position = { x: blue.x, y: blue.y };
   game.spawnFromBrick(game.bricks.find(brick => brick.spawner));
   assert.equal(game.bumpers.length, 4);
+  assert.equal(game.bumpers[3].radius, 48, 'brick spawners use the doubled size');
   assert.deepEqual({ x: blue.x, y: blue.y }, position, 'placed bumpers stay in place');
   assert.ok(['bumper-red', 'bumper-green', 'bumper-blue'].every(type => OBJECTS[type]?.bumper));
   assert.ok(spawnSymbol({ kind: 'object', type: 'bumper-red' }));
@@ -45,7 +47,8 @@ test('Koshi bounces from each bumper color with its specified speed response', (
     const game = arena();
     const bumper = game.createBumper({ x: 350, y: 300 }, type);
     game.bumpers.push(bumper);
-    game.cat.x = 300; game.cat.y = 300; game.cat.vx = 100; game.cat.vy = 0;
+    game.cat.x = bumper.x - bumper.radius - game.cat.radius - 5;
+    game.cat.y = 300; game.cat.vx = 100; game.cat.vy = 0;
     game.tick(.1);
     assert.ok(game.cat.x < bumper.x, `${type} places Koshi on the incoming side`);
     assert.equal(game.cat.vx, -speed);
@@ -61,7 +64,8 @@ test('enemies bounce off bumpers and bumpers do not move', () => {
   const bumper = game.createBumper({ x: 350, y: 300 }, 'bumper-green');
   game.bumpers.push(bumper);
   const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'mouse', x: .2, y: .2 })[0];
-  enemy.x = 300; enemy.y = 300; enemy.phase = 0; enemy.age = 0;
+  enemy.x = bumper.x - bumper.radius - enemy.radius - 5;
+  enemy.y = 300; enemy.phase = 0; enemy.age = 0;
   game.robots.push(enemy);
   game.combat(.1, game.cat.x, game.cat.y);
   assert.ok(enemy.x < 310);

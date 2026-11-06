@@ -596,7 +596,7 @@ test('desktop rotates phone bricks clockwise with stable IDs, edit slots, attrib
   }
   assert.deepEqual(
     (({ x, y, w, h }) => ({ x, y, w, h }))(desktop.bricks[0]),
-    { x: 918, y: 20, w: 22, h: (600 - 40 - 32) / 5 },
+    { x: 907, y: 8, w: 45, h: (600 - 16 - 32) / 5 },
   );
 });
 
@@ -702,7 +702,7 @@ test('custom events are stable-sorted, spawn once at exact times, and work at ti
   assert.equal(game.levelIndex, -1);
 });
 
-test('normalized placements project to the same relative safe-area positions in both orientations', () => {
+test('custom normalized placements keep the same relative safe-area positions in both orientations', () => {
   for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .6 }]) {
     const level = { ...blank(), events: [event('food', 'F', 0), event('weapon', 'gold', 0), event('enemy', 'mouse', 0), event('enemy', 'ram', 0), event('enemy', 'bucket', 0)] };
     const game = new Game(() => .5, { ...options, customLevel: level });
@@ -719,6 +719,34 @@ test('normalized placements project to the same relative safe-area positions in 
     }
     assert.equal(game.bricks.filter(b => b.kind === 'slow').length, 3);
     assert.equal(game.bricks.filter(b => b.kind === 'fast').length, 3);
+  }
+});
+
+test('fixed campaign placements rotate with the board on desktop', () => {
+  const { LEVELS } = require('../src/game.js');
+  const levelIndex = LEVELS.findIndex(level => level.name === 'Jackolantern junkyard');
+  const positions = [];
+  for (const portrait of [true, false]) {
+    const game = new Game(() => .5, { level: levelIndex, portrait, scale: .625 });
+    game.start();
+    const bounds = game.bounds();
+    positions.push(new Map(['obstruction-circle-large', 'obstruction-diamond-large'].map(type => {
+      const event = game.level.events.find(entry => entry.type === type);
+      const obstruction = game.obstructions.find(entry => entry.type === type);
+      assert.ok(obstruction, `the time-zero ${type} spawns`);
+      return [type, {
+        x: (obstruction.x - bounds.left) / (bounds.right - bounds.left),
+        y: (obstruction.y - bounds.top) / (bounds.bottom - bounds.top),
+        source: [event.x, event.y],
+      }];
+    })));
+  }
+  for (const type of ['obstruction-circle-large', 'obstruction-diamond-large']) {
+    const phone = positions[0].get(type), desktop = positions[1].get(type);
+    assert.ok(Math.abs(phone.x - phone.source[0]) < 1e-8);
+    assert.ok(Math.abs(phone.y - phone.source[1]) < 1e-8);
+    assert.ok(Math.abs(desktop.x - (1 - phone.source[1])) < 1e-8);
+    assert.ok(Math.abs(desktop.y - phone.source[0]) < 1e-8);
   }
 });
 

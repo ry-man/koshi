@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, LEVELS, CHARACTERS, validateCustomLevel } = require('../src/game.js');
+const { Game, LEVELS, CHARACTERS, OBJECTS, obstructionGeometry, validateCustomLevel } = require('../src/game.js');
 const { spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
 const { Tutorial, LESSONS } = require('../src/learning.js');
 
@@ -116,6 +116,42 @@ test('only fire reaching an obstacle is blocked; a barrier behind a passed wave 
   assert.deepEqual(fire.blocked, [[], [], [], []]);
   advance(game, enemy, .1, [{ x: enemy.x + 300, y: enemy.y - 30, w: 4, h: 60 }]);
   assert.deepEqual(fire.blocked, [[], [], [], []]);
+});
+
+test('all obstruction shapes block Jackolantern fire in all four directions', () => {
+  for (const [type, definition] of Object.entries(OBJECTS).filter(([, object]) => object.obstruction)) {
+    for (const [side, [nx, ny]] of [[1, 0], [0, 1], [-1, 0], [0, -1]].entries()) {
+      const game = arena(), enemy = pumpkin(game);
+      enemy.stompTimer = .5;
+      const fire = wave(enemy);
+      game.obstructions = [{
+        type, x: enemy.x + nx * 70, y: enemy.y + ny * 70,
+        ...obstructionGeometry({ type, width: 30, ...(definition.obstruction === 'rectangle' ? { height: 24 } : {}) }),
+      }];
+      game.cat.x = enemy.x + nx * 120;
+      game.cat.y = enemy.y + ny * 120;
+      advance(game, enemy, 1);
+      assert.equal(game.hearts, 3, `${type} shields Koshi on side ${side}`);
+      assert.ok(fire.blocked[side].some(([left, right]) => left < 0 && right > 0));
+      assert.ok(game.fireWaveSegments(fire).length > 4, 'fire outside the obstruction shadow survives');
+      const blocked = JSON.stringify(fire.blocked);
+      game.obstructions = [];
+      advance(game, enemy, .1);
+      assert.equal(JSON.stringify(fire.blocked), blocked, 'destroyed obstructions do not revive extinguished fire');
+    }
+  }
+});
+
+test('appearing obstructions block only fire reaching them, not fire already past them', () => {
+  const game = arena(), enemy = pumpkin(game), fire = wave(enemy, 100);
+  const obstruction = { type: 'obstruction-circle', x: enemy.x + 30, y: enemy.y,
+    ...obstructionGeometry({ type: 'obstruction-circle', width: 20 }) };
+  game.obstructions = [obstruction];
+  advance(game, enemy, .1);
+  assert.deepEqual(fire.blocked, [[], [], [], []]);
+  obstruction.x = enemy.x + 130;
+  advance(game, enemy, .2);
+  assert.ok(fire.blocked[0].length);
 });
 
 test('finite barriers leave a gap for unblocked fire and fully enclosing bricks extinguish waves', () => {

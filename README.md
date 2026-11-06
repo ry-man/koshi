@@ -841,10 +841,16 @@ Enemy events also accept `"carriesKey": true` (the editor's **Carries a key**
 checkbox). A key floats beside the carrier and drops at its position on defeat,
 remaining collectible until the level ends. Omit a chest event's `lifetime` to
 keep it available until opened or the level ends.
+Random pickups keep 80 game units between their centers and live or queued
+pickups when space permits. Failed random retries trigger a whole-board search
+before spacing is relaxed; a crowded board uses the roomiest available location.
+Scattered food also reserves space between pieces in the same batch.
+Explicitly placed items retain their authored coordinates.
+
 Objects use `kind: "object"` and have no lifetime or shield. Soccer balls
 persist until scored or the level ends. Custom levels can also place red,
 green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
-stay fixed and bounce Koshi and enemies away. Red increases Koshi's speed by
+have a 96-unit diameter, stay fixed and bounce Koshi and enemies away. Red increases Koshi's speed by
 25%, green preserves it, and blue reduces it by 25%.
 Custom levels can also place blue, green and red bubbles (`bubble-blue`,
 `bubble-green`, `bubble-red`); they trap Koshi for the same 5-, 3- and
@@ -1073,7 +1079,7 @@ Robo Jackolantern (`jackolantern`) wanders at 32 game units/second, pauses for a
 half-second warning, then stomps every four seconds. Each stomp creates a
 square fire ring centered on the stomp location, expanding continuously at
 120 game units/second. Fire contact costs one heart with normal damage
-invulnerability. Bricks and Barrier fences permanently extinguish only the
+invulnerability. Bricks, Barrier fences, and obstructions permanently extinguish only the
 portions they intercept; unblocked portions continue expanding. Other enemies
 do not stop the fire. Sleep freezes stomps and waves; fear freezes the attack
 timer and makes existing waves harmless while the pumpkin flees. Defeating
@@ -1323,7 +1329,10 @@ along the perimeter; with an even number of sub-bricks, the clockwise middle
 one is used. Once the turret is used, its semicircle turns grey until a
 Battery recharges it.
 Touching the brick moves Koshi into its inward-facing, translucent blue protective dome;
-click or tap a point to aim and fire. The turret displays shots remaining, and
+click or tap a point to aim and fire. Both turret types aim from the barrel pivot
+through the clicked point; close targets are not skipped by the muzzle offset.
+Fireballs explode at the target unless they hit an enemy first.
+The turret displays shots remaining, and
 a blue arc for lasers or a red arc for fireballs shrinks over its 10-second duration. Keyboard players
 can focus a boundary brick and press Enter to fire toward its center. A turret
 allows three shots or 10 seconds, whichever comes first, then fades and releases
@@ -1350,8 +1359,9 @@ Edits map one-to-one between desktop and phone by stable brick IDs, not by
 the currently displayed edge. The editor keeps the same brick selected when
 switching previews and labels it with its displayed edge. Existing saved
 edge overrides retain their phone placement; desktop now shows those same
-bricks at their rotated positions. Food, enemy, and weapon placement coordinates
-are unchanged and are not rotated. Older exports from the variable-count
+bricks at their rotated positions. Fixed placements in built-in campaign levels
+rotate with the desktop board; custom-level event coordinates remain relative
+to the playable area in both orientations. Older exports from the variable-count
 editor continue to use their saved edge segments and may affect more than
 one current brick. Up to 2000 overrides are
 supported. Base positions and counts remain unchanged; Warped bricks temporarily
@@ -1492,12 +1502,15 @@ rounded exterior and interior corners, without seams between their segments.
 `W:X` denotes a frozen, exhausted Warped Crumbler.
 
 - **Portal pairs:** matching colored smoke encloses the boundaries, with fixed
-  rounded puffs that gently breathe without flickering at the corners. Physical
-  contact transports Koshi to the partner, centered on its original brick's
-  center line and launched perpendicular into the arena, clear of its surface.
-  A merged Warped portal clears its enlarged surface along that same line.
-  Travel retains incoming speed and Boost, but never collects or attacks along
-  the teleport gap. A 0.2-second lockout prevents immediate return loops.
+  rounded puffs that gently breathe without flickering at the corners. A
+  matching-color glowing oval with shaded concentric rings rippling outward
+  marks the exit. Reduced-motion mode keeps the rings still. Physical contact transports Koshi
+  just outside the partner, centered on its original brick's center line and
+  moving perpendicular into the arena. If a corner exit overlaps the adjacent
+  wall, the glowing oval shifts along the brick to the first clear position,
+  so Koshi launches straight out without sticking. Travel retains incoming
+  speed and Boost, but never collects or attacks along the teleport gap. A
+  0.2-second lockout prevents immediate return loops.
   If the partner is absorbed, the entrance acts as a normal
   solid landing. Toggle state, cooldown, and exhausted Crumbler selections do not disable
   portal contact. Create/recolor any number of endpoints while editing; warnings

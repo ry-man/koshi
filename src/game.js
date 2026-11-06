@@ -1543,14 +1543,14 @@ function turretGeometry(brick, width, height, catRadius = 21) {
   return { edge, anchor, center, direction, domeRadius: TURRET_DOME_RADIUS };
 }
 
-function turretSourceBrick(owner, bricks, perimeter) {
+function middleBrickInGroup(owner, bricks, perimeter) {
   const ids = new Set(bricks.filter(brick => brick.id === owner.id || brick.absorbedBy === owner.id).map(brick => brick.id));
   if (ids.size < 2) return owner;
   const n = perimeter.length;
   const first = perimeter.findIndex((id, i) => ids.has(id) && !ids.has(perimeter[(i + n - 1) % n]));
   const start = first < 0 ? perimeter.indexOf(owner.id) : first;
   const chain = Array.from({ length: n }, (_, k) => perimeter[(start + k) % n]).filter(id => ids.has(id));
-  // The perimeter runs clockwise, so even-sized merges round to the clockwise middle sub-brick.
+  // The perimeter runs clockwise, so even-sized groups use the clockwise middle sub-brick.
   return bricks[chain[Math.floor(chain.length / 2)]];
 }
 
@@ -1643,7 +1643,7 @@ function brickShape(parts, crumbly = false, wear = 0, bounds = null) {
         part.y - y + part.h * (vertical ? along : across),
       ]);
       for (let i = 0; i < 3; i++) {
-        const along = .18 + i * .29 + seed * .003;
+        const along = Math.min(.73, .18 + i * .29 + seed * .003);
         const flip = i % 2 ? -1 : 1;
         const across = i % 2 ? 1 : 0;
         cracks += `M${local(along, across)}L${local(along - .06 * wear, across + flip * .28 * wear)}L${local(along + .07 * wear, across + flip * .54 * wear)}L${local(along - .03 * wear, across + flip * .92 * wear)}`;
@@ -1778,15 +1778,58 @@ function spikeBrickBody(part, width, height) {
   return body;
 }
 
+function mergeCollinearEdges(edges) {
+  const merged = [];
+  const joins = (a, b) => {
+    const connected = Math.hypot(a.ax + a.dx - b.ax, a.ay + a.dy - b.ay) < 1e-6;
+    const parallel = Math.abs(a.dx * b.dy - a.dy * b.dx) < 1e-6;
+    const sameDirection = a.dx * b.dx + a.dy * b.dy > 0;
+    return connected && parallel && sameDirection && Math.abs(a.thickness - b.thickness) < 1e-6;
+  };
+  const extend = (a, b) => {
+    const previousLength = a.length;
+    a.dx += b.dx;
+    a.dy += b.dy;
+    a.length = Math.hypot(a.dx, a.dy);
+    a.spikeAnchors.push(...b.spikeAnchors.map(anchor => previousLength + anchor));
+  };
+  for (const edge of edges) {
+    const current = { ...edge, spikeAnchors: edge.length < 16 ? [edge.length / 2] : [] };
+    if (merged.length && joins(merged.at(-1), current)) extend(merged.at(-1), current);
+    else merged.push(current);
+  }
+  if (merged.length > 1 && joins(merged.at(-1), merged[0])) {
+    const last = merged.pop();
+    extend(last, merged[0]);
+    merged[0] = last;
+  }
+  return merged;
+}
+
 function brickSpikes(parts, width, height, crumbly = false, wear = 0) {
   const { x, y, w, h, edges } = brickInnerEdges(parts, width, height);
   const triangles = [];
-  for (const { ax, ay, dx, dy, length, thickness } of edges) {
-    const count = Math.max(1, Math.round(length / 16));
+  for (const { ax, ay, dx, dy, length, thickness, spikeAnchors } of mergeCollinearEdges(edges)) {
+    const count = Math.floor(length / 16);
+    if (!count) continue;
     const depth = Math.min(14, thickness * .6);
     const at = (t, offset) => [x + ax + dx * t + dy / length * offset, y + ay + dy * t - dx / length * offset];
-    for (let i = 0; i < count; i++) {
-      triangles.push([at(i / count, -depth), at((i + .5) / count, 0), at((i + 1) / count, -depth)]);
+    const margin = (length - count * 16) / 2;
+    const candidates = spikeAnchors.length
+      ? [...new Set(spikeAnchors.flatMap(anchor => {
+        const first = Math.ceil((8 - anchor) / 16);
+        const last = Math.floor((length - 8 - anchor) / 16);
+        return Array.from({ length: Math.max(0, last - first + 1) }, (_, index) => anchor + (first + index) * 16);
+      }))].sort((a, b) => a - b)
+      : Array.from({ length: count }, (_, index) => margin + 8 + index * 16);
+    const centers = [];
+    for (const center of candidates) {
+      if (!centers.length || center - centers.at(-1) >= 16 - 1e-6) centers.push(center);
+    }
+    for (const center of centers) {
+      const start = (center - 8) / length;
+      const end = (center + 8) / length;
+      triangles.push([at(start, -depth), at(center / length, 0), at(end, -depth)]);
     }
   }
   const path = triangles.map(triangle => `M${triangle.map(([px, py]) => `${(px - x) / w} ${(py - y) / h}`).join('L')}Z`).join('');
@@ -1934,7 +1977,7 @@ function makeBricks(portrait = false, scale = 1) {
   const add = (x, y, w, h, kind = 'normal') =>
     bricks.push({ id: bricks.length, x, y, w, h, kind, readyAt: 0 });
   const width = HEIGHT, height = WIDTH;
-  const inset = portrait ? 8 : 20, gap = 8, thickness = portrait ? 45 / scale : 22;
+  const inset = 8, gap = 8, thickness = portrait ? 45 / scale : 45;
   const columns = 5, rows = 8;
   const sideStart = inset + thickness + gap;
   const horizontal = (width - inset * 2 - gap * (columns - 1)) / columns;
@@ -1992,14 +2035,29 @@ function fireIntervals(wave, side) {
   return live;
 }
 
-function blockFireWave(wave, parts, previousRadius = 0) {
+function blockFireWave(wave, parts, previousRadius = 0, obstructions = []) {
+  const polygons = parts.map(part => [[part.x, part.y], [part.x + part.w, part.y],
+    [part.x + part.w, part.y + part.h], [part.x, part.y + part.h]]);
+  for (const obstruction of obstructions) {
+    const shape = OBJECTS[obstruction.type].obstruction;
+    const { x, y, radius, width, height } = obstruction;
+    if (shape === 'circle') {
+      polygons.push(Array.from({ length: 128 }, (_, i) => {
+        const angle = i * Math.PI / 64;
+        return [x + Math.cos(angle) * radius, y + Math.sin(angle) * radius];
+      }));
+    } else if (shape === 'diamond') {
+      polygons.push([[x, y - radius], [x + radius, y], [x, y + radius], [x - radius, y]]);
+    } else {
+      polygons.push([[x - width / 2, y - height / 2], [x + width / 2, y - height / 2],
+        [x + width / 2, y + height / 2], [x - width / 2, y + height / 2]]);
+    }
+  }
   for (let side = 0; side < 4; side++) {
     const [nx, ny] = [[1, 0], [0, 1], [-1, 0], [0, -1]][side];
     const intervals = [...wave.blocked[side]];
-    for (const part of parts) {
-      let polygon = [[part.x, part.y], [part.x + part.w, part.y],
-        [part.x + part.w, part.y + part.h], [part.x, part.y + part.h]]
-        .map(([x, y]) => [(x - wave.x) * nx + (y - wave.y) * ny,
+    for (const points of polygons) {
+      let polygon = points.map(([x, y]) => [(x - wave.x) * nx + (y - wave.y) * ny,
           -(x - wave.x) * ny + (y - wave.y) * nx]);
       for (const plane of [p => p[0] - p[1], p => p[0] + p[1],
         p => wave.radius + 3 - p[0], p => p[0] - Math.max(0, previousRadius - 3)]) {
@@ -2072,6 +2130,13 @@ function brickContact(x, y, dx, dy, radius, brick) {
     }
   }
   return hits.length ? Math.min(...hits) : Infinity;
+}
+
+function circleTouchesBrick(x, y, radius, brick) {
+  const body = brick.collisionBody ?? brick;
+  const closestX = Math.max(body.x, Math.min(body.x + body.w, x));
+  const closestY = Math.max(body.y, Math.min(body.y + body.h, y));
+  return Math.hypot(x - closestX, y - closestY) <= radius + 1e-6;
 }
 
 function distanceToSegment(px, py, x, y, endX, endY) {
@@ -2445,9 +2510,7 @@ class Game {
   }
 
   touchingPart(part) {
-    part = part.collisionBody ?? part;
-    return Math.hypot(this.cat.x - Math.max(part.x, Math.min(part.x + part.w, this.cat.x)),
-      this.cat.y - Math.max(part.y, Math.min(part.y + part.h, this.cat.y))) <= this.cat.radius + 1e-6;
+    return circleTouchesBrick(this.cat.x, this.cat.y, this.cat.radius, part);
   }
 
   trajectory() {
@@ -2593,10 +2656,8 @@ class Game {
     brick.spawned = true;
     if (this.catBlockCollected && spawn.kind === 'item' && this.isCatBlockSource(spawn)) return;
     if (spawn.x !== undefined && spawn.y !== undefined) {
-      const position = spawn.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(spawn.type)
-        ? snapWheel(spawn.x, spawn.y) : { x: spawn.x, y: spawn.y };
-      const items = spawn.kind === 'heart' ? [this.pointFromRelative(spawn.x, spawn.y)]
-        : this.createCustomSpawn({ ...spawn, ...position, time: this.elapsed });
+      const items = spawn.kind === 'heart' ? [this.campaignEventPoint(spawn.x, spawn.y)]
+        : this.createCustomSpawn({ ...spawn, time: this.elapsed });
       if (spawn.kind === 'object' && OBJECTS[spawn.type].obstruction) {
         this.pendingSpawns.set({}, { kind: 'obstruction', time: this.elapsed + 2, duration: 2, items });
       } else {
@@ -2648,7 +2709,7 @@ class Game {
     }
     if (brick.spawned) return;
     brick.spawned = true;
-    const geometry = turretGeometry(turretSourceBrick(brick, this.bricks, this.perimeter), this.width, this.height, this.cat.radius);
+    const geometry = turretGeometry(middleBrickInGroup(brick, this.bricks, this.perimeter), this.width, this.height, this.cat.radius);
     this.activeTurret = {
       brickId: brick.id, type: brick.turret, ...geometry,
       aim: geometry.direction, remaining: TURRET_DURATION, shotsRemaining: TURRET_SHOTS,
@@ -2676,13 +2737,17 @@ class Game {
     const turret = this.activeTurret;
     if (this.state !== 'playing' || !turret || !Number.isFinite(x) || !Number.isFinite(y)
       || turret.entry || turret.shotsRemaining <= 0) return false;
-    const dx = x - turret.center.x, dy = y - turret.center.y, distance = Math.hypot(dx, dy);
+    const pivot = {
+      x: turret.anchor.x + turret.direction.x * turret.domeRadius,
+      y: turret.anchor.y + turret.direction.y * turret.domeRadius,
+    };
+    const dx = x - pivot.x, dy = y - pivot.y, distance = Math.hypot(dx, dy);
     const direction = distance > 1e-9 ? { x: dx / distance, y: dy / distance } : turret.direction;
     turret.aim = direction;
     turret.shotsRemaining--;
     const start = {
-      x: turret.anchor.x + turret.direction.x * turret.domeRadius + direction.x * 34,
-      y: turret.anchor.y + turret.direction.y * turret.domeRadius + direction.y * 34,
+      x: pivot.x + direction.x * Math.min(34, distance),
+      y: pivot.y + direction.y * Math.min(34, distance),
     };
     if (turret.type === 'laser') {
       const distances = [
@@ -2795,18 +2860,40 @@ class Game {
   }
 
   portalExit(brick, parts = this.brickParts()) {
-    const edge = brickRegions(this.bricks, this.width, this.height).get(brick.id).edge;
+    const exitBrick = middleBrickInGroup(brick, this.bricks, this.perimeter);
+    const edge = brickRegions(this.bricks, this.width, this.height).get(exitBrick.id).edge;
     const direction = { top: [0, 1], right: [-1, 0], bottom: [0, -1], left: [1, 0] }[edge];
-    let x = brick.x + brick.w / 2, y = brick.y + brick.h / 2;
-    const members = parts.filter(part => part.id === brick.id);
-    if (direction[0]) {
-      const crossing = members.filter(part => y >= part.y && y <= part.y + part.h);
-      x = direction[0] > 0 ? Math.max(...crossing.map(part => part.x + part.w)) : Math.min(...crossing.map(part => part.x));
-    } else {
-      const crossing = members.filter(part => x >= part.x && x <= part.x + part.w);
-      y = direction[1] > 0 ? Math.max(...crossing.map(part => part.y + part.h)) : Math.min(...crossing.map(part => part.y));
+    const markerX = exitBrick.x + exitBrick.w / 2;
+    const markerY = exitBrick.y + exitBrick.h / 2;
+    const normalOffset = (direction[0] ? exitBrick.w : exitBrick.h) / 2 + this.cat.radius + .01;
+    const exit = {
+      x: markerX + direction[0] * normalOffset,
+      y: markerY + direction[1] * normalOffset,
+      nx: direction[0], ny: direction[1], markerX, markerY,
+    };
+    const tangent = direction[0] ? { x: 0, y: Math.sign(this.height / 2 - markerY) }
+      : { x: Math.sign(this.width / 2 - markerX), y: 0 };
+    const maxDistance = Math.abs(tangent.x ? this.width / 2 - markerX : this.height / 2 - markerY);
+    const blocked = distance => parts.some(part => circleTouchesBrick(
+      exit.x + tangent.x * distance, exit.y + tangent.y * distance, this.cat.radius, part));
+    if (!blocked(0) || !maxDistance) return exit;
+    let clearDistance = null;
+    for (let distance = 1; distance <= maxDistance; distance++) {
+      if (!blocked(distance)) { clearDistance = distance; break; }
     }
-    return { x: x + direction[0] * (this.cat.radius + .01), y: y + direction[1] * (this.cat.radius + .01), nx: direction[0], ny: direction[1] };
+    if (clearDistance === null) return exit;
+    let low = clearDistance - 1, high = clearDistance;
+    for (let i = 0; i < 20; i++) {
+      const middle = (low + high) / 2;
+      if (blocked(middle)) low = middle;
+      else high = middle;
+    }
+    const offset = high + .001;
+    exit.x += tangent.x * offset;
+    exit.y += tangent.y * offset;
+    exit.markerX += tangent.x * offset;
+    exit.markerY += tangent.y * offset;
+    return exit;
   }
 
   travelPortal(brick, parts) {
@@ -2816,7 +2903,8 @@ class Game {
     const exit = this.portalExit(destination, parts);
     const speed = Math.hypot(this.cat.vx, this.cat.vy) || SPEED * this.capeFlightMultiplier;
     this.cat.x = exit.x; this.cat.y = exit.y;
-    this.cat.vx = exit.nx * speed; this.cat.vy = exit.ny * speed;
+    this.cat.vx = exit.nx * speed;
+    this.cat.vy = exit.ny * speed;
     this.portalUntil = this.elapsed + .2;
     this.portalArrival = destination.id;
     this.portalTrips++;
@@ -2935,8 +3023,16 @@ class Game {
 
   createFood([time, method, type, lifetime]) {
     const count = method === 'S' ? 1 : Number(method.slice(1));
-    const margin = this.portrait ? 8 + 45 / this.scale + 35 : 95;
+    const margin = 8 + 45 / this.scale + 35;
     const crowd = this.collectiblePoints();
+    if (method === 'S' || method.startsWith('R')) {
+      const points = [];
+      const bounds = { left: margin, top: margin, right: this.width - margin, bottom: this.height - margin };
+      for (let i = 0; i < count; i++) {
+        points.push(this.findRandomSpawnPoint(bounds, [...crowd, ...points], SPAWN_SPACING));
+      }
+      return points.map(point => ({ ...point, id: this.foodId++, type, born: time, expires: time + lifetime, lifetime }));
+    }
     // Line and circle patterns stay whole within the wider fallback area.
     const reach = method.startsWith('L') ? (count - 1) / 2 * 55 : method.startsWith('C') ? 88 : 0;
     const layout = wide => {
@@ -2959,16 +3055,6 @@ class Game {
           const theta = angle + i * Math.PI * 2 / count;
           x += Math.cos(theta) * 88;
           y += Math.sin(theta) * 88;
-        } else if (method.startsWith('R')) {
-          // Scattered food keeps its distance from other pickups and from earlier pieces of this scatter.
-          let best = null, bestGap = -Infinity;
-          for (let attempt = 0; attempt < 64; attempt++) {
-            const point = { x: margin + this.random() * (this.width - margin * 2), y: margin + this.random() * (this.height - margin * 2) };
-            const gap = nearestGap(point, [...crowd, ...points]);
-            if (gap > bestGap) { best = point; bestGap = gap; }
-            if (gap >= SPAWN_SPACING) break;
-          }
-          ({ x, y } = best);
         }
         points.push({ x, y });
       }
@@ -2994,32 +3080,48 @@ class Game {
   }
 
   bounds() {
-    const inset = (this.portrait ? 8 + 45 / this.scale : 42) + 25;
+    const inset = 8 + 45 / this.scale + 25;
     return {
       left: inset, top: inset, right: this.width - inset, bottom: this.height - inset,
     };
   }
 
   randomPoint(isSafe = null, spacing = 0) {
-    const b = this.bounds();
-    const crowd = spacing ? this.collectiblePoints() : [];
+    return this.findRandomSpawnPoint(this.bounds(), spacing ? this.collectiblePoints() : [], spacing, isSafe);
+  }
+
+  findRandomSpawnPoint(b, crowd, spacing, isSafe = null) {
     let best = null, bestGap = -Infinity;
+    const consider = point => {
+      if (isSafe && !isSafe(point)) return false;
+      const gap = nearestGap(point, crowd);
+      if (best === null || gap > bestGap) { best = point; bestGap = gap; }
+      return gap >= spacing;
+    };
     for (let attempt = 0; attempt < (spacing ? 160 : 64); attempt++) {
       const point = { x: b.left + this.random() * (b.right - b.left), y: b.top + this.random() * (b.bottom - b.top) };
-      if (isSafe && !isSafe(point)) continue;
-      if (!spacing) return point;
-      // Retry until the spawn is far enough from other pickups, keeping the roomiest spot as a fallback.
-      const gap = nearestGap(point, crowd);
-      if (gap >= spacing) return point;
-      if (gap > bestGap) { best = point; bestGap = gap; }
+      if (consider(point)) return point;
     }
-    if (best) return best;
-    // A deterministic fallback also handles constant random sources without hanging.
-    for (let row = 0; row <= 16; row++) {
-      for (let column = 0; column <= 16; column++) {
-        const point = this.pointFromRelative(column / 16, row / 16);
-        if (isSafe(point)) return point;
+    // Search the whole area before accepting reduced spacing, even with repeated random values.
+    const columns = Math.max(1, Math.ceil((b.right - b.left) / 8));
+    const rows = Math.max(1, Math.ceil((b.bottom - b.top) / 8));
+    for (let row = 0; row <= rows; row++) {
+      for (let column = 0; column <= columns; column++) {
+        const point = { x: b.left + column / columns * (b.right - b.left),
+          y: b.top + row / rows * (b.bottom - b.top) };
+        if (consider(point)) return point;
       }
+    }
+    if (best) {
+      // Refine the roomiest grid candidate rather than stacking on a failed random sample.
+      for (let step = 4; step >= .125; step /= 2) {
+        const center = best;
+        for (const dx of [-step, 0, step]) for (const dy of [-step, 0, step]) {
+          consider({ x: Math.max(b.left, Math.min(b.right, center.x + dx)),
+            y: Math.max(b.top, Math.min(b.bottom, center.y + dy)) });
+        }
+      }
+      return best;
     }
     throw new RangeError('No safe random spawn location is available.');
   }
@@ -3045,6 +3147,15 @@ class Game {
     return { x: b.left + x * (b.right - b.left), y: b.top + y * (b.bottom - b.top) };
   }
 
+  campaignEventCoordinates(x, y) {
+    return this.levelIndex >= 0 && !this.portrait ? { x: 1 - y, y: x } : { x, y };
+  }
+
+  campaignEventPoint(x, y) {
+    const position = this.campaignEventCoordinates(x, y);
+    return this.pointFromRelative(position.x, position.y);
+  }
+
   spawnCustomEvents() {
     const appearing = [];
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
@@ -3065,7 +3176,9 @@ class Game {
 
   createCustomSpawn(event) {
     if (this.catBlockCollected && event.kind === 'item' && this.isCatBlockSource(event)) return [];
-    const point = this.pointFromRelative(event.x, event.y);
+    let { x, y } = this.campaignEventCoordinates(event.x, event.y);
+    if (event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) ({ x, y } = snapWheel(x, y));
+    const point = this.pointFromRelative(x, y);
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
     if (event.kind === 'weapon' || event.kind === 'item') {
       const collectible = this.createCollectible(event.time, event.type, event.lifetime, point);
@@ -3089,10 +3202,10 @@ class Game {
     if (['wheel', 'snake', 'robo-cow'].includes(event.type)) {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
       if (event.type === 'robo-cow') enemy.distance = this.perimeterPosition(point);
-      else if (event.y === 0) enemy.distance = event.x * w;
-      else if (event.x === 1) enemy.distance = w + event.y * h;
-      else if (event.y === 1) enemy.distance = w + h + (1 - event.x) * w;
-      else enemy.distance = 2 * w + h + (1 - event.y) * h;
+      else if (y === 0) enemy.distance = x * w;
+      else if (x === 1) enemy.distance = w + y * h;
+      else if (y === 1) enemy.distance = w + h + (1 - x) * w;
+      else enemy.distance = 2 * w + h + (1 - y) * h;
       this.placeWheel(enemy);
     }
     if (event.type === 'robo-cow') this.initializeRoboCow(enemy);
@@ -3113,7 +3226,7 @@ class Game {
   }
 
   createBumper(point, type) {
-    return { ...point, type, radius: 24, hitAt: -Infinity, hitNormal: null };
+    return { ...point, type, radius: 48, hitAt: -Infinity, hitNormal: null };
   }
 
   createObstruction(point, appearance) {
@@ -3134,6 +3247,7 @@ class Game {
       this.state = 'lost';
     }
     this.robots = this.robots.filter(enemy => {
+      if (enemy.type === 'robo-koshi') return true;
       const parts = enemy.type === 'snake' ? this.snakeSegments(enemy) : [enemy];
       if (!parts.some(part => overlaps(part, part.radius + (part.index ? 5 : 0)))) return true;
       this.defeatEnemy(enemy, false);
@@ -3282,7 +3396,7 @@ class Game {
       return limits;
     };
     const actors = [{ ...this.cat, oldX: startX, oldY: startY, kick: true },
-      ...this.robots.flatMap(enemy => {
+      ...this.robots.filter(enemy => enemy.type !== 'robo-koshi').flatMap(enemy => {
         const old = previousEnemies.get(enemy);
         if (enemy.type !== 'snake') return [{ ...enemy, oldX: old?.x ?? enemy.x, oldY: old?.y ?? enemy.y }];
         const before = this.snakeSegments({ ...enemy, distance: old?.distance ?? enemy.distance });
@@ -3703,7 +3817,7 @@ class Game {
     enemy.waves = enemy.waves.filter(wave => {
       const previousRadius = wave.radius;
       wave.radius += 120 * seconds;
-      blockFireWave(wave, parts, previousRadius);
+      blockFireWave(wave, parts, previousRadius, this.obstructions);
       if (!enemy.afraid && fireTouchesCat(wave, previousRadius, this.cat, startX, startY)) this.takeDamage();
       return wave.radius <= Math.hypot(this.width, this.height)
         && wave.blocked.some((_, side) => fireIntervals(wave, side).length);
@@ -3730,7 +3844,7 @@ class Game {
   releaseJackolanternStomp(enemy, parts) {
     if (enemy.asleep || enemy.afraid || enemy.stompTimer > 1e-9) return;
     const wave = { x: enemy.x, y: enemy.y, radius: 0, blocked: [[], [], [], []] };
-    blockFireWave(wave, parts);
+    blockFireWave(wave, parts, 0, this.obstructions);
     enemy.waves.push(wave);
     enemy.stompTimer += 4;
     enemy.stompAge = 0;
@@ -3932,7 +4046,7 @@ class Game {
       enemy.distance += direction * step;
       this.placeWheel(enemy);
       this.blockEnemyWithBarriers(enemy, old, fences);
-      this.blockEnemyWithObstructions(enemy, old);
+      if (enemy.type !== 'robo-koshi') this.blockEnemyWithObstructions(enemy, old);
       const traveled = Math.min(step, Math.max(0, direction * (enemy.distance - old.distance)));
       enemy.cowWalkRemaining = Math.max(0, enemy.cowWalkRemaining - traveled);
       remaining -= traveled;
@@ -4506,6 +4620,7 @@ class Game {
     for (let i = 0; i < this.robots.length; i++) {
       for (let j = i + 1; j < this.robots.length; j++) {
         const a = this.robots[i], b = this.robots[j], oldA = previous.get(a), oldB = previous.get(b);
+        if (a.type === 'robo-koshi' || b.type === 'robo-koshi') continue;
         // Goalie priority preserves the leader's full step; overlap resolution moves only the yielding guard.
         if (a.type === 'goalie' && b.type === 'goalie') continue;
         const x = oldA.x - oldB.x, y = oldA.y - oldB.y, radius = a.radius + b.radius;
@@ -4532,6 +4647,7 @@ class Game {
       for (let i = 0; i < this.robots.length; i++) {
         for (let j = i + 1; j < this.robots.length; j++) {
           const a = this.robots[i], b = this.robots[j];
+          if (a.type === 'robo-koshi' || b.type === 'robo-koshi') continue;
           const x = a.x - b.x, y = a.y - b.y, distance = Math.hypot(x, y);
           const overlap = a.radius + b.radius - distance;
           if (overlap <= 1e-7) continue;
@@ -4575,7 +4691,7 @@ class Game {
       const reach = 114 + 24 + (other.type === 'snake' ? 114 + 24 : other.radius);
       return (snake.x - other.x) ** 2 + (snake.y - other.y) ** 2 <= reach * reach;
     };
-    const roaming = this.robots.filter(enemy => !['wheel', 'snake'].includes(enemy.type));
+    const roaming = this.robots.filter(enemy => !['wheel', 'snake', 'robo-koshi'].includes(enemy.type));
     for (const snake of snakes) {
       if (!roaming.length) break;
       const before = this.snakeSegments({ ...snake, distance: previous.get(snake).distance });
@@ -4597,7 +4713,7 @@ class Game {
     for (let pass = 0; pass < 8; pass++) {
       let overlaps = false;
       for (const snake of snakes) {
-        const others = this.robots.filter(enemy => enemy !== snake && nearby(snake, enemy));
+        const others = this.robots.filter(enemy => enemy !== snake && enemy.type !== 'robo-koshi' && nearby(snake, enemy));
         if (!others.length) continue;
         for (const segment of segmentsFor(snake).slice(1)) {
           for (const actor of others) for (const other of actor.type === 'snake' ? segmentsFor(actor) : [actor]) {
@@ -4669,7 +4785,7 @@ class Game {
       ? [...this.brickParts(), ...fences] : [];
     const previous = new Map(this.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y, distance: enemy.distance }]));
     for (const enemy of this.robots) {
-      if (enemy.type !== 'snake') this.clearBarrierOverlap(enemy, fences);
+      if (enemy.type !== 'snake' && enemy.type !== 'robo-koshi') this.clearBarrierOverlap(enemy, fences);
       if (enemy.type !== 'goalie') previous.set(enemy, { x: enemy.x, y: enemy.y, distance: enemy.distance });
     }
     for (const enemy of this.robots) {
@@ -4725,10 +4841,13 @@ class Game {
         }
       }
     }
-    for (const enemy of this.robots) this.blockEnemyWithObstructions(enemy, previous.get(enemy));
+    for (const enemy of this.robots) {
+      if (enemy.type !== 'robo-koshi') this.blockEnemyWithObstructions(enemy, previous.get(enemy));
+    }
     this.resolveEnemyCollisions(previous);
     this.resolveSnakeBodyCollisions(previous);
     for (const enemy of this.robots) {
+      if (enemy.type === 'robo-koshi') continue;
       if (enemy.type === 'snake') this.blockSnakeWithBarriers(enemy, previous.get(enemy), fences);
       else {
         if (enemy.type !== 'robo-cow' || enemy.afraid) this.blockEnemyWithBarriers(enemy, previous.get(enemy), fences);
@@ -4752,14 +4871,14 @@ class Game {
           enemy.y = old.y + dy * limit / distance;
         }
       }
-      this.blockEnemyWithBumpers(enemy, old);
+      if (enemy.type !== 'robo-koshi') this.blockEnemyWithBumpers(enemy, old);
       enemy.fleeMoving = enemy.afraid && !enemy.asleep && Math.hypot(enemy.x - old.x, enemy.y - old.y) > 1e-8;
       if (enemy.fleeMoving) enemy.fleeTrailAngle = Math.atan2(old.y - enemy.y, old.x - enemy.x);
       if (enemy.type === 'robo-cow') {
         this.placeWheel(enemy);
         if (!enemy.asleep) this.updateRoboCowFacing(enemy, dt);
       }
-      this.blockEnemyWithObstructions(enemy, old);
+      if (enemy.type !== 'robo-koshi') this.blockEnemyWithObstructions(enemy, old);
       if (enemy.type === 'robo-unicorn' && enemy.unicornState === 'charge' && enemy.mouthOpen) {
         let ateFood = false;
         this.food = this.food.filter(food => {
@@ -5398,7 +5517,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, turretSourceBrick, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

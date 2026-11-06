@@ -51,11 +51,37 @@ test('a crowded or constant random source falls back to the roomiest spot withou
   game.items.push(game.createCollectible(0, 'stopwatch'));
   const point = game.createCollectible(0, 'eggplant');
   assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y));
-  assert.equal(game.createFood([0, 'R3', 'S', 10]).length, 3);
+  assert.ok(closest([game.items[0], point]) >= SPAWN_SPACING);
+  game.items.push(point);
+  const scattered = game.createFood([0, 'R3', 'S', 10]);
+  assert.equal(scattered.length, 3);
+  assert.ok(closest([...game.items, ...scattered]) >= SPAWN_SPACING);
+});
+
+test('constant random pickups search unoccupied space before reducing spacing, including queued pickups', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = new Game(() => .5, { customLevel: blank, ...options });
+    game.start();
+    game.pendingSpawns.set({}, { kind: 'weapon', time: 1, items: [game.createCollectible(1, 'silver')] });
+    for (let i = 0; i < 15; i++) game.items.push(game.createCollectible(0, 'battery'));
+    assert.ok(closest(game.collectiblePoints()) >= SPAWN_SPACING);
+  }
+});
+
+test('when preferred spacing is full, fallback uses remaining room instead of overlapping pickups', () => {
+  const game = new Game(() => .5, { customLevel: blank });
+  game.start();
+  const bounds = game.bounds();
+  for (let y = bounds.top; y <= bounds.bottom; y += 60) {
+    for (let x = bounds.left; x <= bounds.right; x += 60) game.items.push({ x, y, type: 'battery' });
+  }
+  const point = game.randomPickupPoint();
+  const gap = Math.min(...game.items.map(item => Math.hypot(point.x - item.x, point.y - item.y)));
+  assert.ok(gap >= 32, `available non-overlapping space is used: ${gap}`);
 });
 
 test('campaign random spawns stay spaced during play; designer-placed spawns keep their positions', () => {
-  for (const index of [0, 12, 30, 40, LEVELS.length - 1]) {
+  for (const index of [0, 12, 30, 40, LEVELS.findIndex(level => level.name === 'Turret derby'), LEVELS.length - 1]) {
     const game = new Game(seeded(index + 1), { level: index });
     const placed = new WeakSet(), create = game.createCustomSpawn.bind(game);
     game.createCustomSpawn = event => { const spawned = create(event); spawned.forEach(entry => placed.add(entry)); return spawned; };

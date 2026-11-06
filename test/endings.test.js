@@ -204,7 +204,7 @@ test('ending faces have smiling open mouths or X eyes with a frown', () => {
     get: (_, name) => (...args) => operations.push([name, ...args]),
     set: () => true,
   });
-  const c = vm.createContext({ ctx, game: {} });
+  const c = vm.createContext({ ctx, game: { cat: { radius: 21 } } });
   vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function updateEnding(')), c);
   c.drawCat(0, 0, 0, null, false, 'lost');
   assert.ok(operations.some(op => op[0] === 'quadraticCurveTo' && op.slice(1).join(',') === '0,7,8,16'));
@@ -220,7 +220,7 @@ test('only the victory smile has a pointed upper fang and a shorter flat-tipped 
     get: (_, name) => (...args) => operations.push([name, ...args]),
     set: (_, name, value) => { operations.push(['set', name, value]); return true; },
   });
-  const c = vm.createContext({ ctx, game: {} });
+  const c = vm.createContext({ ctx, game: { cat: { radius: 21 } } });
   vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function updateEnding(')), c);
   for (const expression of [null, 'lost', 'won']) {
     operations.length = 0;

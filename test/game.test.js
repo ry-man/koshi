@@ -5,6 +5,33 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+test('Koshi artwork matches his circular collision radius without scaling weapon effects', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const source = app.slice(app.indexOf('function drawCat('), app.indexOf('\nfunction updateEnding('));
+  const game = new Game(() => .5);
+  let scale = 1;
+  const stack = [], circles = [];
+  const ctx = new Proxy({
+    save() { stack.push(scale); },
+    restore() { scale = stack.pop(); },
+    scale(x, y) { assert.equal(x, y); scale *= x; },
+    arc(_x, _y, radius) { circles.push(radius * scale); },
+  }, {
+    get(target, key) { return key in target ? target[key] : () => {}; },
+  });
+  const context = vm.createContext({ game, ctx, line() {}, SWORDS: { wood: { color: '#765432' } } });
+  vm.runInContext(source, context);
+  for (const hurt of [null, .5]) {
+    circles.length = 0;
+    game.weapon = { type: 'wood' };
+    context.drawCat(game.cat.x, game.cat.y, 0, hurt);
+    assert.equal(circles[0], 44, 'sword effect keeps its original size');
+    assert.equal(circles[1], game.cat.radius, 'body radius matches collision radius');
+    assert.equal(scale, 1, 'drawing restores the canvas scale');
+    assert.equal(stack.length, 0);
+  }
+});
+
 test('direct-file startup uses ordered classic scripts and exposes the browser engine', () => {
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');

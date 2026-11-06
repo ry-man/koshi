@@ -145,13 +145,14 @@ test('pickup during flight captures the first landing, not the previous departur
   assert.equal(effect.y, first.y + first.h / 2);
   game.collectItem({ type: 'ditto-stamp' });
   first.kind = 'fast';
-  target.readyAt = 0;
-  aim(game, target); land(game);
-  assert.equal(target.kind, 'slow', 'duplicates and source changes preserve the captured copy');
+  const copyTarget = edgeBrick(game, 'left');
+  copyTarget.readyAt = 0;
+  aim(game, copyTarget); land(game);
+  assert.equal(copyTarget.kind, 'slow', 'duplicates and source changes preserve the captured copy');
   assert.equal(game.dittoStamp, false); assert.equal(game.dittoSource, null);
   assert.equal(game.brickStamps[0].capturing, false);
-  assert.equal(game.brickStamps[0].x, target.x + target.w / 2);
-  assert.equal(game.brickStamps[0].y, target.y + target.h / 2);
+  assert.equal(game.brickStamps[0].x, copyTarget.x + copyTarget.w / 2);
+  assert.equal(game.brickStamps[0].y, copyTarget.y + copyTarget.h / 2);
 });
 
 test('first landing captures, second landing copies, and duplicate pickups do not stack', () => {

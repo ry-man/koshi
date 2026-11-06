@@ -133,7 +133,7 @@ test('Koshi shows red blinking fur and an upset face only while the shared damag
   const fills = [], curves = [];
   const ctx = {
     save() {}, restore() {}, translate() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {},
-    arc() {}, ellipse() {}, stroke() {},
+    arc() {}, ellipse() {}, stroke() {}, scale() {},
     fill() { fills.push(this.fillStyle); },
     quadraticCurveTo(...args) { curves.push(args); },
   };

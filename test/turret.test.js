@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, brickEditRegions, brickRegions, turretGeometry, turretSourceBrick, validateCustomLevel } = require('../src/game.js');
+const { Game, brickEditRegions, brickRegions, turretGeometry, middleBrickInGroup, validateCustomLevel } = require('../src/game.js');
 
 const blank = () => ({ version: 1, id: 'Turret test', duration: 120, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 
@@ -147,7 +147,7 @@ test('merged turret bricks spawn and draw their icon on the middle sub-brick, ro
     const customLevel = { ...blank(), brickTypes: [{ ...region, kind: 'normal', turret: 'laser' }], brickGroups: [{ owner, members }] };
     const game = new Game(() => .5, { customLevel });
     game.start();
-    const brick = game.bricks[owner], source = turretSourceBrick(brick, game.bricks, game.perimeter);
+    const brick = game.bricks[owner], source = middleBrickInGroup(brick, game.bricks, game.perimeter);
     assert.equal(source.id, middle);
     game.touchTurret(brick);
     assert.deepEqual(game.activeTurret.anchor, turretGeometry(game.bricks[middle], game.width, game.height).anchor);
@@ -207,6 +207,52 @@ test('turret exits after ten seconds and a spent turret requires one battery to 
   assert.equal(game.activeTurret, null, 'the spent turret cannot be reused without another battery');
   game.reset();
   assert.equal(game.bricks[brick.id].spawned, false);
+});
+
+test('laser and fireball paths pass exactly through angled and close clicked targets on every wall', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    for (const type of ['laser', 'fireball']) {
+      for (const edge of ['top', 'bottom', 'left', 'right']) {
+        for (const range of [12, 180]) {
+          const game = arena(type, options);
+          const regions = brickRegions(game.bricks, game.width, game.height);
+          const brick = game.bricks.find(candidate => regions.get(candidate.id).edge === edge);
+          brick.turret = type;
+          const turret = enter(game, brick);
+          const pivot = {
+            x: turret.anchor.x + turret.direction.x * turret.domeRadius,
+            y: turret.anchor.y + turret.direction.y * turret.domeRadius,
+          };
+          const direction = { x: (turret.direction.x - turret.direction.y) / Math.SQRT2,
+            y: (turret.direction.y + turret.direction.x) / Math.SQRT2 };
+          const target = { x: pivot.x + direction.x * range, y: pivot.y + direction.y * range };
+          assert.equal(game.fireTurretAt(target.x, target.y), true);
+          assert.ok(Math.abs(turret.aim.x - direction.x) < 1e-9);
+          assert.ok(Math.abs(turret.aim.y - direction.y) < 1e-9);
+          if (type === 'laser') {
+            const { start, end } = game.turretEffects.at(-1);
+            const cross = (target.x - start.x) * (end.y - start.y)
+              - (target.y - start.y) * (end.x - start.x);
+            assert.ok(Math.abs(cross) < 1e-7, 'beam passes through the clicked point');
+            assert.ok((target.x - start.x) * direction.x + (target.y - start.y) * direction.y >= -1e-9);
+          } else if (range > 34) {
+            const projectile = game.turretProjectiles[0];
+            game.updateTurrets(.01);
+            const cross = (projectile.x - pivot.x) * direction.y - (projectile.y - pivot.y) * direction.x;
+            assert.ok(Math.abs(cross) < 1e-9, 'fireball stays on the aimed line during flight');
+            game.updateTurrets(2);
+            const blast = game.turretEffects.find(effect => effect.type === 'fireball');
+            assert.equal(blast.x, target.x);
+            assert.equal(blast.y, target.y);
+          } else {
+            const blast = game.turretEffects.at(-1);
+            assert.equal(blast.x, target.x);
+            assert.equal(blast.y, target.y);
+          }
+        }
+      }
+    }
+  }
 });
 
 test('laser damages every enemy on its line and leaves shielded enemies alive', () => {
