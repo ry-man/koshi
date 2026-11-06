@@ -211,6 +211,8 @@ test('overlapping live and defeated goalies draw from highest to lowest without 
   });
   const rendering = vm.createContext({
     game, boardCtx: makeContext(), actorCtx: makeContext(), ctx: null, trail: [], ending: null,
+    canvas: { width: game.width, height: game.height }, board: { clientWidth: game.width, clientHeight: game.height },
+    document: { querySelector: () => ({ style: {} }) }, buttons: [],
     drawCat() {}, drawWornCape() {}, drawMusicStream() {}, drawSunglassesStream() {}, drawCapeStream() {}, drawMaskStream() {}, line() {},
     drawRobot(enemy) { calls.push(['alive', enemy.y]); },
     drawEnemyDeath(enemy) { calls.push(['dead', enemy.y]); },

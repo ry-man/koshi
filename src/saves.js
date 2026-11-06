@@ -24,7 +24,7 @@ function levelStats(results, levelId) {
   const losses = attempts.filter(result => result.outcome === 'lost').length;
   const quits = attempts.filter(result => result.outcome === 'quit').length;
   const moveRecords = wins.filter(result => result.moves !== undefined);
-  const goalRecords = attempts.filter(result => result.goals !== undefined);
+  const goalRecords = wins.filter(result => result.goals !== undefined);
   return {
     wins: wins.length, losses, quits,
     goldStar: wins.some(result => result.damageFree === true),
@@ -32,8 +32,8 @@ function levelStats(results, levelId) {
     lossPercent: attempts.length ? losses / attempts.length * 100 : null,
     bestTime: wins.length ? Math.min(...wins.map(result => result.time)) : null,
     fewestMoves: moveRecords.length ? Math.min(...moveRecords.map(result => result.moves)) : null,
-    mostFood: attempts.length ? Math.max(...attempts.map(result => result.food)) : null,
-    mostEnemies: attempts.length ? Math.max(...attempts.map(result => result.enemy)) : null,
+    mostFood: wins.length ? Math.max(...wins.map(result => result.food)) : null,
+    mostEnemies: wins.length ? Math.max(...wins.map(result => result.enemy)) : null,
     mostGoals: goalRecords.length ? Math.max(...goalRecords.map(result => result.goals)) : null,
   };
 }

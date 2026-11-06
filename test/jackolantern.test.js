@@ -154,6 +154,36 @@ test('appearing obstructions block only fire reaching them, not fire already pas
   assert.ok(fire.blocked[0].length);
 });
 
+test('all bumper colors block Jackolantern fire in every direction without reviving extinguished segments', () => {
+  for (const color of ['red', 'green', 'blue']) for (const [side, [nx, ny]] of [[1, 0], [0, 1], [-1, 0], [0, -1]].entries()) {
+    const game = arena(), enemy = pumpkin(game), fire = wave(enemy);
+    game.bumpers.push(game.createBumper({ x: enemy.x + nx * 90, y: enemy.y + ny * 90 }, `bumper-${color}`));
+    game.cat.x = enemy.x + nx * 160; game.cat.y = enemy.y + ny * 160;
+    advance(game, enemy, 1.4);
+    assert.equal(game.hearts, 3);
+    assert.ok(fire.blocked[side].some(([left, right]) => left < 0 && right > 0));
+    assert.ok(game.fireWaveSegments(fire).length > 4, 'fire beyond the circular shadow survives');
+    const blocked = JSON.stringify(fire.blocked);
+    game.bumpers = [];
+    advance(game, enemy, .1);
+    assert.equal(JSON.stringify(fire.blocked), blocked);
+  }
+});
+
+test('bumper fire blocking starts only when the wave reaches it', () => {
+  const game = arena(), enemy = pumpkin(game), fire = wave(enemy, 100);
+  const bumper = game.createBumper({ x: enemy.x + 25, y: enemy.y }, 'bumper-green');
+  bumper.radius = 10;
+  game.bumpers = [bumper];
+  advance(game, enemy, .1);
+  assert.deepEqual(fire.blocked, [[], [], [], []], 'bumper behind the wave does not stop it');
+  bumper.x = enemy.x + 160;
+  advance(game, enemy, .1);
+  assert.deepEqual(fire.blocked, [[], [], [], []], 'distant bumper does not block prematurely');
+  advance(game, enemy, .3);
+  assert.ok(fire.blocked[0].length);
+});
+
 test('finite barriers leave a gap for unblocked fire and fully enclosing bricks extinguish waves', () => {
   const game = arena(), enemy = pumpkin(game), fire = wave(enemy);
   advance(game, enemy, 1, [{ x: enemy.x + 40, y: enemy.y + 10, w: 4, h: 10, barrier: true }]);

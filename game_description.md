@@ -73,8 +73,9 @@ records a quit even without a shutdown event. Quitting, leaving or restarting a
 started level before a result counts as one quit. Briefings and cutscenes do not
 count as attempts. Pausing and backgrounding checkpoint the same attempt without
 ending it; resumed play can still replace the provisional quit with a win or loss.
-Only wins contribute to fastest time; all outcomes contribute to highest food,
-enemy and soccer-goal scores, using the latest saved checkpoint on app closure.
+Only successful completions contribute to records: fastest time, highest food,
+enemy and soccer-goal scores, and fewest moves. Losses, quits and provisional
+checkpoints still count toward attempt statistics, but cannot set records.
 Guest results last for the current visit. Older saves preserve
 completed levels, but have no historical times, scores or attempt counts;
 unrecorded values are shown explicitly. Stable internal level IDs and existing
@@ -521,7 +522,10 @@ ball spawners. Balls have no lifetime or shield. The editor also supports
 stationary red, green and blue bumpers as objects and brick spawners. Bumpers
 bounce Koshi and enemies without moving; red increases Koshi's speed by 25%,
 green preserves it, and blue reduces it by 25%. Their concentric white rings
-compress and shake briefly when hit. Pause freezes rolling/scoring effects;
+compress and shake briefly when hit. Bumpers intercept Jackolantern fire in their
+circular shadow. Food, weapons, items and healing hearts cannot appear or remain
+under bumpers or obstructions: random placement avoids them, and covered live or
+queued pickups are removed. Pause freezes rolling/scoring effects;
 restart clears scores and restores placements. The guide and tutorial include
 soccer. Level 2-19 requires three goals and supplies five balls; the original
 19 levels remain unchanged.
@@ -840,3 +844,27 @@ Koshi, Tom and robots in that level, and explains the level's combination.
 | 3S-10 | Grand slam | 3 goals, 6 enemy, 30 food | Unicorns, goalies, Robo Koshi, sword spawner, bubbles |
 | 3S-11 | Turret derby | 4 goals, 12 enemy | Robo Cows threatening Laser Turrets, goalies, bumpers |
 | 3S-12 | The duck's last stand | 4 goals, 40 food | Robo Koshi, unicorns, Jackolanterns, a Barrier, appearing walls |
+
+## World 4: Rolling Road
+
+World 4 connects from World 3 and opens with **4-1, The rolling buffet**.
+This 56-brick-long board introduces autoscroll with a 180-second survival goal.
+Each of three 60-second cycles moves slowly at 2/9 bricks/second for 18 seconds,
+stops for 24 seconds, then moves fast at 2/3 bricks/second for 18 seconds.
+That makes the trip 40% stopped, 30% slow and 30% fast.
+It reaches the far end and stops exactly at 180
+seconds in both layouts. No stopwatches extend the level or score targets end it early.
+
+The route combines 122 boundary segments into 96 playable bricks, with 22
+double-size and two triple-size bricks (25% enlarged). Green, blue and red
+steering bricks are equally split at 32 each. One third have extra mechanics:
+Crumblers, Warped bricks, Slime, Springs, Spikes, Conveyors, Boost,
+Toggle, Barrier, blue Portals, Fireball and Laser Turrets, and food/sword
+spawners. Timed pickups and enemy arrivals follow the camera's route: all seven
+foods across 45 placements, 18 enemies covering all twelve robot types, four
+wood/bronze/silver swords, eight protective and utility items, and nine
+bumpers, bubbles, obstructions and soccer-ball placements. Food heals every 40
+points. Existing levels and the optional World 3S route remain unchanged.
+If Koshi's entire body leaves a scrolling camera's view in any direction, he
+dies immediately even while protected. The camera freezes, and his usual
+spinning death animation smoothly slides from the death location back into view.

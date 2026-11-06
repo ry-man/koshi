@@ -3,8 +3,8 @@
 A browser arcade game starring Koshi, a grey tabby with a big appetite.
 Built with vanilla JavaScript, HTML, and Canvas. No build step or runtime
 dependencies are required. The initial implementation follows
-[the game description](./game_description.md), with 48 main campaign lessons across three worlds
-plus 12 optional challenge levels in World 3S.
+[the game description](./game_description.md), with 48 main campaign lessons across three worlds,
+12 optional challenge levels in World 3S, and an autoscroll showcase in World 4.
 
 ## Play locally
 
@@ -52,6 +52,8 @@ emblems and map colors establish their graphical themes; gameplay graphics
 and all existing level content are unchanged. World 3S, **Tom's Gauntlet**, is
 an optional challenge world for advanced players. It branches from World 2 on a
 dashed route below the main path and contains 12 levels (3S–1 through 3S–12).
+World 4, **Rolling Road**, connects directly from World 3 and starts with
+**4-1, The rolling buffet**, a three-minute autoscrolling survival level.
 
 The high-level map shows one stop per world. Click a world to move Koshi's
 marker; clicking the world Koshi is already on zooms into its individual level stops.
@@ -174,9 +176,9 @@ new campaign at world selection. **Continue** opens the level map inside the
 world of the last level actually started, with that level selected, including
 if it was lost, replayed or abandoned. No level starts until **Play Level**
 and the briefing's **Start** are pressed; attempts always start fresh.
-After finishing all 48 main-world levels, the slot shows **Campaign complete** and still
+After finishing all 49 main-world levels, the slot shows **Campaign complete** and still
 offers **Continue** to revisit the map. Optional World 3S levels count toward
-the slot's "completed / 60" total but are not required, and **Continue** never
+the slot's "completed / 61" total but are not required, and **Continue** never
 suggests them.
 
 Every started attempt autosaves to the selected slot as a provisional quit,
@@ -195,8 +197,9 @@ campaign saves. Quitting, restarting or leaving a started level before a result
 counts as one quit, not a loss. Briefings and cutscenes do not start an attempt.
 Pausing or temporarily backgrounding the app does not end an attempt; resumed
 play replaces the same provisional quit. Guest statistics are kept only for the current page visit.
-Fastest times use wins only; highest food, enemy and soccer-goal scores use all
-attempts, including quits (using the latest saved checkpoint on app closure).
+All records use successful completions only: fastest time, highest food,
+enemy and soccer-goal scores, and fewest moves. Losses and quits still count
+toward attempt statistics but never establish or improve records.
 **Fewest moves** is the smallest successful brick-selection count in a win,
 including mid-flight redirects and Magical Sunglasses selections. Failed clicks,
 passive travel, Spring bounces, Portal arrivals and physical brick contacts
@@ -621,6 +624,43 @@ system emoji represent food. The DM Sans, Space Grotesk, and Pixelify Sans fonts
 [fonts/](./fonts/) under the SIL Open Font License (license texts included), so
 the game makes no requests to external services.
 
+## World 4: Rolling Road
+
+**4-1, The rolling buffet** is a 56-brick-long autoscroll demo, spanning more
+than six screens. Survive for **180 seconds**; food and enemy points are
+optional, and no stopwatches extend the trip. The camera follows this schedule:
+
+| Time | Camera speed (bricks / second) |
+|------|-------------------------------|
+| 0–18s | Slow: 2/9 |
+| 18–42s | Stopped: 0 |
+| 42–60s | Fast: 2/3 |
+| 60–78s | Slow: 2/9 |
+| 78–102s | Stopped: 0 |
+| 102–120s | Fast: 2/3 |
+| 120–138s | Slow: 2/9 |
+| 138–162s | Stopped: 0 |
+| 162–180s | Fast: 2/3 |
+| 180s | Stopped at the far end; survival complete |
+
+The camera spends 40% of the trip stopped, 30% moving slowly and 30% moving
+fast, covering exactly 48 bricks beyond the initial 8-brick screen.
+The 122 boundary segments form 96 playable bricks: 22 double-size and two
+triple-size bricks make exactly 25% enlarged. Green, blue and red steering
+bricks each number 32; 32 bricks (one third) have extra mechanics.
+These include Crumblers, Warped bricks, colored Slime, Springs, Spikes,
+Conveyors, Boost, Toggle, Barrier, paired blue Portals, both turret types, and
+food/sword spawners. Along the camera's route are 45 food placements covering
+all seven foods, 18 enemies covering all twelve robot types, four swords, eight item pickups,
+and nine bumpers, bubbles, obstructions and soccer-ball placements.
+Food earns a healing heart every 40 points. Weapons and protective power-ups
+are distributed across the trip, including the fast section.
+
+World 3's **3-14** advances directly to **4-1**; World 3S remains optional and
+still ends at **3S-12**. The demo can also be inspected read-only in the editor.
+Timed scrolling campaign placements preserve forward progress in both desktop
+and portrait layouts, rather than reversing the route when the board rotates.
+
 ## Graphical level editor
 
 Open [editor.html](./editor.html), or choose **Open level editor** in the game.
@@ -639,9 +679,36 @@ Placed enemies use compact icon markers, including Robo Koshi and Robo Snail.
 Robo Snail's marker shares its angular shell and eye-stalk drawing with its palette.
 The enemy and spawn-brick palettes show their corresponding outlined graphics.
 
+### Autoscrolling custom levels
+
+Enable **Autoscrolling level** in level settings and apply the settings. Length
+is the number of bricks along each long edge: 8 is a traditional single screen,
+with up to 1000 supported. The board extends horizontally on desktop and
+vertically in portrait without shrinking bricks or objects. Scroll the editor
+board to reach the rest of the level; scrubbing **Preview time** moves a yellow
+outline showing the gameplay camera.
+
+Set an initial speed in **bricks / second**, then use **Add speed change at
+preview time** in the camera timeline. Each row has editable time and speed and
+a Remove button. Speed `0` pauses the camera; a later positive speed resumes it.
+Changes must have distinct times before the level ends. The camera starts at
+the left/top end, stops at the far end, and freezes with the gameplay clock
+before Start, during Pause, and after the level ends. Koshi starts in the first
+screen. Only visible bricks can be activated. If Koshi's entire body leaves
+the camera view in any direction, he dies immediately, regardless of protection.
+His normal spinning death animation gradually slides back into view; the camera
+stays frozen at the death position.
+Existing campaign levels are unchanged.
+
+JSON stores this optional setting as
+`"autoscroll": { "length": 24, "speed": 0.25, "events": [{ "time": 10, "speed": 0 }, { "time": 15, "speed": 0.5 }] }`.
+Omit `autoscroll` for a traditional level. Placements use normalized coordinates
+over the entire board, not the camera. Changing board length changes those
+relative positions; split combined bricks before changing length.
+
 ### Optional story cutscenes
 
-Each level can have an optional pre-level cutscene. All 60 campaign levels
+Each level can have an optional pre-level cutscene. All 61 campaign levels
 include short story scenes following Koshi from the garden through the Clockwork
 Pantry to the Robot Foundry, controlled by **Tom the Duck**, the main antagonist. Tom is a robot
 duck who commands the robots and hoards the world's food.
@@ -944,6 +1011,9 @@ persist until scored or the level ends. Custom levels can also place red,
 green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
 have a 96-unit diameter, stay fixed and bounce Koshi and enemies away. Red increases Koshi's speed by
 25%, green preserves it, and blue reduces it by 25%.
+Bumpers block Robo Jackolantern fire in their circular shadow, like obstructions.
+Food, weapons, items and healing hearts cannot overlap bumpers or obstructions:
+random pickups avoid them, and covered live or queued pickups are removed.
 Custom levels can also place blue, green and red bubbles (`bubble-blue`,
 `bubble-green`, `bubble-red`); they trap Koshi for the same 5-, 3- and
 1-second durations as the corresponding slime colors.

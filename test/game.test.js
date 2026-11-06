@@ -156,6 +156,8 @@ test('aiming draws a subtle transparent dotted line and an exact red outlined ta
   game.target = { x: 927.25, y: 274.75 };
   const context = vm.createContext({
     game, boardCtx: makeContext('board'), actorCtx: makeContext('actors'), ctx: null, trail: [], ending: null,
+    canvas: { width: game.width, height: game.height }, board: { clientWidth: game.width, clientHeight: game.height },
+    document: { querySelector: () => ({ style: {} }) }, buttons: [],
     drawCat() {}, drawWornCape() {}, drawMusicStream() {}, drawSunglassesStream() {}, drawCapeStream() {}, drawMaskStream() {},
     line(points, color, width) { lines.push({ points, color, width }); },
   });
@@ -191,6 +193,8 @@ test('soccer goal artwork, ball sprites, and score sparks are drawn on the actor
   const boardCtx = makeContext(), actorCtx = makeContext(), calls = [];
   const context = vm.createContext({
     game, boardCtx, actorCtx, ctx: null, trail: [], ending: null, endingMotion: { matches: true },
+    canvas: { width: game.width, height: game.height }, board: { clientWidth: game.width, clientHeight: game.height },
+    document: { querySelector: () => ({ style: {} }) }, buttons: [],
     drawCat() {}, drawWornCape() {}, drawMusicStream() {}, drawSunglassesStream() {}, drawCapeStream() {}, drawMaskStream() {}, drawBarrier() {}, line() {},
     drawGoal(ctx, members) { calls.push(['goal', ctx, members.some(part => part.id === goal.id)]); },
     drawSoccerBall(ctx, ball) { calls.push(['ball', ctx, ball]); },
@@ -250,6 +254,7 @@ test('Boom Time clocks and Boom Helmet render counts, arrival, and the zero-coun
   }
   calls.length = 0;
   context.game = helmet;
+  helmet.camera = () => ({ x: 0, y: 0, width: 960, height: 600 });
   context.ending = { state: 'lost', elapsed: .2 };
   context.endingPose = () => ({ x: 120, y: 70, rotation: 2, scale: 1 });
   context.drawCat = () => calls.push(['cat']);

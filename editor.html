@@ -39,6 +39,14 @@
           <label>Soccer goals (0 disables) <input id="goals-goal" type="number" min="0" max="100000" step="1" value="0" required></label>
           <label>Boom Helmet activation limit (blank: unlimited) <input id="activation-limit" type="number" min="1" max="100000" step="1" placeholder="Unlimited"></label>
           <label>Heart cost <input id="heart-cost" type="number" min="1" max="100000" step="1" placeholder="None (disabled)"></label>
+          <div class="full-width autoscroll-settings">
+            <label class="inline-label"><input id="autoscroll-enabled" type="checkbox"> Autoscrolling level</label>
+            <fieldset id="autoscroll-settings" disabled hidden>
+              <label>Length (bricks along the long edge) <input id="scroll-length" type="number" min="8" max="1000" step="1" value="16" required></label>
+              <label>Initial camera speed (bricks / second) <input id="scroll-speed" type="number" min="0" max="100" step="any" value="0.25" required></label>
+              <p>Minimum: 8 bricks (one screen). Scrolls right on desktop, down in portrait. A speed of 0 pauses the camera.</p>
+            </fieldset>
+          </div>
           <details class="cat-block-section full-width">
             <summary>Cat Brick</summary>
             <label class="inline-label"><input id="cat-block-enabled" type="checkbox"> Enabled</label>
@@ -72,18 +80,29 @@
         <section class="editor-panel stage-panel" aria-label="Placement board">
           <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
           <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
+          <div id="editor-board-scroll" tabindex="0" role="region" aria-label="Scrollable level board">
           <div id="editor-board" data-orientation="landscape" tabindex="-1">
             <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
             <div id="playable-area" aria-hidden="true"></div>
             <div id="markers"></div>
             <svg id="spawn-links" aria-hidden="true"></svg>
+            <div id="camera-outline" aria-hidden="true" hidden></div>
             <div id="selection-box" aria-hidden="true" hidden></div>
+          </div>
           </div>
           <div class="timeline-controls">
             <label for="timeline">Preview time <output id="time-label">0.0s</output></label>
             <input id="timeline" type="range" min="0" max="60" step="0.1" value="0">
             <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
           </div>
+          <section id="camera-timeline" aria-label="Camera speed timeline" hidden>
+            <h2>Camera speed timeline</h2>
+            <p>Add a speed change at the preview time, or edit its time and speed below. Speed 0 stops scrolling; positive speed resumes it.</p>
+            <fieldset id="camera-access" class="access-fields">
+              <button id="add-camera-event" type="button">Add speed change at preview time</button>
+              <div id="camera-events"></div>
+            </fieldset>
+          </section>
         </section>
         <section class="editor-panel inspector" aria-label="Event inspector">
           <fieldset id="inspector-access" class="access-fields">

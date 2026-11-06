@@ -234,6 +234,7 @@ test('editor exposes all trigger options, shows only required parameters and pre
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { value: '', children: [], listeners: {},
+      replaceChildren() {},
       append(child) { this.children.push(child); },
       addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);
@@ -241,6 +242,7 @@ test('editor exposes all trigger options, shows only required parameters and pre
   const context = vm.createContext({ $, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, CHARACTERS,
     catBlockDescription, catBlockObjective,
     level: { ...level(undefined), catBlock: undefined },
+    readOnly: () => false,
     document: { createElement: () => ({}) }, validateDraft: validateCustomLevel,
     attempt: action => action(), markChanged() {}, render() {}, message() {} });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');

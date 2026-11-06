@@ -76,6 +76,41 @@ test('every loss spins twice and keeps even off-board Koshi visible', () => {
   assert.equal(pose.rotation, Math.PI * 4);
 });
 
+test('offscreen scrolling deaths start at the death location and smoothly slide into view while spinning', () => {
+  const { context: c } = fixture('lost');
+  for (const cat of [{ x: -70, y: 300 }, { x: 700, y: 300 }, { x: 300, y: -70 }, { x: 300, y: 1070 }]) {
+    const sequence = { game: { cat }, state: 'lost', duration: 1.8, elapsed: 0, offscreenDeath: true };
+    const initial = c.endingPose(sequence, 600, 960);
+    assert.equal(initial.x, cat.x); assert.equal(initial.y, cat.y);
+    sequence.elapsed = .54;
+    const halfway = c.endingPose(sequence, 600, 960);
+    const targetX = Math.max(40, Math.min(560, cat.x)), targetY = Math.max(40, Math.min(920, cat.y));
+    assert.equal(halfway.x, cat.x + (targetX - cat.x) / 2);
+    assert.ok(Math.abs(halfway.y + Math.sin(.3 * Math.PI) * 28 - (cat.y + (targetY - cat.y) / 2)) < 1e-8);
+    assert.ok(halfway.rotation > 0);
+    sequence.elapsed = sequence.duration;
+    const final = c.endingPose(sequence, 600, 960);
+    assert.equal(final.x, targetX); assert.ok(Math.abs(final.y - targetY) < 1e-8);
+    assert.equal(final.rotation, Math.PI * 4); assert.equal(final.scale, 1);
+  }
+});
+
+test('death rendering slides in camera-relative coordinates without moving the world or camera', () => {
+  const { context: c } = fixture('lost'), translations = [];
+  const game = { cat: { x: 200, y: 300 }, offscreenDeath: true,
+    camera: () => ({ x: 300, y: 0, width: 960, height: 600 }) };
+  c.game = game; c.ending = { game, state: 'lost', duration: 1.8, elapsed: 0 };
+  c.ctx = new Proxy({}, { get: (_, name) => name === 'translate'
+    ? (x, y) => translations.push([x, y]) : () => {} });
+  c.drawCat = () => {}; c.drawWornCape = () => {};
+  c.drawEnding();
+  assert.deepEqual(translations[0], [200, 300], 'no instant teleport into view');
+  c.ending.elapsed = 1.8; c.drawEnding();
+  assert.equal(translations[1][0], 340);
+  assert.deepEqual(game.cat, { x: 200, y: 300 });
+  assert.equal(game.camera().x, 300);
+});
+
 test('menus and hidden pages freeze endings; new attempts discard them; reduced motion skips them', () => {
   const app = fixture(), { context: c, document, game } = app;
   c.transition();

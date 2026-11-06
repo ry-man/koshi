@@ -41,7 +41,9 @@ test('Tom commands the campaign in every scene and round-trips as a custom speak
     }
     const cast = new Set(campaign.cutscene.lines.flatMap(line => line.actors.map(actor => actor.character)).filter(character => character !== 'koshi'));
     assert.ok(cast.size <= 3, `${campaign.id}: scene has at most three enemies including Tom`);
-    for (const character of cast) assert.ok(character === 'tom' || campaign.enemies.some(([, type]) => type === character), `${campaign.id}: level-appropriate cast`);
+    for (const character of cast) assert.ok(character === 'tom'
+      || campaign.enemies.some(([, type]) => type === character)
+      || (campaign.events ?? []).some(event => event.kind === 'enemy' && event.type === character), `${campaign.id}: level-appropriate cast`);
     assert.ok(campaign.enemies.every(([, type]) => type !== 'tom'), 'Tom is a story antagonist, not a new combat enemy');
   }
   const source = { ...level(), cutscene: {

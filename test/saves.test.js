@@ -158,7 +158,7 @@ test('finished attempts persist once, track both outcomes and keep fastest wins 
   assert.deepEqual(levelStats(reloaded.results, levelIds[0]), {
     wins: 2, losses: 1, quits: 0, winPercent: 2 / 3 * 100, lossPercent: 1 / 3 * 100,
     goldStar: true,
-    bestTime: 10, fewestMoves: null, mostFood: 30, mostEnemies: 6, mostGoals: 3,
+    bestTime: 10, fewestMoves: null, mostFood: 25, mostEnemies: 6, mostGoals: 3,
   });
   saves.record(0, slot.id, 'other-loss', { ...result, levelId: levelIds[1], outcome: 'lost', damageFree: false });
   assert.deepEqual(saves.load()[0].completed, [levelIds[0]], 'losses never complete a level');
@@ -174,6 +174,23 @@ test('legacy completions stay valid without fabricated statistics', () => {
     wins: 0, losses: 0, quits: 0, winPercent: null, lossPercent: null,
     goldStar: false,
     bestTime: null, fewestMoves: null, mostFood: null, mostEnemies: null, mostGoals: null,
+  });
+
+  test('all records exclude losses, quits and provisional checkpoints, while attempt statistics retain them', () => {
+    const result = { levelId: levelIds[0], time: 10, food: 25, enemy: 3, goals: 2, moves: 8 };
+    const failed = {
+      loss: { ...result, outcome: 'lost', time: 1, food: 999, enemy: 999, goals: 999, moves: 1 },
+      quit: { ...result, outcome: 'quit', time: 2, food: 1000, enemy: 1000, goals: 1000, moves: 0 },
+      checkpoint: { ...result, outcome: 'quit', inProgress: true, food: 2000, enemy: 2000, goals: 2000 },
+    };
+    const stats = levelStats(failed, levelIds[0]);
+    for (const metric of ['bestTime', 'mostFood', 'mostEnemies', 'mostGoals', 'fewestMoves']) assert.equal(stats[metric], null);
+    assert.equal(stats.losses, 1); assert.equal(stats.quits, 2);
+    const won = levelStats({ ...failed, win: { ...result, outcome: 'won' } }, levelIds[0]);
+    assert.equal(won.bestTime, 10); assert.equal(won.mostFood, 25);
+    assert.equal(won.mostEnemies, 3); assert.equal(won.mostGoals, 2); assert.equal(won.fewestMoves, 8);
+    assert.equal(won.winPercent, 25);
+    assert.equal(JSON.stringify(failed.checkpoint.food), '2000', 'historical attempts are not rewritten');
   });
   saves.record(0, slot.id, 'new', { levelId: levelIds[0], outcome: 'won', time: 15, food: 20, enemy: 0 });
   assert.deepEqual(saves.load()[0].completed, [levelIds[0]]);
@@ -457,7 +474,7 @@ test('UI autosaves only campaign profiles and exposes failed wins for retry', ()
   assert.equal(levelStats(saves.load()[0].results, levelIds[0]).fewestMoves, 4);
   assert.equal(context.pendingSaves.length, 0);
   assert.equal(elements.get('#save-error').hidden, true);
-  assert.match(elements.get('#save-profile').textContent, /Player.*1 \/ 60.*1-2/);
+  assert.match(elements.get('#save-profile').textContent, /Player.*1 \/ 61.*1-2/);
   context.game = { level: LEVELS[1], customLevel: {} };
   context.saveResult();
   context.game.customLevel = null; context.tutorial = {};
@@ -481,6 +498,16 @@ test('completion summaries compare against prior records without counting the cu
   assert.deepEqual({ ...second.newRecords }, { time: true, food: false, enemy: false, goals: true, moves: false });
   assert.equal(second.previousStats.goldStar, true);
   assert.equal(second.result.damageFree, false);
+});
+
+test('failed and quit completion summaries never announce any records, even on a first attempt', () => {
+  for (const state of ['lost', 'playing', 'paused']) {
+    const { context } = uiFixture();
+    Object.assign(context.game, { state, elapsed: 1, score: 999, enemies: 999, goals: 999, moves: 0 });
+    const summary = context.saveResult();
+    assert.deepEqual({ ...summary.newRecords }, { time: false, food: false, enemy: false, goals: false, moves: false });
+    assert.equal(summary.result.outcome, state === 'lost' ? 'lost' : 'quit');
+  }
 });
 
 test('completion summaries flag Cat Blocks only when newly collected in a winning run', () => {
@@ -536,7 +563,7 @@ test('slot UI renders owner names as text, resumes saved levels, and confirms de
   const totals = sections[0].children[0].children[0];
   assert.equal(totals.className, 'collectible-totals');
   assert.deepEqual(Array.from(totals.children, badge => badge['aria-label']),
-    ['Flags: 1 of 60', 'Gold stars: 0 of 60', 'Cat Blocks: 0 of 10']);
+    ['Flags: 1 of 61', 'Gold stars: 0 of 61', 'Cat Blocks: 0 of 10']);
   assert.equal(sections[1].children[0].children[0].children[2].children[1].textContent, '0/10');
   assert.equal(sections[0].children.length, 3, 'only heading, actions and owner form; no progress paragraph');
   let started = 0, mapOptions;
@@ -574,7 +601,7 @@ test('save-slot collectible totals reflect each profile independently', () => {
   const slots = elements.get('#save-slot-list').children;
   assert.deepEqual(Array.from(slots, slot => Array.from(
     slot.children[0].children[0].children, badge => badge.children[1].textContent)),
-  [['1/60', '1/60', '1/10'], ['0/60', '0/60', '2/10'], ['0/60', '0/60', '0/10']]);
+  [['1/61', '1/61', '1/10'], ['0/61', '0/61', '2/10'], ['0/61', '0/61', '0/10']]);
 });
 
 test('loading opens the last-played level map while a newly created slot opens world selection', () => {

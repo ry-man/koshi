@@ -57,7 +57,7 @@ let committed = JSON.stringify(level);
 let campaignIndex = null;
 let customWorkspace = null;
 const readOnly = () => campaignIndex !== null;
-const accessFields = ['#settings-access', '#cutscene-access', '#inspector-access', '#files-access'];
+const accessFields = ['#settings-access', '#cutscene-access', '#inspector-access', '#files-access', '#camera-access'];
 const writeButtons = ['#place-mode', '#new-level'];
 for (const [index, campaign] of LEVELS.entries()) {
   const option = document.createElement('option');
@@ -315,11 +315,12 @@ function message(text, error = false) {
   $('#editor-message').dataset.error = String(error);
 }
 
-function attempt(action) {
+function attempt(action, onError) {
   try { action(); }
   catch (error) {
     console.error('Level editor:', error);
     message(error.message, true);
+    if (onError) onError();
   }
 }
 
@@ -759,9 +760,16 @@ function renderBrickInspector(bricks) {
 function renderBoard() {
   const portrait = $('#orientation').value === 'portrait';
   board.dataset.orientation = portrait ? 'portrait' : 'landscape';
+  $('#editor-board-scroll').dataset.orientation = board.dataset.orientation;
+  const availableWidth = $('#editor-board-scroll').clientWidth;
+  const screenWidth = portrait ? Math.min(availableWidth, 340) : availableWidth;
+  const screenHeight = screenWidth * (portrait ? 8 / 5 : 5 / 8);
   syncTool();
-  previewGame = new Game(Math.random, { portrait, scale: portrait ? board.clientWidth / 600 : 1,
+  previewGame = new Game(Math.random, { portrait, scale: portrait ? screenWidth / 600 : 1,
     ...(readOnly() ? { level: campaignIndex } : { customLevel: level }), editorPreview: true });
+  board.style.width = `${screenWidth * previewGame.width / previewGame.viewportWidth}px`;
+  board.style.height = `${screenHeight * previewGame.height / previewGame.viewportHeight}px`;
+  board.style.aspectRatio = 'auto';
   const issues = portalPairIssues(previewGame.bricks);
   $('#portal-warning').hidden = !issues.length;
   $('#portal-warning').textContent = issues.length ? `Unfinished portals: ${issues.join(' ')} You can keep editing and save a draft; fix these before export or playtest.` : '';
@@ -901,6 +909,10 @@ function renderBoard() {
   const b = previewGame.bounds();
   $('#playable-area').style.cssText = `left:${b.left / previewGame.width * 100}%;top:${b.top / previewGame.height * 100}%;width:${(b.right - b.left) / previewGame.width * 100}%;height:${(b.bottom - b.top) / previewGame.height * 100}%`;
   const time = Number($('#timeline').value);
+  const camera = previewGame.camera(time);
+  const outline = $('#camera-outline');
+  outline.hidden = !level.autoscroll;
+  outline.style.cssText = `left:${camera.x / previewGame.width * 100}%;top:${camera.y / previewGame.height * 100}%;width:${camera.width / previewGame.width * 100}%;height:${camera.height / previewGame.height * 100}%`;
   $('#time-label').textContent = `${time.toFixed(1)}s`;
   const summary = [selectedBricks.size && plural(selectedBricks.size, 'brick'), selectedEvents.size && plural(selectedEvents.size, 'event')].filter(Boolean);
   $('#selection-summary').textContent = summary.length ? `${summary.join(' + ')} selected` : 'Nothing selected';
@@ -1624,8 +1636,15 @@ for (const [selector, entries] of [
 $('#settings-form').addEventListener('submit', event => {
   event.preventDefault();
   attempt(() => {
+    const length = $('#autoscroll-enabled').checked ? Number($('#scroll-length').value) : 8;
+    if (length !== (level.autoscroll?.length ?? 8) && level.brickGroups?.length) {
+      throw new TypeError('Split combined bricks before changing the board length.');
+    }
     const candidate = validateDraft({
       ...level, id: $('#level-name').value, duration: Number($('#duration').value),
+      autoscroll: $('#autoscroll-enabled').checked ? {
+        length, speed: Number($('#scroll-speed').value), events: level.autoscroll?.events ?? [],
+      } : undefined,
       survive: $('#win-condition').value === 'survive',
       catBlock: $('#cat-block-enabled').checked ? {
         description: readCatBlockTrigger() ? catBlockDescription(readCatBlockTrigger()) : level.catBlock.description,
@@ -1645,6 +1664,11 @@ $('#settings-form').addEventListener('submit', event => {
   });
 });
 function populateSettings() {
+  $('#autoscroll-enabled').checked = Boolean(level.autoscroll);
+  $('#scroll-length').value = level.autoscroll?.length ?? 16;
+  $('#scroll-speed').value = level.autoscroll?.speed ?? .25;
+  updateAutoscrollSettings();
+  renderCameraTimeline();
   $('#level-name').value = level.number ?? level.id; $('#duration').value = level.duration; $('#goal').value = level.goal;
   $('#kill-goal').value = level.killGoal ?? 0;
   $('#goals-goal').value = level.goalsGoal ?? 0;
@@ -1665,6 +1689,52 @@ function populateSettings() {
   $('#timeline').max = level.duration;
   $('#event-time').max = level.duration;
 }
+function updateAutoscrollSettings() {
+  const enabled = $('#autoscroll-enabled').checked;
+  $('#autoscroll-settings').disabled = !enabled;
+  $('#autoscroll-settings').hidden = !enabled;
+}
+$('#autoscroll-enabled').addEventListener('change', updateAutoscrollSettings);
+
+function renderCameraTimeline() {
+  $('#camera-timeline').hidden = !level.autoscroll;
+  $('#camera-access').disabled = readOnly();
+  $('#camera-events').replaceChildren(...(level.autoscroll?.events ?? []).map((event, index) => {
+    const row = document.createElement('div');
+    row.className = 'camera-event';
+    for (const [field, title, max] of [['time', 'Time (seconds)', level.duration], ['speed', 'Speed (bricks / second)', 100]]) {
+      const label = document.createElement('label'), input = document.createElement('input');
+      label.textContent = title;
+      input.type = 'number'; input.min = 0; input.max = max; input.step = 'any';
+      input.value = event[field];
+      input.addEventListener('change', () => attempt(() => {
+        if (readOnly()) return;
+        const events = level.autoscroll.events.map((entry, i) => i === index ? { ...entry, [field]: input.value === '' ? NaN : Number(input.value) } : entry);
+        level = validateDraft({ ...level, autoscroll: { ...level.autoscroll, events } });
+        markChanged(); renderCameraTimeline(); renderBoard();
+        message('Camera speed change updated.');
+      }, () => { input.value = event[field]; }));
+      label.append(input); row.append(label);
+    }
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.textContent = 'Remove';
+    remove.addEventListener('click', () => attempt(() => {
+      if (readOnly()) return;
+      level = validateDraft({ ...level, autoscroll: { ...level.autoscroll,
+        events: level.autoscroll.events.filter((_, i) => i !== index) } });
+      markChanged(); renderCameraTimeline(); renderBoard(); message('Camera speed change removed.');
+    }));
+    row.append(remove);
+    return row;
+  }));
+}
+$('#add-camera-event').addEventListener('click', () => attempt(() => {
+  if (readOnly()) return;
+  const time = Number($('#timeline').value);
+  const events = [...level.autoscroll.events, { time, speed: previewGame.camera(time).speed }];
+  level = validateDraft({ ...level, autoscroll: { ...level.autoscroll, events } });
+  markChanged(); renderCameraTimeline(); renderBoard(); message('Camera speed change added. Edit its speed below.');
+}));
 function updateWinCondition() {
   const survive = $('#win-condition').value === 'survive';
   $('#goal').disabled = survive;
@@ -1785,7 +1855,7 @@ $('#timeline').addEventListener('input', () => {
 });
 $('#show-all').addEventListener('change', renderBoard);
 $('#orientation').addEventListener('change', renderBoard);
-new ResizeObserver(renderBoard).observe(board);
+new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
 function validateSavedLevel({ draft = false } = {}) {
   return validateCustomLevel(level, { allowUnpairedPortals: draft, requireCatBlockConsistency: true });
 }

@@ -131,11 +131,11 @@ test('Boom Time placements, lifetimes, pickup sweeps and spawners use existing i
 test('editor settings round-trip limit, allow clearing it, and keep it independent of survival', () => {
   const nodes = new Map();
   const $ = selector => {
-    if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } });
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {}, replaceChildren() {}, addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);
   };
   const context = vm.createContext({ $, level: { ...blank(), activationLimit: 8 }, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateDraft: validateCustomLevel,
-    attempt: action => action(), markChanged() {}, render() {}, message() {} });
+    readOnly: () => false, attempt: action => action(), markChanged() {}, render() {}, message() {} });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);
   context.populateSettings(); assert.equal($('#activation-limit').value, 8);

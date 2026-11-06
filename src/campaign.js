@@ -47,7 +47,7 @@ const WORLDS = [
     },
   },
   {
-    id: '3', name: 'Robot Foundry', theme: 'foundry', special: false, next: [],
+    id: '3', name: 'Robot Foundry', theme: 'foundry', special: false, next: ['4'],
     levels: {
       '3-1': 'Tom\'s foundry kickoff',
       '3-2': 'Painting the pancake path',
@@ -80,6 +80,12 @@ const WORLDS = [
       '3S-10': 'Grand slam',
       '3S-11': 'Turret derby',
       '3S-12': 'The duck\'s last stand',
+    },
+  },
+  {
+    id: '4', name: 'Rolling Road', theme: 'workshop', special: false, next: [],
+    levels: {
+      '4-1': 'The rolling buffet',
     },
   },
 ];

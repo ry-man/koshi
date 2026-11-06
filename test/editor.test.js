@@ -511,11 +511,13 @@ test('editor settings select exclusive survival or score targets and preserve im
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { value: '', disabled: false, listeners: {},
+      replaceChildren() {},
       addEventListener(type, listener) { this.listeners[type] = listener; } });
     return nodes.get(selector);
   };
   const messages = [];
   const context = vm.createContext({ $, level: blank(), CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateDraft: validateCustomLevel,
+    readOnly: () => false,
     attempt: action => action(), markChanged() {}, render() {}, message: text => messages.push(text) });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);

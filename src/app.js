@@ -293,10 +293,10 @@ function saveResult() {
     newCatBlock: result.catBlock === true && !game.catBlockPreviouslyCollected,
     previousStats,
     newRecords: {
-      time: previousStats.bestTime === null || result.time < previousStats.bestTime,
-      food: previousStats.mostFood === null || result.food > previousStats.mostFood,
-      enemy: previousStats.mostEnemies === null || result.enemy > previousStats.mostEnemies,
-      goals: previousStats.mostGoals === null || result.goals > previousStats.mostGoals,
+      time: result.outcome === 'won' && (previousStats.bestTime === null || result.time < previousStats.bestTime),
+      food: result.outcome === 'won' && (previousStats.mostFood === null || result.food > previousStats.mostFood),
+      enemy: result.outcome === 'won' && (previousStats.mostEnemies === null || result.enemy > previousStats.mostEnemies),
+      goals: result.outcome === 'won' && (previousStats.mostGoals === null || result.goals > previousStats.mostGoals),
       moves: result.outcome === 'won'
         && (previousStats.fewestMoves === null || result.moves < previousStats.fewestMoves),
     },
@@ -422,6 +422,23 @@ document.querySelector('#save-discard').addEventListener('click', () => {
   saveError('');
 });
 
+function boardPoint(event) {
+  const bounds = board.getBoundingClientRect(), camera = game.camera();
+  return {
+    x: camera.x + (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * camera.width,
+    y: camera.y + (event.clientY - bounds.top - board.clientTop) / board.clientHeight * camera.height,
+  };
+}
+
+function brickClickPoint(event, brick) {
+  if (event.detail !== 0) return boardPoint(event);
+  const camera = game.camera();
+  return {
+    x: Math.max(camera.x, Math.min(camera.x + camera.width, brick.x + brick.w / 2)),
+    y: Math.max(camera.y, Math.min(camera.y + camera.height, brick.y + brick.h / 2)),
+  };
+}
+
 function makeBrickButtons() {
   const container = document.querySelector('#bricks');
   for (const effect of game.brickDestructions) {
@@ -534,19 +551,16 @@ function makeBrickButtons() {
       }
     }
     button.addEventListener('click', event => {
+      if (!game.brickVisible(brick)) return;
       if (game.activeTurret) {
         if (event.detail !== 0) return;
-        const bounds = board.getBoundingClientRect();
-        const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
-        const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
+        const { x, y } = brickClickPoint(event, brick);
         game.fireTurretAt(x, y);
         syncUI();
         return;
       }
       if (game.state !== 'playing' || brick.kind === 'goal' || brick.kind === 'cinder') return;
-      const bounds = board.getBoundingClientRect();
-      const x = event.detail === 0 ? brick.x + brick.w / 2 : (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
-      const y = event.detail === 0 ? brick.y + brick.h / 2 : (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
+      const { x, y } = brickClickPoint(event, brick);
       // Include clicks on the button border despite fractional CSS pixel rounding.
       const steering = tutorial ?? game;
       if (!steering.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
@@ -610,9 +624,7 @@ function makeBrickButtons() {
 
 board.addEventListener('click', event => {
   if (event.detail === 0 || game.state !== 'playing' || !game.activeTurret) return;
-  const bounds = board.getBoundingClientRect();
-  const x = (event.clientX - bounds.left - board.clientLeft) / board.clientWidth * game.width;
-  const y = (event.clientY - bounds.top - board.clientTop) / board.clientHeight * game.height;
+  const { x, y } = boardPoint(event);
   const fired = game.fireTurretAt(x, y);
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -1557,8 +1569,13 @@ function updateEnding(seconds) {
 
 function endingPose(sequence, width, height) {
   const progress = Math.min(1, sequence.elapsed / sequence.duration);
-  const startX = Math.max(40, Math.min(width - 40, sequence.game.cat.x));
-  const startY = Math.max(40, Math.min(height - 40, sequence.game.cat.y));
+  const cat = sequence.game.cat;
+  const insideX = Math.max(40, Math.min(width - 40, cat.x));
+  const insideY = Math.max(40, Math.min(height - 40, cat.y));
+  const approach = Math.min(1, progress / .6);
+  const slide = approach * approach * (3 - 2 * approach);
+  const startX = sequence.offscreenDeath ? cat.x + (insideX - cat.x) * slide : insideX;
+  const startY = sequence.offscreenDeath ? cat.y + (insideY - cat.y) * slide : insideY;
   if (sequence.state === 'won') {
     const approach = Math.max(0, (progress - .4) / .6);
     const eased = approach * approach * (3 - 2 * approach);
@@ -1592,7 +1609,10 @@ function drawGoalSpark(ctx, effect) {
 }
 
 function drawEnding() {
-  const pose = endingPose(ending, game.width, game.height);
+  const camera = game.camera();
+  const pose = endingPose({ ...ending, offscreenDeath: game.offscreenDeath,
+    game: { cat: { x: game.cat.x - camera.x, y: game.cat.y - camera.y } } }, camera.width, camera.height);
+  pose.x += camera.x; pose.y += camera.y;
   ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(pose.rotation); ctx.scale(pose.scale, pose.scale);
   drawWornCape(game, 0, 0);
   drawCat(0, 0, ending.elapsed, null, false, ending.state);
@@ -1777,11 +1797,21 @@ function drawTurretEffects(context) {
 
 function render(now) {
   const WIDTH = game.width, HEIGHT = game.height;
+  const camera = game.camera();
+  const ratioX = canvas.width / camera.width, ratioY = canvas.height / camera.height;
+  for (const context of [boardCtx, actorCtx]) {
+    context.setTransform(ratioX, 0, 0, ratioY, -camera.x * ratioX, -camera.y * ratioY);
+  }
+  const bricks = document.querySelector('#bricks');
+  bricks.style.width = `${WIDTH / camera.width * 100}%`;
+  bricks.style.height = `${HEIGHT / camera.height * 100}%`;
+  bricks.style.transform = `translate(${-camera.x / camera.width * board.clientWidth}px, ${-camera.y / camera.height * board.clientHeight}px)`;
+  for (const { brick, button, members } of buttons) button.inert = !game.brickVisible(brick, members);
   ctx = boardCtx;
-  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
   for (const fence of game.barrierSegments()) drawBarrier(ctx, fence);
   ctx.fillStyle = '#273941';
-  for (let x = 60; x < WIDTH; x += 30) for (let y = 60; y < HEIGHT; y += 30) {
+  for (let x = 60 + Math.max(0, Math.floor((camera.x - 60) / 30)) * 30; x < Math.min(WIDTH, camera.x + camera.width); x += 30) for (let y = 60 + Math.max(0, Math.floor((camera.y - 60) / 30)) * 30; y < Math.min(HEIGHT, camera.y + camera.height); y += 30) {
     ctx.beginPath(); ctx.arc(x, y, .8, 0, Math.PI * 2); ctx.fill();
   }
   ctx.strokeStyle = '#9dbb9e09'; ctx.lineWidth = 1;
@@ -1853,7 +1883,7 @@ function render(now) {
     ctx.fillText(`+${pickup.value}`, pickup.x, pickup.y - 20 - age * 45);
   }
   ctx = actorCtx;
-  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
   for (const enemy of game.robots) if (enemy.type === 'robo-cow') drawCowGrass(enemy);
   const goalBricks = game.bricks.filter(brick => brick.kind === 'goal' && brick.absorbedBy === null);
   if (goalBricks.length) {
@@ -3889,13 +3919,13 @@ function drawEnemyDeath(enemy) {
 }
 
 function resize() {
-  board.style.setProperty('--board-scale-x', board.clientWidth / game.width);
-  board.style.setProperty('--board-scale-y', board.clientHeight / game.height);
+  board.style.setProperty('--board-scale-x', board.clientWidth / game.viewportWidth);
+  board.style.setProperty('--board-scale-y', board.clientHeight / game.viewportHeight);
   const ratio = window.devicePixelRatio || 1;
   for (const layer of [canvas, actorCanvas]) {
     layer.width = Math.round(board.clientWidth * ratio);
     layer.height = Math.round(board.clientHeight * ratio);
-    layer.getContext('2d').setTransform(layer.width / game.width, 0, 0, layer.height / game.height, 0, 0);
+    layer.getContext('2d').setTransform(layer.width / game.viewportWidth, 0, 0, layer.height / game.viewportHeight, 0, 0);
   }
   render(performance.now() / 1000);
 }

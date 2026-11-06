@@ -30,9 +30,9 @@ test('phone world map uses the full screen and does not reserve a hidden details
   assert.match(phoneRules, /\.map-layout\[data-view="worlds"\]\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/);
 });
 
-test('worlds partition all 60 campaign identities into themed groups of 10, 24, 14 and 12', () => {
-  assert.deepEqual(WORLDS.map(world => worldLevels(world).length), [10, 24, 14, 12]);
-  assert.deepEqual(WORLDS.map(world => world.theme), ['garden', 'workshop', 'foundry', 'foundry']);
+test('worlds partition all 61 campaign identities into themed groups of 10, 24, 14, 12 and 1', () => {
+  assert.deepEqual(WORLDS.map(world => worldLevels(world).length), [10, 24, 14, 12, 1]);
+  assert.deepEqual(WORLDS.map(world => world.theme), ['garden', 'workshop', 'foundry', 'foundry', 'workshop']);
   assert.deepEqual(WORLDS.flatMap(world => worldLevels(world)), LEVELS);
   assert.equal(LEVELS[9].number, '1-10');
   assert.equal(LEVELS[10].number, '2-1');
@@ -40,10 +40,11 @@ test('worlds partition all 60 campaign identities into themed groups of 10, 24, 
   assert.equal(LEVELS[34].number, '3-1');
   assert.equal(LEVELS[47].number, '3-14');
   assert.equal(LEVELS[48].number, '3S-1');
-  assert.equal(LEVELS.at(-1).number, '3S-12');
+  assert.equal(LEVELS[59].number, '3S-12');
+  assert.equal(LEVELS.at(-1).number, '4-1');
   assert.deepEqual(LEVELS.map(level => level.id), LEVELS.map((_, i) => `1-${i + 1}`));
   for (const [i, level] of LEVELS.entries()) {
-    assert.equal(nextLevelIndex(i), [47, LEVELS.length - 1].includes(i) ? -1 : i + 1);
+    assert.equal(nextLevelIndex(i), i === 47 ? 60 : [59, 60].includes(i) ? -1 : i + 1);
     assert.equal(level.cutscene.theme, WORLDS.find(world => world.id === level.worldId).theme);
   }
 });
@@ -227,11 +228,11 @@ test('two-tier map selects worlds separately, moves Koshi, and reveals only that
   const fixture = mapFixture();
   const { map, selection, text, pictures } = fixture;
   map.open();
-  assert.equal(map.map.querySelectorAll('.map-node').length, 4, 'three main worlds and the World 3S branch');
-  assert.equal(map.map.children[0].children.length, 3, 'main path and the World 3S branch are drawn');
+  assert.equal(map.map.querySelectorAll('.map-node').length, 5, 'four main worlds and the World 3S branch');
+  assert.equal(map.map.children[0].children.length, 4, 'main path and the World 3S branch are drawn');
   map.selectWorld(WORLDS[1]);
   assert.equal(selection.value, '0', 'world selection alone does not commit a level');
-  assert.equal(map.map.querySelector('.map-koshi').style.left, '50%');
+  assert.equal(map.map.querySelector('.map-koshi').style.left, `${15 + 70 / 3}%`);
   assert.equal(map.play.hidden, true);
   map.showWorld(WORLDS[1]);
   assert.equal(map.map.querySelectorAll('.map-node').length, 24);
@@ -502,8 +503,8 @@ test('world selection shows campaign collectible totals but level maps do not', 
   map.open();
   const totals = map.map.children.find(child => child.className === 'collectible-totals');
   assert.deepEqual(Array.from(totals.children, child => child.getAttribute('aria-label')),
-    ['Flags: 0 of 60', 'Gold stars: 1 of 60', 'Cat Blocks: 1 of 10']);
-  assert.equal(text(totals).trim().replace(/\s+/g, ' '), '0/60 ★ 1/60 1/10');
+    ['Flags: 0 of 61', 'Gold stars: 1 of 61', 'Cat Blocks: 1 of 10']);
+  assert.equal(text(totals).trim().replace(/\s+/g, ' '), '0/61 ★ 1/61 1/10');
   map.showWorld(WORLDS[0]);
   assert.equal(map.map.children.some(child => child.className === 'collectible-totals'), false);
 });
@@ -610,12 +611,19 @@ test('victory map moves from the completed stop to the next, including world bou
   assert.equal(map.map.querySelectorAll('.map-node').length, 15);
   assert.equal(map.map.querySelectorAll('.map-node')[0].dataset.node, LEVELS[33].id);
   map.advanceFrom(47);
-  assert.equal(selection.value, '47');
-  assert.equal(map.map.querySelectorAll('.map-node').length, 14);
-  assert.equal(map.map.querySelector('.map-koshi').animation, undefined, 'no invented level after the finale');
+  assert.equal(map.world.id, '4');
+  assert.equal(selection.value, '60');
+  assert.equal(map.map.querySelectorAll('.map-node').length, 2);
+  assert.equal(map.map.querySelectorAll('.map-node')[0].dataset.node, LEVELS[47].id);
+  assert.equal(map.map.querySelector('.map-koshi').animation.frames.length, 2);
   map.advanceFrom(LEVELS.length - 1);
-  assert.equal(map.world.id, '3S');
+  assert.equal(map.world.id, '4');
   assert.equal(selection.value, String(LEVELS.length - 1));
+  assert.equal(map.map.querySelectorAll('.map-node').length, 1);
+  assert.equal(map.map.querySelector('.map-koshi').animation, undefined, 'the demo ends the main path');
+  map.advanceFrom(59);
+  assert.equal(map.world.id, '3S');
+  assert.equal(selection.value, '59');
   assert.equal(map.map.querySelectorAll('.map-node').length, 12);
   assert.equal(map.map.querySelector('.map-koshi').animation, undefined, 'the optional World 3S ends without a route onward');
 });

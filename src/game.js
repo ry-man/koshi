@@ -1301,8 +1301,86 @@ const CHALLENGE_LEVEL_DATA = [
     cutscene: story('foundry', entry.dialogue, cast),
   };
 });
+const SCROLLER_LEVEL_DATA = (() => {
+  const duration = 180;
+  // Three cycles each cover 4 slow + 12 fast bricks, with 24 seconds stopped.
+  const autoscroll = { length: 56, speed: 2 / 9, events: [
+    { time: 18, speed: 0 }, { time: 42, speed: 2 / 3 }, { time: 60, speed: 2 / 9 },
+    { time: 78, speed: 0 }, { time: 102, speed: 2 / 3 }, { time: 120, speed: 2 / 9 },
+    { time: 138, speed: 0 }, { time: 162, speed: 2 / 3 },
+  ] };
+  const bricks = makeBricks(true, 1, autoscroll.length);
+  const brickGroups = [];
+  for (let side = 0; side < 2; side++) {
+    for (let group = 0; group < 12; group++) {
+      const start = 10 + (group * 4 + Math.floor(group / 2)) * 2 + side;
+      const members = Array.from({ length: group === 11 ? 3 : 2 }, (_, i) => start + i * 2);
+      brickGroups.push({ owner: start, members });
+    }
+  }
+  const owners = new Map(brickGroups.flatMap(group => group.members.map(id => [id, group.owner])));
+  const activeBricks = bricks.filter(brick => !owners.has(brick.id) || owners.get(brick.id) === brick.id);
+  const styles = [
+    { crumbler: 12 }, { slimed: true, slimeColor: 'blue' }, { springs: true },
+    { conveyor: true, conveyorDirection: 'clockwise' }, { boost: true },
+    { toggle: 1 }, { barrier: true }, { turret: 'fireball' },
+    { spawner: { kind: 'food', type: 'H', lifetime: 15 } }, { warped: 8 },
+    { spikes: true }, { slimed: true, slimeColor: 'red' },
+    { turret: 'laser' }, { conveyor: true, conveyorDirection: 'counterclockwise' },
+    { spawner: { kind: 'weapon', type: 'silver', lifetime: 15 } },
+    { portal: 'blue' },
+  ];
+  let special = 0;
+  const attributes = new Map(activeBricks.map((brick, i) => [brick.id, {
+    kind: ['normal', 'slow', 'fast'][i % 3],
+    ...(i % 3 === Math.floor(i / 3) % 3 ? styles[special++ % styles.length] : {}),
+  }]));
+  const brickTypes = bricks.map(brick => ({ ...brick.region, ...attributes.get(owners.get(brick.id) ?? brick.id) }));
+  const height = boardDimensions(true, 1, autoscroll.length).height;
+  const inset = 8 + 45 + 25;
+  const events = [];
+  const place = (kind, type, time, across = .5, extra = {}) => {
+    const camera = cameraAt(autoscroll, time, true);
+    const y = (camera.y + camera.height * .55 - inset) / (height - 2 * inset);
+    events.push({ time, kind, type, x: across, y,
+      ...(['food', 'item', 'weapon'].includes(kind) ? { lifetime: Math.min(15, duration - time) } : {}), ...extra });
+  };
+  const foods = Object.keys(FOODS);
+  for (let wave = 0; wave < 15; wave++) {
+    for (let lane = 0; lane < 3; lane++) {
+      place('food', foods[(wave + lane) % foods.length], 2 + wave * 12, .25 + lane * .25);
+    }
+  }
+  const enemies = ['mouse', 'wheel', 'ram', 'bucket', 'ball', 'jackolantern',
+    'snake', 'goalie', 'robo-snail', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'mouse', 'ram', 'jackolantern', 'ball', 'robo-unicorn', 'robo-koshi'];
+  enemies.forEach((type, i) => place('enemy', type, 8 + i * 9.5,
+    ['wheel', 'snake', 'robo-cow'].includes(type) ? i % 2 : i % 2 ? .8 : .2,
+    type === 'ram' ? { shield: 'red' } : type === 'goalie' ? { shield: 'green' } : {}));
+  const items = ['smiley-cookie', 'battery', 'music-box', 'paint-pencil-red', 'magic-sunglasses',
+    'kitty-cape', 'spooky-mask', 'ditto-stamp'];
+  items.forEach((type, i) => place('item', type, 4 + i * 23, i % 2 ? .35 : .65));
+  for (const [i, time] of [0, 44, 104, 164].entries()) {
+    place('weapon', ['wood', 'bronze', 'silver'][i % 3], time, .5);
+  }
+  const objects = ['bumper-red', 'bubble-blue', 'obstruction-circle', 'bumper-green',
+    'soccer-ball', 'bubble-green', 'obstruction-diamond', 'bumper-blue', 'bubble-red'];
+  objects.forEach((type, i) => place('object', type, 10 + i * 19, i % 2 ? .7 : .3));
+  events.sort((a, b) => a.time - b.time);
+  return [{
+    id: '1-61', name: 'The rolling buffet', concept: 'autoscroll', duration,
+    goal: 0, killGoal: 0, survive: true, heartCost: 40, brickSet: 3, autoscroll,
+    brickTypes, brickGroups, food: [], enemies: [], items: [], weapons: [], events,
+    cutscene: story('workshop', [
+      ['tom', 'Welcome to the Rolling Road! My 56-brick buffet has room to roam. Survive the whole 180-second trip, if you can!'],
+      ['koshi', 'Three stretches roll slowly, stop for a breather, then speed up. I will grab food and swords along the way!'],
+      ['mouse', 'Green, blue and red bricks share the road, with bigger bricks and special tricks along the way. Watch for more robots and the linked blue Portals!'],
+      ['koshi', 'Only the bricks on screen can steer me. I can keep moving while the camera stops, and Pause freezes everything. Time for a rolling feast!'],
+    ], ['mouse', 'wheel']),
+  }];
+})();
 const LEVEL_DATA = {};
-for (const level of [...BASE_LEVEL_DATA, ...FOUNDRY_LEVEL_DATA, ...CHALLENGE_LEVEL_DATA]) {
+for (const level of [...BASE_LEVEL_DATA, ...FOUNDRY_LEVEL_DATA, ...CHALLENGE_LEVEL_DATA, ...SCROLLER_LEVEL_DATA]) {
   if (Object.hasOwn(LEVEL_DATA, level.name)) throw new Error(`Duplicate level name: ${level.name}`);
   LEVEL_DATA[level.name] = level;
 }
@@ -1439,6 +1517,23 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, requireCatBl
   if (value.goalsGoal !== undefined) result.goalsGoal = goalsGoal;
   if (value.activationLimit !== undefined) result.activationLimit = value.activationLimit;
   if (value.survive !== undefined) result.survive = value.survive;
+  if (value.autoscroll !== undefined) {
+    const scroll = value.autoscroll;
+    if (!scroll || typeof scroll !== 'object' || Array.isArray(scroll)) fail('Autoscroll must be an object.');
+    const length = number(scroll.length, 8, 1000, 'Autoscroll length');
+    if (!Number.isInteger(length)) fail('Autoscroll length must be a whole brick count.');
+    const speed = number(scroll.speed, 0, 100, 'Initial camera speed');
+    if (!Array.isArray(scroll.events) || scroll.events.length > 2000) fail('Camera events must be an array of at most 2000 speed changes.');
+    const times = new Set();
+    result.autoscroll = { length, speed, events: scroll.events.map((event, i) => {
+      if (!event || typeof event !== 'object' || Array.isArray(event)) fail(`Camera event ${i + 1} must be an object.`);
+      const time = number(event.time, 0, duration, `Camera event ${i + 1} time`);
+      if (time >= duration) fail(`Camera event ${i + 1} must occur before the level ends.`);
+      if (times.has(time)) fail('Camera events must have distinct times.');
+      times.add(time);
+      return { time, speed: number(event.speed, 0, 100, `Camera event ${i + 1} speed`) };
+    }).sort((a, b) => a.time - b.time) };
+  }
   if (value.catBlock !== undefined) {
     const catBlock = value.catBlock;
     if (!catBlock || typeof catBlock !== 'object' || Array.isArray(catBlock)
@@ -1542,14 +1637,15 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, requireCatBl
       return override;
     });
   }
-  const bricks = makeBricks();
+  const bricks = makeBricks(false, 1, result.autoscroll?.length);
   applyBrickTypes(bricks, result.brickTypes);
   if (value.brickGroups !== undefined) {
-    if (!Array.isArray(value.brickGroups) || value.brickGroups.length > bricks.length / 2) fail('Brick groups must be an array of at most 13 groups.');
-    const used = new Set(), perimeter = brickPerimeter(bricks, WIDTH, HEIGHT);
+    if (!Array.isArray(value.brickGroups) || value.brickGroups.length > bricks.length / 2) fail(`Brick groups must be an array of at most ${Math.floor(bricks.length / 2)} groups.`);
+    const dimensions = boardDimensions(false, 1, result.autoscroll?.length);
+    const used = new Set(), perimeter = brickPerimeter(bricks, dimensions.width, dimensions.height);
     result.brickGroups = value.brickGroups.map((group, i) => {
       const name = `Brick group ${i + 1}`;
-      if (!group || !Array.isArray(group.members) || group.members.length < 2 || group.members.length > bricks.length) fail(`${name} needs 2–26 brick IDs.`);
+      if (!group || !Array.isArray(group.members) || group.members.length < 2 || group.members.length > bricks.length) fail(`${name} needs 2–${bricks.length} brick IDs.`);
       const members = group.members.map(id => {
         if (!Number.isInteger(id) || id < 0 || id >= bricks.length || used.has(id)) fail(`${name} has an invalid, duplicate, or overlapping brick ID.`);
         used.add(id); return id;
@@ -2094,13 +2190,36 @@ function brickRecharge(parts, bricks, perimeter, width, height) {
   });
 }
 
-function makeBricks(portrait = false, scale = 1) {
+function boardDimensions(portrait = false, scale = 1, length = 8) {
+  const thickness = portrait ? 45 / scale : 45;
+  const pitch = (WIDTH - 2 * (8 + thickness + 8) - 8 * 7) / 8 + 8;
+  const long = WIDTH + (length - 8) * pitch;
+  return { width: portrait ? HEIGHT : long, height: portrait ? long : HEIGHT, pitch };
+}
+
+function cameraAt(scroll, time, portrait = false, scale = 1) {
+  const { width, height, pitch } = boardDimensions(portrait, scale, scroll?.length);
+  const viewportWidth = portrait ? HEIGHT : WIDTH, viewportHeight = portrait ? WIDTH : HEIGHT;
+  const end = portrait ? height - viewportHeight : width - viewportWidth;
+  let distance = 0, previous = 0, speed = scroll?.speed ?? 0;
+  for (const event of scroll?.events ?? []) {
+    if (event.time > time) break;
+    distance += (event.time - previous) * speed * pitch;
+    previous = event.time;
+    speed = event.speed;
+  }
+  distance = Math.min(end, Math.max(0, distance + (time - previous) * speed * pitch));
+  return { x: portrait ? 0 : distance, y: portrait ? distance : 0,
+    width: viewportWidth, height: viewportHeight, speed: distance >= end ? 0 : speed };
+}
+
+function makeBricks(portrait = false, scale = 1, length = 8) {
   const bricks = [];
   const add = (x, y, w, h, kind = 'normal') =>
     bricks.push({ id: bricks.length, x, y, w, h, kind, readyAt: 0 });
-  const width = HEIGHT, height = WIDTH;
+  const width = HEIGHT, height = boardDimensions(true, portrait ? scale : 1, length).height;
   const inset = 8, gap = 8, thickness = portrait ? 45 / scale : 45;
-  const columns = 5, rows = 8;
+  const columns = 5, rows = length;
   const sideStart = inset + thickness + gap;
   const horizontal = (width - inset * 2 - gap * (columns - 1)) / columns;
   const vertical = (height - sideStart * 2 - gap * (rows - 1)) / rows;
@@ -2161,7 +2280,7 @@ function blockFireWave(wave, parts, previousRadius = 0, obstructions = []) {
   const polygons = parts.map(part => [[part.x, part.y], [part.x + part.w, part.y],
     [part.x + part.w, part.y + part.h], [part.x, part.y + part.h]]);
   for (const obstruction of obstructions) {
-    const shape = OBJECTS[obstruction.type].obstruction;
+    const shape = OBJECTS[obstruction.type].bumper ? 'circle' : OBJECTS[obstruction.type].obstruction;
     const { x, y, radius, width, height } = obstruction;
     if (shape === 'circle') {
       polygons.push(Array.from({ length: 128 }, (_, i) => {
@@ -2398,13 +2517,17 @@ class Game {
     this.catBlockPreviouslyCollected = catBlockCollected;
     this.portrait = portrait;
     this.scale = scale;
-    this.width = portrait ? HEIGHT : WIDTH;
-    this.height = portrait ? WIDTH : HEIGHT;
+    const dimensions = boardDimensions(portrait, scale, this.level.autoscroll?.length);
+    this.width = dimensions.width;
+    this.height = dimensions.height;
+    this.viewportWidth = portrait ? HEIGHT : WIDTH;
+    this.viewportHeight = portrait ? WIDTH : HEIGHT;
     this.reset();
   }
 
   reset() {
     this.state = 'ready';
+    this.offscreenDeath = false;
     this.elapsed = 0;
     this.timeBonus = 0;
     this.moves = 0;
@@ -2430,9 +2553,9 @@ class Game {
     this.nextEvent = 0;
     this.food = [];
     this.items = [];
-    this.bricks = makeBricks(this.portrait, this.scale);
+    this.bricks = makeBricks(this.portrait, this.scale, this.level.autoscroll?.length);
     this.brickRevision = 0;
-    this.cat = { x: this.width / 2, y: this.height / 2, radius: 21, vx: 0, vy: 0 };
+    this.cat = { x: this.viewportWidth / 2, y: this.viewportHeight / 2, radius: 21, vx: 0, vy: 0 };
     this.catHistory = [{ time: 0, x: this.cat.x, y: this.cat.y }];
     this.tickStart = null;
     this.target = null;
@@ -2569,7 +2692,11 @@ class Game {
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
     if (this.state !== 'playing' || this.activeTurret || this.bubbleTrap
-      || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick)) return false;
+      || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick) || !this.brickVisible(brick)) return false;
+    if (this.level.autoscroll) {
+      const camera = this.camera();
+      if (x < camera.x || x > camera.x + camera.width || y < camera.y || y > camera.y + camera.height) return false;
+    }
     const parts = this.brickParts();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
@@ -2789,6 +2916,7 @@ class Game {
           : spawn.kind === 'weapon' ? this.weapons : spawn.kind === 'item' ? this.items : spawn.kind === 'heart' ? this.healing
             : OBJECTS[spawn.type].bumper ? this.bumpers : OBJECTS[spawn.type].bubble ? this.bubbles : this.soccerBalls;
         target.push(...items);
+        this.clearBlockedPickups();
       }
       return;
     }
@@ -2812,6 +2940,7 @@ class Game {
     }
     else this.food.push({ ...this.randomPickupPoint(), id: this.foodId++, type: spawn.type,
       born: this.elapsed, lifetime: spawn.lifetime, expires: this.elapsed + spawn.lifetime });
+    this.clearBlockedPickups();
   }
 
   touchSpawner(brick) {
@@ -3116,6 +3245,7 @@ class Game {
     prepare(this.level.enemies, this.nextEnemy, 'enemy', event => this.createEnemies(event));
     prepare(this.level.weapons, this.nextWeapon, 'weapon', ([time, type, lifetime]) => [this.createCollectible(time, type, lifetime)]);
     prepare(this.level.items ?? [], this.nextItem, 'item', ([time, type, lifetime]) => [this.createCollectible(time, type, lifetime)]);
+    this.clearBlockedPickups();
   }
 
   get spawnCues() {
@@ -3138,7 +3268,8 @@ class Game {
         }
       }
     }
-    return items;
+    return items.filter(item => !(Object.hasOwn(FOODS, item.type) || Object.hasOwn(ITEMS, item.type)
+      || Object.hasOwn(SWORDS, item.type)) || this.pickupClear(item));
   }
 
   spawn(event) {
@@ -3153,7 +3284,7 @@ class Game {
       const points = [];
       const bounds = { left: margin, top: margin, right: this.width - margin, bottom: this.height - margin };
       for (let i = 0; i < count; i++) {
-        points.push(this.findRandomSpawnPoint(bounds, [...crowd, ...points], SPAWN_SPACING));
+        points.push(this.findRandomSpawnPoint(bounds, [...crowd, ...points], SPAWN_SPACING, point => this.pickupClear(point)));
       }
       return points.map(point => ({ ...point, id: this.foodId++, type, born: time, expires: time + lifetime, lifetime }));
     }
@@ -3189,10 +3320,12 @@ class Game {
     let points = null, bestGap = -Infinity;
     for (let attempt = 0; attempt < 160; attempt++) {
       const candidate = layout(attempt >= 32);
+      if (!candidate.every(point => this.pickupClear(point))) continue;
       const gap = Math.min(...candidate.map(point => nearestGap(point, crowd)));
       if (gap > bestGap) { points = candidate; bestGap = gap; }
       if (gap >= SPAWN_SPACING) break;
     }
+    if (!points) throw new RangeError('No safe food pattern location is available.');
     return points.map(({ x, y }) => ({ id: this.foodId++, x, y, type, born: time, expires: time + lifetime, lifetime }));
   }
 
@@ -3208,6 +3341,31 @@ class Game {
     return {
       left: inset, top: inset, right: this.width - inset, bottom: this.height - inset,
     };
+  }
+
+  camera(time = this.elapsed) {
+    return cameraAt(this.level.autoscroll, time, this.portrait, this.scale);
+  }
+
+  brickVisible(brick, members = null) {
+    if (!this.level.autoscroll) return true;
+    const camera = this.camera();
+    return (members ?? this.bricks).some(part => (part.id === brick.id || part.absorbedBy === brick.id)
+      && part.x < camera.x + camera.width && part.x + part.w > camera.x
+      && part.y < camera.y + camera.height && part.y + part.h > camera.y);
+  }
+
+  checkOffscreenDeath() {
+    if (!this.level.autoscroll || this.state !== 'playing') return false;
+    const camera = this.camera(), cat = this.cat;
+    if (cat.x + cat.radius > camera.x && cat.x - cat.radius < camera.x + camera.width
+      && cat.y + cat.radius > camera.y && cat.y - cat.radius < camera.y + camera.height) return false;
+    this.offscreenDeath = true;
+    this.hearts = 0; this.tookDamage = true;
+    cat.vx = 0; cat.vy = 0;
+    this.boosted = false; this.target = null;
+    this.state = 'lost';
+    return true;
   }
 
   randomPoint(isSafe = null, spacing = 0) {
@@ -3259,11 +3417,11 @@ class Game {
 
   randomStampPoint(spacing = SPAWN_SPACING) {
     const parts = this.brickParts();
-    return this.randomPoint(point => this.stampSpawnClear(point, parts), spacing);
+    return this.randomPoint(point => this.stampSpawnClear(point, parts) && this.pickupClear(point), spacing);
   }
 
   randomPickupPoint() {
-    return this.randomPoint(null, SPAWN_SPACING);
+    return this.randomPoint(point => this.pickupClear(point), SPAWN_SPACING);
   }
 
   pointFromRelative(x, y) {
@@ -3272,7 +3430,9 @@ class Game {
   }
 
   campaignEventCoordinates(x, y) {
-    return this.levelIndex >= 0 && !this.portrait ? { x: 1 - y, y: x } : { x, y };
+    if (this.levelIndex < 0 || this.portrait) return { x, y };
+    // Scrolling campaign placements keep forward progress from the top/left start in both layouts.
+    return this.level.autoscroll ? { x: y, y: 1 - x } : { x: 1 - y, y: x };
   }
 
   campaignEventPoint(x, y) {
@@ -3296,6 +3456,7 @@ class Game {
       if (target === this.obstructions) appearing.push(...items);
     }
     for (const obstruction of appearing) this.clearAppearingObstruction(obstruction);
+    this.clearBlockedPickups();
   }
 
   customEventPoints(event, { preview = false } = {}) {
@@ -3340,8 +3501,11 @@ class Game {
     if (event.random && !preview) {
       const area = { left: areaBounds.left + reachX, right: areaBounds.right - reachX,
         top: areaBounds.top + reachY, bottom: areaBounds.bottom - reachY };
-      const safe = needsBrickSpawnClearance(event.type)
-        ? point => offsets.every(offset => this.stampSpawnClear({ x: point.x + offset.x, y: point.y + offset.y })) : null;
+      const safe = ['food', 'item', 'weapon'].includes(event.kind)
+        ? point => offsets.every(offset => {
+          const position = { x: point.x + offset.x, y: point.y + offset.y };
+          return this.pickupClear(position) && (!needsBrickSpawnClearance(event.type) || this.stampSpawnClear(position));
+        }) : null;
       center = this.findRandomSpawnPoint(area, this.collectiblePoints(), SPAWN_SPACING + size / 2, safe);
     } else center = event.random ? this.pointFromRelative(.5, .5) : this.campaignEventPoint(event.x, event.y);
     // Keep an explicitly centered formation intact when space near an edge is limited.
@@ -3425,6 +3589,7 @@ class Game {
       this.boosted = false; this.target = null;
       this.state = 'lost';
     }
+
     this.robots = this.robots.filter(enemy => {
       if (enemy.type === 'robo-koshi') return true;
       const parts = enemy.type === 'snake' ? this.snakeSegments(enemy) : [enemy];
@@ -3434,6 +3599,24 @@ class Game {
     });
     for (const field of ['food', 'items', 'weapons', 'healing', 'soccerBalls', 'bubbles', 'bumpers']) {
       this[field] = this[field].filter(item => !overlaps(item));
+    }
+  }
+
+  pickupClear(item) {
+    const radius = item.radius ?? 14;
+    return this.bumpers.every(bumper => Math.hypot(item.x - bumper.x, item.y - bumper.y) >= bumper.radius + radius - 1e-7)
+      && this.obstructions.every(obstruction => obstructionSurface(item.x, item.y, obstruction).gap >= radius - 1e-7);
+  }
+
+  clearBlockedPickups() {
+    if (!this.bumpers.length && !this.obstructions.length) return;
+    for (const field of ['food', 'items', 'weapons', 'healing']) {
+      this[field] = this[field].filter(item => this.pickupClear(item));
+    }
+    for (const pending of this.pendingSpawns.values()) {
+      if (['food', 'item', 'weapon', 'heart'].includes(pending.kind)) {
+        pending.items = pending.items.filter(item => this.pickupClear(item));
+      }
     }
   }
 
@@ -3947,11 +4130,13 @@ class Game {
       this.catBlockProgress.defeated[enemy.type] = (this.catBlockProgress.defeated[enemy.type] ?? 0) + 1;
     }
     if (enemy.carriesKey) {
-      this.items.push(this.createCollectible(this.elapsed, 'key', null, { x: enemy.x, y: enemy.y }));
+      const key = this.createCollectible(this.elapsed, 'key', null, { x: enemy.x, y: enemy.y });
+      if (this.pickupClear(key)) this.items.push(key);
       enemy.carriesKey = false;
     }
     if (enemy.carriesCatBlock && !this.catBlockCollected) {
-      this.items.push({ ...this.createCollectible(this.elapsed, 'cat-block', null, { x: enemy.x, y: enemy.y }), source: 'enemy' });
+      const block = { ...this.createCollectible(this.elapsed, 'cat-block', null, { x: enemy.x, y: enemy.y }), source: 'enemy' };
+      if (this.pickupClear(block)) this.items.push(block);
       enemy.carriesCatBlock = false;
     }
     this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
@@ -4000,7 +4185,7 @@ class Game {
     enemy.waves = enemy.waves.filter(wave => {
       const previousRadius = wave.radius;
       wave.radius += 120 * seconds;
-      blockFireWave(wave, parts, previousRadius, this.obstructions);
+      blockFireWave(wave, parts, previousRadius, [...this.obstructions, ...this.bumpers]);
       if (!enemy.afraid && fireTouchesCat(wave, previousRadius, this.cat, startX, startY)) this.takeDamage();
       return wave.radius <= Math.hypot(this.width, this.height)
         && wave.blocked.some((_, side) => fireIntervals(wave, side).length);
@@ -4027,7 +4212,7 @@ class Game {
   releaseJackolanternStomp(enemy, parts) {
     if (enemy.asleep || enemy.afraid || enemy.stompTimer > 1e-9) return;
     const wave = { x: enemy.x, y: enemy.y, radius: 0, blocked: [[], [], [], []] };
-    blockFireWave(wave, parts, 0, this.obstructions);
+    blockFireWave(wave, parts, 0, [...this.obstructions, ...this.bumpers]);
     enemy.waves.push(wave);
     enemy.stompTimer += 4;
     enemy.stompAge = 0;
@@ -4923,6 +5108,7 @@ class Game {
   }
 
   combat(dt, startX, startY) {
+    this.clearBlockedPickups();
     if (this.weapon && this.weapon.expires <= this.elapsed + 1e-9) this.weapon = null;
     const collected = [];
     const dx = this.cat.x - startX, dy = this.cat.y - startY, length = Math.hypot(dx, dy);
@@ -5431,6 +5617,7 @@ class Game {
 
   tick(dt) {
     this.tickStart = { time: this.elapsed, x: this.cat.x, y: this.cat.y };
+    if (this.checkOffscreenDeath()) { this.tickStart = null; return; }
     this.updateEnemyDeaths(dt);
     this.updateGoalEffects(dt);
     this.updatePickups(dt);
@@ -5451,6 +5638,7 @@ class Game {
       this.stuckUntil = 0;
     }
     this.updateBubbleTrap(dt);
+    if (this.checkOffscreenDeath()) { this.tickStart = null; return; }
     this.restoreWarps();
     this.updateBarriers(dt);
     this.prepareSpawns();
@@ -5481,6 +5669,7 @@ class Game {
       }
     }
     if (this.state !== 'playing') { this.tickStart = null; return; }
+    this.clearBlockedPickups();
     this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();
@@ -5730,6 +5919,13 @@ class Game {
       cat.vx = 0; cat.vy = 0;
     }
     if (!cat.vx && !cat.vy) this.boosted = false;
+    this.clearBlockedPickups();
+    if (this.checkOffscreenDeath()) {
+      this.checkCatBlockAchievement();
+      this.recordCatPosition();
+      this.tickStart = null;
+      return;
+    }
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';
     } else if (!this.level.survive && this.score >= this.level.goal && this.enemies >= (this.level.killGoal ?? 0)
@@ -5746,7 +5942,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

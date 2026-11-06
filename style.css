@@ -147,6 +147,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .board[data-portrait="true"] { aspect-ratio: 5 / 8; width: min(100% - 32px, calc((100svh - 216px) * .625)); margin: 6px auto; }
 canvas { display: block; width: 100%; height: 100%; }
 #actors { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+#bricks { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .brick { --brick-fill: var(--brick-color); position: absolute; border: 1px solid #ffffff27; border-radius: 4px; padding: 0; background-color: var(--brick-fill); box-shadow: inset 0 2px 0 #ffffff20, 0 2px 4px #0003; overflow: hidden; transition: filter .12s, background-color .15s; touch-action: manipulation; }
 .brick:hover:not([aria-disabled="true"]) { filter: brightness(1.25); }
 .brick[aria-disabled="true"] { --brick-fill: color-mix(in srgb, var(--brick-color) 25%, #17232c); cursor: not-allowed; box-shadow: none; }
