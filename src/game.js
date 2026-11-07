@@ -1401,7 +1401,8 @@ LEVEL_DATA['Tom the Toaster'] = {
   ], ['boss']),
 };
 const campaign = typeof module !== 'undefined' && module.exports ? require('./campaign.js') : globalThis.KoshiCampaign;
-const LEVELS = campaign.assembleCampaign(LEVEL_DATA);
+const LEVELS = campaign.assembleCampaign(
+  globalThis.KoshiCampaignMode?.active.id === 'official' ? campaign.OFFICIAL_LEVEL_DATA : LEVEL_DATA);
 
 function portalPairIssues(bricks) {
   return Object.keys(PORTALS).flatMap(color => {
@@ -2560,16 +2561,16 @@ function rotateToward(angle, target, maximum) {
 }
 
 class Game {
-  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, customLevel = null, editorPreview = false, catBlockCollected = false } = {}) {
+  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, levels = LEVELS, customLevel = null, editorPreview = false, catBlockCollected = false } = {}) {
     if (customLevel) {
       this.customLevel = validateCustomLevel(customLevel, { allowUnpairedPortals: editorPreview, allowIncompleteBoss: editorPreview });
       this.levelIndex = -1;
       this.level = { ...this.customLevel, heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [], items: [] };
       this.customEvents = [...this.customLevel.events].sort((a, b) => a.time - b.time);
     } else {
-      if (!LEVELS[level]) throw new RangeError(`Unknown level: ${level}`);
+      if (!levels[level]) throw new RangeError(`Unknown level: ${level}`);
       this.levelIndex = level;
-      this.level = LEVELS[level];
+      this.level = levels[level];
       this.customEvents = [...(this.level.events ?? [])].sort((a, b) => a.time - b.time);
     }
     this.random = random;

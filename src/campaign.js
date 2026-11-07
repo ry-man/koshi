@@ -91,7 +91,41 @@ const WORLDS = [
   },
 ];
 
-function assembleCampaign(levelData, worlds = WORLDS) {
+const BETA_WORLDS = WORLDS;
+const officialThemes = [
+  ['Happy Meadows', '#76c96a'], ['Catnip Beach', '#f1d65c'],
+  ['Fuzzy Falls', '#68a9ee'], ['Mouser Mesa', '#eea052'],
+  ['Alpine Litterbox', '#eeeeee'], ['Yarnball Moon', '#b08ae3'],
+  ['Hairball Swamp', '#b58a65'], ['Meownt Vesuvius', '#e66c68'],
+];
+const OFFICIAL_WORLDS = officialThemes.flatMap(([name, color], index) => {
+  const id = String(index + 1), angle = Math.PI + index * Math.PI / 4;
+  const specialAngle = angle + Math.PI / 8;
+  return [
+    {
+      id, name, theme: 'official', color, special: false,
+      next: [index === 7 ? '9' : String(index + 2), `S${id}`, ...(index === 0 ? ['C'] : [])],
+      mapPosition: { x: 56 + 27 * Math.cos(angle), y: 50 + 27 * Math.sin(angle) },
+      levels: {},
+    },
+    {
+      id: `S${id}`, name: `Special ${name}`, theme: 'official', color,
+      special: true, next: [],
+      mapPosition: { x: 56 + 36 * Math.cos(specialAngle), y: 50 + 36 * Math.sin(specialAngle) },
+      levels: {},
+    },
+  ];
+});
+OFFICIAL_WORLDS.push(
+  { id: '9', name: 'Robot HQ', theme: 'official', color: '#ed9bc3', special: false, next: [],
+    mapPosition: { x: 56, y: 50 }, levels: {} },
+  { id: 'C', name: 'Cat Town', theme: 'official', color: '#a5aab1', special: false, next: [],
+    mapPosition: { x: 10, y: 50 }, levels: {} },
+);
+const OFFICIAL_LEVEL_DATA = {};
+const activeWorlds = globalThis.KoshiCampaignMode?.active.id === 'official' ? OFFICIAL_WORLDS : BETA_WORLDS;
+
+function assembleCampaign(levelData, worlds = activeWorlds) {
   const worldIds = new Set(), numbers = new Set(), assigned = new Set();
   for (const world of worlds) {
     if (typeof world.id !== 'string' || !world.id || worldIds.has(world.id)) {
@@ -121,7 +155,7 @@ function assembleCampaign(levelData, worlds = WORLDS) {
   });
 }
 
-const api = { WORLDS, assembleCampaign };
+const api = { WORLDS: activeWorlds, BETA_WORLDS, OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiCampaign = api;
 })();

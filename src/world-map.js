@@ -6,6 +6,19 @@ const { WORLDS, worldLevels, levelFeatures, nextLevelIndex } = globalThis.KoshiW
 const { levelStats } = globalThis.KoshiSaves;
 const { catBlockIcon, goldStarIcon, collectibleTotals } = globalThis.KoshiCollectibles;
 
+const OFFICIAL_EMBLEMS = {
+  C: 'M6 8H10V4H14V8H18V12H30V8H34V4H38V8H42V28H38V32H34V36H14V32H10V28H6ZM14 18V22H18V18ZM30 18V22H34V18ZM22 26V30H26V26Z',
+  1: 'M20 2H28V6H32V10H36V14H32V18H40V26H28V38H20V26H8V18H16V14H12V10H16V6H20Z',
+  2: 'M14 12H18V8H30V12H34V16H38V12H44V28H38V24H34V28H30V32H18V28H14V24H6V16H14ZM18 16V20H22V16Z',
+  3: 'M22 2H26V6H30V14H34V18H38V30H34V34H30V38H18V34H14V30H10V18H14V14H18V6H22ZM14 22V30H18V22Z',
+  4: 'M20 4H28V20H32V12H40V24H36V28H28V36H32V40H16V36H20V24H12V20H8V8H16V16H20Z',
+  5: 'M22 0H26V8H30V4H34V8H30V12H26V16H30V12H34V16H38V12H42V16H38V20H48V24H38V28H42V32H38V28H34V32H30V28H26V32H30V36H34V40H30V36H26V40H22V32H18V36H14V32H18V28H22V24H18V28H14V24H10V28H6V24H10V20H0V16H10V12H6V8H10V12H14V8H18V12H22V8H18V4H14V0H18V4H22Z',
+  6: 'M20 2H32V6H24V10H20V26H24V30H32V34H40V30H44V34H40V38H20V34H12V30H8V10H12V6H20Z',
+  7: 'M14 8H34V12H42V16H46V28H42V32H34V36H14V32H6V28H2V16H6V12H14ZM24 18V36H34V32H30V28H28V24Z',
+  8: 'M18 14H30V18H34V26H38V30H42V34H46V38H2V34H6V30H10V26H14V18H18ZM18 14H22V22H26V14ZM20 2H24V6H28V10H24V14H20V10H16V6H20ZM32 6H36V10H32ZM8 8H12V12H8Z',
+  9: 'M22 2H26V6H30V10H38V14H42V30H38V34H10V30H6V14H10V10H22ZM14 18V24H20V18ZM28 18V24H34V18ZM18 28V30H30V28Z',
+};
+
 function collectibleHint(button, id, text, activate) {
   const description = document.createElement('p');
   description.id = id;
@@ -50,6 +63,7 @@ class WorldMap {
     this.layout = document.querySelector('#map-layout');
     this.details = document.querySelector('#map-details');
     this.heading = document.querySelector('#level-picker-heading');
+    this.totals = document.querySelector('#map-collection-totals');
     this.back = document.querySelector('#world-map-back');
     this.play = document.querySelector('#level-picker-play');
     this.close = document.querySelector('#level-picker-close');
@@ -65,12 +79,33 @@ class WorldMap {
     this.view = 'worlds';
     this.layout.dataset.view = 'worlds';
     this.details.hidden = true;
+    this.setCutsceneOption(null);
     const level = LEVELS[Number(this.selection.value)];
     this.world = WORLDS.find(world => world.id === level?.worldId) ?? WORLDS[0];
-    this.heading.textContent = 'World map';
+    this.heading.textContent = 'World Map';
+    this.totals.replaceChildren(collectibleTotals(this.profile(), LEVELS, document));
     this.back.hidden = true;
     this.play.hidden = true;
     this.map.classList.remove('map-zoom');
+    const official = WORLDS.some(world => world.mapPosition);
+    if (official) this.map.classList.add('official-world-map');
+    else this.map.classList.remove('official-world-map');
+    if (!WORLDS.length) {
+      this.heading.textContent = 'Official World Map';
+      const message = document.createElement('p');
+      message.className = 'campaign-empty-message';
+      message.textContent = 'Official campaign under construction. No worlds or levels have been added yet. Switch to Beta to play the existing campaign.';
+      this.map.replaceChildren(message);
+      const custom = this.custom();
+      if (custom) {
+        this.details.replaceChildren(this.objectives(custom));
+        this.details.hidden = false;
+        this.selection.value = 'custom';
+        this.play.hidden = false;
+        this.setCutsceneOption(custom);
+      }
+      return;
+    }
     const main = WORLDS.filter(world => !world.special);
     const columns = Math.max(1, main.length - 1 + (WORLDS.some(world => world.special
       && main.at(-1).next.includes(world.id)) ? .5 : 0));
@@ -84,8 +119,9 @@ class WorldMap {
       const goldStars = levels.filter(level => levelStats(profile?.results, level.id).goldStar).length;
       const catBlocks = catBlockLevels.filter(level => foundCatBlocks.has(level.id)).length;
       return { id: world.id, label: `World ${world.id}`, subtitle: world.name,
-        x: 15 + column * 70 / columns, y: world.special ? 73 : 30,
-        theme: world.theme, special: world.special, completed: this.completed(world),
+        x: world.mapPosition?.x ?? 15 + column * 70 / columns,
+        y: world.mapPosition?.y ?? (world.special ? 73 : 30),
+        theme: world.theme, color: world.color, special: world.special, completed: this.completed(world),
         goldStar: levels.length > 0 && goldStars === levels.length,
         catBlockFound: catBlockLevels.length > 0 && catBlocks === catBlockLevels.length,
         worldProgress: { goldStars, totalGoldStars: levels.length, catBlocks, totalCatBlocks: catBlockLevels.length },
@@ -94,8 +130,7 @@ class WorldMap {
           else this.selectWorld(world);
         } };
     });
-    this.draw(nodes, WORLDS.flatMap(world => world.next.map(id => [world.id, id])), 300);
-    this.map.append(collectibleTotals(this.profile(), LEVELS, document));
+    this.draw(nodes, WORLDS.flatMap(world => world.next.map(id => [world.id, id])), official ? 900 : 300);
     this.selectWorld(this.world);
     const custom = this.custom();
     if (custom) {
@@ -117,7 +152,7 @@ class WorldMap {
   }
   completed(world) {
     const levels = worldLevels(world), completed = this.profile()?.completed ?? [];
-    return levels.every(level => completed.includes(level.id));
+    return levels.length > 0 && levels.every(level => completed.includes(level.id));
   }
   selectWorld(world) {
     this.world = world;
@@ -128,6 +163,18 @@ class WorldMap {
     this.details.hidden = true;
   }
   showWorld(world, departure = null) {
+    if (!worldLevels(world).length) {
+      this.selectWorld(world);
+      this.heading.textContent = `World ${world.id} - ${world.name}`;
+      const message = document.createElement('p');
+      message.className = 'campaign-empty-message';
+      message.textContent = `${world.special ? 'Optional bonus and challenge world. ' : ''}No levels have been added to this world yet.`;
+      this.details.replaceChildren(message);
+      this.details.hidden = false;
+      this.layout.dataset.view = 'levels';
+      this.back.hidden = false;
+      return;
+    }
     this.view = 'levels';
     this.layout.dataset.view = 'levels';
     this.details.hidden = false;
@@ -334,6 +381,8 @@ class WorldMap {
       button.type = 'button'; button.className = 'map-node';
       if (node.boss) button.classList.add('map-node-boss');
       button.dataset.node = node.id; button.dataset.theme = node.theme;
+      if (node.color) button.style.setProperty('--world-color', node.color);
+      if (node.special) button.classList.add('map-node-special');
       button.style.left = `${node.x}%`; button.style.top = `${node.y}%`;
       button.setAttribute('aria-pressed', 'false');
       const worldNode = this.view === 'worlds';
@@ -364,7 +413,12 @@ class WorldMap {
         emblem.setAttribute('viewBox', '0 0 48 40'); emblem.setAttribute('aria-hidden', 'true');
         emblem.classList.add('world-emblem');
         const shape = document.createElementNS(ns, 'path');
-        shape.setAttribute('d', node.theme === 'garden'
+        if (node.theme === 'official') {
+          const id = node.id.replace(/^S/, '');
+          if (!Object.hasOwn(OFFICIAL_EMBLEMS, id)) throw new Error(`Unknown official world emblem: ${node.id}`);
+          shape.setAttribute('d', OFFICIAL_EMBLEMS[id]);
+          emblem.classList.add('world-emblem-pixel');
+        } else shape.setAttribute('d', node.theme === 'garden'
           ? 'M24 36V18 M24 26C2 28 4 6 4 6S26 5 24 26 M24 19C43 21 44 2 44 2S22 0 24 19'
           : node.theme === 'foundry'
             ? 'M22 2H26V10H38V36H10V10H22Z M16 16V24H22V16Z M26 16V24H32V16Z M17 28V31H31V28Z'

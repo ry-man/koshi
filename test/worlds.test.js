@@ -136,7 +136,7 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   cutsceneViewed = () => false) {
   const elements = new Map();
   const node = () => ({
-    children: [], dataset: {}, style: {}, listeners: {}, attributes: {}, hidden: false,
+    children: [], dataset: {}, style: { setProperty(name, value) { this[name] = value; } }, listeners: {}, attributes: {}, hidden: false,
     classList: { add() {}, remove() {} },
     append(...children) { this.children.push(...children); },
     prepend(...children) { this.children.unshift(...children); },
@@ -175,6 +175,33 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   const text = node => [node.textContent ?? '', ...node.children.map(text)].join(' ');
   return { map, selection, elements, text, motion, pictures };
 }
+
+test('Official map draws all 18 empty worlds and shows a nonplayable empty-world notice', () => {
+  const { OFFICIAL_WORLDS } = require('../src/campaign.js');
+  const graph = { ...worlds, WORLDS: OFFICIAL_WORLDS,
+    worldLevels: world => worlds.worldLevels(world, []) };
+  const { map, elements, text } = mapFixture(undefined, null, { ...engine, LEVELS: [] }, graph);
+  map.open();
+  const buttons = map.map.querySelectorAll('.map-node');
+  assert.equal(buttons.length, 18);
+  assert.equal(map.map.style.height, '900px');
+  for (const world of OFFICIAL_WORLDS) {
+    const button = buttons.find(button => button.dataset.node === world.id);
+    assert.equal(button.style.left, `${world.mapPosition.x}%`);
+    assert.equal(button.style.top, `${world.mapPosition.y}%`);
+    assert.equal(button.style['--world-color'], world.color);
+    assert.equal(map.completed(world), false);
+    button.listeners.click();
+    button.listeners.click();
+    assert.equal(map.play.hidden, true);
+    assert.match(text(map.details), /No levels have been added/);
+  }
+  assert.equal(elements.get('#level-picker-play').hidden, true);
+  const routes = map.map.children[0].children;
+  assert.equal(routes.length, 17);
+  assert.equal(routes.filter(route => route.attributes.x2 === String(OFFICIAL_WORLDS.find(world => world.id === '9').mapPosition.x)
+    && route.attributes.y2 === '50').length, 1);
+});
 
 test('skip cutscene starts unchecked and defaults on after the selected scene has been viewed', () => {
   for (const [viewed, expected] of [[false, false], [true, true]]) {
@@ -504,7 +531,7 @@ test('Cat Blocks are omitted from feature metadata, schedules, placed events and
   assert.ok(features.some(feature => feature.picture === 'item:key'));
   assert.ok(features.some(feature => feature.picture === 'item:treasure-chest'));
 });
-test('world selection shows campaign collectible totals but level maps do not', () => {
+test('campaign collectible totals stay in the header on world and level maps', () => {
   const { map, text } = mapFixture({
     completed: [], catBlocks: [LEVELS[0].id],
     results: {
@@ -512,12 +539,45 @@ test('world selection shows campaign collectible totals but level maps do not', 
       repeat: { levelId: LEVELS[0].id, outcome: 'won', damageFree: true },
     },
   });
+
+  test('map header places collection totals beside its title without a game selector', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const header = html.slice(html.indexOf('<dialog id="level-picker"'), html.indexOf('<div id="map-layout"'));
+    assert.match(header, /<h2 id="level-picker-heading">World Map<\/h2>/);
+    assert.match(header, /id="level-picker-heading"[\s\S]*id="map-collection-totals"[\s\S]*<\/header>/);
+    assert.doesNotMatch(header, /data-campaign-select/);
+    const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+    assert.match(css, /#map-collection-totals\s*\{[^}]*justify-self:\s*end;/);
+    assert.match(css, /#map-collection-totals\s*\{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;/);
+    assert.doesNotMatch(css, /\.world-map\s*>\s*\.collectible-totals/);
+  });
   map.open();
-  const totals = map.map.children.find(child => child.className === 'collectible-totals');
+  const totals = map.totals.children[0];
+  assert.equal(map.heading.textContent, 'World Map');
+  assert.equal(map.map.children.some(child => child.className === 'collectible-totals'), false);
   assert.deepEqual(Array.from(totals.children, child => child.getAttribute('aria-label')),
     ['Flags: 0 of 62', 'Gold stars: 1 of 62', 'Cat Blocks: 1 of 10']);
   assert.equal(text(totals).trim().replace(/\s+/g, ' '), '0/62 ★ 1/62 1/10');
   map.showWorld(WORLDS[0]);
+  assert.equal(map.totals.children[0], totals);
+  assert.equal(map.map.children.some(child => child.className === 'collectible-totals'), false);
+});
+
+test('Official world emblems are distinct pixel silhouettes and S worlds match their primary world', () => {
+  const { OFFICIAL_WORLDS } = require('../src/campaign.js');
+  const graph = { ...worlds, WORLDS: OFFICIAL_WORLDS,
+    worldLevels: world => worlds.worldLevels(world, []) };
+  const { map } = mapFixture(undefined, null, { ...engine, LEVELS: [] }, graph);
+  map.open();
+  const nodes = map.map.querySelectorAll('.map-node');
+  const icon = id => nodes.find(node => node.dataset.node === id).children[0];
+  const path = id => icon(id).children[0].getAttribute('d');
+  const primaryIds = ['C', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  assert.equal(new Set(primaryIds.map(path)).size, 10);
+  for (let index = 1; index <= 8; index++) {
+    assert.equal(path(`S${index}`), path(String(index)));
+  }
+  assert.equal(map.totals.children[0].children.length, 3);
   assert.equal(map.map.children.some(child => child.className === 'collectible-totals'), false);
 });
 

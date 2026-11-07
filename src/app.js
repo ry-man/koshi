@@ -7,6 +7,8 @@ const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { collectibleTotals } = globalThis.KoshiCollectibles;
 const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
+const campaignMode = globalThis.KoshiCampaignMode;
+const campaignId = campaignMode.active.id;
 
 let game;
 const canvas = document.querySelector('#canvas');
@@ -44,7 +46,7 @@ const titleScreen = document.querySelector('#title-screen');
 const phaseTransition = new globalThis.KoshiPhaseTransition();
 const saveDialog = document.querySelector('#save-slots');
 const mainLevels = LEVELS.filter(level => !WORLDS.find(world => world.id === level.worldId).special);
-const saves = new SaveSlots(LEVELS.map(level => level.id), undefined, undefined, mainLevels.map(level => level.id));
+const saves = new SaveSlots(LEVELS.map(level => level.id), undefined, undefined, mainLevels.map(level => level.id), campaignId);
 let activeSave = null;
 let runSave = null;
 const pendingSaves = [];
@@ -88,10 +90,10 @@ if (location.hash.startsWith('#level=')) {
     option.textContent = `Editor · ${customLevel.id}`;
     levelSelect.append(option);
     levelSelect.value = 'custom';
-    document.querySelector('#editor-link').href = `./editor.html${location.hash}`;
+    document.querySelector('#editor-link').href = campaignMode.gameURL('./editor.html', location.hash);
     document.querySelector('#editor-link').textContent = 'BACK TO EDITOR';
     const backToEditor = document.querySelector('#back-to-editor');
-    backToEditor.href = `./editor.html${location.hash}`;
+    backToEditor.href = campaignMode.gameURL('./editor.html', location.hash);
     backToEditor.hidden = false;
     document.querySelector('#dialog-text').textContent = levelBriefingText(customLevel);
   } catch (error) {
@@ -99,6 +101,7 @@ if (location.hash.startsWith('#level=')) {
     const message = document.querySelector('#level-error');
     message.textContent = `Custom level could not be loaded: ${error.message} Open the editor to fix it. The built-in levels are still available.`;
     message.hidden = false;
+    if (!LEVELS.length) reportCampaignError(error);
   }
 }
 if (location.hash.startsWith('#campaign=')) {
@@ -113,6 +116,17 @@ if (location.hash.startsWith('#campaign=')) {
     const error = document.querySelector('#level-error');
     error.textContent = `${failure.message} Choose a built-in level from the menu.`;
     error.hidden = false;
+    if (!LEVELS.length) reportCampaignError(failure);
+  }
+}
+if (!location.hash.startsWith('#campaign=') && !customLevel) {
+  try {
+    const id = localStorage.getItem(campaignMode.storageKey('selection', campaignId));
+    const index = LEVELS.findIndex(level => level.id === id);
+    if (index >= 0) levelSelect.value = String(index);
+  } catch (error) {
+    console.error('Map selection could not be restored:', error);
+    reportCampaignError(error);
   }
 }
 
@@ -123,6 +137,7 @@ function layoutOptions() {
 }
 
 function createGame() {
+  if (!LEVELS.length && levelSelect.value !== 'custom') return null;
   const level = LEVELS[Number(levelSelect.value)];
   const profile = activeSave ? activeSave.slot : guestProfile;
   const catBlockCollected = levelSelect.value !== 'custom' && (
@@ -164,7 +179,7 @@ function reportCutsceneStorageError(error) {
 function isCutsceneViewed(levelId) {
   if (viewedCutscenes.has(levelId)) return true;
   try {
-    if (localStorage.getItem(`koshi-cutscene-viewed:${encodeURIComponent(levelId)}`) === 'true') {
+    if (localStorage.getItem(campaignMode.cutsceneKey(levelId, campaignId)) === 'true') {
       viewedCutscenes.add(levelId);
     }
   } catch (error) {
@@ -176,7 +191,7 @@ function isCutsceneViewed(levelId) {
 function markCutsceneViewed(levelId) {
   viewedCutscenes.add(levelId);
   try {
-    localStorage.setItem(`koshi-cutscene-viewed:${encodeURIComponent(levelId)}`, 'true');
+    localStorage.setItem(campaignMode.cutsceneKey(levelId, campaignId), 'true');
   } catch (error) {
     reportCutsceneStorageError(error);
   }
@@ -196,6 +211,7 @@ function saveAttempt(action) {
 
 function saveProgress(slot) {
   const next = saves.resumeLevel(slot);
+  if (next < 0) return 'Official campaign under construction. No levels are available yet.';
   return saves.mainLevelIds.every(id => slot.completed.includes(id))
     ? `Campaign complete! Continue at Level ${LEVELS[next].number} on the map.`
     : `${slot.completed.length} / ${LEVELS.length} levels completed. Continue at Level ${LEVELS[next].number} on the map.`;
@@ -212,7 +228,7 @@ function recentSave() {
 
 function updateStartButton() {
   const button = document.querySelector('#title-start'), recent = recentSave();
-  const label = recent ? `Continue as ${recent.slot.owner}` : 'Start adventure';
+  const label = !LEVELS.length ? 'View official world map' : recent ? `Continue as ${recent.slot.owner}` : 'Start adventure';
   const arrow = document.createElement('span');
   arrow.setAttribute('aria-hidden', 'true');
   arrow.textContent = '→';
@@ -274,7 +290,7 @@ function storeAttempt(result) {
 }
 
 function checkpointAttempt() {
-  if (tutorial || game.customLevel || recordedAttempts.has(game)) return;
+  if (!game || tutorial || game.customLevel || recordedAttempts.has(game)) return;
   if (['won', 'lost'].includes(game.state)) { saveResult(); return; }
   if (!['playing', 'paused'].includes(game.state)) return;
   // Persist before shutdown; mobile app termination may not fire an unload event.
@@ -282,7 +298,7 @@ function checkpointAttempt() {
 }
 
 function saveResult() {
-  if (tutorial || game.customLevel || recordedAttempts.has(game)) return;
+  if (!game || tutorial || game.customLevel || recordedAttempts.has(game)) return;
   if (!['playing', 'paused', 'won', 'lost'].includes(game.state)) return;
   recordedAttempts.add(game);
   const result = attemptResult(['won', 'lost'].includes(game.state) ? game.state : 'quit');
@@ -972,6 +988,7 @@ function syncUI() {
 
 function begin() {
   if (tutorial) { selectTutorial(tutorial.index); return; }
+  if (!LEVELS.length && levelSelect.value !== 'custom') { openLevelPicker(); return; }
   phaseTransition.run(() => {
     saveResult();
     for (const dialog of [titleScreen, saveDialog, levelPicker]) if (dialog.open) dialog.close();
@@ -1030,7 +1047,7 @@ restart.addEventListener('click', begin);
 document.querySelector('#title-start').addEventListener('click', () => {
   const recent = recentSave();
   if (recent) saveAttempt(() => continueSave(recent.index, recent.slot.id));
-  else openLevelPicker({ level: 0 });
+  else openLevelPicker();
 });
 function openLevelPicker({ insideWorld = false, level = null, advance = false } = {}) {
   autoPause();
@@ -1040,8 +1057,8 @@ function openLevelPicker({ insideWorld = false, level = null, advance = false } 
   levelPicker.showModal();
   worldMap.open();
   if (advance) worldMap.advanceFrom(Number(levelSelect.value));
-  else if (insideWorld) worldMap.showWorld(worldMap.world);
-  else document.querySelector('.map-node[aria-pressed="true"]').focus();
+  else if (insideWorld && worldMap.world) worldMap.showWorld(worldMap.world);
+  else (document.querySelector('.map-node[aria-pressed="true"]') ?? document.querySelector('#level-picker-close')).focus();
 }
 const levelPicker = document.querySelector('#level-picker');
 let levelBeforePicker = levelSelect.value;
@@ -1075,7 +1092,7 @@ function continueFromCompletion() {
 }
 document.querySelector('#level-results-continue').addEventListener('click', continueFromCompletion);
 function dismissTitle() {
-  if (!game.customLevel) {
+  if (!game || !game.customLevel) {
     openLevelPicker();
     return;
   }
@@ -1090,6 +1107,8 @@ titleScreen.addEventListener('cancel', event => {
 });
 function resetBoard() {
   game = createGame();
+  updateBoardVisibility();
+  if (!game) return;
   makeBrickButtons();
   displayedState = null;
   displayedStuck = false;
@@ -1138,7 +1157,7 @@ document.querySelector('#exit-confirm-end').addEventListener('click', () => {
     saveResult();
     if (tutorial) leaveTutorial();
     resetBoard();
-    openLevelPicker({ insideWorld: true, level: levelSelect.value === 'custom' ? null : game.levelIndex });
+    openLevelPicker({ insideWorld: true, level: levelSelect.value === 'custom' ? null : game?.levelIndex ?? null });
   });
 });
 
@@ -1156,6 +1175,7 @@ function updateTutorial() {
 
 function selectTutorial(index) {
   game = tutorial.select(index, layoutOptions());
+  updateBoardVisibility();
   document.querySelector('#tutorial-step').value = String(index);
   document.querySelector('#tutorial-instruction').textContent = tutorial.lesson.instruction;
   document.querySelector('#tutorial-prev').disabled = index === 0;
@@ -1368,6 +1388,7 @@ document.querySelector('#guide-practice').addEventListener('click', () => {
   startTutorial(LESSONS.findIndex(lesson => lesson.id === id));
 });
 function togglePause() {
+  if (!game) return;
   if (game.state === 'playing') game.pause();
   else if (game.state === 'paused') game.resume();
   lastTime = null;
@@ -1392,7 +1413,7 @@ function isInstalledApp() {
 }
 function autoPause() {
   if (cutscene.active) cutscene.paused = true;
-  if (game.state === 'playing') { game.pause(); syncUI(); }
+  if (game?.state === 'playing') { game.pause(); syncUI(); }
   lastTime = null;
 }
 const installButton = document.getElementById('install-button');
@@ -2592,9 +2613,9 @@ function drawGameItem(item) {
     ctx.strokeStyle = '#7c8c99'; ctx.lineWidth = .8;
     ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.stroke();
   } else if (item.type === 'magic-sunglasses') {
-    drawMagicSunglasses(typeof game === 'undefined' ? 0 : game.elapsed);
+    drawMagicSunglasses(game?.elapsed ?? 0);
   } else if (item.type === 'kitty-cape') {
-    drawKittyCape(typeof game === 'undefined' ? 0 : game.elapsed);
+    drawKittyCape(game?.elapsed ?? 0);
   } else if (item.type === 'ditto-stamp') {
     drawDittoStamp();
   } else if (item.type === 'spooky-mask') {
@@ -4076,6 +4097,7 @@ function drawEnemyDeath(enemy) {
 }
 
 function resize() {
+  if (!game) return;
   board.style.setProperty('--board-scale-x', board.clientWidth / game.viewportWidth);
   board.style.setProperty('--board-scale-y', board.clientHeight / game.viewportHeight);
   const ratio = window.devicePixelRatio || 1;
@@ -4088,6 +4110,11 @@ function resize() {
 }
 
 function frame(timestamp) {
+  if (!game) {
+    lastTime = null;
+    requestAnimationFrame(frame);
+    return;
+  }
   const seconds = lastTime === null ? 0 : (timestamp - lastTime) / 1000;
   if (!phaseTransition.busy) {
     if (cutscene.active) cutscene.update(seconds);
@@ -4106,11 +4133,49 @@ function frame(timestamp) {
   requestAnimationFrame(frame);
 }
 
+function updateBoardVisibility() {
+  document.querySelector('.intro').hidden = !game;
+  document.querySelector('.game-shell').hidden = !game;
+}
+
+function reportCampaignError(error) {
+  for (const message of document.querySelectorAll('[data-campaign-error]')) {
+    message.textContent = `Game or map selection could not be saved or restored: ${error.message}`;
+    message.hidden = false;
+  }
+}
+
+campaignMode.setup({
+  reportError: reportCampaignError,
+  beforeSwitch: () => {
+    if ((tutorial || game && ['playing', 'paused'].includes(game.state))
+      && !confirm('Switch games and end this run? An unfinished campaign attempt counts as a quit after more than 5 seconds.')) return false;
+    if (!saveAttempt(flushSaves)) return false;
+    try {
+      const selected = LEVELS[Number(levelSelect.value)];
+      if (selected) localStorage.setItem(campaignMode.storageKey('selection', campaignId), selected.id);
+    } catch (error) {
+      console.error('Map selection could not be saved:', error);
+      reportCampaignError(error);
+      return false;
+    }
+    return true;
+  },
+  onSwitch: () => {
+    saveResult();
+    return saveAttempt(flushSaves);
+  },
+});
+document.querySelector('#campaign-empty').hidden = LEVELS.length > 0;
 game = createGame();
+updateBoardVisibility();
 saveAttempt(renderSaveSlots);
-makeBrickButtons();
-syncUI();
-if (!location.hash.startsWith('#level=') && !location.hash.startsWith('#campaign=') && location.hash !== '#install') titleScreen.showModal();
+if (game) {
+  makeBrickButtons();
+  syncUI();
+}
+if (!game || !location.hash.startsWith('#level=') && !location.hash.startsWith('#campaign=') && location.hash !== '#install') titleScreen.showModal();
+document.body.classList.remove('game-loading');
 installBackNavigation();
 new ResizeObserver(resize).observe(board);
 requestAnimationFrame(frame);

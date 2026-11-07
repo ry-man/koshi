@@ -7,7 +7,8 @@ const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSy
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
-const storageKey = 'koshi-level-editor-v1';
+const campaignMode = globalThis.KoshiCampaignMode;
+const storageKey = campaignMode.storageKey('draft', campaignMode.active.id);
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true });
 const immutableBrick = kind => ['cinder', 'goal'].includes(kind);
@@ -331,8 +332,9 @@ function markChanged() {
 }
 
 function updatePlaytest() {
-  $('#playtest').href = readOnly() ? `./index.html#campaign=${encodeURIComponent(level.id)}`
-    : `./index.html#level=${encodeURIComponent(JSON.stringify(level))}`;
+  $('#playtest').href = campaignMode.gameURL('./index.html', readOnly()
+    ? `#campaign=${encodeURIComponent(level.id)}`
+    : `#level=${encodeURIComponent(JSON.stringify(level))}`);
 }
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -1961,4 +1963,13 @@ if (location.hash.startsWith('#level=')) {
   });
 }
 populateSettings(); populateCutscene(); updatePlaytest(); populateEventForm(); render();
+campaignMode.setup({
+  reportError: error => message(`Game selection could not be saved or restored: ${error.message}`, true),
+  beforeSwitch: () => !(readOnly() ? customWorkspace?.dirty : dirty)
+    || confirm('Discard this unsaved editor draft and switch games? Save the draft first to keep it.'),
+  onSwitch: () => {
+    dirty = false;
+    if (customWorkspace) customWorkspace.dirty = false;
+  },
+});
 })();

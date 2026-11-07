@@ -20,6 +20,51 @@ npm start
 Open <http://127.0.0.1:4173>. On Windows, use `npm.cmd start` if PowerShell
 blocks the npm script. Both direct `file://` access and HTTP hosting are supported.
 
+## Beta and Official games
+
+Only the title screen offers a **Beta / Official** selector. The world map and
+editor retain the selected game without offering a separate switch.
+Both campaigns share the gameplay engine, graphics, mechanics, and tutorial.
+**Beta** contains all existing worlds and levels, unchanged. **Official** has
+18 worlds but no levels yet, and displays an under-construction title notice.
+Its world and named level definitions live in `src/campaign.js` as
+`OFFICIAL_WORLDS` and `OFFICIAL_LEVEL_DATA`, separately from Beta's content;
+this change does not add an official level library or level-transfer tools.
+
+Official worlds 1-8 form a regular octagon, numbered clockwise from the left
+vertex, with routes 1-2 through 7-8. Optional bonus/challenge worlds S1-S8 sit
+outside each side's midpoint, each connected only to its matching primary
+world, using a darker version of its color. World 8 connects to World 9,
+Robot HQ, at the center. Cat Town (C) is outside the octagon to the left,
+collinear with Worlds 1 and 9, and connected only to World 1.
+The map keeps a square canvas so the octagon remains regular at every screen
+size; smaller viewports scroll. Selecting an empty world shows its name and
+a no-levels notice, with Play unavailable. Empty worlds never count as completed.
+Official world emblems are pixel silhouettes: tree (1), fish (2), water drop (3),
+cactus (4), snowflake (5), crescent moon (6), lily pad (7), volcano (8), robot
+head (9), and cat head (C). Each S world uses its primary world's emblem.
+In both campaigns, flag, star, and Cat Block totals stay at the top right of the
+map dialog, aligned with the World Map heading, outside the scrolling map.
+
+Switching reloads the same page in the selected game.
+The title reserves the same notice space in both modes so its controls do not
+jump when switching. Startup hides the gameplay surface until the menu is ready;
+supporting browsers use a brief cross-document transition (disabled for reduced motion).
+Each game remembers its
+own save slots, statistics, collectibles, cutscene preferences, editor draft,
+and map selection when switching. Guest progress remains session-only.
+Existing saves, draft storage, and stable level IDs continue to belong to Beta;
+Official uses separate browser storage, even if future levels use matching IDs.
+Unsaved campaign results block switching until saved or explicitly discarded.
+An active run requires confirmation before it is ended by a switch. Editor
+switching warns about unsaved drafts; save the draft before switching to keep it.
+
+Use `index.html?game=beta` or `index.html?game=official` for explicit game links;
+the same query works on `editor.html`. Without a query, the game always opens
+in Beta, regardless of the previous selection. Old `#campaign=...` links without a game query always open
+Beta. Editor playtest and return links include the selected game automatically.
+Custom playtests and tutorial attempts do not contribute to campaign progress.
+
 ## Controls and rules
 
 The title screen features original artwork of a sword-wielding Koshi facing

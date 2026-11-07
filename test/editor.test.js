@@ -200,6 +200,7 @@ test('custom playtests expose a toolbar link back to the unchanged editor snapsh
   const nodes = new Map(), failures = [];
   const context = vm.createContext({
     location: { hash }, customLevel: null, validateCustomLevel, levelObjective,
+    campaignMode: require('../src/campaign-mode.js'),
     levelSelect: { append() {} },
     document: {
       createElement: () => ({}),
@@ -214,8 +215,8 @@ test('custom playtests expose a toolbar link back to the unchanged editor snapsh
   vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"), source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
   assert.equal(failures.length, 0);
   assert.equal(nodes.get('#back-to-editor').hidden, false);
-  assert.equal(nodes.get('#back-to-editor').href, `./editor.html${hash}`);
-  assert.equal(nodes.get('#editor-link').href, `./editor.html${hash}`);
+  assert.equal(nodes.get('#back-to-editor').href, `./editor.html?game=beta${hash}`);
+  assert.equal(nodes.get('#editor-link').href, `./editor.html?game=beta${hash}`);
 });
 
 test('every selectable enemy has a board icon and a palette/spawner graphic', () => {

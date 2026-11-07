@@ -10,6 +10,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="./editor.css">
+    <script defer src="./src/campaign-mode.js"></script>
     <script defer src="./src/campaign.js"></script>
     <script defer src="./src/game.js"></script>
     <script defer src="./src/brick-visuals.js"></script>
@@ -19,13 +20,14 @@
   <body>
     <main class="editor-main">
       <header class="masthead">
-        <a class="brand" href="./index.html"><span class="brand-mark">K</span> KOSHI'S QUEST</a>
-        <a href="./index.html">Back to game →</a>
+        <a class="brand" data-game-link href="./index.html"><span class="brand-mark">K</span> KOSHI'S QUEST</a>
+        <a data-game-link href="./index.html">Back to game →</a>
       </header>
       <div class="editor-heading"><div><p class="eyebrow">THE DESIGN STUDIO</p><h1>Build the next adventure.</h1></div><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
       <p id="editor-message" role="status" aria-live="polite"></p>
       <p id="portal-warning" class="editor-warning" role="status" aria-live="polite" hidden></p>
       <section class="editor-panel" aria-label="Level library">
+        <p data-campaign-label></p>
         <label>Level <select id="editor-level"><option value="custom">Your custom level (editable)</option></select></label>
       </section>
       <section class="editor-panel" aria-label="Level settings">

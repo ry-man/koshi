@@ -13,6 +13,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Koshi">
     <link rel="stylesheet" href="./style.css">
+    <script defer src="./src/campaign-mode.js"></script>
     <script defer src="./src/campaign.js"></script>
     <script defer src="./src/game.js"></script>
     <script defer src="./src/brick-visuals.js"></script>
@@ -26,7 +27,7 @@
     <script defer src="./src/app.js"></script>
     <script defer src="./src/pwa.js"></script>
   </head>
-  <body>
+  <body class="game-loading">
     <dialog id="how-to-play" class="learning-guide" aria-labelledby="guide-heading">
       <header class="learning-heading"><h2 id="guide-heading">How to play</h2><button id="guide-close" type="button">Back to title</button></header>
       <label class="learning-picker" for="guide-topic">Choose a topic <select id="guide-topic"></select></label>
@@ -59,6 +60,11 @@
         <h1 id="title-heading">Koshi's <span>Quest</span></h1>
         <img class="title-art" src="./icons/title-scene.svg" width="1000" height="650" alt="Heroic Koshi raises a shining sword as a menacing Robo Mouse and Robo Wheel face him, surrounded by green, blue, and red bricks.">
         <p id="title-tagline">Save the world from evil robots with brute kitty force!</p>
+        <label class="campaign-picker">Game
+          <select data-campaign-select aria-label="Choose game on title"><option value="beta">Beta</option><option value="official">Official</option></select>
+        </label>
+        <p data-campaign-error class="error" role="alert" hidden></p>
+        <p id="campaign-empty" hidden>Official game under construction. Beta game recommended for playtesting at this time.</p>
         <div class="title-actions">
           <button id="title-start" class="primary" type="button" autofocus>Start adventure <span aria-hidden="true">→</span></button>
           <button id="title-saves" class="title-secondary" type="button" aria-haspopup="dialog">Save slots</button>
@@ -74,8 +80,10 @@
     </dialog>
     <dialog id="level-picker" class="install-dialog world-picker" aria-labelledby="level-picker-heading">
       <header class="learning-heading">
-        <h2 id="level-picker-heading">World map</h2>
+        <h2 id="level-picker-heading">World Map</h2>
+        <div id="map-collection-totals"></div>
       </header>
+      <p data-campaign-error class="error campaign-map-error" role="alert" hidden></p>
       <div id="map-layout" class="map-layout">
         <div class="map-viewport"><div id="world-map" class="world-map" role="group" aria-label="Adventure map"></div></div>
         <section id="map-details" class="map-details" aria-live="polite" aria-atomic="true"></section>
@@ -96,7 +104,7 @@
       </div>
     </dialog>
     <dialog id="save-slots" class="install-dialog" aria-labelledby="save-heading" aria-describedby="save-help">
-      <h2 id="save-heading">Campaign save slots</h2>
+      <h2 id="save-heading">Campaign save slots <small data-campaign-label></small></h2>
       <p id="save-help">Choose a slot and an owner name. New games open the world map. Continue opens the level map in your last-played world, with that level selected. Progress saves automatically in this browser; attempts never resume mid-level.</p>
       <p id="save-menu-error" class="error" role="alert" hidden></p>
       <button id="save-menu-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
@@ -138,7 +146,8 @@
     <main>
       <header class="masthead">
         <div class="masthead-links">
-          <a class="edition" id="editor-link" href="./editor.html">OPEN LEVEL EDITOR →</a>
+          <span data-campaign-label></span>
+          <a class="edition" id="editor-link" data-game-link href="./editor.html">OPEN LEVEL EDITOR →</a>
         </div>
       </header>
       <section class="intro">

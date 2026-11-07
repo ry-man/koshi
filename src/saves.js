@@ -4,6 +4,8 @@
 const SAVE_KEY = 'koshi-campaign-saves-v2';
 const RECENT_KEY = 'koshi-campaign-recent-save';
 const SLOT_COUNT = 3;
+const { storageKey } = typeof module !== 'undefined' && module.exports
+  ? require('./campaign-mode.js') : globalThis.KoshiCampaignMode;
 
 function validateResult(result, levelIds) {
   if (!result || !levelIds.includes(result.levelId) || !['won', 'lost', 'quit'].includes(result.outcome)
@@ -47,14 +49,16 @@ function ownerName(value) {
 }
 
 class SaveSlots {
-  constructor(levelIds, storage = () => globalThis.localStorage, makeId = () => globalThis.crypto.randomUUID(), mainLevelIds = levelIds) {
+  constructor(levelIds, storage = () => globalThis.localStorage, makeId = () => globalThis.crypto.randomUUID(), mainLevelIds = levelIds, campaignId = 'beta') {
     this.levelIds = levelIds;
     this.storage = storage;
     this.makeId = makeId;
     this.mainLevelIds = mainLevelIds;
+    this.saveKey = storageKey('saves', campaignId);
+    this.recentKey = storageKey('recent', campaignId);
   }
   load() {
-    const raw = this.storage().getItem(SAVE_KEY);
+    const raw = this.storage().getItem(this.saveKey);
     if (raw === null) return Array(SLOT_COUNT).fill(null);
     const data = JSON.parse(raw);
     const invalid = () => { throw new Error('Saved campaign data is invalid. Existing saves have not been changed.'); };
@@ -82,7 +86,7 @@ class SaveSlots {
     return data.slots;
   }
   write(slots) {
-    this.storage().setItem(SAVE_KEY, JSON.stringify({ version: 1, slots }));
+    this.storage().setItem(this.saveKey, JSON.stringify({ version: 1, slots }));
   }
   slot(slots, index, id) {
     if (!Number.isInteger(index) || index < 0 || index >= SLOT_COUNT) throw new Error('Choose one of the three save slots.');
@@ -165,11 +169,11 @@ class SaveSlots {
   }
   markRecent(index, id) {
     this.slot(this.load(), index, id);
-    this.storage().setItem(RECENT_KEY, id);
+    this.storage().setItem(this.recentKey, id);
   }
   // Older saves have no recent marker, and deleted slots leave a stale one; fall back to the first occupied slot.
   recent(slots = this.load()) {
-    const id = this.storage().getItem(RECENT_KEY);
+    const id = this.storage().getItem(this.recentKey);
     let index = slots.findIndex(slot => slot && slot.id === id);
     if (index < 0) index = slots.findIndex(slot => slot);
     return index < 0 ? null : { index, slot: slots[index] };

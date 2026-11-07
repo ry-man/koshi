@@ -257,7 +257,8 @@ class Tutorial {
     this.stampCaptured = false;
     this.currentComplete = false;
     if (this.lesson.id === 'boss') {
-      const game = new Game(() => .5, { ...options, level: LEVELS.findIndex(level => level.bossLevel) });
+      const bossLevels = LEVELS.some(level => level.bossLevel) ? LEVELS : [engine.LEVEL_DATA['Tom the Toaster']];
+      const game = new Game(() => .5, { ...options, levels: bossLevels, level: bossLevels.findIndex(level => level.bossLevel) });
       game.level = { ...game.level, cutscene: undefined };
       this.target = game.bricks.find(brick => brick.boost && brickRegions(game.bricks, game.width, game.height).get(brick.id).edge === 'right');
       this.origin = { x: game.cat.x, y: game.cat.y };

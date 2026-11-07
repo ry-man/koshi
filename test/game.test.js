@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, COOLDOWNS, FOODS, SCHEDULE, SPEED, brickContact } = require('../src/game.js');
+const { Game, LEVELS, COOLDOWNS, FOODS, SCHEDULE, SPEED, brickContact } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -36,24 +36,19 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 12);
+  assert.equal(scripts.length, 13);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
   }
-  assert.match(scripts[0][1], /src="\.\/src\/campaign\.js"/);
-  assert.match(scripts[1][1], /src="\.\/src\/game\.js"/);
-  assert.match(scripts[2][1], /src="\.\/src\/brick-visuals\.js"/);
-  assert.match(scripts[3][1], /src="\.\/src\/cutscene\.js"/);
-  assert.match(scripts[4][1], /src="\.\/src\/learning\.js"/);
-  assert.match(scripts[5][1], /src="\.\/src\/saves\.js"/);
-  assert.match(scripts[6][1], /src="\.\/src\/worlds\.js"/);
-  assert.match(scripts[7][1], /src="\.\/src\/collectibles\.js"/);
-  assert.match(scripts[8][1], /src="\.\/src\/world-map\.js"/);
-  assert.match(scripts[9][1], /src="\.\/src\/transitions\.js"/);
-  assert.match(scripts[10][1], /src="\.\/src\/app\.js"/);
-  assert.match(scripts[11][1], /src="\.\/src\/pwa\.js"/);
-  const context = vm.createContext({});
+  const ordered = ['campaign-mode', 'campaign', 'game', 'brick-visuals', 'cutscene', 'learning', 'saves', 'worlds', 'collectibles', 'world-map', 'transitions', 'app', 'pwa'];
+  for (const [index, name] of ordered.entries()) {
+    assert.ok(scripts[index][1].includes(`src="./src/${name}.js"`));
+  }
+  const context = vm.createContext({
+    location: { search: '', hash: '' }, localStorage: { getItem: () => null }, URLSearchParams,
+  });
+  vm.runInContext(readFileSync(path.join(root, 'src', 'campaign-mode.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'campaign.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'game.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'learning.js'), 'utf8'), context);
@@ -336,6 +331,7 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
   const stored = new Map(), messages = [];
   const context = vm.createContext({
     viewedCutscenes: new Set(),
+    campaignMode: require('../src/campaign-mode.js'), campaignId: 'beta', LEVELS,
     localStorage: {
       getItem(key) { return stored.get(key) ?? null; },
       setItem(key, value) { stored.set(key, value); },
@@ -574,7 +570,7 @@ test('the main button continues the most recent save, or starts a guest adventur
   const start = source.indexOf("document.querySelector('#title-start').addEventListener");
   vm.runInContext(source.slice(start, source.indexOf('function openLevelPicker(', start)), context);
   listeners.click();
-  assert.equal(actions[0].level, 0);
+  assert.equal(actions[0], undefined, 'guest adventure keeps the restored map selection');
   recent = { index: 2, slot: { id: 'slot-c', owner: 'Mia' } };
   listeners.click();
   assert.deepEqual(actions[1], ['continue', 2, 'slot-c']);

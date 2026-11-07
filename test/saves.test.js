@@ -469,7 +469,7 @@ test('crossing the five-second threshold checkpoints once for abrupt termination
     updateEnding() {}, recordCatBlockFinds() {}, syncUI() {}, render() {}, requestAnimationFrame() {},
   });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  vm.runInContext(source.slice(source.indexOf('function frame(timestamp)'), source.indexOf('\ngame = createGame();')), context);
+  vm.runInContext(source.slice(source.indexOf('function frame(timestamp)'), source.indexOf('\nfunction updateBoardVisibility()')), context);
   context.frame(1000);
   assert.equal(levelStats(saves.load()[0].results, levelIds[0]).quits, 0);
   context.frame(1001);
@@ -721,7 +721,7 @@ test('autosaving and profile binding are wired to victory and level start', () =
   assert.ok(exit.indexOf('saveResult()') < exit.indexOf('resetBoard()'), 'ending a level records its quit before resetting');
   assert.match(source, /window\.addEventListener\('pagehide', checkpointAttempt\)/);
   assert.match(source, /if \(document\.hidden\) \{ autoPause\(\); checkpointAttempt\(\); \}/);
-  const context = vm.createContext({});
+  const context = vm.createContext({ KoshiCampaignMode: require('../src/campaign-mode.js') });
   vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'saves.js'), 'utf8'), context);
   assert.equal(typeof context.KoshiSaves.SaveSlots, 'function', 'save script supports direct-file classic startup');
 });
