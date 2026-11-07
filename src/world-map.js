@@ -75,9 +75,13 @@ class MapNavigation {
       const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.viewport.clientHeight : 1);
       this.zoom(this.scale * Math.exp(-delta * .01), this.point(event));
     }, { passive: false });
-    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    for (const type of ['pointerup', 'pointercancel']) {
       this.viewport.addEventListener(type, event => this.pointerEnd(event));
     }
+    this.viewport.addEventListener('lostpointercapture', event => {
+      // Descendants lose implicit touch capture when a drag transfers it to the viewport.
+      if (event.target === this.viewport) this.pointerEnd(event);
+    });
     this.viewport.addEventListener('click', event => {
       if (Date.now() < this.suppressClickUntil) { event.preventDefault(); event.stopPropagation(); }
     }, true);

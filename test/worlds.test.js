@@ -280,6 +280,42 @@ test('world overview fits desktop screens and supports phone panning, anchored p
   assert.equal(elements.get('#map-controls').hidden, true);
 });
 
+test('touch capture transfers from map descendants without ending a pan or pinch', () => {
+  const { map, elements, motion } = mapFixture();
+  const navigation = map.navigation, viewport = elements.get('.map-viewport');
+  motion.matches = true;
+  viewport.clientWidth = 390; viewport.clientHeight = 400;
+  map.open();
+  const event = (id, x, y) => ({ pointerId: id, button: 0, clientX: x, clientY: y, preventDefault() {} });
+  const left = viewport.scrollLeft, top = viewport.scrollTop;
+  viewport.listeners.pointerdown(event(1, 200, 200));
+  viewport.listeners.pointermove(event(1, 190, 190));
+  viewport.listeners.lostpointercapture({ pointerId: 1, target: map.map });
+  viewport.listeners.pointermove(event(1, 150, 140));
+  assert.equal(navigation.pointers.size, 1);
+  assert.equal(viewport.scrollLeft, left + 50);
+  assert.equal(viewport.scrollTop, top + 60);
+
+  viewport.listeners.pointerdown(event(2, 250, 140));
+  viewport.listeners.lostpointercapture({ pointerId: 2, target: map.map.querySelectorAll('.map-node')[0] });
+  viewport.listeners.pointermove(event(2, 300, 140));
+  assert.equal(navigation.pointers.size, 2);
+  assert.equal(navigation.scale, 1.5, 'pinch continues after the second touch transfers capture');
+  viewport.listeners.pointerup(event(2, 300, 140));
+  const pinchLeft = viewport.scrollLeft;
+  viewport.listeners.pointermove(event(1, 130, 140));
+  assert.equal(viewport.scrollLeft, pinchLeft + 20);
+  viewport.listeners.lostpointercapture({ pointerId: 1, target: viewport });
+  assert.equal(navigation.pointers.size, 0, 'losing the viewport capture still ends the gesture');
+  assert.equal(navigation.gesture, null);
+  viewport.listeners.pointermove(event(1, 100, 140));
+  assert.equal(viewport.scrollLeft, pinchLeft + 20);
+
+  viewport.listeners.pointerdown(event(3, 200, 200));
+  viewport.listeners.pointercancel(event(3, 200, 200));
+  assert.equal(navigation.pointers.size, 0, 'canceled touches still end the gesture');
+});
+
 test('Official desktop overview scales its complete square inside the available viewport', () => {
   const { OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
   const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);

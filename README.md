@@ -222,7 +222,8 @@ their enemy at a fixed offset without bobbing, using the same unframed artwork
 as collected map icons and the in-game pickup.
 The world-selection overview fills most of the desktop screen and fits the
 complete map inside its pane. On phones it fills the screen: drag with one finger
-to pan and pinch with two fingers to zoom, without visible scrollbars. **Zoom in**,
+to pan from the map background or a world stop and pinch with two fingers to zoom,
+without visible scrollbars. **Zoom in**,
 **Zoom out**, and **Fit map** buttons control the overview on phones and desktops.
 On desktops, Ctrl+mouse wheel (or a trackpad pinch) zooms only the map, not the
 browser page; ordinary wheel scrolling and drag panning remain available.
