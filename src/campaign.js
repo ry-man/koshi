@@ -120,9 +120,20 @@ OFFICIAL_WORLDS.push(
   { id: '9', name: 'Robot HQ', theme: 'official', color: '#ed9bc3', special: false, next: [],
     mapPosition: { x: 56, y: 50 }, levels: {} },
   { id: 'C', name: 'Cat Town', theme: 'official', color: '#a5aab1', special: false, next: [],
-    mapPosition: { x: 10, y: 50 }, levels: {} },
+    mapPosition: { x: 10, y: 50 }, mapOnly: true, levels: {} },
 );
 const OFFICIAL_LEVEL_DATA = {};
+// Cat Town is a scene hub; the other Official worlds use temporary starters until authored levels replace them.
+for (const world of OFFICIAL_WORLDS.filter(entry => entry.id !== 'C')) {
+  const name = `${world.name} Starter`;
+  world.levels = { '1': name };
+  OFFICIAL_LEVEL_DATA[name] = {
+    id: `official-${world.id}-1`, name, duration: 10, goal: 0, killGoal: 0, survive: true,
+    heartCost: Infinity, brickSet: 1, brickTypes: [], food: [], enemies: [], weapons: [],
+    items: [[0, 'cat-block']],
+    catBlock: { description: 'Collect the Cat Block waiting at the start of the level.' },
+  };
+}
 const activeWorlds = globalThis.KoshiCampaignMode?.active.id === 'official' ? OFFICIAL_WORLDS : BETA_WORLDS;
 
 function assembleCampaign(levelData, worlds = activeWorlds) {
@@ -141,14 +152,15 @@ function assembleCampaign(levelData, worlds = activeWorlds) {
       if (!worldIds.has(id)) throw new Error(`Invalid world destination: ${id}`);
     }
     return Object.entries(world.levels).map(([number, name]) => {
-      if (!number.trim() || numbers.has(number)) throw new Error(`Invalid or duplicate level number: ${number}`);
+      const numberKey = `${world.id}\u0000${number}`;
+      if (!number.trim() || numbers.has(numberKey)) throw new Error(`Invalid or duplicate level number: ${number}`);
       if (!Object.hasOwn(levelData, name)) throw new Error(`Unknown level data: ${name}`);
       const data = levelData[name];
       if (typeof data.id !== 'string' || !data.id || data.name !== name) {
         throw new Error(`Invalid named level data: ${name}`);
       }
       if (assigned.has(data.id)) throw new Error(`Level is assigned more than once: ${name}`);
-      numbers.add(number);
+      numbers.add(numberKey);
       assigned.add(data.id);
       return { ...data, worldId: world.id, number };
     });

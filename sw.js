@@ -18,6 +18,7 @@ const ASSETS = [
   './src/saves.js',
   './src/worlds.js',
   './src/collectibles.js',
+  './src/cat-town.js',
   './src/world-map.js',
   './src/transitions.js',
   './src/app.js',

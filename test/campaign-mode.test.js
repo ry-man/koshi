@@ -39,6 +39,16 @@ function storageFixture() {
   };
 }
 
+test('Official world color accents stay outside board artwork and at menu edges', () => {
+  const css = read('style.css');
+  const board = css.match(/\.game-shell\[data-world-theme="official"\] \.board\s*\{([^}]*)\}/)[1];
+  assert.match(board, /border-color: var\(--level-world-color\)/);
+  assert.match(board, /box-shadow: 0 0 0 3px/);
+  assert.doesNotMatch(board, /inset|background|filter|opacity/);
+  assert.match(css, /\.game-shell\[data-world-theme="official"\] \.objective\s*\{[^}]*background-color:[^}]*8%[^}]*box-shadow: inset 0 -3px 0 var\(--level-world-color\)/);
+  assert.match(css, /\.game-shell\[data-world-theme="official"\]\s*\{[^}]*var\(--level-world-color\) 65%/);
+});
+
 function browserFixture({ search = '?game=official', hash = '', storage = storageFixture() } = {}) {
   const errors = [];
   const location = { search, hash, href: `https://example.test/koshi/index.html${search}${hash}` };
@@ -134,17 +144,41 @@ test('Official can keep profiles before content exists without treating Beta sav
   assert.equal(storage.getItem(SAVE_KEY), snapshot);
 });
 
-test('classic browser startup selects Official worlds without levels and leaves Beta content intact', () => {
+test('classic browser startup selects Official starter levels and leaves Beta content intact', () => {
   const official = browserFixture();
   assert.equal(official.context.KoshiCampaignMode.active.id, 'official');
   assert.equal(official.context.KoshiCampaign.WORLDS.length, 18);
-  assert.equal(official.context.KoshiGame.LEVELS.length, 0);
-  assert.equal(Object.keys(official.context.KoshiCampaign.OFFICIAL_LEVEL_DATA).length, 0);
+  assert.equal(official.context.KoshiGame.LEVELS.length, 17);
+  assert.equal(Object.keys(official.context.KoshiCampaign.OFFICIAL_LEVEL_DATA).length, 17);
+  assert.ok(official.context.KoshiGame.LEVELS.every(level => level.number === '1'));
   assert.equal(official.context.KoshiCampaign.BETA_WORLDS.length, 5);
   assert.equal(official.errors.length, 0);
   const beta = browserFixture({ search: '?game=beta' });
   assert.equal(JSON.stringify(beta.context.KoshiGame.LEVELS), JSON.stringify(engine.LEVELS));
   assert.equal(beta.errors.length, 0);
+});
+
+test('each playable Official starter has one time-zero Cat Block and a ten-second survival objective', () => {
+  const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
+  const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  assert.equal(levels.length, 17);
+  for (const world of OFFICIAL_WORLDS.filter(world => !world.mapOnly)) {
+    const level = levels.find(entry => entry.worldId === world.id);
+    assert.ok(level, `${world.name} has a level`);
+    assert.equal(level.number, '1');
+    assert.equal(level.duration, 10);
+    assert.equal(level.survive, true);
+    assert.deepEqual(level.food, []);
+    assert.deepEqual(level.enemies, []);
+    assert.deepEqual(level.weapons, []);
+    assert.deepEqual(level.items, [[0, 'cat-block']]);
+  }
+  const first = levels[0], game = new engine.Game(() => .5, { levels, level: levels.indexOf(first) });
+  game.start();
+  assert.equal(game.pendingSpawns.size, 1);
+  assert.equal([...game.pendingSpawns.values()][0].items[0].type, 'cat-block');
+  for (let second = 0; second < 10; second++) game.update(1);
+  assert.equal(game.state, 'won');
 });
 
 test('Official world mappings cannot accidentally pull levels from the Beta data collection', () => {
@@ -154,7 +188,7 @@ test('Official world mappings cannot accidentally pull levels from the Beta data
   assert.throws(() => campaign.assembleCampaign(campaign.OFFICIAL_LEVEL_DATA), /Unknown level data/);
 });
 
-test('Official geometry is a regular octagon with external bisector branches, central HQ and collinear Cat Town', () => {
+test('Official map keeps the octagon and Cat Town hub while playable worlds have temporary starters', () => {
   const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
   const find = id => OFFICIAL_WORLDS.find(world => world.id === id);
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -163,7 +197,11 @@ test('Official geometry is a regular octagon with external bisector branches, ce
   const names = ['Happy Meadows', 'Catnip Beach', 'Fuzzy Falls', 'Mouser Mesa',
     'Alpine Litterbox', 'Yarnball Moon', 'Hairball Swamp', 'Meownt Vesuvius'];
   assert.equal(OFFICIAL_WORLDS.length, 18);
-  assert.deepEqual(assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS), []);
+  const officialLevels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  assert.equal(officialLevels.length, 17);
+  assert.ok(officialLevels.every(level => level.number === '1' && level.duration === 10
+    && level.survive && level.items.length === 1 && level.items[0][0] === 0
+    && level.items[0][1] === 'cat-block'));
   const side = distance(find('1').mapPosition, find('2').mapPosition);
   for (let i = 1; i <= 8; i++) {
     const world = find(String(i)), following = find(String(i % 8 + 1));
@@ -178,8 +216,8 @@ test('Official geometry is a regular octagon with external bisector branches, ce
     close(distance(world.mapPosition, following.mapPosition), side);
     close(distance(special.mapPosition, world.mapPosition), distance(special.mapPosition, following.mapPosition));
     assert.ok(distance(special.mapPosition, center) > 27);
-    assert.deepEqual(world.levels, {});
-    assert.deepEqual(special.levels, {});
+    assert.deepEqual(world.levels, { '1': `${world.name} Starter` });
+    assert.deepEqual(special.levels, { '1': `${special.name} Starter` });
   }
   const town = find('C').mapPosition, first = find('1').mapPosition;
   close(first.y, center.y);
@@ -188,9 +226,19 @@ test('Official geometry is a regular octagon with external bisector branches, ce
   assert.equal(find('9').name, 'Robot HQ');
   assert.equal(find('C').name, 'Cat Town');
   assert.deepEqual(find('C').next, []);
+  assert.equal(find('C').mapOnly, true);
+  assert.deepEqual(find('C').levels, {});
+  const { worldLevels, nextLevelIndex } = require('../src/worlds.js');
+  for (const world of OFFICIAL_WORLDS.filter(world => world.id !== 'C')) {
+    const level = worldLevels(world, officialLevels)[0];
+    assert.equal(nextLevelIndex(officialLevels.indexOf(level), OFFICIAL_WORLDS, officialLevels),
+      world.id === '1' ? officialLevels.indexOf(worldLevels(find('2'), officialLevels)[0])
+        : world.special || world.id === '9' ? -1
+          : officialLevels.indexOf(worldLevels(find(String(Number(world.id) + 1)), officialLevels)[0]));
+  }
 });
 
-test('every shared tutorial step, including the boss, works with an empty Official campaign', () => {
+test('every shared tutorial step, including the boss, works with Official starter levels', () => {
   const { context } = browserFixture();
   vm.runInContext(read('src/learning.js'), context);
   const tutorial = new context.KoshiLearning.Tutorial();
@@ -199,7 +247,7 @@ test('every shared tutorial step, including the boss, works with an empty Offici
     assert.equal(game.state, 'playing');
     game.update(.1);
   }
-  assert.equal(context.KoshiGame.LEVELS.length, 0);
+  assert.equal(context.KoshiGame.LEVELS.length, 17);
 });
 
 test('switching preserves other query parameters, drops cross-game fragments, and respects cancellation', () => {

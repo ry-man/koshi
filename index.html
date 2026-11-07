@@ -22,6 +22,7 @@
     <script defer src="./src/saves.js"></script>
     <script defer src="./src/worlds.js"></script>
     <script defer src="./src/collectibles.js"></script>
+    <script defer src="./src/cat-town.js"></script>
     <script defer src="./src/world-map.js"></script>
     <script defer src="./src/transitions.js"></script>
     <script defer src="./src/app.js"></script>
@@ -53,6 +54,29 @@
           <p id="cutscene-transcript" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
           <div class="cutscene-controls"><span id="cutscene-page"></span><button id="cutscene-next" type="button">Continue</button></div>
         </div>
+      </section>
+    </dialog>
+    <dialog id="cat-town-scene" aria-labelledby="cat-town-heading" aria-describedby="cat-town-text">
+      <div class="cat-town-stage">
+        <canvas id="cat-town-stage" aria-hidden="true"></canvas>
+        <h2 id="cat-town-heading"></h2>
+      </div>
+      <section class="cutscene-dialogue cat-town-dialogue" aria-label="Cat Town conversation">
+        <canvas id="cat-town-portrait" class="cutscene-portrait" width="32" height="32" aria-hidden="true"></canvas>
+        <div class="cutscene-words">
+          <strong id="cat-town-speaker"></strong>
+          <p id="cat-town-resources" class="cat-town-resources" role="status" hidden></p>
+          <div class="cutscene-text-scroll"><p id="cat-town-text" aria-hidden="true"></p></div>
+          <p id="cat-town-transcript" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+          <p id="cat-town-error" class="error" role="alert" hidden></p>
+          <div id="cat-town-house-items" class="cat-town-house-items" aria-label="Objects in Koshi's house"></div>
+          <div id="cat-town-actions" class="cat-town-actions"></div>
+          <div class="cutscene-controls cat-town-controls">
+            <button id="cat-town-next" type="button">Reveal text</button>
+            <button id="cat-town-leave" type="button">Return to Cat Town</button>
+          </div>
+        </div>
+        <section id="cat-town-menu" class="cat-town-menu" aria-label="Items for sale" hidden></section>
       </section>
     </dialog>
     <dialog id="title-screen" class="title-screen" aria-labelledby="title-heading" aria-describedby="title-tagline">

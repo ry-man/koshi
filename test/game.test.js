@@ -36,12 +36,12 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 13);
+  assert.equal(scripts.length, 14);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
   }
-  const ordered = ['campaign-mode', 'campaign', 'game', 'brick-visuals', 'cutscene', 'learning', 'saves', 'worlds', 'collectibles', 'world-map', 'transitions', 'app', 'pwa'];
+  const ordered = ['campaign-mode', 'campaign', 'game', 'brick-visuals', 'cutscene', 'learning', 'saves', 'worlds', 'collectibles', 'cat-town', 'world-map', 'transitions', 'app', 'pwa'];
   for (const [index, name] of ordered.entries()) {
     assert.ok(scripts[index][1].includes(`src="./src/${name}.js"`));
   }
@@ -518,8 +518,11 @@ test('level popup commits only on Play and cancellation restores selection and m
   const context = vm.createContext({
     document: { querySelector: element }, titleScreen, levelSelect, saveDialog: element('#save-slots'), autoPause() {},
     guidePicture() {}, guestProfile: {}, customLevel: null,
+    drawCutsceneCharacter() {},
     isCutsceneViewed() { return false; },
+    LEVELS: [], WORLDS: [],
     KoshiWorldMap: class { open() {} },
+    KoshiCatTown: { CatTown: class {} },
     begin() { starts++; element('#level-picker').close(); },
   });
   vm.runInContext(source.slice(source.indexOf('function openLevelPicker('),

@@ -75,6 +75,30 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#bd8d93', 14, 23, 4, 2);
     box('#26323a', 14, 26, 4, talking ? 3 : 1);
     for (const y of [23, 26]) { box('#edf2e8', 2, y, 7, 1); box('#edf2e8', 23, y, 7, 1); }
+  } else if (character === 'whiskers' || character === 'bruiser' || character === 'eugene') {
+    const palette = character === 'whiskers'
+      ? { outline: '#060e16', fur: '#22232b', inner: '#754956', stripe: null }
+      : character === 'bruiser'
+        ? { outline: '#43271b', fur: '#e88934', inner: '#f0bd79', stripe: '#a94f25' }
+        : { outline: '#303b43', fur: '#737c82', inner: '#9ba6ab', stripe: '#4b555d' };
+    box(palette.outline, 3, 3, 7, 16); box(palette.outline, 22, 3, 7, 16);
+    box(palette.outline, 5, 9, 22, 20); box(palette.outline, 9, 28, 14, 3);
+    box(palette.fur, 5, 5, 4, 12); box(palette.fur, 23, 5, 4, 12);
+    box(palette.fur, 7, 9, 18, 19); box(palette.fur, 10, 27, 12, 2);
+    box(palette.inner, 6, 8, 2, 6); box(palette.inner, 24, 8, 2, 6);
+    if (palette.stripe) {
+      for (const x of [11, 15, 19]) box(palette.stripe, x, 11, 2, x === 15 ? 5 : 3);
+    }
+    for (const x of [10, 20]) box('#202b32', x, 18, 3, blink ? 1 : 3);
+    box('#d98e9a', 14, 22, 4, 2);
+    box('#26323a', 14, 25, 4, talking ? 3 : 1);
+    if (character === 'eugene') {
+      for (const x of [8, 18]) {
+        ctx.strokeStyle = '#283945'; ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, 15, 7, 7);
+      }
+      ctx.beginPath(); ctx.moveTo(15, 18); ctx.lineTo(18, 18); ctx.stroke();
+    }
   } else if (character === 'tom') {
     box('#526773', 19, 1, 1, 6); box(speaking ? '#ea7070' : '#95d1c0', 18, 1, 3, 2);
     box('#060e16', 12, 7, 15, 23);
@@ -424,5 +448,6 @@ class CutscenePlayer {
   }
 }
 
+CutscenePlayer.drawPortrait = drawPortrait;
 globalThis.KoshiCutscenePlayer = CutscenePlayer;
 })();

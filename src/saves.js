@@ -20,6 +20,34 @@ function validateResult(result, levelIds) {
   }
 }
 
+function validateCatTown(state, slot) {
+  if (!state || typeof state !== 'object' || Array.isArray(state)
+    || !Number.isSafeInteger(state.spentStars) || state.spentStars < 0
+    || !Array.isArray(state.offers) || state.offers.length > 3
+    || state.offers.some(id => typeof id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(id))
+    || new Set(state.offers).size !== state.offers.length
+    || !Array.isArray(state.items) || state.items.length > 64
+    || !Number.isSafeInteger(state.builtBlocks) || state.builtBlocks < 0
+    || state.builtBlocks > (slot.catBlocks?.length ?? 0)) {
+    return false;
+  }
+  const ids = new Set();
+  for (const item of state.items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)
+      || typeof item.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(item.id) || ids.has(item.id)
+      || typeof item.name !== 'string' || !item.name.trim() || item.name.length > 80
+      || typeof item.description !== 'string' || !item.description.trim() || item.description.length > 300
+      || !Number.isSafeInteger(item.cost) || item.cost < 0) {
+      return false;
+    }
+    ids.add(item.id);
+  }
+  const earnedStars = new Set(Object.values(slot.results ?? {})
+    .filter(result => result.outcome === 'won' && result.damageFree === true)
+    .map(result => result.levelId)).size;
+  return state.spentStars <= earnedStars;
+}
+
 function levelStats(results, levelId) {
   const attempts = Object.values(results ?? {}).filter(result => result.levelId === levelId
     && (result.outcome !== 'quit' || result.time > 5));
@@ -82,6 +110,7 @@ class SaveSlots {
           validateResult(result, this.levelIds);
         }
       }
+      if (slot.catTown !== undefined && !validateCatTown(slot.catTown, slot)) invalid();
     }
     return data.slots;
   }
@@ -131,6 +160,18 @@ class SaveSlots {
       slot.catBlocks.push(levelId);
       this.write(slots);
     }
+    return slot;
+  }
+  updateCatTown(index, id, state) {
+    const slots = this.load(), slot = this.slot(slots, index, id);
+    if (!validateCatTown(state, slot)) throw new Error('Cat Town progress is invalid.');
+    slot.catTown = {
+      spentStars: state.spentStars,
+      offers: [...state.offers],
+      items: state.items.map(item => ({ ...item })),
+      builtBlocks: state.builtBlocks,
+    };
+    this.write(slots);
     return slot;
   }
   record(index, id, attemptId, result) {

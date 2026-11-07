@@ -26,10 +26,13 @@ Only the title screen offers a **Beta / Official** selector. The world map and
 editor retain the selected game without offering a separate switch.
 Both campaigns share the gameplay engine, graphics, mechanics, and tutorial.
 **Beta** contains all existing worlds and levels, unchanged. **Official** has
-18 worlds but no levels yet, and displays an under-construction title notice.
-Its world and named level definitions live in `src/campaign.js` as
-`OFFICIAL_WORLDS` and `OFFICIAL_LEVEL_DATA`, separately from Beta's content;
-this change does not add an official level library or level-transfer tools.
+18 map destinations and temporary level 1 starters in its 17 playable worlds;
+Cat Town remains a scene hub rather than a traditional level. Each starter has
+one Cat Block at time zero and a 10-second survival objective, ready to be
+overwritten as the Official levels are authored. Official levels use the color
+of their world for the game's console-style framing. World and named level
+definitions live in `src/campaign.js` as `OFFICIAL_WORLDS` and
+`OFFICIAL_LEVEL_DATA`, separately from Beta's content.
 
 Official worlds 1-8 form a regular octagon, numbered clockwise from the left
 vertex, with routes 1-2 through 7-8. Optional bonus/challenge worlds S1-S8 sit
@@ -38,13 +41,21 @@ world, using a darker version of its color. World 8 connects to World 9,
 Robot HQ, at the center. Cat Town (C) is outside the octagon to the left,
 collinear with Worlds 1 and 9, and connected only to World 1.
 The map keeps a square canvas so the octagon remains regular at every screen
-size; smaller viewports scroll. Selecting an empty world shows its name and
-a no-levels notice, with Play unavailable. Empty worlds never count as completed.
+size; smaller viewports scroll. Cat Town opens its four-location scene hub. Any
+other world without levels shows its name and a no-levels notice, with Play
+unavailable. Empty worlds never count as completed.
 Official world emblems are pixel silhouettes: tree (1), fish (2), water drop (3),
 cactus (4), snowflake (5), crescent moon (6), lily pad (7), volcano (8), robot
 head (9), and cat head (C). Each S world uses its primary world's emblem.
 In both campaigns, flag, star, and Cat Block totals stay at the top right of the
 map dialog, aligned with the World Map heading, outside the scrolling map.
+Beta and Official level selection use the same renderer, responsive map/details
+layout, level-node sizing, and textured block styling. The Official square-map
+settings apply only to the world overview, not to the levels inside a world.
+Official level maps tint their background, textured nodes, and routes with the
+associated world's color. Gameplay uses bolder world-colored outer framing and
+menu-edge accents while keeping text areas subdued and the board artwork and
+steering-brick colors unchanged.
 
 Switching reloads the same page in the selected game.
 The title reserves the same notice space in both modes so its controls do not

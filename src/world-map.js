@@ -5,6 +5,7 @@ const { LEVELS, catBlockObjective } = globalThis.KoshiGame;
 const { WORLDS, worldLevels, levelFeatures, nextLevelIndex } = globalThis.KoshiWorlds;
 const { levelStats } = globalThis.KoshiSaves;
 const { catBlockIcon, goldStarIcon, collectibleTotals } = globalThis.KoshiCollectibles;
+const { LOCATIONS } = globalThis.KoshiCatTown;
 
 const OFFICIAL_EMBLEMS = {
   C: 'M6 8H10V4H14V8H18V12H30V8H34V4H38V8H42V28H38V32H34V36H14V32H10V28H6ZM14 18V22H18V18ZM30 18V22H34V18ZM22 26V30H26V26Z',
@@ -54,7 +55,7 @@ function hintActivator() {
 }
 
 class WorldMap {
-  constructor({ selection, profile, picture, custom, cutsceneViewed = () => false }) {
+  constructor({ selection, profile, picture, custom, cutsceneViewed = () => false, openTownLocation = () => {} }) {
     this.selection = selection;
     this.profile = profile;
     this.picture = picture;
@@ -70,6 +71,7 @@ class WorldMap {
     this.skipCutscene = document.querySelector('#skip-cutscene');
     this.skipCutsceneOption = document.querySelector('#skip-cutscene-option');
     this.cutsceneViewed = cutsceneViewed;
+    this.openTownLocation = openTownLocation;
     this.back.addEventListener('click', () => {
       this.open();
       this.map.querySelector('[aria-pressed="true"]').focus({ preventScroll: true });
@@ -77,6 +79,9 @@ class WorldMap {
   }
   open() {
     this.view = 'worlds';
+    this.townLocation = null;
+    this.play.textContent = 'Play Level';
+    this.map.classList.remove('cat-town-map');
     this.layout.dataset.view = 'worlds';
     this.details.hidden = true;
     this.setCutsceneOption(null);
@@ -163,6 +168,10 @@ class WorldMap {
     this.details.hidden = true;
   }
   showWorld(world, departure = null) {
+    if (world.id === 'C') {
+      this.showCatTown(world);
+      return;
+    }
     if (!worldLevels(world).length) {
       this.selectWorld(world);
       this.heading.textContent = `World ${world.id} - ${world.name}`;
@@ -207,6 +216,44 @@ class WorldMap {
     const current = levels.find(level => LEVELS.indexOf(level) === Number(this.selection.value));
     this.selectLevel(current ?? levels.find(level => !this.profile()?.completed.includes(level.id)) ?? levels[0]);
     this.map.querySelector('[aria-pressed="true"]').focus({ preventScroll: true });
+  }
+  showCatTown(world) {
+    this.view = 'town';
+    this.world = world;
+    this.layout.dataset.view = 'levels';
+    this.heading.textContent = 'Cat Town';
+    this.back.hidden = false;
+    this.play.hidden = false;
+    this.play.textContent = 'Visit Location';
+    this.map.classList.remove('official-world-map');
+    this.map.classList.add('cat-town-map');
+    this.setCutsceneOption(null);
+    this.details.hidden = true;
+    const nodes = LOCATIONS.map(location => ({
+      id: location.id, label: location.name, x: location.x, y: location.y,
+      theme: world.theme, color: world.color, location: true,
+      action: () => this.selectTownLocation(location),
+    }));
+    this.draw(nodes, nodes.map((location, index) => [location.id, nodes[(index + 1) % nodes.length].id]), 900);
+    this.map.classList.remove('map-zoom');
+    this.selectTownLocation(LOCATIONS[0]);
+  }
+  selectTownLocation(location) {
+    this.townLocation = location;
+    this.mark(location.id);
+    this.play.hidden = false;
+    this.play.textContent = 'Visit Location';
+    this.details.hidden = false;
+    const descriptions = {
+      mall: 'Meet Whiskers, browse a few prizes, and exchange unspent gold stars for decorations.',
+      house: 'Visit Koshi’s home to arrange and inspect everything he has brought back from the mall.',
+      tree: 'Bruiser welcomes Koshi as collected Cat Blocks build the growing cat tree.',
+      tank: 'Eugene looks after the aquarium and the Fabled Fish from completed special worlds.',
+    };
+    const description = document.createElement('p');
+    description.textContent = descriptions[location.id];
+    this.details.replaceChildren(description);
+    this.setCutsceneOption(null);
   }
   advanceFrom(index) {
     const completed = LEVELS[index], next = nextLevelIndex(index);
@@ -361,9 +408,15 @@ class WorldMap {
     this.close.hidden = hasCutscene;
   }
   draw(nodes, edges, height) {
+    this.map.classList.remove('official-world-map');
+    if (this.view === 'worlds' && WORLDS.some(world => world.mapPosition)) {
+      this.map.classList.add('official-world-map');
+    }
     this.map.replaceChildren();
     this.map.style.height = `${height}px`;
+    this.map.dataset.view = this.view;
     this.map.dataset.theme = this.world.theme;
+    if (this.world.color) this.map.style.setProperty('--world-color', this.world.color);
     const ns = 'http://www.w3.org/2000/svg', lines = document.createElementNS(ns, 'svg');
     lines.setAttribute('viewBox', '0 0 100 100'); lines.setAttribute('preserveAspectRatio', 'none');
     lines.setAttribute('aria-hidden', 'true'); lines.classList.add('map-paths');
@@ -437,7 +490,7 @@ class WorldMap {
         flag.setAttribute('aria-hidden', 'true');
         cloth.className = 'flag-cloth'; flag.append(cloth); button.append(flag);
       }
-      if (this.view === 'levels' || worldNode) {
+      if ((this.view === 'levels' && !node.location) || worldNode) {
         const star = document.createElement('span');
         star.className = `map-node-star${node.goldStar ? ' map-node-star-earned' : ''}`;
         star.append(goldStarIcon(node.goldStar, document));

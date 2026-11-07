@@ -76,7 +76,11 @@ test('invalid world mappings report missing data, duplicate identities and inval
   assert.throws(() => assembleCampaign(LEVEL_DATA, [{ ...world, levels: {
     'bonus-1': 'Breakfast rebellion', 'bonus-2': 'Breakfast rebellion',
   } }]), /assigned more than once/);
-  assert.throws(() => assembleCampaign(LEVEL_DATA, [world, { ...world, id: 'other' }]), /duplicate level number/);
+  const repeatedNumbers = assembleCampaign(LEVEL_DATA, [
+    { id: 'first', next: [], levels: { '1': 'Breakfast rebellion' } },
+    { id: 'second', next: [], levels: { '1': 'Mouse at the market' } },
+  ]);
+  assert.deepEqual(repeatedNumbers.map(level => level.number), ['1', '1']);
   assert.throws(() => assembleCampaign(LEVEL_DATA, [world, world]), /duplicate world ID/);
   assert.throws(() => assembleCampaign(LEVEL_DATA, [{ ...world, next: ['missing'] }]), /Invalid world destination/);
   assert.throws(() => assembleCampaign(LEVEL_DATA, [{ ...world, levels: [] }]), /map level numbers/);

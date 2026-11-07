@@ -70,13 +70,18 @@ let displayedStuck = false;
 let tutorial = null;
 let guideIndex = 0;
 const guide = document.querySelector('#how-to-play');
-const cutscene = new globalThis.KoshiCutscenePlayer((context, character, time, speaking) => {
+function drawCutsceneCharacter(context, character, time, speaking) {
   const previous = ctx;
+  const previousGame = game;
   ctx = context;
-  if (character === 'koshi') drawCat(0, 0, time);
-  else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
+  if (character === 'koshi') {
+    game = { cat: { radius: 23, x: NaN, y: NaN }, weapon: null, sawStartedAt: null };
+    drawCat(0, 0, time, null, false, speaking ? 'won' : null);
+  } else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
   ctx = previous;
-}, () => {
+  game = previousGame;
+}
+const cutscene = new globalThis.KoshiCutscenePlayer(drawCutsceneCharacter, () => {
   markCutsceneViewed(game.level.id);
   skipCutscene.checked = true;
   showLevelBriefing();
@@ -814,6 +819,13 @@ function syncUI() {
   document.querySelector('#level-number').textContent = game.level.number ?? game.level.id;
   document.querySelector('.level-badge strong').textContent = game.level.number ?? game.level.id;
   const world = WORLDS.find(world => world.id === game.level.worldId);
+  const gameShell = document.querySelector('.game-shell');
+  if (gameShell?.dataset) {
+    if (world?.theme === 'official' && world.color) {
+      gameShell.dataset.worldTheme = 'official';
+      gameShell.style.setProperty('--level-world-color', world.color);
+    } else delete gameShell.dataset.worldTheme;
+  }
   document.querySelector('.intro .eyebrow').textContent = world
     ? `WORLD ${world.id} / ${world.name.toUpperCase()}` : 'CUSTOM / YOUR ADVENTURE';
   document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.level.name?.toUpperCase() ?? (game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS');
@@ -1074,6 +1086,10 @@ levelPicker.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeLevelPicker(); }
 });
 document.querySelector('#level-picker-play').addEventListener('click', () => {
+  if (worldMap.townLocation) {
+    worldMap.openTownLocation(worldMap.townLocation.id);
+    return;
+  }
   begin();
 });
 const worldMap = new globalThis.KoshiWorldMap({
@@ -1082,6 +1098,25 @@ const worldMap = new globalThis.KoshiWorldMap({
   picture: guidePicture,
   custom: () => customLevel,
   cutsceneViewed: isCutsceneViewed,
+  openTownLocation: locationId => catTown.open(locationId),
+});
+const catTown = new globalThis.KoshiCatTown.CatTown({
+  profile: () => activeSave ? activeSave.slot : guestProfile,
+  levels: LEVELS,
+  worlds: WORLDS,
+  drawKoshi: drawCutsceneCharacter,
+  saveProfile: state => {
+    if (!activeSave) {
+      guestProfile.catTown = state;
+      return guestProfile;
+    }
+    let updated;
+    if (!saveAttempt(() => { updated = saves.updateCatTown(activeSave.index, activeSave.slot.id, state); })) return null;
+    activeSave.slot = updated;
+    updateSaveProfile();
+    return updated;
+  },
+  onReturn: () => worldMap.map.querySelector(`[data-node="${worldMap.townLocation?.id}"]`)?.focus({ preventScroll: true }),
 });
 const levelResultsDialog = document.querySelector('#level-results');
 levelResultsDialog.addEventListener('cancel', event => event.preventDefault());

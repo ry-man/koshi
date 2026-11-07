@@ -20,9 +20,11 @@ function nextLevelIndex(index, worlds = WORLDS, levels = LEVELS) {
   if (position + 1 < members.length) return levels.indexOf(members[position + 1]);
   const destinations = world.next.map(id => {
     const destination = worlds.find(entry => entry.id === id);
-    if (!destination || !worldLevels(destination, levels).length) throw new Error(`Invalid world destination: ${id}`);
+    if (!destination || (!destination.mapOnly && !worldLevels(destination, levels).length)) {
+      throw new Error(`Invalid world destination: ${id}`);
+    }
     return destination;
-  });
+  }).filter(destination => !destination.mapOnly);
   const next = destinations.find(entry => !entry.special) ?? destinations[0];
   return next ? levels.indexOf(worldLevels(next, levels)[0]) : -1;
 }

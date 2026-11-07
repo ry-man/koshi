@@ -9,6 +9,7 @@ const engine = require('../src/game.js');
 const { LEVELS } = engine;
 const worlds = require('../src/worlds.js');
 const { WORLDS, worldLevels, nextLevelIndex, levelFeatures } = worlds;
+const { OFFICIAL_WORLDS } = require('../src/campaign.js');
 const saveApi = require('../src/saves.js');
 const collectibles = require('../src/collectibles.js');
 
@@ -137,7 +138,12 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   const elements = new Map();
   const node = () => ({
     children: [], dataset: {}, style: { setProperty(name, value) { this[name] = value; } }, listeners: {}, attributes: {}, hidden: false,
-    classList: { add() {}, remove() {} },
+    classList: {
+      values: new Set(),
+      add(name) { this.values.add(name); },
+      remove(name) { this.values.delete(name); },
+      contains(name) { return this.values.has(name); },
+    },
     append(...children) { this.children.push(...children); },
     prepend(...children) { this.children.unshift(...children); },
     replaceChildren(...children) { this.children = children; },
@@ -162,6 +168,7 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   const motion = { matches: false };
   const context = vm.createContext({
     document, KoshiGame: game, KoshiWorlds: graph, KoshiSaves: saveApi, KoshiCollectibles: collectibles,
+    KoshiCatTown: require('../src/cat-town.js'),
     getComputedStyle: node => node.style, matchMedia: () => motion,
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'world-map.js'), 'utf8'), context);
@@ -176,7 +183,65 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   return { map, selection, elements, text, motion, pictures };
 }
 
-test('Official map draws all 18 empty worlds and shows a nonplayable empty-world notice', () => {
+test('Official and Beta level selection share map sizing, node rendering, texture, and layout settings', () => {
+  const { OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
+  const officialLevels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  const officialEngine = { ...engine, LEVELS: officialLevels };
+  const officialGraph = { ...worlds, WORLDS: OFFICIAL_WORLDS,
+    worldLevels: world => worlds.worldLevels(world, officialLevels) };
+  const beta = mapFixture();
+  const official = mapFixture(undefined, null, officialEngine, officialGraph);
+  for (const [fixture, world] of [[beta, WORLDS[0]], [official, OFFICIAL_WORLDS[0]]]) {
+    fixture.map.open();
+    fixture.map.showWorld(world);
+    assert.equal(fixture.map.map.classList.contains('official-world-map'), false);
+    assert.equal(fixture.map.map.dataset.view, 'levels');
+    assert.equal(fixture.elements.get('#map-layout').dataset.view, 'levels');
+    const first = fixture.map.map.querySelectorAll('.map-node')[0];
+    assert.equal(first.className, 'map-node');
+    assert.equal(first.style.left, '12%');
+  }
+  assert.equal(official.map.map.style.height, '150px');
+  for (const world of OFFICIAL_WORLDS.filter(world => !world.mapOnly)) {
+    official.map.showWorld(world);
+    assert.equal(official.map.map.dataset.theme, 'official');
+    assert.equal(official.map.map.style['--world-color'], world.color);
+    assert.equal(official.map.map.classList.contains('official-world-map'), false);
+  }
+  official.map.open();
+  assert.equal(official.map.map.classList.contains('official-world-map'), true);
+  assert.equal(official.map.map.dataset.view, 'worlds');
+  assert.equal(official.map.map.style.height, '900px');
+  official.map.showWorld(OFFICIAL_WORLDS[0]);
+  assert.equal(official.map.map.classList.contains('official-world-map'), false);
+  assert.equal(official.map.map.style.height, '150px');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(css, /\.world-map\[data-view="levels"\] \.map-node:not\(\.map-node-boss\)\s*\{[^}]*background-image:[^}]*repeating-linear-gradient[^}]*box-shadow:/);
+  assert.match(css, /\.world-map\[data-view="levels"\]\[data-theme="official"\]\s*\{[^}]*var\(--world-color\)/);
+  assert.match(css, /\.world-map\[data-view="levels"\]\[data-theme="official"\] \.map-node:not\(\.map-node-boss\)\s*\{[^}]*background-color:[^}]*var\(--world-color\)[^}]*border-color: var\(--world-color\)/);
+});
+
+test('Cat Town opens four non-level locations with a circular route and a visit action', () => {
+  const officialWorlds = { ...worlds, WORLDS: OFFICIAL_WORLDS };
+  const { map, text } = mapFixture(undefined, null, { ...engine, LEVELS: [] }, officialWorlds);
+  map.open();
+  const town = map.map.querySelectorAll('.map-node').find(node => node.dataset.node === 'C');
+  town.listeners.click();
+  town.listeners.click();
+  assert.equal(map.view, 'town');
+  const locations = map.map.querySelectorAll('.map-node');
+  assert.deepEqual(locations.map(node => node.dataset.node), ['mall', 'house', 'tree', 'tank']);
+  assert.equal(map.map.children[0].children.length, 4, 'four routes make a closed loop');
+  assert.equal(map.townLocation.id, 'mall');
+  assert.equal(map.play.hidden, false);
+  assert.equal(map.play.textContent, 'Visit Location');
+  assert.ok(text(map.details).includes('Whiskers'));
+  locations[2].listeners.click();
+  assert.equal(map.townLocation.id, 'tree');
+  assert.equal(map.map.querySelectorAll('.map-node').find(node => node.dataset.node === 'tree').getAttribute('aria-pressed'), 'true');
+});
+
+test('Official map draws configured empty worlds and shows a nonplayable empty-world notice', () => {
   const { OFFICIAL_WORLDS } = require('../src/campaign.js');
   const graph = { ...worlds, WORLDS: OFFICIAL_WORLDS,
     worldLevels: world => worlds.worldLevels(world, []) };
@@ -185,7 +250,7 @@ test('Official map draws all 18 empty worlds and shows a nonplayable empty-world
   const buttons = map.map.querySelectorAll('.map-node');
   assert.equal(buttons.length, 18);
   assert.equal(map.map.style.height, '900px');
-  for (const world of OFFICIAL_WORLDS) {
+  for (const world of OFFICIAL_WORLDS.filter(world => world.id !== 'C')) {
     const button = buttons.find(button => button.dataset.node === world.id);
     assert.equal(button.style.left, `${world.mapPosition.x}%`);
     assert.equal(button.style.top, `${world.mapPosition.y}%`);
