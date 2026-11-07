@@ -9,6 +9,35 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf
 const helper = source.slice(source.indexOf('function cameraBoundsVisible('), source.indexOf('function render('));
 const { cameraBoundsVisible: visible } = vm.runInNewContext(`${helper}; ({ cameraBoundsVisible });`);
 
+test('open world maps suspend hidden gameplay work and resume without accumulating a simulation delta', () => {
+  const frameSource = source.slice(source.indexOf('function frame('), source.indexOf('function updateBoardVisibility('));
+  const calls = [];
+  const context = {
+    game: { elapsed: 0, state: 'ready', update: seconds => calls.push(['update', seconds]) },
+    levelPicker: { open: true }, phaseTransition: { busy: false }, cutscene: { active: false },
+    lastTime: 100, toastUntil: 0, toast: {},
+    requestAnimationFrame: () => calls.push(['schedule']),
+    updateEnding: () => calls.push(['ending']),
+    recordCatBlockFinds: () => calls.push(['collectibles']),
+    syncUI: () => calls.push(['hud']), render: () => calls.push(['render']),
+  };
+  vm.createContext(context);
+  vm.runInContext(frameSource, context);
+  context.frame(200);
+  context.frame(5000);
+  assert.deepEqual(calls, [['schedule'], ['schedule']]);
+  assert.equal(context.lastTime, null);
+  calls.length = 0;
+  context.levelPicker.open = false;
+  context.frame(5100);
+  assert.deepEqual(calls[0], ['update', 0]);
+  assert.ok(calls.some(([name]) => name === 'render'));
+  assert.ok(calls.some(([name]) => name === 'hud'));
+  calls.length = 0;
+  context.frame(5116);
+  assert.deepEqual(calls[0], ['update', .016]);
+});
+
 test('render culling follows the camera in landscape and portrait without losing crossing geometry', () => {
   for (const camera of [{ x: 2000, y: 0, width: 960, height: 600 },
     { x: 0, y: 2000, width: 600, height: 960 }]) {

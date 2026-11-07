@@ -109,7 +109,12 @@
       </header>
       <p data-campaign-error class="error campaign-map-error" role="alert" hidden></p>
       <div id="map-layout" class="map-layout">
-        <div class="map-viewport"><div id="world-map" class="world-map" role="group" aria-label="Adventure map"></div></div>
+        <div class="map-viewport"><div id="map-surface"><div id="world-map" class="world-map" role="group" aria-label="Adventure map"></div></div></div>
+        <div id="map-controls" class="map-controls" role="group" aria-label="Map zoom" hidden>
+          <button id="map-zoom-out" type="button" aria-label="Zoom out"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="13" cy="13" r="9"/><path d="M20 20L29 29M8 13H18"/></svg></button>
+          <button id="map-zoom-fit" type="button">Fit map</button>
+          <button id="map-zoom-in" type="button" aria-label="Zoom in"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="13" cy="13" r="9"/><path d="M20 20L29 29M8 13H18M13 8V18"/></svg></button>
+        </div>
         <section id="map-details" class="map-details" aria-live="polite" aria-atomic="true"></section>
       </div>
       <label class="level-picker-select" for="level-select" hidden>Level

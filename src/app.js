@@ -4145,7 +4145,7 @@ function resize() {
 }
 
 function frame(timestamp) {
-  if (!game) {
+  if (!game || levelPicker.open) {
     lastTime = null;
     requestAnimationFrame(frame);
     return;

@@ -54,6 +54,145 @@ function hintActivator() {
   return hide => { if (hideHint !== hide) hideHint?.(); hideHint = hide; };
 }
 
+class MapNavigation {
+  constructor(map, layout) {
+    this.map = map;
+    this.layout = layout;
+    this.viewport = document.querySelector('.map-viewport');
+    this.surface = document.querySelector('#map-surface');
+    this.controls = document.querySelector('#map-controls');
+    this.phone = matchMedia('(max-width: 760px), (pointer: coarse)');
+    this.pointers = new Map();
+    this.scale = 1;
+    this.suppressClickUntil = 0;
+    this.phone.addEventListener('change', () => this.resize(true));
+    new ResizeObserver(() => this.resize()).observe(this.viewport);
+    this.viewport.addEventListener('pointerdown', event => this.pointerDown(event));
+    this.viewport.addEventListener('pointermove', event => this.pointerMove(event));
+    this.viewport.addEventListener('wheel', event => {
+      if (this.layout.dataset.view !== 'worlds' || !(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? this.viewport.clientHeight : 1);
+      this.zoom(this.scale * Math.exp(-delta * .01), this.point(event));
+    }, { passive: false });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      this.viewport.addEventListener(type, event => this.pointerEnd(event));
+    }
+    this.viewport.addEventListener('click', event => {
+      if (Date.now() < this.suppressClickUntil) { event.preventDefault(); event.stopPropagation(); }
+    }, true);
+    document.querySelector('#map-zoom-in').addEventListener('click', () => this.zoom(this.scale * 1.25));
+    document.querySelector('#map-zoom-out').addEventListener('click', () => this.zoom(this.scale / 1.25));
+    document.querySelector('#map-zoom-fit').addEventListener('click', () => this.zoom(this.minimum));
+  }
+  reset(height) {
+    this.height = height;
+    this.pointers.clear();
+    this.gesture = null;
+    this.suppressClickUntil = 0;
+    this.resize(true);
+  }
+  resize(reset = false) {
+    const overview = this.layout.dataset.view === 'worlds';
+    this.controls.hidden = !overview;
+    this.layout.dataset.mapTouch = String(this.phone.matches);
+    if (!overview) {
+      this.map.style.transform = '';
+      this.map.style.width = '';
+      this.surface.style.width = '';
+      this.surface.style.height = '';
+      return;
+    }
+    const width = this.viewport.clientWidth, height = this.viewport.clientHeight;
+    if (!width || !height || !this.height) return;
+    this.width = this.map.classList.contains('official-world-map') ? 900 : Math.max(760, width);
+    this.contentHeight = this.height === 900 ? 900 : Math.max(this.height, height);
+    this.minimum = Math.min(1, width / this.width, height / this.contentHeight);
+    const previous = this.scale;
+    this.scale = Math.max(this.minimum, Math.min(2.5, reset ? (this.phone.matches ? 1 : this.minimum) : this.scale));
+    this.map.style.width = `${this.width}px`;
+    this.map.style.height = `${this.contentHeight}px`;
+    this.apply();
+    if (reset || previous !== this.scale) {
+      this.viewport.scrollLeft = Math.max(0, (this.width * this.scale - width) / 2);
+      this.viewport.scrollTop = Math.max(0, (this.contentHeight * this.scale - height) / 2);
+    }
+  }
+  apply() {
+    const width = this.width * this.scale, height = this.contentHeight * this.scale;
+    const x = Math.max(0, (this.viewport.clientWidth - width) / 2);
+    const y = Math.max(0, (this.viewport.clientHeight - height) / 2);
+    this.map.style.transform = `translate(${x}px, ${y}px) scale(${this.scale})`;
+    this.surface.style.width = `${Math.max(width, this.viewport.clientWidth)}px`;
+    this.surface.style.height = `${Math.max(height, this.viewport.clientHeight)}px`;
+    document.querySelector('#map-zoom-out').disabled = this.scale <= this.minimum;
+    document.querySelector('#map-zoom-in').disabled = this.scale >= 2.5;
+  }
+  zoom(scale, anchor = { x: this.viewport.clientWidth / 2, y: this.viewport.clientHeight / 2 }) {
+    if (this.layout.dataset.view !== 'worlds' || !this.width) return;
+    const x = (this.viewport.scrollLeft + anchor.x - Math.max(0, (this.viewport.clientWidth - this.width * this.scale) / 2)) / this.scale;
+    const y = (this.viewport.scrollTop + anchor.y - Math.max(0, (this.viewport.clientHeight - this.contentHeight * this.scale) / 2)) / this.scale;
+    this.scale = Math.max(this.minimum, Math.min(2.5, scale));
+    this.apply();
+    this.viewport.scrollLeft = Math.max(0, x * this.scale - anchor.x);
+    this.viewport.scrollTop = Math.max(0, y * this.scale - anchor.y);
+  }
+  point(event) {
+    const rect = this.viewport.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+  startGesture() {
+    const points = [...this.pointers.values()];
+    this.gesture = {
+      x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+      y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
+      distance: points.length > 1 ? Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y) : 0,
+      scale: this.scale, left: this.viewport.scrollLeft, top: this.viewport.scrollTop,
+      moved: points.length > 1,
+    };
+  }
+  pointerDown(event) {
+    if (this.layout.dataset.view !== 'worlds' || event.button !== 0 || this.pointers.size >= 2) return;
+    this.pointers.set(event.pointerId, this.point(event));
+    this.startGesture();
+    if (this.pointers.size > 1) {
+      for (const id of this.pointers.keys()) this.viewport.setPointerCapture(id);
+      event.preventDefault();
+    }
+  }
+  pointerMove(event) {
+    if (!this.pointers.has(event.pointerId)) return;
+    this.pointers.set(event.pointerId, this.point(event));
+    const points = [...this.pointers.values()], gesture = this.gesture;
+    const x = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+    const y = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+    if (!gesture.moved && Math.hypot(x - gesture.x, y - gesture.y) < 6) return;
+    gesture.moved = true;
+    this.suppressClickUntil = Date.now() + 400;
+    this.viewport.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    if (points.length > 1 && gesture.distance > 0) {
+      this.scale = Math.max(this.minimum, Math.min(2.5,
+        gesture.scale * Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y) / gesture.distance));
+      this.apply();
+      const offsetX = Math.max(0, (this.viewport.clientWidth - this.width * gesture.scale) / 2);
+      const offsetY = Math.max(0, (this.viewport.clientHeight - this.contentHeight * gesture.scale) / 2);
+      this.viewport.scrollLeft = Math.max(0, (gesture.left + gesture.x - offsetX) * this.scale / gesture.scale - x);
+      this.viewport.scrollTop = Math.max(0, (gesture.top + gesture.y - offsetY) * this.scale / gesture.scale - y);
+    } else {
+      this.viewport.scrollLeft = gesture.left + gesture.x - x;
+      this.viewport.scrollTop = gesture.top + gesture.y - y;
+    }
+  }
+  pointerEnd(event) {
+    if (!this.pointers.has(event.pointerId)) return;
+    if (this.gesture?.moved) this.suppressClickUntil = Date.now() + 400;
+    this.pointers.delete(event.pointerId);
+    if (this.pointers.size) this.startGesture();
+    else this.gesture = null;
+  }
+}
+
 class WorldMap {
   constructor({ selection, profile, picture, custom, cutsceneViewed = () => false, openTownLocation = () => {} }) {
     this.selection = selection;
@@ -62,6 +201,7 @@ class WorldMap {
     this.custom = custom;
     this.map = document.querySelector('#world-map');
     this.layout = document.querySelector('#map-layout');
+    this.navigation = new MapNavigation(this.map, this.layout);
     this.details = document.querySelector('#map-details');
     this.heading = document.querySelector('#level-picker-heading');
     this.totals = document.querySelector('#map-collection-totals');
@@ -146,6 +286,7 @@ class WorldMap {
         this.selection.value = 'custom';
         this.details.replaceChildren(this.objectives(custom));
         this.layout.dataset.view = 'levels';
+        this.navigation.resize();
         this.details.hidden = false;
         this.play.hidden = false;
         this.setCutsceneOption(custom);
@@ -181,6 +322,7 @@ class WorldMap {
       this.details.replaceChildren(message);
       this.details.hidden = false;
       this.layout.dataset.view = 'levels';
+      this.navigation.resize();
       this.back.hidden = false;
       return;
     }
@@ -414,6 +556,7 @@ class WorldMap {
     }
     this.map.replaceChildren();
     this.map.style.height = `${height}px`;
+    this.navigation.reset(height);
     this.map.dataset.view = this.view;
     this.map.dataset.theme = this.world.theme;
     if (this.world.color) this.map.style.setProperty('--world-color', this.world.color);
@@ -523,16 +666,31 @@ class WorldMap {
       if (active) selected = node;
     }
     const koshi = this.map.querySelector('.map-koshi');
-    const style = globalThis.getComputedStyle(koshi), start = { left: style.left, top: style.top };
+    const coordinate = (value, size) => parseFloat(value) * (value.endsWith('%') ? size / 100 : 1);
+    const width = this.map.clientWidth, height = this.map.clientHeight;
+    const start = koshi.getBoundingClientRect();
+    const bounds = this.map.getBoundingClientRect();
     koshi.getAnimations().forEach(animation => animation.cancel());
     koshi.hidden = false; koshi.style.left = selected.style.left; koshi.style.top = selected.style.top;
-    if (this.view === 'levels' && previous && previous !== selected
-      && !globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (previous && previous !== selected && !globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const destination = { x: coordinate(selected.style.left, width), y: coordinate(selected.style.top, height) };
+      const end = koshi.getBoundingClientRect();
+      const transform = globalThis.getComputedStyle(koshi).transform;
+      const route = this.view === 'levels';
       const from = nodes.indexOf(previous), to = nodes.indexOf(selected), direction = Math.sign(to - from);
-      const stops = Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => nodes[from + i * direction]);
-      const frames = stops.map(node => ({ left: node.style.left, top: node.style.top }));
-      frames[0] = start;
-      koshi.animate(frames, { duration: Math.max(600, Math.min(1500, (frames.length - 1) * 160)), easing: 'linear' });
+      const stops = route
+        ? Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => nodes[from + i * direction])
+        : [previous, selected];
+      const points = stops.map(node => ({ x: coordinate(node.style.left, width), y: coordinate(node.style.top, height) }));
+      points[0] = { x: destination.x + (start.left - end.left) * width / bounds.width,
+        y: destination.y + (start.top - end.top) * height / bounds.height };
+      const frames = points.map(point => ({
+        transform: `translate(${point.x - destination.x}px, ${point.y - destination.y}px) ${transform}`,
+      }));
+      koshi.animate(frames, {
+        duration: route ? Math.max(600, Math.min(1500, (frames.length - 1) * 160)) : 350,
+        easing: route ? 'linear' : 'ease',
+      });
     }
     selected.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }

@@ -43,7 +43,8 @@ world, using a darker version of its color. World 8 connects to World 9,
 Robot HQ, at the center. Cat Town (C) is outside the octagon to the left,
 collinear with Worlds 1 and 9, and connected only to World 1.
 The map keeps a square canvas so the octagon remains regular at every screen
-size; smaller viewports scroll. Cat Town opens its four-location scene hub. Any
+size; desktop overviews fit the available space, while phones support panning
+and zooming. Cat Town opens its four-location scene hub. Any
 other world without levels shows its name and a no-levels notice, with Play
 unavailable. Empty worlds never count as completed.
 Official world emblems are pixel silhouettes: tree (1), fish (2), water drop (3),
@@ -172,10 +173,21 @@ carrier badge and treasure chest after collection. Guest discoveries last for
 the current visit; editor playtests remain independent. Carried blocks track
 their enemy at a fixed offset without bobbing, using the same unframed artwork
 as collected map icons and the in-game pickup.
-The map window and its map/details panes keep a consistent viewport-relative
-size regardless of the number of stops or preview icons; longer content scrolls
-inside its pane. On phones the dialog fills the viewport width, overriding the
-browser's default dialog max-width, with both map views centered.
+The world-selection overview fills most of the desktop screen and fits the
+complete map inside its pane. On phones it fills the screen: drag with one finger
+to pan and pinch with two fingers to zoom, without visible scrollbars. **Zoom in**,
+**Zoom out**, and **Fit map** buttons control the overview on phones and desktops.
+On desktops, Ctrl+mouse wheel (or a trackpad pinch) zooms only the map, not the
+browser page; ordinary wheel scrolling and drag panning remain available.
+The zoom buttons show a plus or minus inside a magnifying glass. Zoom is
+limited between fitting the whole map and 2.5 times its original size; dragging
+does not select a world. These controls apply to both Beta and Official.
+The level map and details retain their viewport-relative panes; longer content
+scrolls inside its pane. Both phone map views are centered.
+Cat Town's location map fills its viewport independently of the overview zoom container.
+While the world or level map is open, the hidden game's simulation, HUD updates,
+and continuous canvas rendering are suspended. Koshi's map movement uses
+transform animations, including intermediate level stops, without per-frame layout.
 Level numbers stay on one line. **World Select** and
 **Skip cutscene** share the bottom action bar with **Play Level** when a level
 is selected; **Back to menu** appears there on the world-selection view.

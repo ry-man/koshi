@@ -151,6 +151,12 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
     getAttribute(name) { return this.attributes[name]; },
     addEventListener(name, listener) { this.listeners[name] = listener; },
     focus() {}, scrollIntoView() {},
+    clientWidth: 0, clientHeight: 0, scrollLeft: 0, scrollTop: 0,
+    getBoundingClientRect() {
+      return { left: parseFloat(this.style.left ?? '0') * 8, top: parseFloat(this.style.top ?? '0') * 4,
+        width: 800, height: 400 };
+    },
+    setPointerCapture() {},
     getAnimations() { return []; },
     animate(frames, options) { this.animation = { frames, options }; },
     querySelectorAll(selector) {
@@ -165,11 +171,12 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
     createElement: node, createElementNS: node,
     querySelector(id) { if (!elements.has(id)) elements.set(id, node()); return elements.get(id); },
   };
-  const motion = { matches: false };
+  const motion = { matches: false, addEventListener() {} };
   const context = vm.createContext({
     document, KoshiGame: game, KoshiWorlds: graph, KoshiSaves: saveApi, KoshiCollectibles: collectibles,
     KoshiCatTown: require('../src/cat-town.js'),
-    getComputedStyle: node => node.style, matchMedia: () => motion,
+    getComputedStyle: node => ({ ...node.style, transform: 'matrix(1, 0, 0, 1, -23, -73)' }), matchMedia: () => motion,
+    ResizeObserver: class { observe() {} },
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'world-map.js'), 'utf8'), context);
   const selection = { value: '0' };
@@ -179,6 +186,7 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
     picture(picture, title, fillBrick) { pictures.push({ picture, title, fillBrick }); return node(); },
     custom: () => custom, cutsceneViewed,
   });
+  map.map.clientWidth = 800; map.map.clientHeight = 400;
   const text = node => [node.textContent ?? '', ...node.children.map(text)].join(' ');
   return { map, selection, elements, text, motion, pictures };
 }
@@ -221,6 +229,109 @@ test('Official and Beta level selection share map sizing, node rendering, textur
   assert.match(css, /\.world-map\[data-view="levels"\]\[data-theme="official"\] \.map-node:not\(\.map-node-boss\)\s*\{[^}]*background-color:[^}]*var\(--world-color\)[^}]*border-color: var\(--world-color\)/);
 });
 
+test('world overview fits desktop screens and supports phone panning, anchored pinch zoom, and tap selection', () => {
+  const fixture = mapFixture();
+  const { map, elements, motion } = fixture;
+  const navigation = map.navigation, viewport = elements.get('.map-viewport');
+  viewport.clientWidth = 1200; viewport.clientHeight = 700;
+  map.open();
+  assert.equal(navigation.scale, 1);
+  assert.equal(navigation.width, 1200);
+  assert.equal(navigation.contentHeight, 700);
+  assert.equal(elements.get('#map-controls').hidden, false);
+  motion.matches = true;
+  viewport.clientWidth = 390; viewport.clientHeight = 600;
+  navigation.resize(true);
+  assert.equal(navigation.scale, 1);
+  assert.equal(elements.get('#map-controls').hidden, false);
+  assert.equal(map.layout.dataset.mapTouch, 'true');
+  const event = (id, x, y) => ({ pointerId: id, button: 0, clientX: x, clientY: y, preventDefault() {} });
+  const left = viewport.scrollLeft;
+  navigation.pointerDown(event(1, 200, 200));
+  navigation.pointerMove(event(1, 197, 200));
+  assert.equal(viewport.scrollLeft, left, 'small tap movements do not pan');
+  navigation.pointerMove(event(1, 160, 180));
+  assert.equal(viewport.scrollLeft, left + 40);
+  assert.equal(viewport.scrollTop, 20);
+  navigation.pointerEnd(event(1, 160, 180));
+  let suppressed = false;
+  viewport.listeners.click({ preventDefault() { suppressed = true; }, stopPropagation() {} });
+  assert.equal(suppressed, true, 'drag does not activate a world');
+  navigation.suppressClickUntil = 0;
+  suppressed = false;
+  viewport.listeners.click({ preventDefault() { suppressed = true; }, stopPropagation() {} });
+  assert.equal(suppressed, false, 'ordinary taps still select worlds');
+  viewport.scrollLeft = 100; viewport.scrollTop = 0;
+  navigation.pointerDown(event(1, 100, 200));
+  navigation.pointerDown(event(2, 200, 200));
+  navigation.pointerMove(event(2, 300, 200));
+  assert.equal(navigation.scale, 2);
+  assert.equal(viewport.scrollLeft, 300, 'pinch preserves the map point under the moving midpoint');
+  navigation.pointerEnd(event(2, 300, 200));
+  navigation.pointerMove(event(1, 80, 200));
+  assert.equal(viewport.scrollLeft, 320, 'one remaining finger continues panning without jumping');
+  navigation.pointerEnd(event(1, 80, 200));
+  navigation.zoom(10);
+  assert.equal(navigation.scale, 2.5);
+  navigation.zoom(.01);
+  assert.equal(navigation.scale, navigation.minimum);
+  map.showWorld(WORLDS[0]);
+  assert.equal(map.map.style.transform, '');
+  assert.equal(elements.get('#map-controls').hidden, true);
+});
+
+test('Official desktop overview scales its complete square inside the available viewport', () => {
+  const { OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
+  const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  const fixture = mapFixture(undefined, null, { ...engine, LEVELS: levels },
+    { ...worlds, WORLDS: OFFICIAL_WORLDS, worldLevels: world => worlds.worldLevels(world, levels) });
+  const viewport = fixture.elements.get('.map-viewport');
+  viewport.clientWidth = 1200; viewport.clientHeight = 650;
+  fixture.map.open();
+  assert.equal(fixture.map.navigation.scale, 650 / 900);
+  assert.equal(fixture.elements.get('#map-surface').style.width, '1200px');
+  assert.equal(fixture.elements.get('#map-surface').style.height, '650px');
+  assert.equal(viewport.scrollLeft, 0);
+  assert.equal(viewport.scrollTop, 0);
+});
+
+test('desktop zoom is confined to the overview and modifier-wheel cancels browser zoom', () => {
+  const { map, elements } = mapFixture();
+  const viewport = elements.get('.map-viewport'), navigation = map.navigation;
+  viewport.clientWidth = 1200; viewport.clientHeight = 650;
+  map.open();
+  assert.equal(elements.get('#map-controls').hidden, false);
+  elements.get('#map-zoom-in').listeners.click();
+  assert.equal(navigation.scale, 1.25);
+  navigation.resize();
+  assert.equal(navigation.scale, 1.25, 'resize does not reset desktop zoom');
+  let prevented = false;
+  const wheel = { ctrlKey: true, deltaY: -20, deltaMode: 0, clientX: 200, clientY: 200,
+    preventDefault() { prevented = true; } };
+  viewport.listeners.wheel(wheel);
+  assert.equal(prevented, true);
+  assert.ok(navigation.scale > 1.25);
+  prevented = false;
+  const scale = navigation.scale;
+  viewport.listeners.wheel({ ...wheel, ctrlKey: false });
+  assert.equal(prevented, false, 'ordinary wheel scrolling is preserved');
+  assert.equal(navigation.scale, scale);
+  elements.get('#map-zoom-fit').listeners.click();
+  assert.equal(navigation.scale, navigation.minimum);
+  map.showWorld(WORLDS[0]);
+  viewport.listeners.wheel(wheel);
+  assert.equal(prevented, false, 'browser gestures outside the overview are not intercepted');
+  assert.equal(map.map.style.transform, '');
+  assert.equal(elements.get('#map-surface').style.width, '');
+  assert.equal(elements.get('#map-surface').style.height, '');
+  map.open();
+  assert.equal(navigation.scale, navigation.minimum, 'reopening starts fitted on desktop');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  for (const id of ['map-zoom-in', 'map-zoom-out']) {
+    assert.match(html, new RegExp(`id="${id}"[^>]*><svg[^>]*aria-hidden="true"`));
+  }
+});
+
 test('Cat Town opens four non-level locations with a circular route and a visit action', () => {
   const officialWorlds = { ...worlds, WORLDS: OFFICIAL_WORLDS };
   const { map, text } = mapFixture(undefined, null, { ...engine, LEVELS: [] }, officialWorlds);
@@ -239,6 +350,8 @@ test('Cat Town opens four non-level locations with a circular route and a visit 
   locations[2].listeners.click();
   assert.equal(map.townLocation.id, 'tree');
   assert.equal(map.map.querySelectorAll('.map-node').find(node => node.dataset.node === 'tree').getAttribute('aria-pressed'), 'true');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(css, /\.map-layout:has\(\.cat-town-map\) #map-surface\s*\{[^}]*height: 100%;[^}]*min-height: 0;/);
 });
 
 test('Official map draws configured empty worlds and shows a nonplayable empty-world notice', () => {
@@ -316,7 +429,7 @@ test('world overview hides the text panel and shows aggregate completion icons o
 
   const styles = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert.match(styles, /\.map-layout\[data-view="worlds"\] \{[^}]*justify-items: center;/);
-  assert.match(styles, /\.map-layout\[data-view="worlds"\] \.map-viewport \{ width: min\(100%, 760px\); \}/);
+  assert.match(styles, /\.map-layout\[data-view="worlds"\] \.map-viewport \{ width: 100%; scrollbar-gutter: auto; \}/);
 });
 
 test('two-tier map selects worlds separately, moves Koshi, and reveals only that world and its complete level details', () => {
@@ -725,12 +838,13 @@ test('Koshi follows intermediate level stops forward and backward, and reduced m
   map.selectLevel(LEVELS[5]);
   const koshi = map.map.querySelector('.map-koshi');
   assert.equal(koshi.animation.frames.length, 6);
-  assert.equal(koshi.animation.frames[4].left, '87%', 'the turn follows the path rather than crossing the map');
-  assert.equal(koshi.animation.frames[5].left, '62%');
+  assert.match(koshi.animation.frames[4].transform, /^translate\(200px, 0px\)/, 'the turn follows the path rather than crossing the map');
+  assert.match(koshi.animation.frames[5].transform, /^translate\(0px, 0px\)/);
+  assert.ok(koshi.animation.frames.every(frame => Object.keys(frame).join() === 'transform'));
   assert.ok(koshi.animation.options.duration <= 1500);
   map.selectLevel(LEVELS[0]);
   assert.equal(koshi.animation.frames.length, 6);
-  assert.equal(koshi.animation.frames[1].left, '87%');
+  assert.match(koshi.animation.frames[1].transform, /^translate\(600px,/);
   motion.matches = true;
   koshi.animation = null;
   map.selectLevel(LEVELS[9]);
@@ -751,14 +865,40 @@ test('world clicks move to a new world and a second click on that world zooms in
   assert.equal(selection.value, '10');
 });
 
+test('marker transforms start at the visible interrupted position and end without retaining the previous offset', () => {
+  const { map, motion } = mapFixture();
+  map.open(); map.showWorld(WORLDS[0]);
+  const marker = map.map.querySelector('.map-koshi');
+  let moving = true, cancelled = false;
+  marker.getBoundingClientRect = () => ({
+    left: moving ? 160 : parseFloat(marker.style.left) * 8,
+    top: parseFloat(marker.style.top) * 4,
+  });
+  marker.getAnimations = () => [{ cancel() { moving = false; cancelled = true; } }];
+  map.selectLevel(LEVELS[1]);
+  assert.equal(cancelled, true);
+  assert.equal(marker.animation.frames[0].transform, 'translate(-136px, 0px) matrix(1, 0, 0, 1, -23, -73)');
+  assert.equal(marker.animation.frames.at(-1).transform, 'translate(0px, 0px) matrix(1, 0, 0, 1, -23, -73)');
+  map.open();
+  const worldMarker = map.map.querySelector('.map-koshi');
+  map.selectWorld(WORLDS[1]);
+  assert.equal(worldMarker.animation.options.duration, 350);
+  assert.equal(worldMarker.animation.options.easing, 'ease');
+  assert.ok(worldMarker.animation.frames.every(frame => Object.keys(frame).join() === 'transform'));
+  motion.matches = true;
+  worldMarker.animation = null;
+  map.selectWorld(WORLDS[2]);
+  assert.equal(worldMarker.animation, null);
+});
+
 test('victory map moves from the completed stop to the next, including world boundaries and final victory', () => {
   const { map, selection } = mapFixture({ completed: LEVELS.map(level => level.id), results: {} });
   map.open(); map.advanceFrom(0);
   assert.equal(map.view, 'levels');
   assert.equal(selection.value, '1');
   let marker = map.map.querySelector('.map-koshi');
-  assert.equal(marker.animation.frames[0].left, '12%');
-  assert.equal(marker.animation.frames[1].left, '37%');
+  assert.match(marker.animation.frames[0].transform, /^translate\(-200px, 0px\)/);
+  assert.match(marker.animation.frames[1].transform, /^translate\(0px, 0px\)/);
   assert.ok(marker.animation.options.duration >= 600);
   map.advanceFrom(9);
   assert.equal(map.world.id, '2');
