@@ -148,7 +148,18 @@ function drawCat(ctx, name, x, y, scale, talking, time) {
   catPath(ctx, x, y + bob, scale, fur, inner, stripe, glasses, white);
 }
 
-function drawStageCat(ctx, name, x, y, scale, talking, time, drawKoshi) {
+function stageCatPosition(x, y, scale, bounds) {
+  scale = Math.min(scale, bounds.width / 180, bounds.height / 120);
+  const margin = 45 * scale + 6;
+  return {
+    x: Math.max(bounds.left + margin, Math.min(bounds.left + bounds.width - margin, x)),
+    y: Math.max(bounds.top + margin, Math.min(bounds.top + bounds.height - margin, y)),
+    scale,
+  };
+}
+
+function drawStageCat(ctx, name, x, y, scale, talking, time, drawKoshi, bounds) {
+  ({ x, y, scale } = stageCatPosition(x, y, scale, bounds));
   if (name !== 'Koshi' || !drawKoshi) {
     drawCat(ctx, name, x, y, name === 'Koshi' ? scale : scale * .56, talking, time);
     return;
@@ -173,7 +184,7 @@ function drawPlant(ctx, x, y, scale = 1) {
   ctx.restore();
 }
 
-function drawMall(ctx, time, speaker, drawKoshi) {
+function drawMall(ctx, time, speaker, drawKoshi, bounds) {
   const sky = ctx.createLinearGradient(0, 0, 0, 540);
   sky.addColorStop(0, '#c4e7e8'); sky.addColorStop(1, '#f4d8b8');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
@@ -203,11 +214,11 @@ function drawMall(ctx, time, speaker, drawKoshi) {
     ctx.fillStyle = color; ctx.fillRect(x - 15, 330, 30, 48);
     ctx.fillStyle = '#f2d2b3'; ctx.beginPath(); ctx.arc(x, 315, 17, 0, Math.PI * 2); ctx.fill();
   }
-  drawStageCat(ctx, 'Koshi', 385, 350, 1.18, speaker === 'Koshi', time, drawKoshi);
-  drawStageCat(ctx, 'Whiskers', 570, 350, 1.18, speaker === 'Whiskers', time, drawKoshi);
+  drawStageCat(ctx, 'Koshi', 385, 350, 1.18, speaker === 'Koshi', time, drawKoshi, bounds);
+  drawStageCat(ctx, 'Whiskers', 570, 350, 1.18, speaker === 'Whiskers', time, drawKoshi, bounds);
 }
 
-function drawHouse(ctx, interior, items, selected, time, drawKoshi) {
+function drawHouse(ctx, interior, items, selected, time, drawKoshi, bounds) {
   const sky = ctx.createLinearGradient(0, 0, 0, 540);
   sky.addColorStop(0, '#8bd5f1'); sky.addColorStop(1, '#f7e6a4');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
@@ -222,7 +233,7 @@ function drawHouse(ctx, interior, items, selected, time, drawKoshi) {
     ctx.fillStyle = '#805a47'; ctx.fillRect(440, 310, 80, 120);
     ctx.fillStyle = '#e6c286'; ctx.fillRect(455, 345, 8, 8);
     for (const x of [115, 845]) drawPlant(ctx, x, 415, 1.2);
-    drawStageCat(ctx, 'Koshi', 740, 355, 1.3, true, time, drawKoshi);
+    drawStageCat(ctx, 'Koshi', 740, 355, 1.3, true, time, drawKoshi, bounds);
     ctx.fillStyle = '#fff9df'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText("Home sweet home!", 480, 478);
     return;
@@ -260,7 +271,7 @@ function drawHouse(ctx, interior, items, selected, time, drawKoshi) {
   ctx.fillText(items.length ? 'Koshi’s collection' : 'A cozy room, waiting for treasures', 480, 480);
 }
 
-function drawCatTree(ctx, time, progress, speaker, drawKoshi) {
+function drawCatTree(ctx, time, progress, speaker, drawKoshi, bounds) {
   const sky = ctx.createLinearGradient(0, 0, 0, 540);
   sky.addColorStop(0, '#9de0ef'); sky.addColorStop(1, '#dff4bd');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
@@ -311,11 +322,11 @@ function drawCatTree(ctx, time, progress, speaker, drawKoshi) {
   }
   ctx.fillStyle = '#42534a'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('↑', 480, Math.max(35, top - 8));
-  drawStageCat(ctx, 'Koshi', 190, 360, 1.1, speaker === 'Koshi', time, drawKoshi);
-  drawStageCat(ctx, 'Bruiser', 760, 360, 1.1, speaker === 'Bruiser', time, drawKoshi);
+  drawStageCat(ctx, 'Koshi', 190, 360, 1.1, speaker === 'Koshi', time, drawKoshi, bounds);
+  drawStageCat(ctx, 'Bruiser', 760, 360, 1.1, speaker === 'Bruiser', time, drawKoshi, bounds);
 }
 
-function drawTank(ctx, time, fish, speaker, drawKoshi) {
+function drawTank(ctx, time, fish, speaker, drawKoshi, bounds) {
   ctx.fillStyle = '#b8e3ee'; ctx.fillRect(0, 0, 960, 540);
   ctx.fillStyle = '#527a91'; ctx.fillRect(70, 38, 820, 440);
   const water = ctx.createLinearGradient(0, 55, 0, 465);
@@ -349,8 +360,8 @@ function drawTank(ctx, time, fish, speaker, drawKoshi) {
     ctx.fillStyle = '#203b4d'; ctx.beginPath(); ctx.arc(15, -4, 3, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   });
-  drawStageCat(ctx, 'Koshi', 145, 360, 1, speaker === 'Koshi', time, drawKoshi);
-  drawStageCat(ctx, 'Eugene', 850, 360, .9, speaker === 'Eugene', time, drawKoshi);
+  drawStageCat(ctx, 'Koshi', 145, 360, 1, speaker === 'Koshi', time, drawKoshi, bounds);
+  drawStageCat(ctx, 'Eugene', 850, 360, .9, speaker === 'Eugene', time, drawKoshi, bounds);
 }
 
 class CatTown {
@@ -633,18 +644,22 @@ class CatTown {
     const w = Math.round(width * ratio), h = Math.round(height * ratio);
     if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
     const backgroundScale = Math.max(w / 960, h / 540);
+    const bounds = {
+      left: (960 - w / backgroundScale) / 2, top: (540 - h / backgroundScale) / 2,
+      width: w / backgroundScale, height: h / backgroundScale,
+    };
     this.ctx.setTransform(backgroundScale, 0, 0, backgroundScale,
       (w - 960 * backgroundScale) / 2, (h - 540 * backgroundScale) / 2);
     const state = townState(this.profile()), fish = fabledFish(this.profile(), this.worlds, this.levels);
     if (this.location.id === 'mall') {
-      drawMall(this.ctx, time, this.speaker.textContent, this.drawKoshi);
-    } else if (this.location.id === 'house') drawHouse(this.ctx, this.houseInterior, state.items, this.selectedItem, time, this.drawKoshi);
-    else if (this.location.id === 'tree') drawCatTree(this.ctx, time, this.treeProgress, this.speaker.textContent, this.drawKoshi);
-    else drawTank(this.ctx, time, fish, this.speaker.textContent, this.drawKoshi);
+      drawMall(this.ctx, time, this.speaker.textContent, this.drawKoshi, bounds);
+    } else if (this.location.id === 'house') drawHouse(this.ctx, this.houseInterior, state.items, this.selectedItem, time, this.drawKoshi, bounds);
+    else if (this.location.id === 'tree') drawCatTree(this.ctx, time, this.treeProgress, this.speaker.textContent, this.drawKoshi, bounds);
+    else drawTank(this.ctx, time, fish, this.speaker.textContent, this.drawKoshi, bounds);
   }
 }
 
-const api = { CatTown, LOCATIONS, TOWN_ITEMS, townState, earnedGoldStars, chooseOffers, purchaseItem, buildTree, fabledFish };
+const api = { CatTown, LOCATIONS, TOWN_ITEMS, townState, earnedGoldStars, chooseOffers, purchaseItem, buildTree, fabledFish, stageCatPosition };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiCatTown = api;
 })();

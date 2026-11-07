@@ -56,6 +56,9 @@ Official level maps tint their background, textured nodes, and routes with the
 associated world's color. Gameplay uses bolder world-colored outer framing and
 menu-edge accents while keeping text areas subdued and the board artwork and
 steering-brick colors unchanged.
+The opaque console accents use a darker shade of each world color. Cat Town
+keeps its full-screen backgrounds but moves actors inside the visible stage
+when phone or wide-screen cropping would otherwise hide them.
 
 Switching reloads the same page in the selected game.
 The title reserves the same notice space in both modes so its controls do not

@@ -42,11 +42,11 @@ function storageFixture() {
 test('Official world color accents stay outside board artwork and at menu edges', () => {
   const css = read('style.css');
   const board = css.match(/\.game-shell\[data-world-theme="official"\] \.board\s*\{([^}]*)\}/)[1];
-  assert.match(board, /border-color: var\(--level-world-color\)/);
+  assert.match(board, /border-color: var\(--console-color\)/);
   assert.match(board, /box-shadow: 0 0 0 3px/);
   assert.doesNotMatch(board, /inset|background|filter|opacity/);
-  assert.match(css, /\.game-shell\[data-world-theme="official"\] \.objective\s*\{[^}]*background-color:[^}]*8%[^}]*box-shadow: inset 0 -3px 0 var\(--level-world-color\)/);
-  assert.match(css, /\.game-shell\[data-world-theme="official"\]\s*\{[^}]*var\(--level-world-color\) 65%/);
+  assert.match(css, /\.game-shell\[data-world-theme="official"\] \.objective\s*\{[^}]*background-color:[^}]*8%[^}]*box-shadow: inset 0 -3px 0 var\(--console-color\)/);
+  assert.match(css, /\.game-shell\[data-world-theme="official"\]\s*\{[^}]*--console-color: color-mix\(in srgb, var\(--level-world-color\) 78%, #111a22\)/);
 });
 
 function browserFixture({ search = '?game=official', hash = '', storage = storageFixture() } = {}) {

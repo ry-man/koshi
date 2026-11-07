@@ -155,22 +155,23 @@ h1 em { font-style: normal; color: var(--accent); }
 .level-badge strong { font-size: 30px; line-height: 1.4; font-weight: 500; }
 .game-shell { background: var(--panel); border: 1px solid #ffffff16; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 70px #0003; }
 .game-shell[data-world-theme="official"] {
-  border-color: var(--level-world-color);
+  --console-color: color-mix(in srgb, var(--level-world-color) 78%, #111a22);
+  border-color: var(--console-color);
   background:
     repeating-linear-gradient(135deg, #ffffff04 0 1px, transparent 1px 14px),
-    linear-gradient(145deg, color-mix(in srgb, var(--level-world-color) 65%, #111a22),
-      color-mix(in srgb, var(--level-world-color) 40%, #111a22));
-  box-shadow: 0 25px 70px #0005, inset 0 0 0 1px var(--level-world-color);
+    linear-gradient(145deg, color-mix(in srgb, var(--console-color) 85%, #111a22),
+      color-mix(in srgb, var(--console-color) 65%, #111a22));
+  box-shadow: 0 25px 70px #0005, inset 0 0 0 1px var(--console-color);
 }
 .game-shell[data-world-theme="official"] .game-controls,
 .game-shell[data-world-theme="official"] .hud,
 .game-shell[data-world-theme="official"] .objective {
   background-color: color-mix(in srgb, var(--level-world-color) 8%, #19252d);
-  box-shadow: inset 0 -3px 0 var(--level-world-color);
+  box-shadow: inset 0 -3px 0 var(--console-color);
 }
 .game-shell[data-world-theme="official"] .board {
-  border-color: var(--level-world-color);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--level-world-color) 75%, #10191f);
+  border-color: var(--console-color);
+  box-shadow: 0 0 0 3px var(--console-color);
 }
 .hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 22px 26px; gap: 8px; }
 .boss-health { display: flex; align-items: center; gap: 12px; padding: 0 14px 14px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; }

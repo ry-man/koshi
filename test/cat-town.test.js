@@ -1,9 +1,30 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  LOCATIONS, TOWN_ITEMS, townState, earnedGoldStars, chooseOffers, purchaseItem, buildTree, fabledFish,
+  LOCATIONS, TOWN_ITEMS, townState, earnedGoldStars, chooseOffers, purchaseItem, buildTree, fabledFish, stageCatPosition,
 } = require('../src/cat-town.js');
 const { SaveSlots } = require('../src/saves.js');
+
+test('Cat Town actors stay inside the visible stage on phones and wide screens', () => {
+  const actors = [[385, 350, 1.18], [570, 350, 1.18], [740, 355, 1.3],
+    [190, 360, 1.1], [760, 360, 1.1], [145, 360, 1], [850, 360, .9]];
+  for (const [width, height] of [[320, 460], [390, 480], [430, 520], [844, 190], [1280, 530], [960, 540]]) {
+    const scale = Math.max(width / 960, height / 540);
+    const bounds = { left: (960 - width / scale) / 2, top: (540 - height / scale) / 2,
+      width: width / scale, height: height / scale };
+    const positions = actors.map(([x, y, size]) => stageCatPosition(x, y, size, bounds));
+    for (const actor of positions) {
+      const margin = actor.scale * 45 + 6;
+      assert.ok(actor.x - margin >= bounds.left - 1e-9);
+      assert.ok(actor.x + margin <= bounds.left + bounds.width + 1e-9);
+      assert.ok(actor.y - margin >= bounds.top - 1e-9);
+      assert.ok(actor.y + margin <= bounds.top + bounds.height + 1e-9);
+    }
+    for (const [left, right] of [[0, 1], [3, 4], [5, 6]]) {
+      assert.ok(positions[right].x - positions[left].x > (positions[left].scale + positions[right].scale) * 45);
+    }
+  }
+});
 
 test('Cat Town has four non-level destinations arranged as a closed loop', () => {
   assert.deepEqual(LOCATIONS.map(location => location.id), ['mall', 'house', 'tree', 'tank']);
