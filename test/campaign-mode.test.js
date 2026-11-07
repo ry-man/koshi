@@ -30,6 +30,23 @@ test('title notice preserves spacing in both games and startup hides the unfinis
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[^\n]*animation: none;/);
 });
 
+test('Official title shows the unchanged Beta recommendation even when Official has levels', () => {
+  const html = read('index.html');
+  assert.match(html, /<p id="campaign-empty" hidden>Official game under construction\. Beta game recommended for playtesting at this time\.<\/p>/);
+  const app = read('src/app.js');
+  const assignment = app.match(/document\.querySelector\('#campaign-empty'\)\.hidden = [^;]+;/);
+  assert.ok(assignment);
+  for (const [campaignId, expected] of [['official', false], ['beta', true]]) {
+    const notice = { hidden: null };
+    const document = { querySelector: selector => {
+      assert.equal(selector, '#campaign-empty');
+      return notice;
+    } };
+    vm.runInNewContext(assignment[0], { document, campaignId, LEVELS: [{}] });
+    assert.equal(notice.hidden, expected, campaignId);
+  }
+});
+
 function storageFixture() {
   const data = new Map();
   return {
@@ -179,6 +196,24 @@ test('each playable Official starter has one time-zero Cat Block and a ten-secon
   assert.equal([...game.pendingSpawns.values()][0].items[0].type, 'cat-block');
   for (let second = 0; second < 10; second++) game.update(1);
   assert.equal(game.state, 'won');
+});
+
+test('numbered Official starters each have the matching Hello world cutscene', () => {
+  const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
+  const themes = ['happy-meadows', 'catnip-beach', 'fuzzy-falls', 'mouser-mesa',
+    'alpine-litterbox', 'yarnball-moon', 'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
+  const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  for (const [index, theme] of themes.entries()) {
+    const level = levels.find(entry => entry.worldId === String(index + 1));
+    assert.ok(level);
+    assert.deepEqual(level.cutscene, {
+      theme, lines: [{ speaker: 'koshi', text: 'Hello world!', actors: [{ character: 'koshi', x: .5, y: .8 }] }],
+    });
+    assert.deepEqual(engine.validateCutscene(level.cutscene), level.cutscene);
+  }
+  for (const level of levels.filter(entry => entry.worldId.startsWith('S'))) {
+    assert.equal(level.cutscene, undefined);
+  }
 });
 
 test('Official world mappings cannot accidentally pull levels from the Beta data collection', () => {

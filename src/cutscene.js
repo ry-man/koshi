@@ -3,6 +3,124 @@
 
 const { Cutscene, CHARACTERS } = globalThis.KoshiGame;
 
+const sceneNames = {
+  garden: 'The garden path', workshop: 'Clockwork Pantry', foundry: 'Robot Foundry',
+  'happy-meadows': 'Happy Meadows', 'catnip-beach': 'Catnip Beach',
+  'fuzzy-falls': 'Fuzzy Falls', 'mouser-mesa': 'Mouser Mesa',
+  'alpine-litterbox': 'Alpine Litterbox', 'yarnball-moon': 'Yarnball Moon',
+  'hairball-swamp': 'Hairball Swamp', 'meownt-vesuvius': 'Meownt Vesuvius',
+  'robot-hq': 'Robot HQ',
+};
+
+function drawOfficialBackground(ctx, theme) {
+  const palettes = {
+    'happy-meadows': ['#a4e0e0', '#e7f6ca', '#76c96a', '#397b4e'],
+    'catnip-beach': ['#69c7e0', '#def7e5', '#f1d65c', '#d2ad55'],
+    'fuzzy-falls': ['#7cbce9', '#d8edfb', '#68a9ee', '#497d94'],
+    'mouser-mesa': ['#f5c27e', '#fce4b5', '#eea052', '#9d593c'],
+    'alpine-litterbox': ['#91b6d2', '#e8f5fb', '#eeeeee', '#a8bdc8'],
+    'yarnball-moon': ['#211b4c', '#67518c', '#b08ae3', '#594578'],
+    'hairball-swamp': ['#8ca58a', '#d0c8a4', '#b58a65', '#526d54'],
+    'meownt-vesuvius': ['#693e50', '#efaa86', '#e66c68', '#713b3b'],
+    'robot-hq': ['#343453', '#b38ba9', '#ed9bc3', '#55465e'],
+  };
+  const [skyTop, skyBottom, accent, ground] = palettes[theme];
+  const sky = ctx.createLinearGradient(0, 0, 0, 540);
+  sky.addColorStop(0, skyTop); sky.addColorStop(1, skyBottom);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
+  const rect = (color, x, y, w, h) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
+  const circle = (color, x, y, r) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  };
+  const shape = (color, points) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(...points[0]);
+    for (const point of points.slice(1)) ctx.lineTo(...point);
+    ctx.closePath(); ctx.fill();
+  };
+  if (theme === 'happy-meadows') {
+    circle('#fff2a1', 790, 85, 43);
+    for (const [x, y, r] of [[60, 410, 210], [370, 430, 250], [790, 420, 230]]) circle('#8bcf83', x, y, r);
+    for (const x of [80, 850]) {
+      rect('#785844', x - 13, 210, 26, 180);
+      circle('#438e59', x, 190, 75); circle('#64b86c', x - 40, 205, 50); circle('#64b86c', x + 40, 205, 50);
+    }
+  } else if (theme === 'catnip-beach') {
+    circle('#fff0a0', 760, 85, 48);
+    rect('#64bec9', 0, 250, 960, 145);
+    for (const y of [275, 315, 355]) for (let x = (y % 2) * 55; x < 960; x += 150) rect('#c7f1df', x, y, 80, 4);
+    for (const x of [105, 850]) {
+      shape('#8c6847', [[x - 12, 380], [x + 10, 380], [x + 30, 180], [x + 15, 180]]);
+      for (const dx of [-1, 1]) shape('#388b67', [[x + 20, 185], [x + 20 + dx * 110, 150], [x + 20 + dx * 65, 210]]);
+    }
+  } else if (theme === 'fuzzy-falls') {
+    shape('#6d9fac', [[0, 340], [0, 150], [200, 85], [300, 180], [360, 340]]);
+    shape('#6d9fac', [[600, 340], [660, 170], [780, 80], [960, 150], [960, 340]]);
+    rect('#bceeff', 360, 0, 240, 360);
+    for (const x of [390, 445, 520, 570]) rect('#f1fbff', x, 0, 12, 320);
+    for (const [x, y, r] of [[365, 365, 43], [450, 350, 48], [545, 355, 52], [610, 370, 38]]) circle('#e6faff', x, y, r);
+  } else if (theme === 'mouser-mesa') {
+    circle('#ffe2a1', 780, 85, 48);
+    for (const [x, y, w] of [[0, 200, 240], [285, 250, 190], [650, 170, 310]]) {
+      rect('#b96f4c', x, y, w, 230); rect('#d48655', x - 15, y, w + 30, 22);
+      rect('#a35c43', x, y + 75, w, 10);
+    }
+    for (const x of [115, 840]) {
+      rect('#55865b', x, 280, 20, 110); rect('#55865b', x - 25, 315, 70, 14);
+      rect('#55865b', x - 25, 290, 14, 35); rect('#55865b', x + 31, 295, 14, 34);
+    }
+  } else if (theme === 'alpine-litterbox') {
+    for (const [x, peak, width] of [[-80, 90, 400], [220, 30, 450], [620, 75, 430]]) {
+      shape('#88a4b7', [[x, 380], [x + width / 2, peak], [x + width, 380]]);
+      shape('#f6fbfd', [[x + width * .32, peak + 110], [x + width / 2, peak], [x + width * .68, peak + 110], [x + width * .55, peak + 90], [x + width * .48, peak + 115]]);
+    }
+    for (const x of [70, 160, 800, 900]) {
+      rect('#6b6a61', x - 6, 290, 12, 90);
+      shape('#668c87', [[x - 45, 320], [x, 190], [x + 45, 320]]);
+    }
+  } else if (theme === 'yarnball-moon') {
+    for (const [x, y] of [[50, 60], [170, 135], [300, 40], [650, 70], [820, 145], [920, 45], [560, 180]]) circle('#f9efc8', x, y, 3);
+    circle('#eadbff', 770, 100, 54); circle('#c5aee9', 788, 85, 12); circle('#c5aee9', 750, 115, 9);
+    for (const [x, y, r] of [[90, 340, 90], [300, 380, 110], [690, 375, 115], [900, 340, 85]]) circle('#8170af', x, y, r);
+    for (const [x, y] of [[120, 310], [850, 300]]) {
+      circle('#d3b3ed', x, y, 42);
+      ctx.strokeStyle = '#9371ba'; ctx.lineWidth = 5;
+      for (const dx of [-20, 0, 20]) { ctx.beginPath(); ctx.moveTo(x + dx - 10, y - 33); ctx.lineTo(x + dx + 10, y + 33); ctx.stroke(); }
+    }
+  } else if (theme === 'hairball-swamp') {
+    for (const x of [80, 220, 740, 890]) {
+      rect('#59624b', x - 16, 110, 32, 300);
+      shape('#59624b', [[x, 200], [x - 75, 120], [x - 62, 115], [x + 10, 175]]);
+      circle('#6d805b', x, 110, 55);
+      for (const dx of [-40, 20, 55]) rect('#8caa75', x + dx, 140, 5, 65);
+    }
+    for (const [x, y] of [[120, 345], [300, 365], [670, 350], [850, 370]]) {
+      circle('#85a177', x, y, 38); rect('#b4c888', x - 28, y, 56, 6);
+    }
+  } else if (theme === 'meownt-vesuvius') {
+    circle('#f9bd85', 800, 95, 48);
+    shape('#704350', [[100, 390], [380, 115], [580, 115], [860, 390]]);
+    shape('#f17b58', [[380, 115], [580, 115], [555, 145], [510, 135], [490, 260], [465, 145], [420, 160]]);
+    for (const [x, y, r] of [[410, 80, 40], [470, 55, 55], [540, 75, 40]]) circle('#67515c', x, y, r);
+    for (const [x, y] of [[145, 110], [265, 70], [675, 160], [850, 220]]) circle('#ffc078', x, y, 5);
+  } else if (theme === 'robot-hq') {
+    rect('#474057', 100, 90, 760, 300);
+    rect('#66526b', 130, 120, 700, 245);
+    for (const x of [155, 745]) {
+      rect('#302f49', x, 150, 60, 180); rect('#ed9bc3', x + 10, 165, 40, 18);
+      for (const y of [205, 240, 275]) rect('#9ce5df', x + 15, y, 30, 7);
+    }
+    shape('#302f49', [[340, 330], [340, 170], [370, 170], [385, 135], [415, 170], [545, 170], [575, 135], [590, 170], [620, 170], [620, 330]]);
+    rect('#ed9bc3', 385, 220, 65, 25); rect('#ed9bc3', 510, 220, 65, 25);
+    rect('#9ce5df', 435, 285, 90, 8);
+  }
+  rect(ground, 0, 390, 960, 150);
+  shape(accent, [[390, 390], [570, 390], [760, 540], [200, 540]]);
+  for (let x = 20; x < 960; x += 120) {
+    rect(accent, x, 465, 80, 8);
+    rect(skyBottom, x + 10, 470, 60, 3);
+  }
+}
+
 function drawTom(ctx, time, speaking) {
   const talking = speaking && Math.floor(time * 8) % 2 === 0;
   ctx.save();
@@ -90,7 +208,7 @@ function drawPortrait(ctx, character, speaking, time) {
       for (const x of [11, 15, 19]) box(palette.stripe, x, 11, 2, x === 15 ? 5 : 3);
     }
     for (const x of [10, 20]) box('#202b32', x, 18, 3, blink ? 1 : 3);
-    box('#d98e9a', 14, 22, 4, 2);
+    box(character === 'bruiser' ? '#43271b' : '#d98e9a', 14, 22, 4, 2);
     box('#26323a', 14, 25, 4, talking ? 3 : 1);
     if (character === 'eugene') {
       for (const x of [8, 18]) {
@@ -308,7 +426,7 @@ class CutscenePlayer {
     this.paused = document.hidden;
     this.positions = new Map();
     this.displayedIndex = -1;
-    document.querySelector('#cutscene-heading').textContent = `Level ${level} / ${{ garden: 'The garden path', workshop: 'Clockwork Pantry', foundry: 'Robot Foundry' }[scene.theme]}`;
+    document.querySelector('#cutscene-heading').textContent = `Level ${level} / ${sceneNames[scene.theme]}`;
     this.dialog.showModal();
     this.update(0);
     this.next.focus({ preventScroll: true });
@@ -365,52 +483,59 @@ class CutscenePlayer {
     if (this.stage.width !== w || this.stage.height !== h) { this.stage.width = w; this.stage.height = h; }
     const ctx = this.stage.getContext('2d');
     const backgroundScale = Math.max(w / 960, h / 540);
-    ctx.setTransform(backgroundScale, 0, 0, backgroundScale, (w - 960 * backgroundScale) / 2, (h - 540 * backgroundScale) / 2);
-    const garden = scene.theme === 'garden', foundry = scene.theme === 'foundry';
-    const sky = ctx.createLinearGradient(0, 0, 0, 540);
-    sky.addColorStop(0, garden ? '#264e60' : foundry ? '#1d1418' : '#18222f');
-    sky.addColorStop(1, garden ? '#a7bc8a' : foundry ? '#8a4a2c' : '#465957');
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
-    if (garden) {
-      ctx.fillStyle = '#efdea0'; ctx.beginPath(); ctx.arc(780, 95, 48, 0, Math.PI * 2); ctx.fill();
-      for (const [x, y, r] of [[100,330,200],[430,360,260],[870,330,230]]) {
-        ctx.fillStyle = '#3e7160'; ctx.beginPath(); ctx.arc(x, y, r, Math.PI, 0); ctx.fill();
-      }
-      for (const x of [75, 885]) {
-        ctx.fillStyle = '#675448'; ctx.fillRect(x - 12, 150, 24, 230);
-        ctx.fillStyle = '#294f44'; ctx.beginPath(); ctx.arc(x, 160, 85, 0, Math.PI * 2); ctx.fill();
-      }
-    } else if (foundry) {
-      for (const [x, top] of [[90, 70], [240, 120], [720, 100], [870, 60]]) {
-        ctx.fillStyle = '#3a2a2a'; ctx.fillRect(x - 28, top, 56, 300 - top);
-        ctx.fillStyle = '#e8743a'; ctx.fillRect(x - 28, top, 56, 10);
-      }
-      ctx.strokeStyle = '#f0a04b88'; ctx.lineWidth = 6;
-      for (const x of [330, 630]) {
-        ctx.beginPath(); ctx.arc(x, 200, 52, 0, Math.PI * 2); ctx.stroke();
-        for (let i = 0; i < 8; i++) {
-          const a = i * Math.PI / 4;
-          ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 52, 200 + Math.sin(a) * 52);
-          ctx.lineTo(x + Math.cos(a) * 68, 200 + Math.sin(a) * 68); ctx.stroke();
-        }
-      }
-      ctx.fillStyle = '#f2c46b'; ctx.fillRect(370, 70, 220, 60);
-      ctx.fillStyle = '#2b1b1b'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('ROBOT FOUNDRY', 480, 108);
+    const official = !['garden', 'workshop', 'foundry'].includes(scene.theme);
+    // Keep the Official ground line at the same stage height when the background is cropped.
+    const backgroundY = official ? (h / 540 - backgroundScale) * 390 : (h - 540 * backgroundScale) / 2;
+    ctx.setTransform(backgroundScale, 0, 0, backgroundScale, (w - 960 * backgroundScale) / 2, backgroundY);
+    if (official) {
+      drawOfficialBackground(ctx, scene.theme);
     } else {
-      ctx.strokeStyle = '#819b9855'; ctx.lineWidth = 12;
-      for (const x of [110, 475, 850]) { ctx.strokeRect(x, 50, 90, 260); }
-      ctx.fillStyle = '#718480';
-      for (let x = 30; x < 960; x += 80) { ctx.fillRect(x, 38, 6, 6); ctx.fillRect(x, 285, 6, 6); }
-      ctx.fillStyle = '#c9db8d'; ctx.fillRect(370, 85, 220, 60);
-      ctx.fillStyle = '#20302e'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('CLOCKWORK PANTRY', 480, 123);
-    }
-    ctx.fillStyle = garden ? '#54734b' : foundry ? '#3b2b26' : '#303e43'; ctx.fillRect(0, 375, 960, 165);
-    ctx.fillStyle = garden ? '#ad9873' : foundry ? '#6e5146' : '#596465'; ctx.beginPath();
-    ctx.moveTo(420, 300); ctx.lineTo(540, 300); ctx.lineTo(800, 540); ctx.lineTo(140, 540); ctx.fill();
-    for (let x = 0; x < 960; x += 80) {
-      ctx.fillStyle = ['#83bca1', '#7eacdb', '#df8c81'][x / 80 % 3];
-      ctx.fillRect(x + 3, 440, 74, 30);
-      ctx.strokeStyle = '#192c32'; ctx.lineWidth = 3; ctx.strokeRect(x + 3, 440, 74, 30);
+      const garden = scene.theme === 'garden', foundry = scene.theme === 'foundry';
+      const sky = ctx.createLinearGradient(0, 0, 0, 540);
+      sky.addColorStop(0, garden ? '#264e60' : foundry ? '#1d1418' : '#18222f');
+      sky.addColorStop(1, garden ? '#a7bc8a' : foundry ? '#8a4a2c' : '#465957');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
+      if (garden) {
+        ctx.fillStyle = '#efdea0'; ctx.beginPath(); ctx.arc(780, 95, 48, 0, Math.PI * 2); ctx.fill();
+        for (const [x, y, r] of [[100,330,200],[430,360,260],[870,330,230]]) {
+          ctx.fillStyle = '#3e7160'; ctx.beginPath(); ctx.arc(x, y, r, Math.PI, 0); ctx.fill();
+        }
+        for (const x of [75, 885]) {
+          ctx.fillStyle = '#675448'; ctx.fillRect(x - 12, 150, 24, 230);
+          ctx.fillStyle = '#294f44'; ctx.beginPath(); ctx.arc(x, 160, 85, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (foundry) {
+        for (const [x, top] of [[90, 70], [240, 120], [720, 100], [870, 60]]) {
+          ctx.fillStyle = '#3a2a2a'; ctx.fillRect(x - 28, top, 56, 300 - top);
+          ctx.fillStyle = '#e8743a'; ctx.fillRect(x - 28, top, 56, 10);
+        }
+        ctx.strokeStyle = '#f0a04b88'; ctx.lineWidth = 6;
+        for (const x of [330, 630]) {
+          ctx.beginPath(); ctx.arc(x, 200, 52, 0, Math.PI * 2); ctx.stroke();
+          for (let i = 0; i < 8; i++) {
+            const a = i * Math.PI / 4;
+            ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 52, 200 + Math.sin(a) * 52);
+            ctx.lineTo(x + Math.cos(a) * 68, 200 + Math.sin(a) * 68); ctx.stroke();
+          }
+        }
+        ctx.fillStyle = '#f2c46b'; ctx.fillRect(370, 70, 220, 60);
+        ctx.fillStyle = '#2b1b1b'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('ROBOT FOUNDRY', 480, 108);
+      } else {
+        ctx.strokeStyle = '#819b9855'; ctx.lineWidth = 12;
+        for (const x of [110, 475, 850]) { ctx.strokeRect(x, 50, 90, 260); }
+        ctx.fillStyle = '#718480';
+        for (let x = 30; x < 960; x += 80) { ctx.fillRect(x, 38, 6, 6); ctx.fillRect(x, 285, 6, 6); }
+        ctx.fillStyle = '#c9db8d'; ctx.fillRect(370, 85, 220, 60);
+        ctx.fillStyle = '#20302e'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('CLOCKWORK PANTRY', 480, 123);
+      }
+      ctx.fillStyle = garden ? '#54734b' : foundry ? '#3b2b26' : '#303e43'; ctx.fillRect(0, 375, 960, 165);
+      ctx.fillStyle = garden ? '#ad9873' : foundry ? '#6e5146' : '#596465'; ctx.beginPath();
+      ctx.moveTo(420, 300); ctx.lineTo(540, 300); ctx.lineTo(800, 540); ctx.lineTo(140, 540); ctx.fill();
+      for (let x = 0; x < 960; x += 80) {
+        ctx.fillStyle = ['#83bca1', '#7eacdb', '#df8c81'][x / 80 % 3];
+        ctx.fillRect(x + 3, 440, 74, 30);
+        ctx.strokeStyle = '#192c32'; ctx.lineWidth = 3; ctx.strokeRect(x + 3, 440, 74, 30);
+      }
     }
     ctx.setTransform(w / 960, 0, 0, h / 540, 0, 0);
     const actorScale = Math.min(2.4, width / height * 1.6);

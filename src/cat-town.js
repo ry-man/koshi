@@ -81,7 +81,7 @@ function fabledFish(profile, worlds, levels) {
   });
 }
 
-function catPath(ctx, x, y, scale, fur, inner, stripe, glasses = false, white = false) {
+function catPath(ctx, x, y, scale, fur, inner, stripe, glasses = false, white = false, nose = '#d98e9a') {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(scale, scale);
@@ -128,7 +128,7 @@ function catPath(ctx, x, y, scale, fur, inner, stripe, glasses = false, white = 
     ctx.moveTo(direction * 21, 16); ctx.lineTo(direction * 34, 21);
     ctx.stroke();
   }
-  ctx.fillStyle = '#d98e9a';
+  ctx.fillStyle = nose;
   ctx.beginPath(); ctx.moveTo(-4, 8); ctx.lineTo(4, 8); ctx.lineTo(0, 12); ctx.fill();
   ctx.strokeStyle = '#202b32'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0, 12); ctx.lineTo(0, 16); ctx.moveTo(0, 16); ctx.quadraticCurveTo(-7, 21, -11, 16);
@@ -145,7 +145,7 @@ function drawCat(ctx, name, x, y, scale, talking, time) {
   };
   const [fur, inner, stripe, white, glasses] = characters[name];
   const bob = talking ? Math.sin(time * 7) * 3 : 0;
-  catPath(ctx, x, y + bob, scale, fur, inner, stripe, glasses, white);
+  catPath(ctx, x, y + bob, scale, fur, inner, stripe, glasses, white, name === 'Bruiser' ? '#43271b' : '#d98e9a');
 }
 
 function stageCatPosition(x, y, scale, bounds) {

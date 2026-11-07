@@ -215,12 +215,14 @@ function applyBrickTypes(bricks, entries = []) {
   }
 }
 const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
-const SCENE_THEMES = ['garden', 'workshop', 'foundry'];
+const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
+  'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
+  'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
 
 function validateCutscene(value) {
   const fail = message => { throw new TypeError(`Cutscene: ${message}`); };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('expected an object.');
-  if (!SCENE_THEMES.includes(value.theme)) fail('theme must be garden, workshop or foundry.');
+  if (!SCENE_THEMES.includes(value.theme)) fail(`theme must be one of: ${SCENE_THEMES.join(', ')}.`);
   if (!Array.isArray(value.lines) || !value.lines.length || value.lines.length > 100) fail('provide 1–100 dialogue lines.');
   return {
     theme: value.theme,

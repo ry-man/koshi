@@ -4,6 +4,36 @@ const {
   LOCATIONS, TOWN_ITEMS, townState, earnedGoldStars, chooseOffers, purchaseItem, buildTree, fabledFish, stageCatPosition,
 } = require('../src/cat-town.js');
 const { SaveSlots } = require('../src/saves.js');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+test('Bruiser has a dark brown nose in both stage art and pixel portraits without changing other cats', () => {
+  const town = readFileSync(path.join(__dirname, '..', 'src', 'cat-town.js'), 'utf8');
+  const scenes = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const context = vm.createContext({});
+  vm.runInContext(town.slice(town.indexOf('function catPath('), town.indexOf('function stageCatPosition(')), context);
+  vm.runInContext(scenes.slice(scenes.indexOf('function drawPortrait('), scenes.indexOf('class CutscenePlayer')), context);
+  for (const [name, color] of [['Bruiser', '#43271b'], ['Whiskers', '#d98e9a'], ['Eugene', '#d98e9a'], ['Koshi', '#d98e9a']]) {
+    let currentPath = [];
+    const fills = [], boxes = [];
+    const ctx = new Proxy({}, {
+      get(target, key) {
+        if (key === 'fill') return () => fills.push({ points: currentPath.slice(), color: target.fillStyle });
+        if (key === 'beginPath') return () => { currentPath = []; };
+        if (key === 'moveTo' || key === 'lineTo') return (...args) => currentPath.push(args);
+        if (key === 'fillRect') return (...args) => boxes.push({ args, color: target.fillStyle });
+        return () => {};
+      },
+    });
+    context.drawCat(ctx, name, 0, 0, 1, false, 0);
+    assert.equal(fills.find(fill => JSON.stringify(fill.points) === '[[-4,8],[4,8],[0,12]]').color, color, name);
+    if (name !== 'Koshi') {
+      context.drawPortrait(ctx, name.toLowerCase(), false, 0);
+      assert.equal(boxes.find(box => JSON.stringify(box.args) === '[14,22,4,2]').color, color, name);
+    }
+  }
+});
 
 test('Cat Town actors stay inside the visible stage on phones and wide screens', () => {
   const actors = [[385, 350, 1.18], [570, 350, 1.18], [740, 355, 1.3],

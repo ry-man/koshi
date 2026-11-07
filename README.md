@@ -29,7 +29,9 @@ Both campaigns share the gameplay engine, graphics, mechanics, and tutorial.
 18 map destinations and temporary level 1 starters in its 17 playable worlds;
 Cat Town remains a scene hub rather than a traditional level. Each starter has
 one Cat Block at time zero and a 10-second survival objective, ready to be
-overwritten as the Official levels are authored. Official levels use the color
+overwritten as the Official levels are authored. The nine numbered-world
+starters each open with Koshi saying "Hello world!" against that world's
+cutscene background; the special-world starters are unchanged. Official levels use the color
 of their world for the game's console-style framing. World and named level
 definitions live in `src/campaign.js` as `OFFICIAL_WORLDS` and
 `OFFICIAL_LEVEL_DATA`, separately from Beta's content.
@@ -61,8 +63,9 @@ keeps its full-screen backgrounds but moves actors inside the visible stage
 when phone or wide-screen cropping would otherwise hide them.
 
 Switching reloads the same page in the selected game.
-The title reserves the same notice space in both modes so its controls do not
-jump when switching. Startup hides the gameplay surface until the menu is ready;
+The title recommends Beta for playtesting while Official is selected and reserves
+the same notice space in both modes so its controls do not jump when switching.
+Startup hides the gameplay surface until the menu is ready;
 supporting browsers use a brief cross-document transition (disabled for reduced motion).
 Each game remembers its
 own save slots, statistics, collectibles, cutscene preferences, editor draft,
@@ -861,13 +864,19 @@ supports precise actor positions and repeated actors:
 }
 ```
 
-Add this optional property to a level object. Themes are `garden`, `workshop` or `foundry`;
-character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
+Add this optional property to a level object. The Beta themes are `garden`,
+`workshop` and `foundry`. Official themes are `happy-meadows`, `catnip-beach`,
+`fuzzy-falls`, `mouser-mesa`, `alpine-litterbox`, `yarnball-moon`,
+`hairball-swamp`, `meownt-vesuvius`, and `robot-hq`. All are available in the
+editor for custom levels.
+Character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
 `robo-snail`, `robo-cow`, `robo-unicorn`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
-axis. Per-line positions animate between dialogue beats. Old level JSON without
+axis. Official backgrounds keep their ground line at the same relative stage
+height in portrait and landscape; `y: 0.8` places Koshi on the foreground path.
+Per-line positions animate between dialogue beats. Old level JSON without
 `cutscene` remains compatible. Scenes are included in drafts, imports, exports,
 playtest links, direct-file play, and the offline app.
 

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, CHARACTERS, Cutscene, validateCutscene, validateCustomLevel } = require('../src/game.js');
+const { Game, LEVELS, CHARACTERS, SCENE_THEMES, Cutscene, validateCutscene, validateCustomLevel } = require('../src/game.js');
 const { GUIDE, LESSONS } = require('../src/learning.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
@@ -14,6 +14,90 @@ const scene = () => ({
   ],
 });
 const level = () => ({ version: 1, id: 'Story test', duration: 30, goal: 20, heartCost: null, brickSet: 1, events: [], cutscene: scene() });
+
+test('dialogue portraits use the shared bounded square sizing instead of full-screen canvas sizing', () => {
+  const html = readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const css = readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  for (const id of ['cutscene-portrait', 'cat-town-portrait']) {
+    assert.match(html, new RegExp(`<canvas id="${id}" class="cutscene-portrait" width="32" height="32"`));
+  }
+  const rule = css.match(/\.cutscene-portrait\s*\{([^}]+)\}/)[1];
+  assert.match(rule, /width: clamp\(64px, 17vw, 160px\)/);
+  assert.match(rule, /height: auto/);
+  assert.match(rule, /aspect-ratio: 1/);
+  assert.match(rule, /flex-shrink: 0/);
+});
+
+test('Official scene cropping keeps the ground below Koshi in portrait and landscape', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const { OFFICIAL_LEVEL_DATA } = require('../src/campaign.js');
+  const classSource = source.slice(source.indexOf('class CutscenePlayer'), source.indexOf('CutscenePlayer.drawPortrait ='));
+  let backgroundTransform;
+  const context = vm.createContext({
+    window: { devicePixelRatio: 1 },
+    drawOfficialBackground: ctx => { backgroundTransform = ctx.transform; },
+    drawPortrait() {},
+  });
+  vm.runInContext(`${classSource}\nglobalThis.Player = CutscenePlayer;`, context);
+  for (const [width, height] of [[410, 599], [1440, 600], [844, 260], [320, 380]]) {
+    for (const campaign of Object.values(OFFICIAL_LEVEL_DATA).filter(level => level.cutscene)) {
+      let shadowY;
+      const ctx = {
+        transform: [1, 0, 0, 1, 0, 0],
+        setTransform(...values) { this.transform = values; },
+        save() { this.saved = this.transform.slice(); },
+        restore() { this.transform = this.saved; },
+        translate(x, y) { this.transform[4] += x * this.transform[0]; this.transform[5] += y * this.transform[3]; },
+        scale(x, y) { this.transform[0] *= x; this.transform[3] *= y; },
+        beginPath() {}, fill() {},
+        ellipse(x, y) { shadowY = this.transform[5] + y * this.transform[3]; },
+      };
+      const player = Object.create(context.Player.prototype);
+      Object.assign(player, {
+        stage: { clientWidth: width, clientHeight: height, getContext: () => ctx },
+        portrait: { getContext: () => ({}) }, positions: new Map(), paused: false,
+        playback: { scene: campaign.cutscene, line: campaign.cutscene.lines[0], reducedMotion: true, elapsed: 0, typing: false },
+        drawCharacter() {},
+      });
+      player.draw();
+      const groundY = backgroundTransform[3] * 390 + backgroundTransform[5];
+      assert.ok(Math.abs(groundY / height - 390 / 540) < 1e-9, campaign.id);
+      assert.ok(shadowY > groundY && shadowY < height, `${campaign.id} at ${width}x${height}: shadow is on the ground`);
+      assert.ok(backgroundTransform[5] <= 0, 'background covers the top');
+      assert.ok(backgroundTransform[3] * 540 + backgroundTransform[5] >= height, 'background covers the bottom');
+    }
+  }
+});
+
+test('Official backgrounds render distinctly and round-trip through custom levels and the editor', () => {
+  const themes = ['happy-meadows', 'catnip-beach', 'fuzzy-falls', 'mouser-mesa',
+    'alpine-litterbox', 'yarnball-moon', 'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const editor = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const context = vm.createContext({ Math });
+  vm.runInContext(source.slice(source.indexOf('function drawOfficialBackground('), source.indexOf('function drawTom(')), context);
+  const drawings = themes.map(theme => {
+    assert.ok(SCENE_THEMES.includes(theme));
+    assert.ok(editor.includes(`value="${theme}"`));
+    const custom = { ...level(), cutscene: { ...scene(), theme } };
+    assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(custom))), custom);
+    const operations = [];
+    const ctx = new Proxy({}, {
+      get(target, key) {
+        if (key === 'createLinearGradient') return () => ({ addColorStop: (...args) => operations.push(['color', ...args]) });
+        return (...args) => {
+          for (const arg of args) if (typeof arg === 'number') assert.ok(Number.isFinite(arg), `${theme}: ${key}`);
+          operations.push([key, ...args]);
+        };
+      },
+      set(target, key, value) { operations.push([key, value]); return true; },
+    });
+    context.drawOfficialBackground(ctx, theme);
+    assert.ok(operations.length > 20, theme);
+    return JSON.stringify(operations);
+  });
+  assert.equal(new Set(drawings).size, themes.length);
+});
 
 test('all campaign scenes validate and every story character speaks', () => {
   const speakers = new Set();

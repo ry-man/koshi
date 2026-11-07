@@ -4201,7 +4201,7 @@ campaignMode.setup({
     return saveAttempt(flushSaves);
   },
 });
-document.querySelector('#campaign-empty').hidden = LEVELS.length > 0;
+document.querySelector('#campaign-empty').hidden = campaignId !== 'official';
 game = createGame();
 updateBoardVisibility();
 saveAttempt(renderSaveSlots);

@@ -123,6 +123,8 @@ OFFICIAL_WORLDS.push(
     mapPosition: { x: 10, y: 50 }, mapOnly: true, levels: {} },
 );
 const OFFICIAL_LEVEL_DATA = {};
+const officialSceneThemes = ['happy-meadows', 'catnip-beach', 'fuzzy-falls', 'mouser-mesa',
+  'alpine-litterbox', 'yarnball-moon', 'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
 // Cat Town is a scene hub; the other Official worlds use temporary starters until authored levels replace them.
 for (const world of OFFICIAL_WORLDS.filter(entry => entry.id !== 'C')) {
   const name = `${world.name} Starter`;
@@ -132,6 +134,10 @@ for (const world of OFFICIAL_WORLDS.filter(entry => entry.id !== 'C')) {
     heartCost: Infinity, brickSet: 1, brickTypes: [], food: [], enemies: [], weapons: [],
     items: [[0, 'cat-block']],
     catBlock: { description: 'Collect the Cat Block waiting at the start of the level.' },
+    ...(officialSceneThemes[Number(world.id) - 1] ? { cutscene: {
+      theme: officialSceneThemes[Number(world.id) - 1],
+      lines: [{ speaker: 'koshi', text: 'Hello world!', actors: [{ character: 'koshi', x: .5, y: .8 }] }],
+    } } : {}),
   };
 }
 const activeWorlds = globalThis.KoshiCampaignMode?.active.id === 'official' ? OFFICIAL_WORLDS : BETA_WORLDS;
