@@ -247,7 +247,8 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
     timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
     weaponStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
     displayedStuck: false, displayedState: 'playing', displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
-    syncBrickDestructions() {}, showDialog() {}, status: node(), overlay: node(),
+    syncBrickDestructions() {}, syncLevelRewards() {}, levelInfoReplay: node(),
+    showDialog() {}, status: node(), overlay: node(),
   });
   const start = source.indexOf('function syncUI()');
   vm.runInContext(source.slice(start, source.indexOf('\nfunction ', start + 1)), context);

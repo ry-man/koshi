@@ -122,7 +122,7 @@ test('partially recharged bricks keep their displayed progress frozen for the en
       timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
       weaponStatus: node(), pause: node(), displayedStuck: false, displayedState: 'playing',
       displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
-      syncBrickDestructions() {},
+      syncBrickDestructions() {}, syncLevelRewards() {}, levelInfoReplay: node(),
     });
     vm.runInContext(source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
     const fill = () => {

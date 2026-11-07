@@ -362,7 +362,10 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
     displayedState: null, trail: [], toast: { textContent: '' }, lastTime: null,
     resize() {}, syncUI() {}, overlay: { hidden: false },
     cutscene: { open() { opened++; } }, showLevelBriefing() { briefings++; },
+    showLevelInformation() { context.showLevelBriefing(); },
   });
+  vm.runInContext(source.slice(source.indexOf('function showLevelIntroduction('),
+    source.indexOf('\nfunction showLevelInformation(')), context);
   vm.runInContext(begin, context);
   context.begin();
   assert.equal(opened, 1, 'the first visit opens its cutscene');
@@ -383,7 +386,7 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
   assert.doesNotMatch(readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /dialog-note/);
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.number \?\? game\.level\.id\}`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
-  const start = source.indexOf("play.addEventListener('click'");
+  const start = source.indexOf("\nplay.addEventListener('click'") + 1;
   const end = source.indexOf("\nrestart.addEventListener", start);
   const handler = source.slice(start, end);
   const play = { addEventListener(name, callback) { this[name] = callback; } };
@@ -524,7 +527,10 @@ test('level popup commits only on Play and cancellation restores selection and m
     drawCutsceneCharacter() {},
     isCutsceneViewed() { return false; },
     LEVELS: [], WORLDS: [],
-    KoshiWorldMap: class { open() {} },
+    KoshiWorldMap: class {
+      constructor() { this.layout = { dataset: { view: 'worlds' } }; }
+      open() {}
+    },
     KoshiCatTown: { CatTown: class {} },
     begin() { starts++; element('#level-picker').close(); },
   });

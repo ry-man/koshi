@@ -338,7 +338,7 @@ test('UI updates conveyor teeth without requiring Springs, freezes on pause, and
       WORLDS: require('../src/worlds.js').WORLDS,
       brickEnabled: require('../src/game.js').brickEnabled, levelObjective: require('../src/game.js').levelObjective,
       specialLabel: require('../src/brick-visuals.js').specialLabel,
-      syncBrickDestructions() {},
+      syncBrickDestructions() {}, syncLevelRewards() {}, levelInfoReplay: node(),
       document: { querySelector: () => node() },
       buttons: [{ brick, members, button: node(), counter: node(), usesLeft: brick.usesLeft, conveyor: { style: {}, querySelector: () => teeth } }],
       timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),

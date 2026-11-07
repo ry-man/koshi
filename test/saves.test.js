@@ -466,6 +466,7 @@ test('crossing the five-second threshold checkpoints once for abrupt termination
   context.checkpointAttempt();
   Object.assign(context, {
     lastTime: 0, phaseTransition: { busy: false }, cutscene: { active: false },
+    levelPicker: { open: false }, levelInfoDialog: { open: false },
     updateEnding() {}, recordCatBlockFinds() {}, syncUI() {}, render() {}, requestAnimationFrame() {},
   });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');

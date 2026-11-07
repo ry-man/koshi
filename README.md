@@ -1917,6 +1917,10 @@ Example paired portals and two other special bricks (saved phone slots):
    and deploys on pushes to `main`. You can also run it manually from Actions.
 4. Once deployment succeeds, play at <https://ry-man.github.io/koshi/>.
 
+The workflow uses Node.js 24 for tests and the checkout/setup actions.
+A failed test blocks deployment; action deprecation warnings are separate
+from test failures.
+
 All site asset paths are relative, so repository subpaths work on Pages.
 If you rename the default branch, update the workflow's branch filter.
 Alternatively, deploy directly from the repository root using Pages'

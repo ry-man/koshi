@@ -146,7 +146,8 @@ test('the status row reserves a full line while slime contact clears its text', 
   assert.equal(reservedPadding, padding, 'reserve a line plus padding to keep the page height stable');
   const sync = source.slice(source.indexOf('function syncUI()'), source.indexOf('  const { goal:', source.indexOf('function syncUI()')));
   const context = {
-    game: { state: 'playing', elapsed: 48, stuckUntil: 0 }, displayedStuck: false,
+    game: { state: 'playing', elapsed: 48, stuckUntil: 0, level: {} }, displayedStuck: false,
+    syncLevelRewards() {}, levelInfoReplay: {},
     toast: {}, status: { textContent: 'Click a brick to move. Change course anytime.' },
     performance: { now: () => 0 },
   };
