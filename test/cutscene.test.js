@@ -28,7 +28,7 @@ test('dialogue portraits use the shared bounded square sizing instead of full-sc
   assert.match(rule, /flex-shrink: 0/);
 });
 
-test('Official scene cropping keeps the ground below Koshi in portrait and landscape', () => {
+test('Official scene cropping covers the stage and preserves authored actor positions in both orientations', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
   const { OFFICIAL_LEVEL_DATA } = require('../src/campaign.js');
   const classSource = source.slice(source.indexOf('class CutscenePlayer'), source.indexOf('CutscenePlayer.drawPortrait ='));
@@ -36,12 +36,13 @@ test('Official scene cropping keeps the ground below Koshi in portrait and lands
   const context = vm.createContext({
     window: { devicePixelRatio: 1 },
     drawOfficialBackground: ctx => { backgroundTransform = ctx.transform; },
+    drawTom() {},
     drawPortrait() {},
   });
   vm.runInContext(`${classSource}\nglobalThis.Player = CutscenePlayer;`, context);
   for (const [width, height] of [[410, 599], [1440, 600], [844, 260], [320, 380]]) {
     for (const campaign of Object.values(OFFICIAL_LEVEL_DATA).filter(level => level.cutscene)) {
-      let shadowY;
+      const shadows = [];
       const ctx = {
         transform: [1, 0, 0, 1, 0, 0],
         setTransform(...values) { this.transform = values; },
@@ -50,7 +51,7 @@ test('Official scene cropping keeps the ground below Koshi in portrait and lands
         translate(x, y) { this.transform[4] += x * this.transform[0]; this.transform[5] += y * this.transform[3]; },
         scale(x, y) { this.transform[0] *= x; this.transform[3] *= y; },
         beginPath() {}, fill() {},
-        ellipse(x, y) { shadowY = this.transform[5] + y * this.transform[3]; },
+        ellipse(x, y) { shadows.push(this.transform[5] + y * this.transform[3]); },
       };
       const player = Object.create(context.Player.prototype);
       Object.assign(player, {
@@ -62,7 +63,17 @@ test('Official scene cropping keeps the ground below Koshi in portrait and lands
       player.draw();
       const groundY = backgroundTransform[3] * 390 + backgroundTransform[5];
       assert.ok(Math.abs(groundY / height - 390 / 540) < 1e-9, campaign.id);
-      assert.ok(shadowY > groundY && shadowY < height, `${campaign.id} at ${width}x${height}: shadow is on the ground`);
+      assert.equal(shadows.length, campaign.cutscene.lines[0].actors.length);
+      for (const [index, actor] of campaign.cutscene.lines[0].actors.entries()) {
+        const base = { koshi: 23, tom: 46 }[actor.character];
+        assert.ok(base !== undefined, `Expected Official actor: ${actor.character}`);
+        const expectedY = (actor.y * 540 + base * Math.min(2.4, width / height * 1.6)) * height / 540;
+        assert.ok(Math.abs(shadows[index] - expectedY) < 1e-9, `${campaign.id}: authored ${actor.character} position is preserved`);
+        assert.ok(shadows[index] > 0 && shadows[index] < height, `${campaign.id}: shadow stays on stage`);
+        if (actor.y >= 390 / 540) {
+          assert.ok(shadows[index] > groundY, `${campaign.id}: ground-positioned actor stays below the horizon`);
+        }
+      }
       assert.ok(backgroundTransform[5] <= 0, 'background covers the top');
       assert.ok(backgroundTransform[3] * 540 + backgroundTransform[5] >= height, 'background covers the bottom');
     }
