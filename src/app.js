@@ -5,10 +5,19 @@ const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, CO
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
-const { collectibleTotals } = globalThis.KoshiCollectibles;
+const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = globalThis.KoshiCollectibles;
+let displayedLevelRewards = '';
+let levelRewardGame = null;
+let previousLevelRewardResults = {};
 const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
 const campaignMode = globalThis.KoshiCampaignMode;
 const campaignId = campaignMode.active.id;
+const { INFO_GRAPHICS, validateLevelInfo } = globalThis.KoshiGame;
+const levelInfoDialog = document.querySelector('#level-info');
+const levelInfoReplay = document.querySelector('#level-info-replay');
+const viewedLevelInfo = new Map();
+let infoPages = null;
+let infoPage = 0;
 
 let game;
 const canvas = document.querySelector('#canvas');
@@ -84,7 +93,7 @@ function drawCutsceneCharacter(context, character, time, speaking) {
 const cutscene = new globalThis.KoshiCutscenePlayer(drawCutsceneCharacter, () => {
   markCutsceneViewed(game.level.id);
   skipCutscene.checked = true;
-  showLevelBriefing();
+  showLevelInformation();
 }, action => phaseTransition.run(action));
 
 if (location.hash.startsWith('#level=')) {
@@ -684,12 +693,12 @@ function levelBriefingText(level) {
   return lines.join('\n');
 }
 
-function renderLevelBriefing(container, level) {
+function renderLevelBriefing(container, level, catBlockCollected = false) {
   const conditions = document.createElement('p');
   conditions.className = 'briefing-conditions';
   conditions.textContent = levelBriefingText(level);
   container.replaceChildren(conditions);
-  if (level.catBlock) {
+  if (level.catBlock && !catBlockCollected) {
     const section = document.createElement('div');
     section.className = 'briefing-cat-block';
     const image = document.createElement('img');
@@ -707,7 +716,7 @@ function showDialog(kicker, title, text, label, icon) {
   document.querySelector('#dialog-kicker').textContent = kicker;
   document.querySelector('#dialog-title').textContent = title;
   const content = document.querySelector('#dialog-text');
-  if (game.state === 'ready')   renderLevelBriefing(content, game.level);
+  if (game.state === 'ready')   renderLevelBriefing(content, game.level, game.catBlockPreviouslyCollected);
   else content.textContent = text;
   document.querySelector('#dialog-icon').textContent = icon;
   play.textContent = label;
@@ -772,7 +781,46 @@ function showCompletionResults(summary) {
   document.querySelector('#level-results-continue').focus({ preventScroll: true });
 }
 
+function syncLevelRewards() {
+  if (levelRewardGame !== game) {
+    levelRewardGame = game;
+    const profile = activeSave ? activeSave.slot : guestProfile;
+    previousLevelRewardResults = Object.fromEntries(Object.entries(profile.results ?? {}).filter(([id, result]) =>
+      id !== attemptId && result.levelId === game.level.id));
+    for (const pending of pendingSaves) {
+      if (pending.result?.levelId === game.level.id && pending.id === runSave?.id && pending.attemptId !== attemptId) {
+        previousLevelRewardResults[pending.attemptId] = pending.result;
+      }
+    }
+    previousLevelRewardResults = Object.fromEntries(Object.entries(previousLevelRewardResults)
+      .filter(([, result]) => result.outcome === 'won' && result.damageFree === true).slice(0, 1));
+  }
+  const states = levelRewardStates(game, previousLevelRewardResults, attemptId);
+  const signature = JSON.stringify(states);
+  if (displayedLevelRewards === signature) return;
+  displayedLevelRewards = signature;
+  const badges = [];
+  for (const [kind, label, state, icon] of [
+    ['star', 'Gold star', states.star, goldStarIcon],
+    ['cat-block', 'Cat Block', states.catBlock, catBlockIcon],
+  ]) {
+    if (!state) continue;
+    const badge = document.createElement('span');
+    badge.className = `level-reward level-reward-${kind} level-reward-${state}`;
+    const description = `${label}: ${state === 'owned' ? 'already collected' : state === 'pending'
+      ? 'not yet collected; win this level to earn it' : 'not collected'}`;
+    badge.setAttribute('role', 'img');
+    badge.setAttribute('aria-label', description);
+    badge.title = description;
+    badge.append(icon(state === 'owned', document, 'currentColor'));
+    badges.push(badge);
+  }
+  document.querySelector('#level-rewards').replaceChildren(...badges);
+}
+
 function syncUI() {
+  syncLevelRewards();
+  levelInfoReplay.hidden = game.state !== 'ready' || !game.level.levelInfo;
   const stuck = game.stuckUntil > game.elapsed + 1e-9;
   if (stuck !== displayedStuck) {
     displayedStuck = stuck;
@@ -1015,10 +1063,7 @@ function begin() {
     lastTime = null;
     resize();
     syncUI();
-    if (game.level.cutscene && !skipCutscene.checked) {
-      overlay.hidden = true;
-      cutscene.open(game.level.cutscene, game.level.number ?? game.level.id);
-    } else if (game.level.cutscene) showLevelBriefing();
+    showLevelIntroduction();
   });
 }
 
@@ -1036,8 +1081,93 @@ function startLevel() {
 
 function showLevelBriefing() {
   displayedState = null;
+  levelInfoReplay.hidden = !game.level.levelInfo;
   syncUI();
 }
+
+function showLevelIntroduction() {
+  if (game.level.cutscene && !skipCutscene.checked) {
+    overlay.hidden = true;
+    cutscene.open(game.level.cutscene, game.level.number ?? game.level.id);
+  } else showLevelInformation();
+}
+
+function showLevelInformation(replay = false) {
+  if (!game.level.levelInfo) { showLevelBriefing(); return; }
+  const info = validateLevelInfo(game.level.levelInfo);
+  const signature = JSON.stringify(info);
+  let viewed = viewedLevelInfo.get(game.level.id) === signature;
+  if (!game.customLevel && !viewed) {
+    try {
+      viewed = localStorage.getItem(campaignMode.levelInfoKey(game.level.id, campaignId)) === signature;
+    } catch (error) { reportLevelInfoError(error); }
+  }
+  if (viewed && !replay && !game.customLevel) { showLevelBriefing(); return; }
+  infoPages = info.pages;
+  infoPage = 0;
+  overlay.hidden = true;
+  levelInfoDialog.showModal();
+  renderLevelInfoPage();
+}
+
+function reportLevelInfoError(error) {
+  console.error('Level information preferences:', error);
+  const message = document.querySelector('#level-info-error');
+  message.textContent = `Level information preferences could not be saved or restored: ${error.message}`;
+  message.hidden = false;
+  const levelError = document.querySelector('#level-error');
+  levelError.textContent = message.textContent;
+  levelError.hidden = false;
+}
+
+function renderLevelInfoPage() {
+  const page = infoPages[infoPage];
+  const title = document.querySelector('#level-info-title');
+  title.textContent = page.title;
+  document.querySelector('#level-info-text').textContent = page.text;
+  const graphics = page.graphics.map(id => {
+    const figure = document.createElement('figure'), caption = document.createElement('figcaption');
+    caption.textContent = INFO_GRAPHICS[id];
+    figure.append(guidePicture(id, INFO_GRAPHICS[id]), caption);
+    return figure;
+  });
+  document.querySelector('#level-info-graphics').replaceChildren(...graphics);
+  document.querySelector('#level-info-page').textContent = `${infoPage + 1} / ${infoPages.length}`;
+  document.querySelector('#level-info-back').disabled = infoPage === 0;
+  document.querySelector('#level-info-next').disabled = infoPage === infoPages.length - 1;
+  document.querySelector('.level-info-content').scrollTop = 0;
+  title.focus({ preventScroll: true });
+}
+
+function finishLevelInformation() {
+  if (!levelInfoDialog.open) return;
+  const signature = JSON.stringify({ pages: infoPages });
+  viewedLevelInfo.set(game.level.id, signature);
+  if (!game.customLevel) {
+    try {
+      localStorage.setItem(campaignMode.levelInfoKey(game.level.id, campaignId), signature);
+    } catch (error) { reportLevelInfoError(error); }
+  }
+  levelInfoDialog.close();
+  infoPages = null;
+  lastTime = null;
+  showLevelBriefing();
+  play.focus({ preventScroll: true });
+}
+
+levelInfoReplay.addEventListener('click', () => showLevelInformation(true));
+document.querySelector('#level-info-back').addEventListener('click', () => {
+  if (infoPage > 0) { infoPage--; renderLevelInfoPage(); }
+});
+document.querySelector('#level-info-next').addEventListener('click', () => {
+  if (infoPage + 1 < infoPages.length) { infoPage++; renderLevelInfoPage(); }
+});
+document.querySelector('#level-info-close').addEventListener('click', finishLevelInformation);
+levelInfoDialog.addEventListener('cancel', event => { event.preventDefault(); finishLevelInformation(); });
+levelInfoDialog.addEventListener('keydown', event => {
+  event.stopPropagation();
+  if (event.key === 'Escape') { event.preventDefault(); finishLevelInformation(); }
+});
 
 play.addEventListener('click', () => {
   if (game.state === 'paused') {
@@ -1075,6 +1205,11 @@ function openLevelPicker({ insideWorld = false, level = null, advance = false } 
 const levelPicker = document.querySelector('#level-picker');
 let levelBeforePicker = levelSelect.value;
 function closeLevelPicker() {
+  if (worldMap.layout.dataset.view !== 'worlds') {
+    worldMap.open();
+    (worldMap.map.querySelector('[aria-pressed="true"]') ?? document.querySelector('#level-picker-close')).focus({ preventScroll: true });
+    return;
+  }
   levelSelect.value = levelBeforePicker;
   levelPicker.close();
   titleScreen.showModal();
@@ -1263,6 +1398,11 @@ document.querySelector('#tutorial-sword').addEventListener('change', event => {
 });
 
 function guidePicture(picture, title, fillBrick = false) {
+  if (picture === 'special:cat-block') {
+    const image = document.createElement('img');
+    image.className = 'guide-picture'; image.src = './icons/cat-building-block.png'; image.alt = title;
+    return image;
+  }
   if (picture === 'special:boom-helmet') {
     const image = document.createElement('canvas');
     image.className = 'guide-picture'; image.width = 320; image.height = 160;
@@ -4145,7 +4285,7 @@ function resize() {
 }
 
 function frame(timestamp) {
-  if (!game || levelPicker.open) {
+  if (!game || levelPicker.open || levelInfoDialog.open) {
     lastTime = null;
     requestAnimationFrame(frame);
     return;
@@ -4210,6 +4350,7 @@ if (game) {
   syncUI();
 }
 if (!game || !location.hash.startsWith('#level=') && !location.hash.startsWith('#campaign=') && location.hash !== '#install') titleScreen.showModal();
+if (game?.level.levelInfo && (location.hash.startsWith('#level=') || location.hash.startsWith('#campaign='))) showLevelIntroduction();
 document.body.classList.remove('game-loading');
 installBackNavigation();
 new ResizeObserver(resize).observe(board);

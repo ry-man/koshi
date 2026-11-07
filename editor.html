@@ -89,6 +89,19 @@
         </form>
         </fieldset>
       </details>
+      <details class="editor-panel" aria-label="Level information">
+        <summary>Optional level information / tutorial</summary>
+        <fieldset id="level-info-access" class="access-fields">
+          <form id="level-info-form">
+            <label class="inline-label"><input id="info-enabled" type="checkbox"> Show information before level objectives</label>
+            <fieldset id="info-fields" disabled>
+              <div id="info-pages"></div>
+              <button id="info-add-page" type="button">Add page</button>
+            </fieldset>
+            <button type="submit">Apply information</button>
+          </form>
+        </fieldset>
+      </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
           <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>

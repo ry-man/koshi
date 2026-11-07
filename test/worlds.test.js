@@ -393,6 +393,42 @@ test('skip cutscene starts unchecked and defaults on after the selected scene ha
   }
 });
 
+test('Back to menu appears only in world overview, even for levels without cutscenes and Cat Town', () => {
+  const { map, elements } = mapFixture();
+  map.open();
+  assert.equal(elements.get('#level-picker-close').hidden, false);
+  map.showWorld(WORLDS[0]);
+  map.setCutsceneOption({ id: 'no-scene' });
+  assert.equal(elements.get('#level-picker-close').hidden, true);
+  map.open();
+  assert.equal(elements.get('#level-picker-close').hidden, false);
+  map.showCatTown(OFFICIAL_WORLDS.find(world => world.id === 'C'));
+  assert.equal(elements.get('#level-picker-close').hidden, true);
+});
+
+test('Escape from level selection returns to worlds before it can close the picker', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  let opened = 0, closed = 0, title = 0, focused = 0;
+  const context = {
+    worldMap: { layout: { dataset: { view: 'levels' } }, map: { querySelector: () => ({ focus() { focused++; } }) },
+      open() { opened++; this.layout.dataset.view = 'worlds'; } },
+    levelSelect: { value: 'new' }, levelBeforePicker: 'old',
+    levelPicker: { close() { closed++; } }, titleScreen: { showModal() { title++; } },
+    document: { querySelector: () => ({ focus() { focused++; } }) },
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(source.indexOf('function closeLevelPicker('), source.indexOf("document.querySelector('#level-picker-close').addEventListener(")), context);
+  context.closeLevelPicker();
+  assert.equal(opened, 1);
+  assert.equal(closed, 0);
+  assert.equal(title, 0);
+  assert.equal(context.levelSelect.value, 'new');
+  context.closeLevelPicker();
+  assert.equal(closed, 1);
+  assert.equal(title, 1);
+  assert.equal(context.levelSelect.value, 'old');
+});
+
 test('world overview hides the text panel and shows aggregate completion icons on centered nodes', () => {
   const { map, elements } = mapFixture();
   map.open();

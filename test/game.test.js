@@ -303,7 +303,9 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.ok(hud.includes('id="goal-count"'));
   assert.ok(!hud.includes('id="timer"'), 'time is shown in the top-left control row');
   assert.match(styles, /\.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
-  assert.match(styles, /\.timer-stat \{ padding: 6px 0 0 10px;/);
+  assert.match(styles, /\.timer-stat \{ padding: 6px 0 0; text-align: center;/);
+  assert.match(styles, /\.game-controls \{[^}]*grid-template-columns: calc\(\(100% - 5 \* var\(--hud-gap\)\) \/ 6\)[^}]*padding: 4px var\(--hud-inset\);/);
+  assert.match(styles, /\.hud \{[^}]*padding: 22px var\(--hud-inset\); gap: var\(--hud-gap\);/);
   assert.match(styles, /\.tutorial-active \.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   const mobileHud = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
   assert.match(mobileHud, /\.stat-label \{ font-size: 8px;/);
@@ -425,7 +427,7 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
   assert.equal(rebuilt, 2, 'custom playtests can replay without campaign maps');
 });
 
-test('opening briefings list only victory conditions and the exact Cat Brick objective even after acquisition', () => {
+test('opening briefings omit the Cat Brick objective and graphic after acquisition', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const node = () => ({
     children: [], textContent: '',
@@ -449,7 +451,8 @@ test('opening briefings list only victory conditions and the exact Cat Brick obj
     for (const acquired of [false, true]) {
       const description = 'Defeat the marked enemy in the first patrol.';
       context.renderLevelBriefing(container, { ...level, catBlock: { description } }, acquired);
-      assert.equal(container.children.length, 2);
+      assert.equal(container.children.length, acquired ? 1 : 2);
+      if (acquired) continue;
       const [image, hint] = container.children[1].children;
       assert.equal(image.src, './icons/cat-building-block.png');
       assert.equal(image.alt, 'Cat Block');
@@ -464,7 +467,7 @@ test('opening briefings list only victory conditions and the exact Cat Brick obj
     assert.equal(container.children[1].children[1].textContent, context.KoshiGame.catBlockObjective(level));
     assert.match(container.children[1].children[1].textContent, /^To earn Cat Brick: /);
   }
-  assert.match(source, /renderLevelBriefing\(content, game\.level\)/);
+  assert.match(source, /renderLevelBriefing\(content, game\.level, game\.catBlockPreviouslyCollected\)/);
 });
 
 test('soccer goal and ball guide illustrations use shared artwork', () => {

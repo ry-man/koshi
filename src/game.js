@@ -219,6 +219,41 @@ const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-
   'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
   'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
 
+const INFO_GRAPHICS = {
+  'heart:heart': 'Heart',
+  'special:cat-block': 'Cat Block',
+  ...Object.fromEntries(Object.entries(FOODS).map(([id, value]) => [`food:${id}`, value.name])),
+  ...Object.fromEntries(Object.entries(ITEMS).map(([id, value]) => [`item:${id}`, value.name])),
+  ...Object.fromEntries(Object.entries(OBJECTS).map(([id, value]) => [`object:${id}`, value.name])),
+  ...Object.fromEntries(Object.entries(SWORDS).map(([id, value]) => [`weapon:${id}`, value.name])),
+  ...Object.fromEntries(Object.entries(CHARACTERS).filter(([id]) => !['koshi', 'tom', 'boss'].includes(id))
+    .map(([id, name]) => [`enemy:${id}`, name])),
+  ...Object.fromEntries(Object.keys(SLIMES).map(id => [`slime:${id}`, `${id} slime`])),
+  ...Object.fromEntries(['slow', 'normal', 'fast', 'crumbler', 'warped', 'springs', 'spikes', 'conveyor']
+    .map(id => [`brick:${id}`, `${id} brick`])),
+  ...Object.fromEntries(['cinder', 'goal', 'portal', 'toggle', 'spawner', 'turret', 'boost', 'barrier', 'boom-helmet']
+    .map(id => [`special:${id}`, id.replaceAll('-', ' ')])),
+};
+
+function validateLevelInfo(value) {
+  const fail = message => { throw new TypeError(`Level information: ${message}`); };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('expected an object.');
+  if (!Array.isArray(value.pages) || value.pages.length < 1 || value.pages.length > 20) fail('provide 1-20 pages.');
+  return { pages: value.pages.map((page, index) => {
+    if (!page || typeof page !== 'object' || Array.isArray(page)) fail(`page ${index + 1} must be an object.`);
+    for (const [field, maximum] of [['title', 80], ['text', 2000]]) {
+      if (typeof page[field] !== 'string' || !page[field].trim() || Array.from(page[field]).length > maximum) {
+        fail(`page ${index + 1} ${field} needs 1-${maximum} characters.`);
+      }
+    }
+    const graphics = page.graphics ?? [];
+    if (!Array.isArray(graphics) || graphics.length > 6 || graphics.some(id => typeof id !== 'string' || !Object.hasOwn(INFO_GRAPHICS, id))) {
+      fail(`page ${index + 1} needs at most six known component graphics.`);
+    }
+    return { title: page.title.trim(), text: page.text.trim(), graphics: [...graphics] };
+  }) };
+}
+
 function validateCutscene(value) {
   const fail = message => { throw new TypeError(`Cutscene: ${message}`); };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('expected an object.');
@@ -1592,6 +1627,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     }
   }
   if (value.cutscene !== undefined) result.cutscene = validateCutscene(value.cutscene);
+  if (value.levelInfo !== undefined) result.levelInfo = validateLevelInfo(value.levelInfo);
   if (value.brickTypes !== undefined) {
     if (!Array.isArray(value.brickTypes) || value.brickTypes.length > 2000) fail('Brick types must be an array of at most 2000 edge overrides.');
     result.brickTypes = value.brickTypes.map((entry, i) => {
@@ -6446,7 +6482,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SOCCER_FRICTION, SPAWN_SPACING, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

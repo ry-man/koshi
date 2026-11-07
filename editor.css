@@ -158,3 +158,8 @@
   .editor-main .marker { width: 36px; height: 36px; }
   .inspector { position: static; max-height: none; overflow: visible; }
 }
+.info-page { margin: 12px 0; display: grid; gap: 12px; }
+.info-page label { display: grid; gap: 6px; }
+.info-graphics-preview { display: flex; flex-wrap: wrap; gap: 12px; }
+.info-graphics-preview .palette-picture { width: 64px; height: 52px; }
+.info-graphics-preview img { width: 100%; height: 100%; object-fit: contain; }

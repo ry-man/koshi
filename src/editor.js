@@ -3,6 +3,7 @@
 
 const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
+const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
@@ -58,7 +59,7 @@ let committed = JSON.stringify(level);
 let campaignIndex = null;
 let customWorkspace = null;
 const readOnly = () => campaignIndex !== null;
-const accessFields = ['#settings-access', '#cutscene-access', '#inspector-access', '#files-access', '#camera-access'];
+const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access', '#camera-access'];
 const writeButtons = ['#place-mode', '#new-level'];
 for (const [index, campaign] of LEVELS.entries()) {
   const option = document.createElement('option');
@@ -112,8 +113,10 @@ function selectEditorLevel() {
     customWorkspace = { level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks,
       sceneLines: [...$('#scene-lines').childNodes],
       sceneFieldsDisabled: $('#scene-fields').disabled,
+      infoPages: [...$('#info-pages').childNodes], infoFieldsDisabled: $('#info-fields').disabled,
       fields: [...document.querySelectorAll('input, select, textarea')].filter(node => node.id !== 'editor-level')
-        .map(node => ({ node, value: node.value, checked: node.checked })) };
+        .map(node => ({ node, value: node.value, checked: node.checked,
+          selectedValues: node.multiple ? [...node.selectedOptions].map(option => option.value) : null })) };
   }
   if (value === 'custom') {
     if (!customWorkspace) return;
@@ -126,12 +129,18 @@ function selectEditorLevel() {
     $('#timeline').value = 0;
   }
   gesture = null; $('#selection-box').hidden = true;
-  populateSettings(); populateCutscene(); populateEventForm(); updatePlaytest(); render();
+  populateSettings(); populateCutscene(); populateLevelInfo(); populateEventForm(); updatePlaytest(); render();
   if (!readOnly()) {
     $('#scene-lines').replaceChildren(...customWorkspace.sceneLines);
     $('#scene-fields').disabled = customWorkspace.sceneFieldsDisabled;
-    for (const { node, value: savedValue, checked } of customWorkspace.fields) {
-      if (node.isConnected) { node.value = savedValue; node.checked = checked; }
+    $('#info-pages').replaceChildren(...customWorkspace.infoPages);
+    $('#info-fields').disabled = customWorkspace.infoFieldsDisabled;
+    for (const { node, value: savedValue, checked, selectedValues } of customWorkspace.fields) {
+      if (node.isConnected) {
+        if (selectedValues) for (const option of node.options) option.selected = selectedValues.includes(option.value);
+        else node.value = savedValue;
+        node.checked = checked;
+      }
     }
     updateWinCondition(); syncPalettes(); render();
     customWorkspace = null;
@@ -167,7 +176,11 @@ function picture(value, control) {
   const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie', object: 'soccer-ball' }[value] }
     : control === 'event-type' ? { kind: $('#event-kind').value, type: value }
     : control === 'brick-spawn-item' ? { kind: value.split(':')[0], type: value.split(':')[1] } : null;
-  if (item && item.kind && item.type) {
+  if (value === 'cat-block') {
+    const artwork = document.createElement('img');
+    artwork.src = './icons/cat-building-block.png'; artwork.alt = 'Cat Block';
+    image.append(artwork);
+  } else if (item && item.kind && item.type) {
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
     svg.setAttribute('viewBox', item.type === 'robo-snail' ? '-32 -32 64 64'
       : item.type === 'robo-unicorn' ? '-38 -44 76 76'
@@ -189,6 +202,12 @@ function picture(value, control) {
       detail('M6 -14 H8 V-8 H6 Z', '#45381d');
       detail('M18 10 H27 V15 H18 Z', '#c4cdd5');
     }
+  } else if (value === 'boom-helmet') {
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
+    svg.setAttribute('viewBox', '-28 -28 56 56'); svg.setAttribute('aria-hidden', 'true');
+    path.setAttribute('d', 'M-22 16V-2A22 22 0 0 1 22 -2V16ZM0 -24V-28M-8 0H8V12H-8Z');
+    path.setAttribute('fill', '#6c9bbd'); path.setAttribute('stroke', '#203342');
+    svg.append(path); image.append(svg);
   } else if (['portal', 'toggle', 'spawner', 'boost', 'cinder', 'goal', 'turret'].includes(value) || control === 'brick-toggle-clicks') {
     const brick = { x: 0, y: 0, w: 88, h: 52 };
     if (value === 'portal') brick.portal = 'purple';
@@ -1878,9 +1897,81 @@ $('#cutscene-form').addEventListener('submit', event => {
     markChanged(); populateCutscene(); message('Cutscene applied. Playtest to watch it before the level starts.');
   });
 });
+function addInfoPage(page = { title: 'New concept', text: '', graphics: [] }) {
+  const row = document.createElement('fieldset');
+  row.className = 'info-page';
+  const legend = document.createElement('legend'); legend.textContent = 'Information page';
+  const titleLabel = document.createElement('label'); titleLabel.textContent = 'Title';
+  const title = document.createElement('input');
+  title.className = 'info-title'; title.maxLength = 80; title.required = true; title.value = page.title;
+  titleLabel.append(title);
+  const textLabel = document.createElement('label'); textLabel.textContent = 'Explanation';
+  const text = document.createElement('textarea');
+  text.className = 'info-text'; text.maxLength = 2000; text.required = true; text.rows = 5; text.value = page.text;
+  textLabel.append(text);
+  const graphicsLabel = document.createElement('label'); graphicsLabel.textContent = 'Component graphics (up to six; select multiple)';
+  const graphics = document.createElement('select'); graphics.className = 'info-graphics-select'; graphics.multiple = true; graphics.size = 8;
+  for (const [id, name] of Object.entries(INFO_GRAPHICS)) {
+    const option = document.createElement('option'); option.value = id; option.textContent = `${id.split(':')[0]} - ${name}`;
+    option.selected = page.graphics.includes(id); graphics.append(option);
+  }
+  graphicsLabel.append(graphics);
+  const preview = document.createElement('div'); preview.className = 'info-graphics-preview';
+  const updatePreview = () => {
+    preview.replaceChildren(...[...graphics.selectedOptions].map(option => {
+      const [kind, type] = option.value.split(':');
+      const image = picture(['brick', 'slime', 'special'].includes(kind) ? type : option.value,
+        ['brick', 'slime', 'special'].includes(kind) ? 'brick-kind' : 'brick-spawn-item');
+      image.title = option.textContent;
+      return image;
+    }));
+  };
+  graphics.addEventListener('change', updatePreview); updatePreview();
+  const actions = document.createElement('div'); actions.className = 'file-actions';
+  for (const [label, action] of [
+    ['Move up', () => { if (row.previousElementSibling) row.parentElement.insertBefore(row, row.previousElementSibling); }],
+    ['Move down', () => { if (row.nextElementSibling) row.parentElement.insertBefore(row.nextElementSibling, row); }],
+    ['Remove page', () => row.remove()],
+  ]) {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+    button.addEventListener('click', action); actions.append(button);
+  }
+  row.append(legend, titleLabel, textLabel, graphicsLabel, preview, actions);
+  $('#info-pages').append(row);
+}
+
+function populateLevelInfo() {
+  $('#info-enabled').checked = Boolean(level.levelInfo);
+  $('#info-fields').disabled = !level.levelInfo;
+  $('#info-pages').replaceChildren();
+  (level.levelInfo?.pages ?? [{ title: 'New concept', text: '', graphics: [] }]).forEach(addInfoPage);
+}
+$('#info-enabled').addEventListener('change', () => { $('#info-fields').disabled = !$('#info-enabled').checked; });
+$('#info-add-page').addEventListener('click', () => {
+  if (readOnly()) return;
+  if ($('#info-pages').children.length >= 20) { message('Level information supports at most 20 pages.', true); return; }
+  addInfoPage();
+});
+$('#level-info-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (readOnly()) return;
+  attempt(() => {
+    const candidate = { ...level };
+    if ($('#info-enabled').checked) {
+      candidate.levelInfo = { pages: [...$('#info-pages').children].map(row => ({
+        title: row.querySelector('.info-title').value,
+        text: row.querySelector('.info-text').value,
+        graphics: [...row.querySelector('.info-graphics-select').selectedOptions].map(option => option.value),
+      })) };
+    } else delete candidate.levelInfo;
+    level = validateDraft(candidate);
+    markChanged(); populateLevelInfo(); message('Level information applied. Playtest to view it before the objectives.');
+  });
+});
+
 function replaceLevel(value) {
   const candidate = validateDraft(value);
-  level = candidate; placing = true; markChanged(); populateSettings(); populateCutscene(); setSelection([], []);
+  level = candidate; placing = true; markChanged(); populateSettings(); populateCutscene(); populateLevelInfo(); setSelection([], []);
 }
 $('#timeline').addEventListener('input', () => {
   $('#event-time').value = Math.min(Number($('#timeline').value), Number($('#event-time').max));
@@ -1962,7 +2053,7 @@ if (location.hash.startsWith('#level=')) {
     committed = JSON.stringify(level); message('Playtest snapshot restored. Continue editing or import a different level.');
   });
 }
-populateSettings(); populateCutscene(); updatePlaytest(); populateEventForm(); render();
+populateSettings(); populateCutscene(); populateLevelInfo(); updatePlaytest(); populateEventForm(); render();
 campaignMode.setup({
   reportError: error => message(`Game selection could not be saved or restored: ${error.message}`, true),
   beforeSwitch: () => !(readOnly() ? customWorkspace?.dirty : dirty)

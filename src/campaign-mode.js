@@ -35,6 +35,11 @@ function cutsceneKey(levelId, id = 'beta') {
   return `${id === 'beta' ? 'koshi-cutscene-viewed' : 'koshi-official-cutscene-viewed'}:${encodeURIComponent(levelId)}`;
 }
 
+function levelInfoKey(levelId, id = 'beta') {
+  campaign(id);
+  return `koshi-${id}-level-info-viewed:${encodeURIComponent(levelId)}`;
+}
+
 function gameURL(path, hash = '', id = active.id) {
   campaign(id);
   return `${path}?game=${id}${hash}`;
@@ -93,7 +98,7 @@ function setup({ beforeSwitch = () => true, onSwitch = () => {}, reportError }) 
   }
 }
 
-const api = { CAMPAIGNS, ACTIVE_KEY, active, resolveCampaign, storageKey, cutsceneKey, gameURL, setup };
+const api = { CAMPAIGNS, ACTIVE_KEY, active, resolveCampaign, storageKey, cutsceneKey, levelInfoKey, gameURL, setup };
 if (!browser) module.exports = api;
 else globalThis.KoshiCampaignMode = api;
 })();

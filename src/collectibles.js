@@ -19,7 +19,18 @@ function collectibleStats(profile, levels) {
 
 let outlineId = 0;
 
-function catBlockIcon(found, document) {
+function levelRewardStates(game, results, attemptId) {
+  const earnedStar = !game.customLevel && Object.entries(results ?? {}).some(([id, result]) =>
+    id !== attemptId && result.levelId === game.level.id && result.outcome === 'won' && result.damageFree === true);
+  const eligible = ['playing', 'paused', 'won'].includes(game.state);
+  return {
+    star: earnedStar ? 'owned' : eligible && !game.tookDamage ? 'pending' : 'uncollected',
+    catBlock: !game.level.catBlock ? null : game.catBlockPreviouslyCollected ? 'owned'
+      : eligible && game.catBlockCollected ? 'pending' : 'uncollected',
+  };
+}
+
+function catBlockIcon(found, document, outlineColor = '#829096') {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 100 100');
@@ -36,7 +47,7 @@ function catBlockIcon(found, document) {
     for (const [tag, attributes] of [
       ['feMorphology', { in: 'SourceAlpha', operator: 'erode', radius: '3', result: 'inside' }],
       ['feComposite', { in: 'SourceAlpha', in2: 'inside', operator: 'out', result: 'outline' }],
-      ['feFlood', { 'flood-color': '#829096' }],
+      ['feFlood', { 'flood-color': outlineColor }],
       ['feComposite', { in2: 'outline', operator: 'in' }],
     ]) {
       const primitive = document.createElementNS(ns, tag);
@@ -100,7 +111,7 @@ function collectibleTotals(profile, levels, document) {
   return totals;
 }
 
-const api = { collectibleStats, catBlockIcon, goldStarIcon, collectibleTotals };
+const api = { collectibleStats, levelRewardStates, catBlockIcon, goldStarIcon, collectibleTotals };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiCollectibles = api;
 })();

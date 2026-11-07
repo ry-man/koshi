@@ -312,7 +312,7 @@ test('read-only campaign controls lock all write surfaces but leave inspection a
     return nodes.get(selector);
   };
   let locked = true;
-  const accessFields = ['#settings-access', '#cutscene-access', '#inspector-access', '#files-access'];
+  const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access'];
   const writeButtons = ['#place-mode', '#new-level'];
   const board = { dataset: {} };
   const context = vm.createContext({ $, board, accessFields, writeButtons, readOnly: () => locked, level: { id: '1-19', name: 'Finale' } });

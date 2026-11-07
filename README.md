@@ -97,14 +97,59 @@ than bypassing selection. Custom-level playtest links and the
 offline and direct-file play.
 Every level opens with a clear objectives popup and a large **Start** button;
 the level clock and objects remain frozen until Start is pressed. The HUD puts
-**Time left** inset at the top left, replacing the in-game logo. The evenly
+**Time left** centered above **Koshi's Health**, replacing the in-game logo. The evenly
 spaced tracker row is **Koshi's Health**, **Food**, **Enemies**, **Batteries**,
 **Goals**. An equipped sword appears beside Koshi with its remaining hit count.
+Beside the level number, Gold Star and Cat Block outlines remind players of
+uncollected rewards; rewards earned on previous winning runs are filled.
+An unowned star glows while the current run remains damage-free, and an unowned
+Cat Block glows after collection; these remain provisional until victory.
+Losing removes the provisional glow. Levels without a Cat Block omit its icon.
+Both provisional rewards use a gold border glow.
+The opening objectives omit Cat Block instructions and artwork when already owned.
 Moving between the main menu, story scenes, and gameplay uses a horizontal
 black sawtooth wipe: cover the old phase, change screens while fully black,
 then sweep onward to reveal the new phase. Tutorial entry/exit uses the same
 transition. Input and gameplay clocks are frozen during the 2.1-second wipe.
 Reduced-motion mode changes screens immediately.
+
+### Optional level information
+
+The editor's **Optional level information / tutorial** section lets authors
+enable an introduction, add/remove/reorder pages, and choose existing game
+component artwork. Each page has a title, explanation, and up to six graphics.
+Click **Apply information** before saving, exporting JSON, or playtesting.
+Disabling the section and applying removes the information from the level.
+Campaign levels remain read-only in the editor; use custom levels for authoring.
+
+Information appears after any opening cutscene and before the objectives.
+Small left/right arrows beside the page counter browse pages; **Close** or
+Escape proceeds to objectives. Nothing moves
+and the level clock stays frozen until the objectives' **Start** is pressed.
+Campaign information appears automatically on the first visit in this browser;
+closing marks it viewed. Beta and Official keep separate viewed
+records, and changing the information shows it again. **Tips & Hints**
+on the objectives allows replay. Custom playtests always show it for testing.
+No existing campaign levels have been given information pages automatically.
+
+Version 1 level JSON optionally includes:
+
+```json
+"levelInfo": {
+  "pages": [
+    {
+      "title": "Meet the spring brick",
+      "text": "Spring bricks launch Koshi farther. Plan your landing!",
+      "graphics": ["brick:springs", "food:S"]
+    }
+  ]
+}
+```
+
+Use 1-20 pages, nonblank titles up to 80 characters and explanations up to
+2,000 characters. Graphic identifiers come from the editor's component list
+(`KoshiGame.INFO_GRAPHICS`); graphics may be omitted for text-only pages.
+Information survives JSON import/export, saved drafts, and playtest links.
 
 ### Worlds and the map
 
@@ -118,6 +163,8 @@ dashed route below the main path and contains 12 levels (3S–1 through 3S–12)
 World 4, **Rolling Road**, connects directly from World 3 and starts with
 **4-1, The rolling buffet**, a three-minute autoscrolling survival level.
 
+Only the world overview offers **Back to menu**. Escape from level selection
+returns to the world overview first.
 The high-level map shows one stop per world. Click a world to move Koshi's
 marker; clicking the world Koshi is already on zooms into its individual level stops.
 World stops show a flag, star and Cat Block icon. The flag fills when all levels

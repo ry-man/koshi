@@ -191,7 +191,7 @@
         <div class="game-controls">
           <div class="loadout">
             <div class="stat timer-stat"><span class="stat-label">TIME LEFT</span><strong id="timer" aria-label="60 seconds remaining">🕒 60<span>s</span></strong></div>
-            <div class="level-status"><span class="stat-label">LEVEL</span><strong id="level-number">1–1</strong></div>
+            <div class="level-status"><span class="stat-label">LEVEL</span><div class="level-status-details"><strong id="level-number">1–1</strong><span id="level-rewards" aria-label="Level rewards"></span></div></div>
           </div>
           <div class="game-toolbar">
             <a id="back-to-editor" href="./editor.html" aria-label="Back to editor" title="Back to editor" hidden><span class="control-icon" aria-hidden="true">&larr;</span><span class="control-label">Back to editor</span></a>
@@ -240,6 +240,7 @@
               <p class="eyebrow" id="dialog-kicker">READY, LITTLE HERO?</p>
               <h2 id="dialog-title">Follow your appetite.</h2>
               <div id="dialog-text"></div>
+              <button id="level-info-replay" class="primary" type="button" hidden>Tips &amp; Hints</button>
               <button class="primary" id="play">Let's play <span>→</span></button>
             </div>
           </div>
@@ -252,6 +253,23 @@
       <footer><span>KOSHI'S QUEST <span class="footer-dot">/</span> AN ADVENTURE IN THE MAKING</span><span>Made for curious cats & clever humans.</span></footer>
       <noscript><p class="error">Please enable JavaScript to play Koshi's Quest.</p></noscript>
     </main>
+    <dialog id="level-info" class="level-info-dialog" aria-labelledby="level-info-title">
+      <header><p class="eyebrow">Tips &amp; Hints</p></header>
+      <div class="level-info-content">
+        <h2 id="level-info-title" tabindex="-1"></h2>
+        <div id="level-info-graphics" class="level-info-graphics"></div>
+        <p id="level-info-text"></p>
+      </div>
+      <footer>
+        <nav class="level-info-navigation" aria-label="Tips pages">
+          <button id="level-info-back" type="button" aria-label="Previous page">&#8592;</button>
+          <span id="level-info-page" role="status"></span>
+          <button id="level-info-next" type="button" aria-label="Next page">&#8594;</button>
+        </nav>
+        <button id="level-info-close" type="button">Close</button>
+      </footer>
+      <p id="level-info-error" class="error" role="alert" hidden></p>
+    </dialog>
     <dialog class="install-dialog" id="install-dialog" aria-labelledby="install-title">
       <p class="eyebrow">PLAY ANYWHERE, EVEN OFFLINE</p>
       <h2 id="install-title">Install Koshi's Quest</h2>

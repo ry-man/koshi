@@ -286,6 +286,7 @@ class WorldMap {
         this.selection.value = 'custom';
         this.details.replaceChildren(this.objectives(custom));
         this.layout.dataset.view = 'levels';
+        this.back.hidden = false;
         this.navigation.resize();
         this.details.hidden = false;
         this.play.hidden = false;
@@ -322,6 +323,7 @@ class WorldMap {
       this.details.replaceChildren(message);
       this.details.hidden = false;
       this.layout.dataset.view = 'levels';
+      this.setCutsceneOption(null);
       this.navigation.resize();
       this.back.hidden = false;
       return;
@@ -547,7 +549,7 @@ class WorldMap {
     const hasCutscene = Boolean(level?.cutscene);
     this.skipCutsceneOption.hidden = !hasCutscene;
     this.skipCutscene.checked = hasCutscene && this.cutsceneViewed(level.id);
-    this.close.hidden = hasCutscene;
+    this.close.hidden = this.layout.dataset.view !== 'worlds';
   }
   draw(nodes, edges, height) {
     this.map.classList.remove('official-world-map');
