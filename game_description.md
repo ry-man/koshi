@@ -10,8 +10,8 @@ The game opens on a title screen with original artwork of a heroic, sword-wieldi
 
 Worlds group levels and may contain different numbers of levels. The demonstration
 splits the existing campaign into **World 1: Garden Path** (10 levels, 1-1 to 1-10)
-and **World 2: Clockwork Pantry** (24 levels, 2-1 to 2-24), without changing any
-layouts, objectives, schedules or dialogue. **World 3: Robot Foundry** (14 levels,
+and **World 2: Clockwork Pantry** (25 levels, 2-1 to the new boss fight at 2-25),
+without changing existing layouts, objectives, schedules or dialogue. **World 3: Robot Foundry** (14 levels,
 3-1 to 3-14) follows them. **World 3S: Tom's Gauntlet** (12 levels, 3S-1 to
 3S-12) is an optional challenge world that branches from World 2 below the
 main path. Each world carries a graphical theme,
@@ -104,6 +104,33 @@ The game is level-based, with multiple worlds split into individual levels. Most
 3. Simply survive until the time runs out
 4. Defeat the boss (no timer is used on bosses)
 5. Score enough soccer goals before time runs out
+
+Boss levels are enabled with the level editor's **Boss level** checkbox and
+require exactly one enemy of type `boss` (Tom the Toaster). Other enemies may
+be placed or spawned. Bosses cannot have shields, spawn in formations, or be
+dispensed by bricks. The placement timeline still uses the duration setting,
+but there is no gameplay countdown or score requirement.
+
+World 2 ends with **2-25, Tom the Toaster**. The arena has four green slime
+blocks and four Boost blocks, one of each on every side. Tom is a grey toaster
+with green pixel eyes, dark vertical pupils, two top slots and a red side
+handle. He waits in the center except when charging between sides. He performs
+one to four randomly selected attacks before a five-second dizzy opening:
+clockwise/counterclockwise spinning toast fire; rapid straight-line ricochets
+off arena bricks for four seconds with no trajectory indicator; or a charged
+pair of toast shots spaced 0.35 seconds apart. The first piece is blue and
+targets any non-Cinder brick, including Boost bricks. It turns the struck
+brick (and its merged group) blue with the slow cooldown, preserving its
+attributes and clearing its current cooldown. The second piece is black and
+destroys a random non-Boost brick using the Robo Cow's Cinder animation.
+Toast damages Koshi.
+
+While dizzy, Tom gently rocks and scrolls red pixel **ERROR!** letters across
+his black eye displays. Only Boost charges can hurt him then. Each hit flashes
+his body red and opens his mouth in a yell. Six hits empty his red,
+gold-bordered health bar beneath the counters, labeled
+**Tom the Toaster's Health:** in the menu font. His 2.4-second death animation
+plays with gameplay frozen, followed by Koshi's victory animation.
 
 Playable levels choose survival OR a combination of food, enemy and/or soccer-goal targets.
 Survival wins at the exact time limit if Koshi is still alive on the board.
@@ -203,7 +230,7 @@ illustrate every brick, enemy, item, object, and weapon using the gameplay shape
 Story instructions are not part of this guide. Each topic links to a related
 tutorial step. Escape or Back to title closes the guide.
 
-The interactive tutorial uses the actual game board and mechanics in 54 isolated
+The interactive tutorial uses the actual game board and mechanics in 55 isolated
 practice steps. It includes a hands-on defeat lesson for every robot, exercises
 for every item mechanic and contact surface, special brick interactions, and
 bumper, bubble, and obstruction practice, as well as movement, food, healing,
@@ -225,7 +252,7 @@ opens the map, while **Cancel** or Escape returns to the paused game.
 Any level may define an optional cutscene before gameplay. The top two-thirds
 of the screen show the cast interacting against a background matching the
 level's world: a garden path for Levels 1-1 through 1-10, the Clockwork Pantry
-workshop for Levels 2-1 through 2-24, and the smoky Robot Foundry, with chimneys
+workshop for Levels 2-1 through 2-25, and the smoky Robot Foundry, with chimneys
 and gears, for Levels 3-1 through 3-14. The bottom third is a retro RPG dialogue box,
 with the speaking character's animated pixel-art head on the left and typed
 dialogue in the locally bundled Space Grotesk font on the right. Speaker names,
@@ -269,6 +296,8 @@ second per moving enemy while fleeing his current position at a
 constant pace of 64 game units per second within movement bounds. Mice
 do not pause and Rams do not target or charge while afraid. Wheels stay on
 the perimeter and Buckets pause their bomb-throwing timer. Normal movement resumes at expiry.
+Magical Sunglasses are drawn over the mask when both are worn, including during
+victory and death animations.
 The mask has smaller, distinctly outlined ears with dark inner-ear shading.
 Scared enemies do not attack or hurt Koshi on contact. Existing bombs keep
 animating but cannot damage him during fear; attacks and damage resume at expiry.
@@ -525,7 +554,10 @@ green preserves it, and blue reduces it by 25%. Their concentric white rings
 compress and shake briefly when hit. Bumpers intercept Jackolantern fire in their
 circular shadow. Food, weapons, items and healing hearts cannot appear or remain
 under bumpers or obstructions: random placement avoids them, and covered live or
-queued pickups are removed. Pause freezes rolling/scoring effects;
+queued pickups are removed. Bumpers use the same two-second warning and arrival
+overlap rules as obstructions, with a dotted outer circle and three dotted inner
+rings. Scheduled times are preserved; brick spawners wait two seconds.
+Pause freezes rolling/scoring effects;
 restart clears scores and restores placements. The guide and tutorial include
 soccer. Level 2-19 requires three goals and supplies five balls; the original
 19 levels remain unchanged.
@@ -559,7 +591,10 @@ segments always damage Koshi on contact, even during sleep, fear or the snake's
 shield invulnerability; Koshi's usual one-second damage immunity still applies.
 Sleep freezes movement; fear sets perimeter movement to 64 game units/second.
 Every segment blocks other enemies and soccer balls and stays inside the bricks,
-with Barrier fences blocking the entire snake. On defeat the four segments fall
+with Barrier fences blocking the entire snake. Reversals remain head-led: each
+segment reaches and turns at the same turnaround point in sequence. Fear changes
+the eyes in place without moving them or replacing the rest of the face; sweat
+remains visible. On defeat the four segments fall
 apart and fade over 1.2 seconds while the detached tongue spins away.
 Custom placements snap to the perimeter; editor spawners, portraits, the guide
 and an interactive head-interception lesson support it. Level 2-17 introduces
@@ -868,3 +903,16 @@ points. Existing levels and the optional World 3S route remain unchanged.
 If Koshi's entire body leaves a scrolling camera's view in any direction, he
 dies immediately even while protected. The camera freezes, and his usual
 spinning death animation smoothly slides from the death location back into view.
+Trajectory previews end at the first screen exit. Random pickups and objects
+are placed inside the spawn-time camera with enough clearance to remain fully
+visible for one second, accounting for scheduled speed changes. Explicitly
+authored placements remain unchanged. Power-up background ribbons follow the
+board's longer axis rather than crossing it.
+
+Scrolling simulation keeps enemy movement and new attacks active within half a
+screen behind the camera and one screen ahead. More distant enemies sleep in
+place without defeat rewards and resume without catching up missed actions.
+Existing bombs and fire waves still advance, and scheduled spawns, pickup
+expiration and global power-up timers continue. Offscreen artwork is skipped;
+cached brick geometry and local collision candidates reduce physics work without
+changing the physics timestep or authored level content.

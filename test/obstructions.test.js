@@ -573,7 +573,12 @@ test('perimeter obstruction reversals work in both directions, including fear, w
     game.placeWheel(enemy);
     game.blockEnemyWithObstructions(enemy, contact);
     assert.equal(activeDirection(), -direction, 'moving away must not reverse again');
-    assert.ok(Math.abs(enemy.distance - contact.distance + direction * 2) < 1e-6);
+    if (type === 'snake') {
+      for (const [index, segment] of game.snakeSegments(enemy).entries()) {
+        assert.ok(gap({ ...segment, radius: segment.radius + (index ? 5 : 0) },
+          game.obstructions[0]) >= -1e-5);
+      }
+    } else assert.ok(Math.abs(enemy.distance - contact.distance + direction * 2) < 1e-6);
   }
 });
 

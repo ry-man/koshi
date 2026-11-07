@@ -49,6 +49,34 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
   });
 }
 
+test('snake segments follow the head through a reversal one at a time without teleporting', () => {
+  const game = arena(), enemy = snake(game), bounds = game.bounds(), width = bounds.right - bounds.left;
+  enemy.distance = width - 10;
+  enemy.snakeTrail = null;
+  enemy.snakeProgress = 0;
+  game.placeWheel(enemy);
+  const initial = game.snakeSegments(enemy);
+  enemy.distance += 30;
+  game.placeWheel(enemy);
+  game.updateSnakeTrail(enemy);
+  const afterTurn = game.snakeSegments(enemy);
+  enemy.distance -= 20;
+  game.placeWheel(enemy);
+  game.updateSnakeTrail(enemy);
+  const afterReverse = game.snakeSegments(enemy);
+
+  assert.equal(afterTurn[0].x, bounds.right);
+  assert.equal(afterTurn[0].y, bounds.top + 20);
+  assert.equal(afterReverse[1].x, bounds.right);
+  assert.ok(afterReverse[1].y > bounds.top);
+  assert.equal(afterReverse[2].y, bounds.top);
+  assert.ok(afterReverse[2].x < bounds.right);
+  for (const [index, segment] of afterReverse.entries()) {
+    assert.ok(Math.hypot(segment.x - afterTurn[index].x, segment.y - afterTurn[index].y) <= 20 + 1e-6);
+  }
+  assert.ok(Math.hypot(afterTurn[3].x - initial[3].x, afterTurn[3].y - initial[3].y) <= 30 + 1e-6);
+});
+
 test('only the head can take sword or Boost damage; spiked body hurts even with weapons, fear or sleep', () => {
   for (const status of ['normal', 'fear', 'sleep', 'boost']) {
     const game = arena(), enemy = snake(game, 'blue'), body = game.snakeSegments(enemy)[3];
@@ -127,12 +155,15 @@ test('fences block a leading body segment during reversal and reversal never fli
   enemy.barrierDirection = -1;
   assert.deepEqual(game.snakeSegments(enemy).map(({ x, y }) => ({ x, y })),
     before.map(({ x, y }) => ({ x, y })));
-  const fence = { x: bounds.left, y: before[3].y - 32, w: bounds.right - bounds.left, h: 4 };
+  const fence = { x: bounds.left, y: before[3].y + 32, w: bounds.right - bounds.left, h: 4 };
   const old = { ...enemy };
   enemy.distance -= 20; game.placeWheel(enemy);
   game.blockSnakeWithBarriers(enemy, old, [fence]);
-  assert.equal(enemy.distance, old.distance);
   assert.equal(enemy.barrierDirection, 1);
+  assert.ok(game.snakeSegments(enemy).every(part => {
+    const y = Math.max(fence.y, Math.min(fence.y + fence.h, part.y));
+    return Math.abs(part.y - y) >= part.radius + (part.index ? 5 : 0) - 1e-6;
+  }));
 });
 
 test('real expanding and fully extended barriers contain all four segments on every board edge', () => {

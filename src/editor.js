@@ -9,7 +9,7 @@ const board = $('#editor-board');
 const form = $('#event-form');
 const storageKey = 'koshi-level-editor-v1';
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
-const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true });
+const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true });
 const immutableBrick = kind => ['cinder', 'goal'].includes(kind);
 const OBSTRUCTION_COLORS = [
   '#ffffff', '#eeeeee', '#cccccc', '#aaaaaa', '#888888', '#666666', '#444444', '#222222', '#111111', '#000000',
@@ -353,7 +353,7 @@ function typeOptions(type, showLifetime) {
     : kind === 'weapon' ? Object.entries(SWORDS).map(([key, sword]) => [key, sword.name])
       : kind === 'item' ? Object.entries(ITEMS).map(([key, item]) => [key, item.name])
         : kind === 'object' ? Object.entries(OBJECTS).map(([key, item]) => [key, item.name])
-        : [['mouse', 'Robo Mouse'], ['wheel', 'Robo Wheel'], ['ram', 'Robo Ram'], ['bucket', 'Robo Bucket'], ['ball', 'Robo Ball'], ['jackolantern', 'Robo Jackolantern'], ['snake', 'Robo Snake'], ['goalie', 'Robo Goalie'], ['robo-koshi', 'Robo Koshi'], ['robo-snail', 'Robo Snail'], ['robo-cow', 'Robo Cow'], ['robo-unicorn', 'Robo Unicorn']];
+        : Object.entries(CHARACTERS).filter(([key]) => !['koshi', 'tom'].includes(key));
   $('#event-type').replaceChildren(...types.map(([value, name]) => {
     const option = document.createElement('option');
     option.value = value; option.textContent = name;
@@ -466,7 +466,7 @@ function description(event) {
 }
 
 function icon(event) {
-  if (event.kind === 'enemy' && ['robo-snail', 'robo-cow', 'robo-unicorn'].includes(event.type)) return picture(`enemy:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'enemy' && ['robo-snail', 'robo-cow', 'robo-unicorn', 'boss'].includes(event.type)) return picture(`enemy:${event.type}`, 'brick-spawn-item');
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
@@ -1645,15 +1645,16 @@ $('#settings-form').addEventListener('submit', event => {
       autoscroll: $('#autoscroll-enabled').checked ? {
         length, speed: Number($('#scroll-speed').value), events: level.autoscroll?.events ?? [],
       } : undefined,
-      survive: $('#win-condition').value === 'survive',
+      bossLevel: $('#boss-level-enabled').checked,
+      survive: !$('#boss-level-enabled').checked && $('#win-condition').value === 'survive',
       catBlock: $('#cat-block-enabled').checked ? {
         description: readCatBlockTrigger() ? catBlockDescription(readCatBlockTrigger()) : level.catBlock.description,
         ...(readCatBlockTrigger() ? { trigger: readCatBlockTrigger() } : {}),
       } : undefined,
-      goal: $('#win-condition').value === 'survive' ? 0 : Number($('#goal').value),
-      killGoal: $('#win-condition').value === 'survive' ? 0 : Number($('#kill-goal').value),
+      goal: $('#boss-level-enabled').checked || $('#win-condition').value === 'survive' ? 0 : Number($('#goal').value),
+      killGoal: $('#boss-level-enabled').checked || $('#win-condition').value === 'survive' ? 0 : Number($('#kill-goal').value),
       ...(Number($('#goals-goal').value) !== 0 || level.goalsGoal !== undefined ? {
-        goalsGoal: $('#win-condition').value === 'survive' ? 0 : Number($('#goals-goal').value),
+        goalsGoal: $('#boss-level-enabled').checked || $('#win-condition').value === 'survive' ? 0 : Number($('#goals-goal').value),
       } : {}),
       ...($('#activation-limit').value !== '' || level.activationLimit !== undefined ? {
         activationLimit: $('#activation-limit').value === '' ? null : Number($('#activation-limit').value),
@@ -1674,6 +1675,7 @@ function populateSettings() {
   $('#goals-goal').value = level.goalsGoal ?? 0;
   $('#activation-limit').value = level.activationLimit ?? '';
   $('#win-condition').value = level.survive ? 'survive' : 'scores';
+  $('#boss-level-enabled').checked = Boolean(level.bossLevel);
   updateWinCondition();
   $('#heart-cost').value = level.heartCost ?? '';
   $('#cat-block-enabled').checked = Boolean(level.catBlock);
@@ -1736,12 +1738,15 @@ $('#add-camera-event').addEventListener('click', () => attempt(() => {
   markChanged(); renderCameraTimeline(); renderBoard(); message('Camera speed change added. Edit its speed below.');
 }));
 function updateWinCondition() {
-  const survive = $('#win-condition').value === 'survive';
+  const boss = $('#boss-level-enabled').checked;
+  $('#win-condition').disabled = boss;
+  const survive = boss || $('#win-condition').value === 'survive';
   $('#goal').disabled = survive;
   $('#kill-goal').disabled = survive;
   $('#goals-goal').disabled = survive;
 }
 $('#win-condition').addEventListener('change', updateWinCondition);
+$('#boss-level-enabled').addEventListener('change', updateWinCondition);
 $('#cat-block-enabled').addEventListener('change', () => {
   $('#cat-block-settings').disabled = !$('#cat-block-enabled').checked;
   $('#cat-block-settings').hidden = !$('#cat-block-enabled').checked;

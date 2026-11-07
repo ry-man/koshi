@@ -184,6 +184,17 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#535d66', 23, 21 + bob, 6, talking ? 6 : 3);
     box('#c4cdd5', 24, 21 + bob, 1, 2); box('#c4cdd5', 26, 21 + bob, 1, 2);
     if (talking) { box('#c4cdd5', 24, 25 + bob, 1, 2); box('#c4cdd5', 26, 25 + bob, 1, 2); }
+  } else if (character === 'boss') {
+    box('#6d7780', 5, 7, 24, 22); box('#abb5bd', 3, 7, 21, 22);
+    box('#abb5bd', 6, 4, 15, 4);
+    box('#252e34', 8, 5, 12, 1); box('#252e34', 7, 7, 13, 1);
+    for (const x of [6, 15]) {
+      box('#0b1511', x, 12, 7, 5);
+      box('#69ed7a', x + 1, 13, 5, blink ? 1 : 3);
+      if (!blink) box('#246f3e', x + 3, 13, 1, 3);
+    }
+    box('#253037', 26, 12, 1, 13); box('#dc454a', 24, 18, 7, 3);
+    box('#20282e', 7, 23, 13, talking ? 4 : 1);
   } else if (character === 'robo-koshi') {
     box('#b3bec3', 3, 3, 7, 15); box('#b3bec3', 22, 3, 7, 15);
     box('#454d52', 4, 5, 5, 11); box('#454d52', 23, 5, 5, 11);
@@ -393,7 +404,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, boss: 40 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);

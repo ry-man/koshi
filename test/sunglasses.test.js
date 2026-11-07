@@ -152,10 +152,34 @@ function drawingContext(game = arena()) {
     },
   });
   const context = vm.createContext({ ctx, game });
-  vm.runInContext(source.slice(source.indexOf('function drawMagicSunglasses('), source.indexOf('function drawRobot(')), context);
+  vm.runInContext(source.slice(source.indexOf('function ribbonTransform('), source.indexOf('function drawCapeStream('))
+    + source.slice(source.indexOf('function drawMagicSunglasses('), source.indexOf('function drawRobot(')), context);
   vm.runInContext(source.slice(source.indexOf('function drawWornSunglasses('), source.indexOf('function drawBrickDestructionSmoke(')), context);
   return { context, operations, ctx };
 }
+
+test('sunglasses are layered above the spooky mask during gameplay and both endings', () => {
+  const render = source.slice(source.indexOf('function render('), source.indexOf('function drawFoodBadge('));
+  const layers = render.slice(render.indexOf('  if (game.maskPickup)'), render.indexOf('  if (game.boomHelmet)'));
+  const ending = source.slice(source.indexOf('function drawEnding('), source.indexOf('function powerupStreamRows('));
+  for (const state of ['playing', 'won', 'lost']) {
+    for (const mask of [false, true]) for (const sunglasses of [false, true]) {
+      const game = arena();
+      if (mask) game.collectItem({ type: 'spooky-mask' });
+      if (sunglasses) game.collectItem({ type: 'magic-sunglasses' });
+      const calls = [];
+      const context = {
+        game, ending: { elapsed: 1, state }, ctx: new Proxy({}, { get: () => () => {} }),
+        endingPose: () => ({ x: 100, y: 200, rotation: 0, scale: 1 }),
+        drawWornCape() {}, drawCat() {}, drawBoomHelmet() {},
+        drawWornMask: () => calls.push('mask'),
+        drawWornSunglasses: () => calls.push('sunglasses'),
+      };
+      vm.runInNewContext(state === 'playing' ? layers : `${ending}\ndrawEnding();`, context);
+      assert.deepEqual(calls, [...(mask ? ['mask'] : []), ...(sunglasses ? ['sunglasses'] : [])], state);
+    }
+  }
+});
 
 test('sunglasses shimmer, sparkle, fly to the moving face, and fade only after expiry', () => {
   const game = arena(), { context, operations } = drawingContext(game);

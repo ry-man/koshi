@@ -197,8 +197,8 @@ test('overlapping live and defeated goalies draw from highest to lowest without 
     high.y = 400;
     assert.deepEqual(Array.from(context.robotDrawOrder(robots)), [middle, mouse, low, high], 'order updates as goalies move');
   }
-  assert.match(source, /for \(const enemy of robotDrawOrder\(game\.robots\)\)/);
-  assert.match(source, /for \(const enemy of robotDrawOrder\(game\.enemyDeaths\)\)/);
+  assert.match(source, /for \(const enemy of robotDrawOrder\(visibleRobots\)\)/);
+  assert.match(source, /for \(const enemy of robotDrawOrder\(game\.enemyDeaths\.filter\(visibleRobot\)\)\)/);
   const game = arena({}, null), calls = [];
   game.robots = [
     { type: 'goalie', x: 100, y: 300 }, { type: 'mouse', x: 100, y: 500 },

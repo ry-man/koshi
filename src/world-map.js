@@ -171,9 +171,10 @@ class WorldMap {
     objective.setAttribute('role', 'group');
     objective.setAttribute('aria-label', 'Time limit and win objectives');
     objective.title = levelObjective(level);
-    const timeLabel = level.survive ? `Survive for ${level.duration}s` : `Time limit: ${level.duration}s`;
+    const timeLabel = level.bossLevel ? 'No time limit' : level.survive ? `Survive for ${level.duration}s` : `Time limit: ${level.duration}s`;
     const targets = [
-      { symbol: '🕒', value: `${level.duration}s`, label: timeLabel },
+      { symbol: '🕒', value: level.bossLevel ? '∞' : `${level.duration}s`, label: timeLabel },
+      ...(level.bossLevel ? [{ symbol: '👾', value: 'BOSS', label: 'Defeat Tom the Toaster with 6 Boost hits' }] : []),
       ...(level.survive ? [] : [
         { symbol: '🍗', target: level.goal, name: 'food points' },
         { symbol: '👾', target: level.killGoal, name: 'enemy points' },

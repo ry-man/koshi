@@ -136,6 +136,7 @@ const GUIDE = [
       ['Robo Cow', 'The Cow walks only along the board perimeter. After walking past several brick lengths, it stops to eat a boundary brick; after five seconds, that brick and its merged group become Cinder. Cinder and Goal bricks cannot be eaten. A Spooky Mask cancels eating and makes it flee. It can be defeated with a sword or Boost.', 'enemy:robo-cow'],
       ['Robo Unicorn', 'The Unicorn pauses to aim, then charges toward the nearest food and eats it. With no food left, it turns red and moves faster. Protect your food and use a sword or Boost to defeat it.', 'enemy:robo-unicorn'],
       ['Robo Koshi', 'This robotic copy waits one second, rushes to the place Koshi stood when it spawned, then follows Koshi’s recorded path a short time behind. Keep moving or change direction to avoid meeting your own trail; a sword or Boost can defeat it.', 'enemy:robo-koshi'],
+      ['Tom the Toaster', 'Boss levels have one boss and no time limit. Dodge Tom’s spinning toast and rapid straight-line ricochets with no warning path. His charged attack fires blue toast that turns a non-Cinder brick blue, then black toast that destroys a non-Boost brick. After one to four attacks, his eyes scroll ERROR! and he rocks gently. Launch from a Boost brick to hit him then. Six hits empty his health bar; his death animation finishes before Koshi celebrates.', 'enemy:boss'],
       ['Damage & defeats', 'Unarmed contact with hostile robots costs one heart; Robo Goalie is harmless. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
       ...Object.entries(SWORDS).map(([type, sword]) => [
         sword.name,
@@ -193,6 +194,7 @@ const LESSONS = [
   { id: 'robo-cow', title: 'Robo Cow', instruction: 'Collect a sword and intercept the Cow on the perimeter. If left alone, it eats a boundary brick and turns it into Cinder after five seconds.' },
   { id: 'robo-unicorn', title: 'Robo Unicorn', instruction: 'Collect a sword and intercept the Unicorn. It aims at and eats food; with no food left it turns red and speeds up.' },
   { id: 'robo-koshi', title: 'Robo Koshi', instruction: 'Collect a sword, keep moving, and watch the robotic copy return to the place you stood before following your path.' },
+  { id: 'boss', title: 'Tom the Toaster', instruction: 'Practice the boss fight. Dodge toast and rapid ricochets without warning paths. Blue toast turns bricks blue; black toast destroys them. Rest at a Boost brick, then launch through Tom when his eyes scroll ERROR! Six hits defeat him; swords cannot help.' },
   { id: 'ram', title: 'Robo Ram', instruction: 'Collect the sword, then watch the ram pause as its eyes sparkle and it aims at Koshi. It lines up before a fast straight charge. Avoid the rush or intercept it while armed; bricks make it ricochet and slow down.' },
   { id: 'bucket', title: 'Robo Bucket', instruction: 'Collect a sword and intercept the bucket. Its blue bombs bounce harmlessly for three seconds before their expanding red flames can hurt you.' },
   { id: 'ball', title: 'Robo Ball', instruction: 'Collect a sword and intercept the bouncing basketball robot. It rebounds off walls and other enemies; defeat it to see it shrivel and pop its eyes into the air.' },
@@ -254,6 +256,15 @@ class Tutorial {
     this.obstructionSeen = false;
     this.stampCaptured = false;
     this.currentComplete = false;
+    if (this.lesson.id === 'boss') {
+      const game = new Game(() => .5, { ...options, level: LEVELS.findIndex(level => level.bossLevel) });
+      game.level = { ...game.level, cutscene: undefined };
+      this.target = game.bricks.find(brick => brick.boost && brickRegions(game.bricks, game.width, game.height).get(brick.id).edge === 'right');
+      this.origin = { x: game.cat.x, y: game.cat.y };
+      game.start();
+      this.game = game;
+      return game;
+    }
     const level = { version: 1, id: `Practice ${index + 1}`, duration: 3600, goal: 1000, heartCost: 10, brickSet: 1, events: [],
       ...(this.lesson.id === 'boom-time' ? { activationLimit: 2 } : {}) };
     const game = new Game(() => .5, { ...options, customLevel: level });
@@ -485,6 +496,7 @@ class Tutorial {
       'robo-cow': game.enemies >= 1,
       'robo-unicorn': game.enemies >= 1,
       'robo-koshi': game.enemies >= 1,
+      boss: game.bossDefeated && game.state === 'won',
       ram: game.enemies >= 1,
       bucket: game.enemies >= 1,
       ball: game.enemies >= 1,

@@ -50,8 +50,8 @@ test('every fixed-location spawn uses the chosen position and initializes attrib
     const expected = game.pointFromRelative(brick.spawner.x, brick.spawner.y);
     game.spawnFromBrick(brick);
     assert.equal(brick.spawned, true);
-    if (field === 'obstructions') {
-      assert.equal(game.obstructions.length, 0);
+    if (field === 'obstructions' || field === 'bumpers') {
+      assert.equal(game[field].length, 0);
       assert.deepEqual(point(game.spawnCues[0]), expected);
       game.update(2);
     }

@@ -34,8 +34,10 @@ test('bumpers are custom objects with scheduled and brick-spawned placements', (
   const blue = game.bumpers[2];
   const position = { x: blue.x, y: blue.y };
   game.spawnFromBrick(game.bricks.find(brick => brick.spawner));
-  assert.equal(game.bumpers.length, 4);
-  assert.equal(game.bumpers[3].radius, 48, 'brick spawners use the doubled size');
+  assert.equal(game.bumpers.length, 3);
+  const pending = [...game.pendingSpawns.values()].find(spawn => spawn.kind === 'bumper');
+  assert.equal(pending.items[0].radius, 48, 'brick spawners use the doubled size');
+  assert.equal(pending.duration, 2);
   assert.deepEqual({ x: blue.x, y: blue.y }, position, 'placed bumpers stay in place');
   assert.ok(['bumper-red', 'bumper-green', 'bumper-blue'].every(type => OBJECTS[type]?.bumper));
   assert.ok(spawnSymbol({ kind: 'object', type: 'bumper-red' }));

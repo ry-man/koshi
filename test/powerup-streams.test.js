@@ -62,17 +62,43 @@ test('all simultaneous power-up combinations use separated rows in landscape and
       const positions = Object.values(rows);
       assert.equal(positions.length, types.filter((_, index) => mask & (1 << index)).length);
       for (let i = 0; i < positions.length; i++) {
-        assert.ok(positions[i] - 26 > 0 && positions[i] + 26 < game.height);
+        assert.ok(positions[i] - 26 > 0 && positions[i] + 26 < Math.min(game.width, game.height));
         if (i) assert.equal(positions[i] - positions[i - 1], 64, '52-unit frames have a 12-unit gap');
       }
-      if (positions.length === 1) assert.equal(positions[0], game.height / 2);
+      if (positions.length === 1) assert.equal(positions[0], Math.min(game.width, game.height) / 2);
       streams.forEach((stream, index) => {
         if (!(mask & (1 << index))) return;
         operations.length = 0;
         context[`draw${stream[0].toUpperCase()}${stream.slice(1)}Stream`](game, rows[stream]);
-        assert.equal(operations.find(op => op.name === 'translate').args[1], rows[stream]);
-        assert.deepEqual(operations.find(op => op.name === 'strokeRect').args, [-18, -26, game.width + 36, 52]);
+        assert.equal(operations.find(op => op.name === 'translate').args[options.portrait ? 0 : 1], rows[stream]);
+        assert.deepEqual(operations.find(op => op.name === 'strokeRect').args, [-18, -26, Math.max(game.width, game.height) + 36, 52]);
+        assert.equal(operations.some(op => op.name === 'rotate' && op.args[0] === Math.PI / 2), Boolean(options.portrait));
       });
+
+    }
+  }
+});
+
+test('all five background ribbons run lengthwise along a scrolling board in both orientations', () => {
+  const { context, operations } = drawingContext();
+  for (const portrait of [false, true]) {
+    const game = new Game(() => .5, { portrait, customLevel: {
+      version: 1, id: 'Long ribbons', duration: 60, goal: 0, survive: true,
+      heartCost: null, brickSet: 1, events: [], autoscroll: { length: 56, speed: .2, events: [] },
+    } });
+    game.start();
+    types.forEach(type => game.collectItem({ type }));
+    game.snailStreamStart = 0; game.snailStreamUntil = 20; game.snailStreamAge = 0;
+    const rows = context.powerupStreamRows(game);
+    for (const type of [...streams, 'snail']) {
+      operations.length = 0;
+      context[`draw${type[0].toUpperCase()}${type.slice(1)}Stream`](game, rows[type]);
+      const frame = operations.find(op => op.name === 'strokeRect');
+      assert.equal(frame.args[2], Math.max(game.width, game.height) + 36);
+      assert.ok(frame.args[2] > 5000);
+      const anchor = operations.find(op => op.name === 'translate');
+      assert.equal(anchor.args[portrait ? 0 : 1], rows[type]);
+      assert.equal(operations.some(op => op.name === 'rotate' && op.args[0] === Math.PI / 2), portrait);
     }
   }
 });

@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 54);
+  assert.equal(LESSONS.length, 55);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -90,7 +90,7 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
           : type === 'soccer-ball' ? 'soccer' : null;
     assert.ok(id && LESSONS.some(lesson => lesson.id === id), `missing tutorial for object: ${type}`);
   }
-  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom'].includes(type))) {
+  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom', 'boss'].includes(type))) {
     assert.ok(LESSONS.some(lesson => lesson.id === id), `missing enemy lesson: ${id}`);
   }
   for (const id of [
@@ -106,6 +106,19 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
   }
 });
 
+test('boss tutorial requires six dizzy Boost hits and the completed death animation', () => {
+  const tutorial = practice('boss'), game = tutorial.game;
+  assert.equal(tutorial.observe(), false);
+  game.update(.01);
+  for (let hit = 0; hit < 6; hit++) {
+    game.boss.state = 'dizzy'; game.boss.invulnerableUntil = 0; game.boosted = true;
+    assert.equal(game.hitBoss(game.boss), true);
+    assert.equal(tutorial.observe(), false);
+  }
+  game.update(2.4);
+  assert.equal(tutorial.observe(), true);
+});
+
 test('tutorial sword choices match the game catalog', () => {
   const html = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'index.html'), 'utf8');
   for (const [type, sword] of Object.entries(SWORDS)) {
@@ -116,7 +129,7 @@ test('tutorial sword choices match the game catalog', () => {
 });
 
 test('enemy lessons require defeating every robot type', () => {
-  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom'].includes(type))) {
+  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom', 'boss'].includes(type))) {
     const tutorial = practice(id);
     assert.equal(tutorial.observe(), false, `${id} is not complete at start`);
     aim(tutorial); wait(tutorial, 2);

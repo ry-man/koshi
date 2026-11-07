@@ -19,13 +19,13 @@ const thingTypes = level => new Set([...level.items.map(([, type]) => type), ...
 
 test('World 3S is an optional twelve-level challenge branch from World 2 appended after World 3', () => {
   assert.equal(world.length, 12);
-  assert.equal(first, 48);
+  assert.equal(first, 49);
   assert.deepEqual(world.map(level => level.number), world.map((_, i) => `3S-${i + 1}`));
   assert.deepEqual(world.map(level => level.id), world.map((_, i) => `1-${49 + i}`));
   const challenge = WORLDS.find(entry => entry.id === '3S');
   assert.equal(challenge.special, true);
   assert.deepEqual(WORLDS.find(entry => entry.id === '2').next, ['3', '3S']);
-  assert.equal(nextLevelIndex(33), 34, 'finishing World 2 continues on the main path');
+  assert.equal(nextLevelIndex(34), 35, 'finishing World 2 continues on the main path');
   assert.equal(nextLevelIndex(LEVELS.indexOf(world.at(-1))), -1);
   for (const level of world) {
     assert.equal(level.cutscene.theme, 'foundry');

@@ -16,20 +16,20 @@ test('Rolling Road appends 4-1 with a stable new identity and connects only from
   assert.deepEqual(WORLDS.find(entry => entry.id === '3').next, ['4']);
   assert.deepEqual(WORLDS.find(entry => entry.id === '3S').next, []);
   assert.deepEqual(world.next, []);
-  assert.equal(index, 60);
+  assert.equal(index, 61);
   assert.equal(level.id, '1-61');
   assert.equal(level.name, 'The rolling buffet');
-  assert.equal(nextLevelIndex(47), index);
-  assert.equal(nextLevelIndex(59), -1);
+  assert.equal(nextLevelIndex(48), index);
+  assert.equal(nextLevelIndex(60), -1);
   assert.equal(nextLevelIndex(index), -1);
-  assert.deepEqual(LEVELS.slice(0, 60).map(entry => entry.id),
+  assert.deepEqual(LEVELS.filter(entry => !entry.bossLevel).slice(0, 60).map(entry => entry.id),
     Array.from({ length: 60 }, (_, i) => `1-${i + 1}`));
   const storage = new Map();
   const saves = new SaveSlots(LEVELS.map(entry => entry.id), () => ({
     getItem: key => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value),
   }), undefined, LEVELS.filter(entry => entry.worldId !== '3S').map(entry => entry.id));
-  assert.equal(saves.nextLevel({ completed: LEVELS.slice(0, 48).map(entry => entry.id) }), index);
+  assert.equal(saves.nextLevel({ completed: LEVELS.slice(0, 49).map(entry => entry.id) }), index);
 });
 
 test('demo spends 40% stopped, 30% slow and 30% fast, arriving exactly at 180 seconds', () => {

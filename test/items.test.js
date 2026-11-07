@@ -150,7 +150,8 @@ test('music notation streams behind play objects and reaches its offscreen end a
   });
   const context = vm.createContext({ ctx });
   assert.ok(source.indexOf('drawMusicStream(game, streamRows.music);') < source.indexOf('for (const food of game.food)'), 'the score is painted behind the pickups and characters');
-  vm.runInContext(source.slice(source.indexOf('function drawMusicStream('), source.indexOf('function drawRobot(')), context);
+  vm.runInContext(source.slice(source.indexOf('function ribbonTransform('), source.indexOf('function drawCapeStream('))
+    + source.slice(source.indexOf('function drawMusicStream('), source.indexOf('function drawRobot(')), context);
   const game = { width: 960, height: 600, musicStreamStart: 10, musicStreamUntil: 20, elapsed: 10 };
   context.drawMusicStream(game);
   assert.ok(operations.some(([name, alpha]) => name === 'stroke' && alpha === .25), 'staff is translucent');

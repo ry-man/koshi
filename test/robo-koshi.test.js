@@ -38,7 +38,7 @@ test('Robo Koshi is available in custom levels, spawners, the editor and cutscen
   assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(level => level.enemies.every(([, enemyType]) => enemyType !== type)));
 
   const editor = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
-  assert.match(editor, /\['robo-koshi', 'Robo Koshi'\]/);
+  assert.match(editor, /Object\.entries\(CHARACTERS\)/);
   assert.match(editor, /'robo-koshi': \{ name: 'Robo Koshi' \}/);
 });
 

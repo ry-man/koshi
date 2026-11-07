@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, middleBrickInGroup, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, middleBrickInGroup, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
@@ -653,7 +653,8 @@ function syncBrickDestructions() {
 
 function levelBriefingText(level) {
   const lines = ['VICTORY CONDITIONS:'];
-  if (level.survive) lines.push(`🕒 Surive Time: ${level.duration}`);
+  if (level.bossLevel) lines.push('Defeat Tom the Toaster with 6 Boost hits while he is dizzy. No time limit.');
+  else if (level.survive) lines.push(`🕒 Survive Time: ${level.duration}`);
   else {
     if (level.goal > 0) lines.push(`🍗 Target: ${level.goal}`);
     if (level.killGoal > 0) lines.push(`👾 Target: ${level.killGoal}`);
@@ -762,11 +763,11 @@ function syncUI() {
   }
   const { goal: GOAL, killGoal = 0, goalsGoal = 0, survive = false } = game.level;
   const DURATION = game.timeLimit;
-  const foodTarget = !survive && GOAL > 0 && Number.isFinite(GOAL);
-  const enemyTarget = !survive && killGoal > 0 && Number.isFinite(killGoal);
-  const soccerGoalTarget = !survive && goalsGoal > 0 && Number.isFinite(goalsGoal);
+  const foodTarget = !game.level.bossLevel && !survive && GOAL > 0 && Number.isFinite(GOAL);
+  const enemyTarget = !game.level.bossLevel && !survive && killGoal > 0 && Number.isFinite(killGoal);
+  const soccerGoalTarget = !game.level.bossLevel && !survive && goalsGoal > 0 && Number.isFinite(goalsGoal);
   const soccerGoals = game.goals ?? 0;
-  const fraction = survive ? Math.min(1, game.elapsed / DURATION)
+  const fraction = game.level.bossLevel ? 1 - (game.boss?.health ?? 6) / 6 : survive ? Math.min(1, game.elapsed / DURATION)
     : Math.min(1, GOAL > 0 ? game.score / GOAL : 1, killGoal > 0 ? game.enemies / killGoal : 1,
       goalsGoal > 0 ? soccerGoals / goalsGoal : 1);
   timer.innerHTML = Number.isFinite(DURATION) ? `🕒 ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '🕒 ∞';
@@ -823,6 +824,14 @@ function syncUI() {
   document.querySelector('#battery-status').setAttribute('aria-label', batteryLabel);
   document.querySelector('#key-count').textContent = `🗝️ ${game.keys}`;
   document.querySelector('#key-status').setAttribute('aria-label', `Keys: ${game.keys}`);
+  document.querySelector('#boss-health').hidden = !game.level.bossLevel;
+  if (game.level.bossLevel) {
+    const health = game.boss?.health ?? 6, maximum = game.boss?.maxHealth ?? 6;
+    document.querySelector('#boss-health-label').textContent = `${game.boss?.name ?? CHARACTERS.boss}'s Health: `;
+    document.querySelector('#boss-health-meter').setAttribute('aria-valuenow', health);
+    document.querySelector('#boss-health-meter').setAttribute('aria-valuemax', maximum);
+    document.querySelector('#boss-health-fill').style.width = `${health / maximum * 100}%`;
+  }
   const gameCanvas = document.querySelector('#canvas');
   const turret = game.activeTurret;
   const wasInTurret = displayedTurret;
@@ -853,6 +862,15 @@ function syncUI() {
   syncBrickDestructions();
   for (const item of buttons) {
     const { brick, button, members } = item;
+    const visible = !game.level.autoscroll || game.brickVisible(brick, members);
+    if (item.visible !== visible) {
+      item.visible = visible;
+      button.hidden = !visible;
+      for (const artwork of [item.spring, item.spikes, item.conveyor, item.special?.info, item.special?.cloud]) {
+        if (artwork) artwork.style.visibility = visible ? '' : 'hidden';
+      }
+    }
+    if (!visible) continue;
     button.dataset.sunglassesGlow = String(game.sunglassesActive);
     button.style.setProperty('--sunglasses-color', `hsl(${game.elapsed * 140 % 360}, 85%, 70%)`);
     if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
@@ -1544,7 +1562,12 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     ctx.moveTo(-8, 16); ctx.quadraticCurveTo(0, 7, 8, 16);
   } else if (expression === 'licking') {
     ctx.moveTo(-8, 12); ctx.quadraticCurveTo(0, 19, 8, 12);
-    ctx.moveTo(0, 16); ctx.quadraticCurveTo(0, 23 + Math.sin(now * 12) * 2, 4, 17);
+    ctx.stroke();
+    const tip = 23 + Math.sin(now * 12) * 2;
+    ctx.fillStyle = '#e84b58';
+    ctx.beginPath(); ctx.moveTo(-1, 16);
+    ctx.bezierCurveTo(-2, tip, 3, tip + 2, 5, 18);
+    ctx.quadraticCurveTo(6, 15, 3, 16); ctx.closePath(); ctx.fill();
   } else {
     ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11); ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11);
   }
@@ -1616,9 +1639,9 @@ function drawEnding() {
   ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(pose.rotation); ctx.scale(pose.scale, pose.scale);
   drawWornCape(game, 0, 0);
   drawCat(0, 0, ending.elapsed, null, false, ending.state);
+  if (game.maskPickup) drawWornMask({ ...game, cat: { x: 0, y: 0 }, maskPickup: { ...game.maskPickup, x: 0, y: 0 } });
   if (game.sunglassesPickup) drawWornSunglasses({ ...game, cat: { x: 0, y: 0 },
     sunglassesPickup: { ...game.sunglassesPickup, x: 0, y: 0 } });
-  if (game.maskPickup) drawWornMask({ ...game, cat: { x: 0, y: 0 }, maskPickup: { ...game.maskPickup, x: 0, y: 0 } });
   if (game.boomHelmet && !game.boomHelmet.exploded) drawBoomHelmet(game, 0, 0);
   ctx.restore();
   if (game.boomHelmet?.exploded) drawBoomHelmet(game);
@@ -1635,7 +1658,7 @@ function powerupStreamRows(game) {
   ].filter(([type, start, until, pickup]) => start != null && until > start
     && (ended ? (type === 'snail' ? game.snailStreamAge : pickup?.age) < until - start - 1e-9 : game.elapsed < until - 1e-9));
   return Object.fromEntries(active.map(([type], index) =>
-    [type, game.height / 2 + (index - (active.length - 1) / 2) * 64]));
+    [type, Math.min(game.width, game.height) / 2 + (index - (active.length - 1) / 2) * 64]));
 }
 
 function robotDrawOrder(robots) {
@@ -1761,8 +1784,9 @@ function drawTurretRim(context, turret, opacity = 1) {
   context.restore();
 }
 
-function drawTurretEffects(context) {
+function drawTurretEffects(context, camera = null) {
   for (const projectile of game.turretProjectiles) {
+    if (camera && !cameraBoundsVisible(camera, projectile.x, projectile.y, 0, 0, 32)) continue;
     context.save();
     context.shadowColor = '#ff453a';
     context.shadowBlur = 18;
@@ -1773,6 +1797,13 @@ function drawTurretEffects(context) {
     context.restore();
   }
   for (const effect of game.turretEffects) {
+    if (camera) {
+      const visible = effect.type === 'laser'
+        ? cameraBoundsVisible(camera, Math.min(effect.start.x, effect.end.x), Math.min(effect.start.y, effect.end.y),
+          Math.abs(effect.end.x - effect.start.x), Math.abs(effect.end.y - effect.start.y), 32)
+        : cameraBoundsVisible(camera, effect.x, effect.y, 0, 0, 100);
+      if (!visible) continue;
+    }
     const progress = effect.age / (effect.type === 'laser' ? .18 : .42);
     context.save();
     context.globalAlpha *= 1 - progress;
@@ -1795,9 +1826,19 @@ function drawTurretEffects(context) {
   }
 }
 
+function cameraBoundsVisible(camera, x, y, width = 0, height = 0, margin = 0) {
+  return x + width >= camera.x - margin && x <= camera.x + camera.width + margin
+    && y + height >= camera.y - margin && y <= camera.y + camera.height + margin;
+}
+
 function render(now) {
   const WIDTH = game.width, HEIGHT = game.height;
   const camera = game.camera();
+  const visible = (entity, margin = 96) => !game.level.autoscroll
+    || cameraBoundsVisible(camera, entity.x, entity.y, 0, 0,
+      margin + Math.max(entity.radius ?? 0, entity.width ?? 0, entity.height ?? 0));
+  const visibleRobot = enemy => visible(enemy, enemy.type === 'snake' ? 240 : 96);
+  const visibleRobots = game.robots.filter(visibleRobot);
   const ratioX = canvas.width / camera.width, ratioY = canvas.height / camera.height;
   for (const context of [boardCtx, actorCtx]) {
     context.setTransform(ratioX, 0, 0, ratioY, -camera.x * ratioX, -camera.y * ratioY);
@@ -1809,15 +1850,19 @@ function render(now) {
   for (const { brick, button, members } of buttons) button.inert = !game.brickVisible(brick, members);
   ctx = boardCtx;
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
-  for (const fence of game.barrierSegments()) drawBarrier(ctx, fence);
+  for (const fence of game.barrierSegments()) {
+    const endX = fence.x + fence.nx * fence.length, endY = fence.y + fence.ny * fence.length;
+    if (!game.level.autoscroll || cameraBoundsVisible(camera, Math.min(fence.x, endX), Math.min(fence.y, endY),
+      Math.abs(endX - fence.x), Math.abs(endY - fence.y), 32)) drawBarrier(ctx, fence);
+  }
   ctx.fillStyle = '#273941';
   for (let x = 60 + Math.max(0, Math.floor((camera.x - 60) / 30)) * 30; x < Math.min(WIDTH, camera.x + camera.width); x += 30) for (let y = 60 + Math.max(0, Math.floor((camera.y - 60) / 30)) * 30; y < Math.min(HEIGHT, camera.y + camera.height); y += 30) {
     ctx.beginPath(); ctx.arc(x, y, .8, 0, Math.PI * 2); ctx.fill();
   }
   ctx.strokeStyle = '#9dbb9e09'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
-  for (const obstruction of game.obstructions) drawObstruction(ctx, obstruction);
-  for (const effect of game.obstructionDestructions) drawObstructionDestruction(ctx, effect);
+  for (const obstruction of game.obstructions) if (visible(obstruction)) drawObstruction(ctx, obstruction);
+  for (const effect of game.obstructionDestructions) if (visible(effect, 160)) drawObstructionDestruction(ctx, effect);
   const streamRows = powerupStreamRows(game);
   drawMusicStream(game, streamRows.music);
   drawSunglassesStream(game, streamRows.sunglasses);
@@ -1832,12 +1877,22 @@ function render(now) {
     line(trajectory, '#d3ef8b26', 2.5);
     ctx.setLineDash([]);
   }
+  for (const toast of game.bossProjectiles) {
+    if (!visible(toast)) continue;
+    ctx.save(); ctx.translate(toast.x, toast.y); ctx.rotate(toast.angle);
+    ctx.fillStyle = toast.blue ? '#397bd4' : toast.burnt ? '#201919' : '#d39648';
+    ctx.strokeStyle = toast.blue ? '#214679' : toast.burnt ? '#5f3c2d' : '#7a4726'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(-11, -12, 22, 24, [7, 7, 2, 2]); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = toast.blue ? '#83b9ff' : toast.burnt ? '#090909' : '#f0c77e'; ctx.fillRect(-7, -7, 14, 15);
+    ctx.restore();
+  }
   if (game.state === 'playing' && (game.cat.vx || game.cat.vy)) {
     trail.push({ x: game.cat.x, y: game.cat.y, born: now });
   }
   trail = trail.filter(point => now - point.born < .22);
-  for (const cue of game.spawnCues) drawSpawnCue(cue);
+  for (const cue of game.spawnCues) if (visible(cue)) drawSpawnCue(cue);
   for (const food of game.food) {
+    if (!visible(food)) continue;
     const left = Math.max(0, (food.expires - game.elapsed) / food.lifetime);
     ctx.save(); ctx.translate(food.x, food.y);
     ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(0, 17, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
@@ -1847,22 +1902,31 @@ function render(now) {
     ctx.restore();
   }
   for (const item of game.items) {
+    if (!visible(item)) continue;
     drawGameItem(item);
     drawObjectLifetime(item);
   }
-  for (const bubble of game.bubbles) drawBubble(bubble);
+  for (const bubble of game.bubbles) if (visible(bubble)) drawBubble(bubble);
   for (const heart of game.healing) {
+    if (!visible(heart)) continue;
     ctx.fillStyle = '#ef9d9d'; ctx.font = '30px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('♥', heart.x, heart.y + 10);
   }
   for (const item of game.weapons) {
+    if (!visible(item)) continue;
     drawSword(item.x, item.y, SWORDS[item.type].color);
     drawObjectLifetime(item);
   }
   for (const enemy of game.robots) {
-    for (const wave of enemy.waves ?? []) drawFireWave(game.fireWaveSegments(wave), wave.radius);
+    for (const wave of enemy.waves ?? []) {
+      if (!visible(wave, 16)) continue;
+      const segments = game.fireWaveSegments(wave).filter(({ from, to }) => !game.level.autoscroll
+        || cameraBoundsVisible(camera, Math.min(from[0], to[0]), Math.min(from[1], to[1]),
+          Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1]), 16));
+      if (segments.length) drawFireWave(segments, wave.radius);
+    }
   }
-  for (const enemy of robotDrawOrder(game.robots)) {
+  for (const enemy of robotDrawOrder(visibleRobots)) {
     drawRobot(enemy, null, game.enemyDamageProgress(enemy));
     if (enemy.carriesCatBlock) drawCatBlockBadge(enemy.x + enemy.radius, enemy.y - enemy.radius - 10, 20);
     if (enemy.carriesKey) {
@@ -1874,9 +1938,12 @@ function render(now) {
       ctx.fillText('Z z', enemy.x + 19, enemy.y - enemy.radius - 6); ctx.restore();
     }
   }
-  for (const enemy of robotDrawOrder(game.enemyDeaths)) drawEnemyDeath(enemy);
-  for (const enemy of game.robots) for (const bomb of enemy.bombs ?? []) drawBomb(bomb);
+  for (const enemy of robotDrawOrder(game.enemyDeaths.filter(visibleRobot))) drawEnemyDeath(enemy);
+  for (const enemy of game.robots) for (const bomb of enemy.bombs ?? []) {
+    if (visible(bomb, Math.max(96, bomb.blastRadius ?? 0))) drawBomb(bomb);
+  }
   for (const pickup of game.pickups.filter(pickup => pickup.kind === 'food')) {
+    if (!visible(pickup)) continue;
     const age = pickup.age;
     ctx.fillStyle = `rgba(211,239,139,${1 - age / .8})`;
     ctx.font = 'bold 19px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
@@ -1884,20 +1951,24 @@ function render(now) {
   }
   ctx = actorCtx;
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
-  for (const enemy of game.robots) if (enemy.type === 'robo-cow') drawCowGrass(enemy);
+  for (const enemy of visibleRobots) if (enemy.type === 'robo-cow') drawCowGrass(enemy);
   const goalBricks = game.bricks.filter(brick => brick.kind === 'goal' && brick.absorbedBy === null);
   if (goalBricks.length) {
     const parts = game.brickParts();
     for (const brick of goalBricks) {
-      drawGoal(ctx, parts.filter(part => part.id === brick.id),
+      const members = parts.filter(part => part.id === brick.id);
+      if (game.level.autoscroll && !members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 32))) continue;
+      drawGoal(ctx, members,
         game.sunglassesActive ? `hsl(${game.elapsed * 140 % 360}, 85%, 70%)` : null);
     }
   }
-  for (const ball of game.soccerBalls ?? []) drawSoccerBall(ctx, ball);
-  for (const bumper of game.bumpers ?? []) drawBumper(ctx, bumper, game.elapsed);
-  for (const effect of game.goalEffects ?? []) drawGoalSpark(ctx, effect);
-  for (const effect of game.brickDestructions) drawBrickDestructionSmoke(effect);
-  for (const pickup of game.pickups) drawPickupPop(pickup);
+  for (const ball of game.soccerBalls ?? []) if (visible(ball)) drawSoccerBall(ctx, ball);
+  for (const bumper of game.bumpers ?? []) if (visible(bumper)) drawBumper(ctx, bumper, game.elapsed);
+  for (const effect of game.goalEffects ?? []) if (visible(effect)) drawGoalSpark(ctx, effect);
+  for (const effect of game.brickDestructions) {
+    if (!game.level.autoscroll || effect.members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 40))) drawBrickDestructionSmoke(effect);
+  }
+  for (const pickup of game.pickups) if (visible(pickup, 160)) drawPickupPop(pickup);
   if (ending?.game === game && ending.state === game.state && !endingMotion.matches) {
     for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
     drawEnding();
@@ -1937,8 +2008,8 @@ function render(now) {
   for (const pop of game.bubblePops) drawBubblePop(pop);
   if (game.activeTurret) drawTurretRim(ctx, game.activeTurret);
   if (game.activeTurret) drawTurretOnscreenCounter(ctx, game.activeTurret);
-  if (game.sunglassesPickup) drawWornSunglasses(game);
   if (game.maskPickup) drawWornMask(game);
+  if (game.sunglassesPickup) drawWornSunglasses(game);
   if (game.boomHelmet) drawBoomHelmet(game);
   for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
   if (game.dittoStamp && !game.brickStamps.some(effect => effect.capturing)) {
@@ -1995,7 +2066,7 @@ function render(now) {
     const label = String(remaining);
     drawSword(swordX, swordY, color, label);
   }
-  drawTurretEffects(ctx);
+  drawTurretEffects(ctx, game.level.autoscroll ? camera : null);
   ctx = boardCtx;
 }
 
@@ -2319,20 +2390,26 @@ function drawObjectLifetime(item) {
   ctx.restore();
 }
 
-function drawSpawnCue({ kind, x, y, progress, obstruction }) {
+function drawSpawnCue({ kind, x, y, progress, obstruction, bumper }) {
   ctx.save();
-  if (obstruction) {
-    const { radius, width, height } = globalThis.KoshiGame.obstructionGeometry(obstruction);
+  if (obstruction || bumper) {
+    const { radius, width, height } = bumper ?? globalThis.KoshiGame.obstructionGeometry(obstruction);
     ctx.save(); ctx.translate(x, y);
     ctx.strokeStyle = '#f1f3f2'; ctx.lineWidth = 2;
     ctx.setLineDash([3, 5]); ctx.beginPath();
-    const shape = globalThis.KoshiGame.OBJECTS[obstruction.type].obstruction;
+    const shape = bumper ? 'circle' : globalThis.KoshiGame.OBJECTS[obstruction.type].obstruction;
     if (shape === 'circle') ctx.arc(0, 0, radius, 0, Math.PI * 2);
     else if (shape === 'rectangle') ctx.rect(-width / 2, -height / 2, width, height);
     else {
       ctx.moveTo(0, -radius); ctx.lineTo(radius, 0); ctx.lineTo(0, radius); ctx.lineTo(-radius, 0); ctx.closePath();
     }
-    ctx.stroke(); ctx.restore();
+    ctx.stroke();
+    if (bumper) {
+      for (const fraction of [.72, .43, .14]) {
+        ctx.beginPath(); ctx.arc(0, 0, radius * fraction, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
   ctx.translate(x, y);
   const fade = Math.min(1, progress * 5) * Math.min(1, (1 - progress) * 5);
@@ -2616,7 +2693,16 @@ function drawWornCape(game, x, y) {
   ctx.restore();
 }
 
-function drawCapeStream(game, y = game.height / 2) {
+function ribbonTransform(game, progress, across) {
+  const length = Math.max(game.width, game.height);
+  if (game.height > game.width) {
+    ctx.translate(across, 0); ctx.rotate(Math.PI / 2);
+    ctx.translate(-progress * (length + 36), 0);
+  } else ctx.translate(-progress * (length + 36), across);
+  return length;
+}
+
+function drawCapeStream(game, y = Math.min(game.width, game.height) / 2) {
   const elapsed = ['won', 'lost'].includes(game.state)
     ? game.capeStart + (game.capePickup?.age ?? (game.capeUntil - game.capeStart)) : game.elapsed;
   if (game.capeStart === null || elapsed >= game.capeUntil - 1e-9) return;
@@ -2624,10 +2710,10 @@ function drawCapeStream(game, y = game.height / 2) {
   if (duration <= 0) return;
   const progress = Math.max(0, Math.min(1, (elapsed - game.capeStart) / duration));
   ctx.save(); ctx.globalAlpha = .25;
-  ctx.translate(-progress * (game.width + 36), y);
+  const length = ribbonTransform(game, progress, y);
   ctx.strokeStyle = '#b5d77c'; ctx.fillStyle = '#eadd87'; ctx.lineWidth = 1.4;
-  ctx.strokeRect(-18, -26, game.width + 36, 52);
-  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+  ctx.strokeRect(-18, -26, length + 36, 52);
+  for (let index = 0, x = 20; x < length + 20; index++, x += 48) {
     ctx.save(); ctx.translate(x, 0);
     if (index % 2 === 0) {
       ctx.beginPath(); ctx.moveTo(-11, -4); ctx.lineTo(-12, -17); ctx.lineTo(-3, -10);
@@ -2671,7 +2757,7 @@ function drawMagicSunglasses(time, sparkles = true) {
   ctx.restore();
 }
 
-function drawSunglassesStream(game, y = game.height / 2) {
+function drawSunglassesStream(game, y = Math.min(game.width, game.height) / 2) {
   const elapsed = ['won', 'lost'].includes(game.state)
     ? game.sunglassesStart + (game.sunglassesPickup?.age ?? (game.sunglassesUntil - game.sunglassesStart)) : game.elapsed;
   if (game.sunglassesStart === null || elapsed >= game.sunglassesUntil) return;
@@ -2679,11 +2765,11 @@ function drawSunglassesStream(game, y = game.height / 2) {
   if (duration <= 0) return;
   const progress = Math.max(0, Math.min(1, (elapsed - game.sunglassesStart) / duration));
   ctx.save(); ctx.globalAlpha = .25;
-  ctx.translate(-progress * (game.width + 36), y);
+  const length = ribbonTransform(game, progress, y);
   ctx.strokeStyle = `hsl(${game.elapsed * 70 % 360}, 80%, 80%)`;
   ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.4;
-  ctx.strokeRect(-18, -26, game.width + 36, 52);
-  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+  ctx.strokeRect(-18, -26, length + 36, 52);
+  for (let index = 0, x = 20; x < length + 20; index++, x += 48) {
     ctx.save(); ctx.translate(x, 0);
     if (index % 2 === 0) {
       ctx.beginPath();
@@ -2707,17 +2793,17 @@ function drawSunglassesStream(game, y = game.height / 2) {
   ctx.restore();
 }
 
-function drawMaskStream(game, y = game.height / 2) {
+function drawMaskStream(game, y = Math.min(game.width, game.height) / 2) {
   if (!game.maskPickup) return;
   const duration = 10;
   const age = ['won', 'lost'].includes(game.state) ? game.maskPickup.age : game.elapsed - (game.maskUntil - duration);
   if (age >= duration - 1e-9) return;
   const progress = Math.max(0, Math.min(1, age / duration));
   ctx.save(); ctx.globalAlpha = .25;
-  ctx.translate(-progress * (game.width + 36), y);
+  const length = ribbonTransform(game, progress, y);
   ctx.strokeStyle = '#f3b5c5'; ctx.fillStyle = '#f3b5c5'; ctx.lineWidth = 1.4;
-  ctx.strokeRect(-18, -26, game.width + 36, 52);
-  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+  ctx.strokeRect(-18, -26, length + 36, 52);
+  for (let index = 0, x = 20; x < length + 20; index++, x += 48) {
     ctx.save(); ctx.translate(x, 0);
     ctx.beginPath();
     if (index % 2 === 0) {
@@ -2743,7 +2829,7 @@ function drawMaskStream(game, y = game.height / 2) {
   ctx.restore();
 }
 
-function drawSnailStream(game, y = game.height / 2) {
+function drawSnailStream(game, y = Math.min(game.width, game.height) / 2) {
   const ended = ['won', 'lost'].includes(game.state);
   if (game.snailStreamStart === null) return;
   const duration = game.snailStreamUntil - game.snailStreamStart;
@@ -2752,10 +2838,10 @@ function drawSnailStream(game, y = game.height / 2) {
   if (elapsed >= game.snailStreamUntil - 1e-9) return;
   const progress = Math.max(0, Math.min(1, (elapsed - game.snailStreamStart) / duration));
   ctx.save(); ctx.globalAlpha = .25;
-  ctx.translate(-progress * (game.width + 36), y);
+  const length = ribbonTransform(game, progress, y);
   ctx.strokeStyle = '#b7d88e'; ctx.fillStyle = '#b7d88e'; ctx.lineWidth = 1.5;
-  ctx.strokeRect(-18, -26, game.width + 36, 52);
-  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+  ctx.strokeRect(-18, -26, length + 36, 52);
+  for (let index = 0, x = 20; x < length + 20; index++, x += 48) {
     ctx.save(); ctx.translate(x, 0);
     if (index % 2 === 0) {
       ctx.beginPath(); ctx.ellipse(0, 7, 15, 5, 0, 0, Math.PI * 2); ctx.stroke();
@@ -2775,28 +2861,27 @@ function drawSnailStream(game, y = game.height / 2) {
   ctx.restore();
 }
 
-function drawMusicStream(game, y = game.height / 2) {
+function drawMusicStream(game, y = Math.min(game.width, game.height) / 2) {
   const elapsed = ['won', 'lost'].includes(game.state)
     ? game.musicStreamStart + (game.musicPickup?.age ?? (game.musicStreamUntil - game.musicStreamStart)) : game.elapsed;
   if (game.musicStreamStart === null || elapsed >= game.musicStreamUntil - 1e-9) return;
   const duration = game.musicStreamUntil - game.musicStreamStart;
   if (duration <= 0) return;
   const progress = Math.max(0, Math.min(1, (elapsed - game.musicStreamStart) / duration));
-  const travel = game.width + 36;
   ctx.save();
   ctx.globalAlpha = .25;
-  ctx.translate(-progress * travel, y);
+  const length = ribbonTransform(game, progress, y);
   ctx.strokeStyle = '#e6e3ff';
   ctx.fillStyle = '#e6e3ff';
   ctx.lineWidth = 1.4;
-  ctx.strokeRect(-18, -26, game.width + 36, 52);
+  ctx.strokeRect(-18, -26, length + 36, 52);
   for (let lineIndex = -2; lineIndex <= 2; lineIndex++) {
     const y = lineIndex * 7;
-    ctx.beginPath(); ctx.moveTo(-18, y); ctx.lineTo(game.width + 18, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-18, y); ctx.lineTo(length + 18, y); ctx.stroke();
   }
   const rhythm = ['whole', 'half', 'quarter', 'eighth', 'restWhole', 'restHalf', 'restQuarter',
     'restEighth', 'measure', 'eighthPair', 'quarter', 'half', 'restQuarter', 'eighth'];
-  for (let index = 0, x = 20; x < game.width + 20; index++, x += 48) {
+  for (let index = 0, x = 20; x < length + 20; index++, x += 48) {
     const y = [-5, 2, -2, 5, 0, -4, 4, -1][index % 8];
     const symbol = rhythm[index % rhythm.length];
     if (symbol === 'measure') {
@@ -2938,16 +3023,15 @@ function drawSnakeSegment(segment, enemy, deathProgress, damageColor) {
     ctx.fillStyle = damageColor ?? '#9ba6ac';
     ctx.beginPath(); ctx.moveTo(-2, -15); ctx.quadraticCurveTo(9, -19, 17, -10);
     ctx.lineTo(17, 10); ctx.quadraticCurveTo(8, 18, -2, 15); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#202b32';
-    if (enemy.afraid && deathProgress === null) {
-      ctx.save(); ctx.translate(2, 0); ctx.scale(.7, .7); drawScaredFace(); ctx.restore();
-    } else {
-      for (const eyeY of [-7, 7]) {
-        ctx.fillStyle = deathProgress === null ? '#f4d447' : '#657078';
-        ctx.strokeStyle = '#202b32'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.ellipse(7, eyeY, 4.5, 3.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#202b32';
-        ctx.beginPath(); ctx.ellipse(8, eyeY, 1, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    const scared = enemy.afraid && deathProgress === null;
+    for (const eyeY of [-7, 7]) {
+      ctx.fillStyle = scared ? '#fff8d9' : deathProgress === null ? '#f4d447' : '#657078';
+      ctx.strokeStyle = '#202b32'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(7, eyeY, 4.5, scared ? 4.5 : 3.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#202b32';
+      ctx.beginPath(); ctx.ellipse(8, eyeY + (scared ? -1 : 0), scared ? 1.4 : 1, scared ? 2 : 2.4, 0, 0, Math.PI * 2); ctx.fill();
+      if (scared) {
+        ctx.beginPath(); ctx.moveTo(3, eyeY - 5); ctx.quadraticCurveTo(7, eyeY - 8, 11, eyeY - 5); ctx.stroke();
       }
     }
   } else if (segment.index === 1) {
@@ -3319,7 +3403,78 @@ function drawRoboUnicorn(enemy, deathProgress = null, damageColor = null) {
   ctx.restore();
 }
 
+function drawToasterBoss(enemy, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0, dizzy = enemy.state === 'dizzy' && deathProgress === null;
+  ctx.save(); ctx.translate(enemy.x, enemy.y);
+  ctx.rotate(deathProgress !== null ? Math.sin(progress * 28) * .18 + progress * .7
+    : dizzy ? Math.sin((enemy.age ?? 0) * 3) * .08 : enemy.angle ?? 0);
+  if (deathProgress !== null) {
+    ctx.globalAlpha *= Math.max(0, 1 - Math.max(0, progress - .55) / .45);
+    ctx.translate(0, progress * progress * 30);
+  }
+  const charge = enemy.state === 'burn-charge' && deathProgress === null;
+  if (charge) { ctx.shadowColor = '#ff803f'; ctx.shadowBlur = 8 + enemy.stateTime * 12; }
+  ctx.fillStyle = damageColor ?? '#747d86'; ctx.strokeStyle = '#323c44'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.roundRect(-42, -38, 87, 73, [25, 27, 6, 6]); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = damageColor ?? '#aeb6bd';
+  ctx.beginPath(); ctx.roundRect(-46, -32, 72, 70, [24, 23, 6, 6]); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d2d8dc';
+  ctx.beginPath(); ctx.ellipse(-3, -33, 30, 8, -.06, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#22292e';
+  for (const y of [-37, -30]) {
+    ctx.beginPath(); ctx.ellipse(-3, y, 22, 2.5, -.06, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#364149'; ctx.fillRect(35, -15, 4, 39);
+  ctx.fillStyle = '#e44749'; ctx.strokeStyle = '#823237';
+  ctx.beginPath(); ctx.roundRect(30, 5, 18, 8, 2); ctx.fill(); ctx.stroke();
+  const glyphs = {
+    E: ['111', '100', '110', '100', '111'], R: ['110', '101', '110', '101', '101'],
+    O: ['111', '101', '101', '101', '111'], '!': ['010', '010', '010', '000', '010'],
+  };
+  for (const [index, x] of [-34, -3].entries()) {
+    ctx.fillStyle = '#080e0e'; ctx.fillRect(x, -15, 24, 15);
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 1, -14, 22, 13); ctx.clip();
+    if (dizzy) {
+      const offset = Math.floor(enemy.stateTime * 12) % 42;
+      ctx.fillStyle = '#ff363e';
+      for (let column = 0; column < 16; column++) {
+        const source = (column + index * 16 + offset) % 42;
+        const letter = 'ERROR!    '[Math.floor(source / 4)];
+        const glyph = glyphs[letter];
+        if (!glyph || source % 4 === 3) continue;
+        for (let row = 0; row < 5; row++) {
+          if (glyph[row][source % 4] === '1') ctx.fillRect(x + 1 + column * 1.5, -12 + row * 2, 1.2, 1.7);
+        }
+      }
+    } else {
+      for (let col = 0; col < 7; col++) for (let row = 0; row < 4; row++) {
+        ctx.fillStyle = deathProgress !== null ? '#34483e' : col === 3 ? '#1c783e' : '#66f37d';
+        ctx.fillRect(x + 2 + col * 3, -13 + row * 3, 2, 2);
+      }
+    }
+    ctx.restore();
+  }
+  ctx.fillStyle = '#20282e'; ctx.strokeStyle = '#20282e'; ctx.lineWidth = 3;
+  if (enemy.state === 'hurt' || deathProgress !== null || (enemy.speaking && Math.sin((enemy.age ?? 0) * 10) > 0)) {
+    ctx.beginPath(); ctx.ellipse(-7, 20, 17, 13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f47b82'; ctx.beginPath(); ctx.ellipse(-7, 27, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+  } else line([[-32, 20], [-32, 15], [16, 15], [16, 20]], '#20282e', 3);
+  if (deathProgress !== null) {
+    for (let i = 0; i < 7; i++) {
+      ctx.fillStyle = i % 2 ? '#d4d9dc' : '#6c777f';
+      ctx.beginPath(); ctx.arc(-22 + i * 8 + Math.sin(i * 2) * progress * 20,
+        -32 - progress * (45 + i * 8), 3 + progress * 10, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
+  if (enemy.type === 'boss') {
+    drawToasterBoss(enemy, deathProgress, damageColor);
+    return;
+  }
   if (enemy.type === 'snake') {
     drawSnakeRobot(enemy, deathProgress, damageColor);
     return;
@@ -3812,7 +3967,9 @@ function drawRoboBall(enemy, deathProgress = null, damageColor = null) {
 function drawEnemyDeath(enemy) {
   const progress = enemy.deathProgress;
   ctx.save();
-  if (enemy.type === 'robo-koshi') {
+  if (enemy.type === 'boss') {
+    drawRobot(enemy, progress);
+  } else if (enemy.type === 'robo-koshi') {
     drawRobot(enemy, progress);
     if (progress > .12) {
       const smoke = Math.min(1, (progress - .12) / .88);

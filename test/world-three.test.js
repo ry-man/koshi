@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { Game, LEVELS, FOODS, validateCustomLevel, validateCutscene } = require('../src/game.js');
 
 const world = LEVELS.filter(level => level.worldId === '3');
-const earlier = LEVELS.filter(level => ['1', '2'].includes(level.worldId));
+const earlier = LEVELS.filter(level => ['1', '2'].includes(level.worldId) && !level.bossLevel);
 const CONCEPTS = ['robo goalies', 'paint brushes', 'kitty cape', 'laser turret', 'obstructions', 'robo snail', 'bumpers',
   'bubbles', 'fireball turret', 'destructible obstructions', 'appearing obstructions', 'robo cows', 'robo unicorns', 'robo koshi'];
 const NEW_ENEMIES = { 'robo goalies': 'goalie', 'robo snail': 'robo-snail', 'robo cows': 'robo-cow', 'robo unicorns': 'robo-unicorn', 'robo koshi': 'robo-koshi' };
@@ -59,7 +59,7 @@ test('cutscenes introduce Tom first and only show enemies already introduced and
 test('starting blocks are mostly single size, with about 14% double and 5% triple blocks', () => {
   for (const [i, level] of world.entries()) {
     for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .6 }]) {
-      const game = new Game(() => .5, { level: 34 + i, ...options });
+      const game = new Game(() => .5, { level: LEVELS.indexOf(level), ...options });
       const active = game.bricks.filter(brick => brick.absorbedBy === null);
       const sizes = active.map(owner => 1 + game.bricks.filter(brick => brick.absorbedBy === owner.id).length);
       assert.equal(sizes.filter(size => size === 2).length / sizes.length, 3 / 21, level.number);

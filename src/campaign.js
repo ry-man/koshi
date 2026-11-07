@@ -44,6 +44,7 @@ const WORLDS = [
       '2-22': 'Fence the food depot',
       '2-23': 'Pumpkin pantry patrol',
       '2-24': 'The final countdown feast',
+      '2-25': 'Tom the Toaster',
     },
   },
   {

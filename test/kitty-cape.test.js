@@ -176,15 +176,17 @@ test('green cape renders on pickup and behind Koshi; cat/lightning banner scroll
     assert.ok(operations.some(op => op.name === 'fill'));
     operations.length = 0; context.drawCapeStream(game);
     const frame = operations.find(op => op.name === 'strokeRect');
-    assert.deepEqual(frame.args, [-18, -26, game.width + 36, 52]); assert.equal(frame.alpha, .25);
+    assert.deepEqual(frame.args, [-18, -26, Math.max(game.width, game.height) + 36, 52]); assert.equal(frame.alpha, .25);
     assert.ok(operations.some(op => op.name === 'quadraticCurveTo'), 'smiling cat heads');
     assert.ok(operations.some(op => op.name === 'lineTo' && op.args[0] === -10 && op.args[1] === 2), 'lightning bolts');
     game.update(5);
     operations.length = 0; context.drawCapeStream(game);
-    assert.deepEqual(operations.find(op => op.name === 'translate').args, [-(game.width + 36) / 2, game.height / 2]);
+    assert.deepEqual(operations.find(op => op.name === 'translate').args, options.portrait
+      ? [game.width / 2, 0] : [-(game.width + 36) / 2, game.height / 2]);
     game.pause(); game.update(3);
     operations.length = 0; context.drawCapeStream(game);
-    assert.deepEqual(operations.find(op => op.name === 'translate').args, [-(game.width + 36) / 2, game.height / 2]);
+    assert.deepEqual(operations.find(op => op.name === 'translate').args, options.portrait
+      ? [game.width / 2, 0] : [-(game.width + 36) / 2, game.height / 2]);
     game.resume(); game.update(5);
     operations.length = 0; context.drawCapeStream(game); context.drawWornCape(game, 0, 0);
     assert.equal(operations.length, 0);

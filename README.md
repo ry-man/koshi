@@ -3,7 +3,7 @@
 A browser arcade game starring Koshi, a grey tabby with a big appetite.
 Built with vanilla JavaScript, HTML, and Canvas. No build step or runtime
 dependencies are required. The initial implementation follows
-[the game description](./game_description.md), with 48 main campaign lessons across three worlds,
+[the game description](./game_description.md), with 49 main campaign levels across three worlds,
 12 optional challenge levels in World 3S, and an autoscroll showcase in World 4.
 
 ## Play locally
@@ -46,7 +46,7 @@ Reduced-motion mode changes screens immediately.
 ### Worlds and the map
 
 World 1, **Garden Path**, contains 10 levels (1–1 through 1–10). World 2,
-**Clockwork Pantry**, contains 24 (2–1 through 2–24). World 3, **Robot
+**Clockwork Pantry**, contains 25 (2–1 through the boss fight at 2–25). World 3, **Robot
 Foundry**, contains 14 (3–1 through 3–14). Their leaf, gear and robot-head
 emblems and map colors establish their graphical themes; gameplay graphics
 and all existing level content are unchanged. World 3S, **Tom's Gauntlet**, is
@@ -178,7 +178,7 @@ if it was lost, replayed or abandoned. No level starts until **Play Level**
 and the briefing's **Start** are pressed; attempts always start fresh.
 After finishing all 49 main-world levels, the slot shows **Campaign complete** and still
 offers **Continue** to revisit the map. Optional World 3S levels count toward
-the slot's "completed / 61" total but are not required, and **Continue** never
+the slot's "completed / 62" total but are not required, and **Continue** never
 suggests them.
 
 Every started attempt autosaves to the selected slot as a provisional quit,
@@ -236,7 +236,7 @@ The title screen includes two learning paths:
   enemy, item, object, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
-- **Tutorial** opens 54 interactive practice steps on the real game board. It
+- **Tutorial** opens 55 interactive practice steps on the real game board. It
   includes hands-on combat with every robot, practice for each item mechanic,
   the contact surfaces and special bricks, and bumper, bubble, and obstruction
   interactions, alongside movement, food, healing, spawn warnings, and objectives.
@@ -282,9 +282,10 @@ the board; phones keep compact controls above it without scrolling away from pla
   Pause freezes the effects, and restart clears them. Built-in and editor levels
   use the same effects without changing spawn times or food lifetimes. Spawns
   within the first second have shortened previews; time-zero spawns remain instant.
-  Obstructions preview for **two seconds**, with the same twinkling star plus a
-  dotted outline of their full shape. Scheduled times remain unchanged; early
-  warnings are shortened. Obstruction-spawning bricks reserve their location on
+  Obstructions and bumpers preview for **two seconds**, with the same twinkling star plus a
+  dotted outline of their full shape. Bumpers also preview their three concentric
+  rings as dotted circles. Scheduled times remain unchanged; early
+  warnings are shortened. Obstruction- and bumper-spawning bricks reserve their location on
   contact and wait two seconds before becoming solid. On arrival, overlapping
   food, items, weapons, hearts, enemies and other loose objects are destroyed.
   Any overlap with a snake segment destroys the whole snake. These environmental
@@ -410,6 +411,7 @@ the board; phones keep compact controls above it without scrolling away from pla
 | 2–22 | Fence the food depot | Barrier blocks | 100s | 35 food + 4 enemy points |
 | 2–23 | Pumpkin pantry patrol | Robo Jackolantern | 100s | 4 enemy points |
 | 2–24 | The final countdown feast | Boom Helmet and Boom Times | 100s | 35 food; starts with 6 activations |
+| 2–25 | Tom the Toaster | Boss fight | Unlimited | 6 Boost hits while dizzy |
 | 3–1 | Tom's foundry kickoff | Robo Goalie | 150s | 5 soccer goals |
 | 3–2 | Painting the pancake path | Paintbrushes | 100s | 40 food |
 | 3–3 | Caped cat cafe | Kitty Cape | 80s | Survive |
@@ -661,6 +663,22 @@ still ends at **3S-12**. The demo can also be inspected read-only in the editor.
 Timed scrolling campaign placements preserve forward progress in both desktop
 and portrait layouts, rather than reversing the route when the board rotates.
 
+### Scrolling performance
+
+Scrolling levels draw only artwork overlapping the camera, with padding for
+large sprites and effects. Attacks are checked independently of their owner:
+an offscreen robot can still have a visible bomb, fire wave, or beam.
+Offscreen brick artwork and counters refresh when they enter view.
+Full enemy movement and new attacks run within a buffer extending half a
+screen behind the camera and one screen ahead. Farther enemies retain their
+state without moving, attacking, or awarding defeat points; they resume without
+catch-up when the camera reaches them. Existing bombs and fire waves continue
+advancing independently. Scheduled spawns, pickup expiration, and global
+power-up timers continue normally.
+Fire-wave collision checks use nearby blocker geometry rather than clipping
+against the entire board on every physics step. The physics timestep and
+authored level content are unchanged.
+
 ## Graphical level editor
 
 Open [editor.html](./editor.html), or choose **Open level editor** in the game.
@@ -698,6 +716,13 @@ screen. Only visible bricks can be activated. If Koshi's entire body leaves
 the camera view in any direction, he dies immediately, regardless of protection.
 His normal spinning death animation gradually slides back into view; the camera
 stays frozen at the death position.
+Trajectory previews stop at the first screen exit rather than reflecting from
+offscreen geometry. Random pickups and objects use the camera at their actual
+spawn time and leave enough trailing-edge clearance to remain fully on screen
+for at least one second, including camera speed changes during that second.
+Authored positions are not moved. Impossible clearance at extreme speeds reports
+an explicit placement error rather than silently placing an immediately lost item.
+Power-up background ribbons run along the board's longer axis in both layouts.
 Existing campaign levels are unchanged.
 
 JSON stores this optional setting as
@@ -708,7 +733,7 @@ relative positions; split combined bricks before changing length.
 
 ### Optional story cutscenes
 
-Each level can have an optional pre-level cutscene. All 61 campaign levels
+Each level can have an optional pre-level cutscene. All 62 campaign levels
 include short story scenes following Koshi from the garden through the Clockwork
 Pantry to the Robot Foundry, controlled by **Tom the Duck**, the main antagonist. Tom is a robot
 duck who commands the robots and hoards the world's food.
@@ -778,6 +803,25 @@ axis. Per-line positions animate between dialogue beats. Old level JSON without
 playtest links, direct-file play, and the offline app.
 
 ### Level settings and placements
+
+**Boss level** selects a boss fight instead of score or survival objectives.
+Place exactly one **Tom the Toaster** enemy before saving, exporting, or
+playtesting. Draft editing may temporarily omit the boss; duplicate bosses,
+boss formations, shields, and boss brick spawners are not allowed. Other
+enemies and their spawners remain available. Boss fights have no time limit;
+the duration setting still defines the placement timeline.
+
+World **2-25** introduces Tom at the end of Clockwork Pantry, with four green
+slime blocks and four Boost blocks (one of each per side). His grey toaster
+body has green pixel eyes and a red side handle. He randomly performs one to
+four attacks before becoming dizzy: spinning toast fire, rapid straight-line
+ricochets off arena bricks without warning indicators, or a charged pair of
+toast shots. The first is blue, targets any non-Cinder brick (including Boost),
+and turns the struck brick blue with the slow cooldown while preserving its
+attributes. The second is black and turns a non-Boost brick into Cinder.
+Only a Boost launch during his rocking, red **ERROR!** eye display damages
+him. Six hits defeat him. The red, gold-bordered health bar below the counters
+tracks his health; his death animation finishes before Koshi celebrates.
 
 1. Set the level name, time limit, win condition, optional heart cost (blank disables
    food-triggered hearts), and boundary brick set. Choose **Apply settings**.
@@ -1012,6 +1056,8 @@ green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
 have a 96-unit diameter, stay fixed and bounce Koshi and enemies away. Red increases Koshi's speed by
 25%, green preserves it, and blue reduces it by 25%.
 Bumpers block Robo Jackolantern fire in their circular shadow, like obstructions.
+Their two-second appearance warnings and overlap clearing use the obstruction
+rules, including lethal overlap with Koshi and unscored environmental enemy deaths.
 Food, weapons, items and healing hearts cannot overlap bumpers or obstructions:
 random pickups avoid them, and covered live or queued pickups are removed.
 Custom levels can also place blue, green and red bubbles (`bubble-blue`,
@@ -1155,6 +1201,7 @@ ground lifetimes. Level 3-3 introduces it in the campaign.
 Magical Sunglasses (`magic-sunglasses`) have sparkling, color-cycling frames.
 They fly onto Koshi's face and bypass cooldowns, Toggle locks, and exhausted
 Crumblers for ten seconds; cinder and absorbed bricks remain unselectable.
+When worn with Spooky Mask, the glasses stay on top during play and endings.
 Clicks during the effect do not add cooldowns, consume Crumbler uses, or advance
 Toggle counters. All brick cooldowns are completed when the effect ends;
 Toggle locks and exhausted Crumblers resume their stored state.
@@ -1259,6 +1306,9 @@ buttons, with large symmetric grey shapes and red stripes. The tongue emerges
 from underneath the head shell. Only the head can be damaged.
 Body contact hurts even during sleep or fear, with Koshi's normal damage immunity.
 Every segment blocks enemies and soccer balls; fences block the entire snake.
+On reversal, the head leads and each following segment turns at the same point
+in sequence instead of flipping the whole body at once. Fear changes only the
+eyes within their existing sockets and retains the sweat effect.
 Its 1.2-second death scatters and fades the segments and spins the tongue away.
 Available in custom placements, spawn bricks, cutscenes and tutorial practice;
 Level 2–17 introduces head interception; the original 19 levels remain unchanged.

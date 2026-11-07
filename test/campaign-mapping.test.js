@@ -9,7 +9,7 @@ const { worldLevels, nextLevelIndex } = require('../src/worlds.js');
 const { SaveSlots } = require('../src/saves.js');
 
 test('named level data contains no world assignments and resolves entirely through world mappings', () => {
-  assert.equal(Object.keys(LEVEL_DATA).length, 61);
+  assert.equal(Object.keys(LEVEL_DATA).length, 62);
   assert.deepEqual(assembleCampaign(LEVEL_DATA), LEVELS);
   for (const [name, data] of Object.entries(LEVEL_DATA)) {
     assert.equal(data.name, name);

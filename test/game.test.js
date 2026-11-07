@@ -121,7 +121,7 @@ test('weapon counts are passed to the equipped sword without a separate badge', 
   const { SWORDS } = require('../src/game.js');
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const start = app.indexOf('  if (game.weapon) {', app.indexOf('function render('));
-  const body = app.slice(start, app.indexOf('  drawTurretEffects(ctx);', start));
+  const body = app.slice(start, app.indexOf('  drawTurretEffects(ctx', start));
   for (const [type, uses, label] of [['wood', 3, '3'], ['gold', Infinity, '12']]) {
     const arcs = [], texts = [], swords = [];
     const ctx = new Proxy({}, {
@@ -443,7 +443,7 @@ test('opening briefings list only victory conditions and the exact Cat Brick obj
     [{ duration: 60, goal: 0, killGoal: 5 }, 'VICTORY CONDITIONS:\n👾 Target: 5'],
     [{ duration: 60, goalsGoal: 3 }, 'VICTORY CONDITIONS:\n⚽ Target: 3'],
     [{ duration: 60, goal: 10, killGoal: 5, goalsGoal: 2 }, 'VICTORY CONDITIONS:\n🍗 Target: 10\n👾 Target: 5\n⚽ Target: 2'],
-    [{ duration: 90, goal: 0, survive: true }, 'VICTORY CONDITIONS:\n🕒 Surive Time: 90'],
+    [{ duration: 90, goal: 0, survive: true }, 'VICTORY CONDITIONS:\n🕒 Survive Time: 90'],
   ]) {
     assert.equal(context.levelBriefingText(level), expected);
     const container = node();

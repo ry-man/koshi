@@ -190,7 +190,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
     return nodes.get(selector);
   };
   $('#event-kind').value = 'enemy';
-  const context = vm.createContext({ $, MIXED: '', selectedEvents: new Set(), OBJECTS,
+  const context = vm.createContext({ $, MIXED: '', selectedEvents: new Set(), OBJECTS, CHARACTERS: require('../src/game.js').CHARACTERS,
     document: { createElement: () => ({}) }, picture: (value, control) => ({ value, control }) });
   vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function readEvent(')), context);
   context.typeOptions();
@@ -198,7 +198,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
   for (const { value: type } of $('#event-type').options) {
     const enemy = { kind: 'enemy', type };
     const icon = context.icon(enemy);
-    if (['robo-snail', 'robo-cow', 'robo-unicorn'].includes(type)) {
+    if (['robo-snail', 'robo-cow', 'robo-unicorn', 'boss'].includes(type)) {
       assert.equal(icon.value, `enemy:${type}`);
       assert.equal(icon.control, 'brick-spawn-item');
     } else {
@@ -213,6 +213,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
   assert.ok(icons.has('robo-snail'));
   assert.ok(icons.has('robo-cow'));
   assert.ok(icons.has('robo-unicorn'));
+  assert.ok(icons.has('boss'));
   $('#event-kind').value = 'object';
   context.typeOptions();
   for (const type of ['bubble-blue', 'bubble-green', 'bubble-red']) {
@@ -885,7 +886,7 @@ test('snake event selectors and editor placements use Wheel edge snapping', () =
     return inputs.get(selector);
   };
   const context = vm.createContext({
-    $, FOODS, SWORDS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {}, snapWheel,
+    $, FOODS, SWORDS, CHARACTERS: require('../src/game.js').CHARACTERS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {}, snapWheel,
     document: { createElement: () => ({}) }, MIXED: '', selectedEvents: new Set(), selectedBricks: new Set(),
     touched: new Set(), level: blank(), readOnly: () => false, syncPalettes() {},
   });

@@ -25,7 +25,7 @@ test('Robo Snail is available in custom placements and the editor, not in campai
   assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(campaign => !campaign.enemies.some(([, type]) => type === 'robo-snail')));
 
   const editor = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
-  assert.match(editor, /\['robo-snail', 'Robo Snail'\]/);
+  assert.match(editor, /Object\.entries\(CHARACTERS\)/);
   assert.match(editor, /'robo-snail': \{ name: 'Robo Snail' \}/);
   const game = arena(custom.events);
   game.update(.01);
@@ -207,6 +207,7 @@ test('Robo Snail ribbon shows alternating slugs and turtles and gets its own eff
   });
   const context = vm.createContext({ ctx });
   vm.runInContext(source.slice(source.indexOf('function powerupStreamRows('), source.indexOf('function robotDrawOrder('))
+    + source.slice(source.indexOf('function ribbonTransform('), source.indexOf('function drawCapeStream('))
     + source.slice(source.indexOf('function drawSnailStream('), source.indexOf('function drawMusicStream(')), context);
   const game = {
     state: 'playing', height: 600, width: 800, elapsed: 3,
