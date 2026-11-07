@@ -8,6 +8,109 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('palette image artwork fits its icon slot in menus, markers, and information previews', () => {
+  const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
+  assert.match(css, /\.palette-picture > img\s*\{[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*contain;/);
+  assert.match(css, /\.palette-picture\s*\{[^}]*width:\s*44px;[^}]*height:\s*28px;/);
+  assert.match(css, /\.marker \.palette-picture\s*\{[^}]*width:\s*26px;[^}]*height:\s*26px;/);
+  assert.match(css, /\.info-graphics-preview \.palette-picture\s*\{[^}]*width:\s*64px;[^}]*height:\s*52px;/);
+});
+
+test('settings and introductions share a collapsible frame, and points sit directly above the board', () => {
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const settings = html.slice(html.indexOf('<details class="editor-panel level-settings-panel"'), html.indexOf('<div class="editor-workspace">'));
+  assert.match(settings, /aria-label="Level settings" open>/);
+  for (const id of ['settings-form', 'cutscene-form', 'level-info-form']) assert.ok(settings.includes(`id="${id}"`));
+  assert.doesNotMatch(settings, /Apply settings|point-reference/);
+  assert.match(html, /id="point-reference-extra"[\s\S]*?<\/section>\s*<div id="editor-board-scroll"/);
+  assert.match(html, /id="show-random" type="checkbox" checked/);
+});
+
+test('settings changes automatically update the level, report invalid fields, and respect read-only access', () => {
+  const nodes = new Map(), messages = [];
+  let locked = false, valid = true, reported = 0, changed = 0;
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {}, replaceChildren() {},
+      checkValidity: () => valid, reportValidity: () => { reported++; },
+      addEventListener(type, listener) { this.listeners[type] = listener; } });
+    return nodes.get(selector);
+  };
+  const context = vm.createContext({ $, level: blank(), CAT_BLOCK_TRIGGERS, catBlockDescription,
+    validateDraft: validateCustomLevel, readOnly: () => locked,
+    attempt: action => { try { action(); } catch (error) { messages.push(error.message); } },
+    markChanged() { changed++; }, render() {}, message: text => messages.push(text) });
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);
+  context.populateSettings();
+  for (const [selector, value, field, expected] of [
+    ['#level-name', 'Renamed', 'id', 'Renamed'], ['#duration', '45', 'duration', 45],
+    ['#goal', '10', 'goal', 10], ['#kill-goal', '5', 'killGoal', 5],
+    ['#goals-goal', '2', 'goalsGoal', 2], ['#heart-cost', '7', 'heartCost', 7],
+    ['#activation-limit', '12', 'activationLimit', 12], ['#activation-limit', '', 'activationLimit', null],
+  ]) {
+    $(selector).value = value;
+    $('#settings-form').listeners.change();
+    assert.equal(context.level[field], expected);
+  }
+  $('#autoscroll-enabled').checked = true;
+  $('#autoscroll-enabled').listeners.change();
+  $('#settings-form').listeners.change();
+  assert.equal(context.level.autoscroll.length, 16);
+  $('#win-condition').value = 'survive';
+  $('#win-condition').listeners.change();
+  $('#settings-form').listeners.change();
+  assert.equal(context.level.survive, true);
+  assert.equal(context.level.goal, 0);
+  const before = JSON.stringify(context.level);
+  valid = false;
+  $('#duration').value = '';
+  $('#settings-form').listeners.change();
+  assert.equal(reported, 1);
+  assert.match(messages.at(-1), /invalid value/);
+  assert.equal(JSON.stringify(context.level), before);
+  valid = true;
+  $('#duration').value = '-1';
+  $('#settings-form').listeners.change();
+  assert.match(messages.at(-1), /duration/i);
+  assert.equal(JSON.stringify(context.level), before);
+  locked = true;
+  $('#duration').value = '60';
+  const previousChanged = changed;
+  $('#settings-form').listeners.change();
+  assert.equal(changed, previousChanged);
+  assert.equal(JSON.stringify(context.level), before);
+});
+
+test('random-spawn visibility filters random groups and campaign examples without changing fixed events or totals', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const start = source.indexOf('  [...level.events.map');
+  const pipeline = source.slice(start, source.indexOf('    .forEach(', start));
+  const events = [
+    event(), { ...event(), random: true },
+    { ...event(), random: true, group: { shape: 'line', count: 3, size: .2 } },
+    { ...event(), previewRandom: true },
+    { ...event(), group: { shape: 'circle', count: 3, size: .2 } },
+  ];
+  const templates = [{ event: event(), spawnKey: 'fixed-spawner' }];
+  const before = JSON.stringify(events);
+  let showRandom = true;
+  const context = vm.createContext({
+    level: { events }, templates, $: () => ({ checked: showRandom }),
+    previewGame: { customEventPoints: item => Array(item.group?.count ?? 1).fill({ x: 100, y: 100 }) },
+    FOODS, SHIELDS,
+  });
+  vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
+  const totals = JSON.stringify(context.pointReference(events, []));
+  assert.equal(vm.runInContext(pipeline, context).length, 10);
+  showRandom = false;
+  const visible = vm.runInContext(pipeline, context);
+  assert.equal(visible.length, 5);
+  assert.ok(visible.every(({ event }) => !event.random && !event.previewRandom));
+  assert.equal(visible.at(-1).spawnKey, 'fixed-spawner');
+  assert.equal(JSON.stringify(events), before);
+  assert.equal(JSON.stringify(context.pointReference(events, [])), totals);
+});
+
 test('point reference counts event groups, shield values and one spawn per active brick', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
@@ -283,6 +386,9 @@ test('campaign editor previews use every real schedule and preserve the original
       + campaign.enemies.reduce((sum, [, , count]) => sum + count, 0)
       + campaign.items.length + campaign.weapons.length + (campaign.events?.length ?? 0));
     for (const event of campaign.events ?? []) assert.ok(preview.events.includes(event));
+    for (const event of preview.events.filter(event => !campaign.events?.includes(event))) {
+      assert.equal(event.previewRandom, event.kind !== 'enemy' || event.type !== 'boss');
+    }
     assert.equal(preview.events.filter(event => event.carriesKey).length,
       campaign.enemies.filter(entry => entry[4]?.carriesKey).length);
     assert.equal(preview.events.filter(event => event.carriesCatBlock).length,
@@ -322,7 +428,7 @@ test('read-only campaign controls lock all write surfaces but leave inspection a
   for (const selector of accessFields) assert.ok(html.includes(`<fieldset id="${selector.slice(1)}"`));
   assert.equal(board.dataset.readOnly, 'true');
   assert.equal($('#playtest').textContent, 'Play game level →');
-  for (const selector of ['#editor-level', '#timeline', '#orientation', '#show-all', '#select-mode']) assert.equal($(selector).disabled, false);
+  for (const selector of ['#editor-level', '#timeline', '#orientation', '#show-all', '#show-random', '#select-mode']) assert.equal($(selector).disabled, false);
   locked = false; context.syncAccess();
   for (const selector of [...accessFields, ...writeButtons]) assert.equal($(selector).disabled, false);
   assert.equal(board.dataset.readOnly, 'false');
@@ -550,7 +656,7 @@ test('editor settings select exclusive survival or score targets and preserve im
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { value: '', disabled: false, listeners: {},
-      replaceChildren() {},
+      replaceChildren() {}, checkValidity: () => true,
       addEventListener(type, listener) { this.listeners[type] = listener; } });
     return nodes.get(selector);
   };

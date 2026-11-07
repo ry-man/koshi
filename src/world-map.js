@@ -54,6 +54,22 @@ function hintActivator() {
   return hide => { if (hideHint !== hide) hideHint?.(); hideHint = hide; };
 }
 
+function objectiveTargets(level) {
+  const timeLabel = level.bossLevel ? 'No time limit' : level.survive
+    ? `Survive for ${level.duration} seconds` : `Achieve win objective(s) in ${level.duration} seconds`;
+  return [
+    { symbol: '🕒', value: level.bossLevel ? '∞' : `${level.duration}s`, label: timeLabel },
+    ...(level.bossLevel ? [{ symbol: '👾', value: 'BOSS', label: 'Defeat the boss' }] : []),
+    ...(level.survive ? [] : [
+      { symbol: '🍗', target: level.goal, name: 'food points' },
+      { symbol: '👾', target: level.killGoal, name: 'enemy points' },
+      { symbol: '⚽', target: level.goalsGoal, name: 'soccer goals' },
+    ].filter(({ target }) => target > 0).map(({ symbol, target, name }) => ({
+      symbol, value: String(target), label: `Get ${target} ${name}`,
+    }))),
+  ];
+}
+
 class MapNavigation {
   constructor(map, layout) {
     this.map = map;
@@ -419,19 +435,7 @@ class WorldMap {
     row.className = 'map-objectives';
     objective.setAttribute('role', 'group');
     objective.setAttribute('aria-label', 'Time limit and win objectives');
-    const timeLabel = level.bossLevel ? 'No time limit' : level.survive
-      ? `Survive for ${level.duration} seconds` : `Achieve win objective(s) in ${level.duration} seconds`;
-    const targets = [
-      { symbol: '🕒', value: level.bossLevel ? '∞' : `${level.duration}s`, label: timeLabel },
-      ...(level.bossLevel ? [{ symbol: '👾', value: 'BOSS', label: 'Defeat the boss' }] : []),
-      ...(level.survive ? [] : [
-        { symbol: '🍗', target: level.goal, name: 'food points' },
-        { symbol: '👾', target: level.killGoal, name: 'enemy points' },
-        { symbol: '⚽', target: level.goalsGoal, name: 'soccer goals' },
-      ].filter(({ target }) => target > 0).map(({ symbol, target, name }) => ({
-        symbol, value: String(target), label: `Get ${target} ${name}`,
-      }))),
-    ];
+    const targets = objectiveTargets(level);
     objective.append(row);
     for (const [index, { symbol, value, label }] of targets.entries()) {
       const badge = document.createElement('button'), icon = document.createElement('span');
@@ -702,5 +706,8 @@ class WorldMap {
   }
 }
 
+WorldMap.objectiveTargets = objectiveTargets;
+WorldMap.collectibleHint = collectibleHint;
+WorldMap.hintActivator = hintActivator;
 globalThis.KoshiWorldMap = WorldMap;
 })();

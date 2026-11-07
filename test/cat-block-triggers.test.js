@@ -234,7 +234,7 @@ test('editor exposes all trigger options, shows only required parameters and pre
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { value: '', children: [], listeners: {},
-      replaceChildren() {},
+      replaceChildren() {}, checkValidity: () => true,
       append(child) { this.children.push(child); },
       addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);

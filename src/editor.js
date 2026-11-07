@@ -79,6 +79,7 @@ function campaignPreview(index) {
   const add = (kind, time, type, point, lifetime, shield) => events.push({
     kind, time, type, x: (point.x - bounds.left) / (bounds.right - bounds.left),
     y: (point.y - bounds.top) / (bounds.bottom - bounds.top),
+    previewRandom: kind !== 'enemy' || type !== 'boss',
     ...(lifetime == null ? {} : { lifetime }), ...(shield == null ? {} : { shield }),
   });
   for (const entry of game.level.food) {
@@ -149,7 +150,7 @@ function selectEditorLevel() {
   syncAccess();
   message(readOnly() ? 'Game level opened read-only. Select your custom level to resume editing.' : 'Your custom workspace restored.');
 }
-$('#editor-level').addEventListener('change', () => attempt(selectEditorLevel));
+$('#editor-level').addEventListener('change', () => { pausePreview(); attempt(selectEditorLevel); });
 for (const type of ['click', 'change', 'input', 'submit']) document.addEventListener(type, event => {
   if (!readOnly() || !event.target.closest('button, input, select, textarea, form')
     || !event.target.closest([...accessFields, ...writeButtons].join(', '))) return;
@@ -176,7 +177,22 @@ function picture(value, control) {
   const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie', object: 'soccer-ball' }[value] }
     : control === 'event-type' ? { kind: $('#event-kind').value, type: value }
     : control === 'brick-spawn-item' ? { kind: value.split(':')[0], type: value.split(':')[1] } : null;
-  if (value === 'cat-block') {
+  if (control === 'info-slime' || control === 'info-steering') {
+    const brick = { x: 0, y: 0, w: 88, h: 52,
+      kind: control === 'info-steering' ? value : 'normal',
+      region: { edge: 'top', start: 0, end: 1 } };
+    image.classList.add('palette-swatch');
+    image.style.backgroundColor = COLORS[brick.kind];
+    if (control === 'info-slime') {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
+      svg.setAttribute('viewBox', '0 0 1 1'); svg.setAttribute('preserveAspectRatio', 'none');
+      svg.setAttribute('aria-hidden', 'true');
+      path.setAttribute('d', brickSlime([brick], 88, 200));
+      path.style.fill = SLIMES[value].color; path.style.stroke = '#102619'; path.style.strokeWidth = '.02';
+      svg.append(path); image.append(svg);
+    }
+  } else if (value === 'cat-block') {
     const artwork = document.createElement('img');
     artwork.src = './icons/cat-building-block.png'; artwork.alt = 'Cat Block';
     image.append(artwork);
@@ -930,12 +946,6 @@ function renderBoard() {
   syncPalettes();
   const b = previewGame.bounds();
   $('#playable-area').style.cssText = `left:${b.left / previewGame.width * 100}%;top:${b.top / previewGame.height * 100}%;width:${(b.right - b.left) / previewGame.width * 100}%;height:${(b.bottom - b.top) / previewGame.height * 100}%`;
-  const time = Number($('#timeline').value);
-  const camera = previewGame.camera(time);
-  const outline = $('#camera-outline');
-  outline.hidden = !level.autoscroll;
-  outline.style.cssText = `left:${camera.x / previewGame.width * 100}%;top:${camera.y / previewGame.height * 100}%;width:${camera.width / previewGame.width * 100}%;height:${camera.height / previewGame.height * 100}%`;
-  $('#time-label').textContent = `${time.toFixed(1)}s`;
   const summary = [selectedBricks.size && plural(selectedBricks.size, 'brick'), selectedEvents.size && plural(selectedEvents.size, 'event')].filter(Boolean);
   $('#selection-summary').textContent = summary.length ? `${summary.join(' + ')} selected` : 'Nothing selected';
   $('#clear-selection').disabled = !summary.length;
@@ -943,20 +953,25 @@ function renderBoard() {
   const templates = spawnTemplates();
   renderSpawnLinks(templates);
   [...level.events.map((event, index) => ({ event, index })), ...templates]
+    .filter(({ event }) => $('#show-random').checked || !(event.random || event.previewRandom))
     .flatMap(entry => previewGame.customEventPoints(entry.event, { preview: true }).map(point => ({ ...entry, point })))
     .forEach(({ event, index, spawnKey, point }) => {
-    if (!spawnKey && connectingSpawn === null && !$('#show-all').checked && (event.time > time || (event.lifetime != null && event.time + event.lifetime <= time))) return;
     const marker = document.createElement('button');
     marker.className = spawnKey ? 'marker spawn-template' : 'marker';
     marker.type = 'button'; marker.dataset.kind = event.kind;
-    if (spawnKey) marker.dataset.spawnKey = spawnKey; else marker.dataset.index = index;
+    if (spawnKey) marker.dataset.spawnKey = spawnKey;
+    else {
+      marker.dataset.index = index;
+      marker.dataset.previewStart = event.time;
+      if (event.lifetime != null) marker.dataset.previewEnd = event.time + event.lifetime;
+    }
     marker.style.left = `${point.x / previewGame.width * 100}%`; marker.style.top = `${point.y / previewGame.height * 100}%`;
     marker.style.color = event.kind === 'weapon' ? SWORDS[event.type].color : '';
     if (event.shield) marker.style.boxShadow = `0 0 0 3px ${SHIELDS[event.shield].color}`;
     const selected = spawnKey ? selectedBricks.has(spawnKey) : selectedEvents.has(index);
     marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);
     marker.setAttribute('aria-pressed', String(selected));
-    const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s${event.random ? ' · random' : ''}`;
+    const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s${event.random || event.previewRandom ? ' · random' : ''}`;
     if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
       const { width, height } = obstructionGeometry(event);
       const frameWidth = Math.max(width + 4, event.destructible ? 40 : 0);
@@ -1024,7 +1039,26 @@ function renderBoard() {
     });
     markers.append(marker);
   });
+  renderPreviewTime();
   syncAccess();
+}
+
+function renderPreviewTime(time = Number($('#timeline').value), followTime = false) {
+  time = Math.max(0, Math.min(level.duration, time));
+  $('#timeline').value = time;
+  $('#time-label').textContent = `${time.toFixed(1)}s`;
+  if (followTime) $('#event-time').value = Math.min(time, Number($('#event-time').max));
+  $('#preview-speed-label').textContent = `${$('#preview-speed').value}x`;
+  const camera = previewGame.camera(time), outline = $('#camera-outline');
+  outline.hidden = !level.autoscroll;
+  outline.style.cssText = `left:${camera.x / previewGame.width * 100}%;top:${camera.y / previewGame.height * 100}%;width:${camera.width / previewGame.width * 100}%;height:${camera.height / previewGame.height * 100}%`;
+  for (const marker of $('#markers').querySelectorAll('.marker[data-index]')) {
+    marker.hidden = connectingSpawn === null && !$('#show-all').checked
+      && (Number(marker.dataset.previewStart) > time
+        || (marker.dataset.previewEnd !== undefined && Number(marker.dataset.previewEnd) <= time));
+  }
+  if (time >= level.duration) pausePreview();
+  $('#preview-play').disabled = time >= level.duration;
 }
 
 function pointReference(events, bricks) {
@@ -1210,6 +1244,7 @@ function boxSelect(event) {
     return selectedParts.has(Number(element.dataset.id));
   }).map(element => element.dataset.region);
   const events = [...board.querySelectorAll('.marker[data-index]')].filter(element => {
+    if (element.hidden) return false;
     const r = element.getBoundingClientRect(), x = (r.left + r.right) / 2, y = (r.top + r.bottom) / 2;
     return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
   }).map(element => Number(element.dataset.index));
@@ -1680,9 +1715,19 @@ for (const [selector, entries] of [
     option.value = value; option.textContent = text; $(selector).append(option);
   }
 }
+$('#settings-form').addEventListener('change', applyLevelSettings);
 $('#settings-form').addEventListener('submit', event => {
   event.preventDefault();
+  applyLevelSettings();
+});
+function applyLevelSettings() {
+  if (readOnly()) return;
   attempt(() => {
+    const form = $('#settings-form');
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      throw new TypeError('Level settings contain an invalid value. Correct the highlighted field to apply your changes.');
+    }
     const length = $('#autoscroll-enabled').checked ? Number($('#scroll-length').value) : 8;
     if (length !== (level.autoscroll?.length ?? 8) && level.brickGroups?.length) {
       throw new TypeError('Split combined bricks before changing the board length.');
@@ -1710,7 +1755,7 @@ $('#settings-form').addEventListener('submit', event => {
     });
     level = candidate; markChanged(); populateSettings(); render(); message('Level settings applied.');
   });
-});
+}
 function populateSettings() {
   $('#autoscroll-enabled').checked = Boolean(level.autoscroll);
   $('#scroll-length').value = level.autoscroll?.length ?? 16;
@@ -1920,8 +1965,10 @@ function addInfoPage(page = { title: 'New concept', text: '', graphics: [] }) {
   const updatePreview = () => {
     preview.replaceChildren(...[...graphics.selectedOptions].map(option => {
       const [kind, type] = option.value.split(':');
-      const image = picture(['brick', 'slime', 'special'].includes(kind) ? type : option.value,
-        ['brick', 'slime', 'special'].includes(kind) ? 'brick-kind' : 'brick-spawn-item');
+      const control = kind === 'slime' ? 'info-slime'
+        : kind === 'brick' && Object.hasOwn(COOLDOWNS, type) ? 'info-steering'
+          : ['brick', 'special'].includes(kind) ? 'brick-kind' : 'brick-spawn-item';
+      const image = picture(['brick', 'slime', 'special'].includes(kind) ? type : option.value, control);
       image.title = option.textContent;
       return image;
     }));
@@ -1971,13 +2018,71 @@ $('#level-info-form').addEventListener('submit', event => {
 
 function replaceLevel(value) {
   const candidate = validateDraft(value);
+  pausePreview();
   level = candidate; placing = true; markChanged(); populateSettings(); populateCutscene(); populateLevelInfo(); setSelection([], []);
 }
-$('#timeline').addEventListener('input', () => {
-  $('#event-time').value = Math.min(Number($('#timeline').value), Number($('#event-time').max));
-  renderBoard();
+let previewPlayback = null;
+
+function pausePreview() {
+  if (previewPlayback) cancelAnimationFrame(previewPlayback.frame);
+  previewPlayback = null;
+  $('#preview-play').textContent = 'Play';
+  $('#preview-play').setAttribute('aria-pressed', 'false');
+}
+
+function previewFrame(timestamp) {
+  if (!previewPlayback) return;
+  const time = previewPlayback.time + Math.max(0, timestamp - previewPlayback.timestamp) / 1000 * previewPlayback.speed;
+  renderPreviewTime(time, true);
+  if (previewPlayback) previewPlayback.frame = requestAnimationFrame(previewFrame);
+}
+
+$('#preview-play').addEventListener('click', () => {
+  if (previewPlayback) { pausePreview(); return; }
+  const time = Number($('#timeline').value);
+  if (time >= level.duration) return;
+  previewPlayback = { time, timestamp: performance.now(), speed: Number($('#preview-speed').value) };
+  $('#preview-play').textContent = 'Pause';
+  $('#preview-play').setAttribute('aria-pressed', 'true');
+  previewPlayback.frame = requestAnimationFrame(previewFrame);
 });
+$('#preview-speed').addEventListener('input', () => {
+  if (previewPlayback) {
+    const timestamp = performance.now();
+    const time = previewPlayback.time + (timestamp - previewPlayback.timestamp) / 1000 * previewPlayback.speed;
+    renderPreviewTime(time, true);
+    if (previewPlayback) Object.assign(previewPlayback, { time, timestamp, speed: Number($('#preview-speed').value) });
+  }
+  $('#preview-speed-label').textContent = `${$('#preview-speed').value}x`;
+});
+$('#timeline').addEventListener('input', () => {
+  pausePreview();
+  renderPreviewTime(discretePreviewTime(Number($('#timeline').value)), true);
+});
+function discretePreviewTime(time) {
+  const step = Number($('#timeline-discretization').value);
+  if (!step) return time;
+  return Math.max(0, Math.min(Math.floor(level.duration / step), Math.round(time / step))) * step;
+}
+$('#timeline').addEventListener('keydown', event => {
+  const step = Number($('#timeline-discretization').value);
+  if (!step) return;
+  const direction = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -10, PageUp: 10 }[event.key];
+  if (!direction && !['Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  pausePreview();
+  const time = Number($('#timeline').value);
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? level.duration
+    : ((direction > 0 ? Math.floor(time / step) : Math.ceil(time / step)) + direction) * step;
+  renderPreviewTime(discretePreviewTime(next), true);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) pausePreview(); });
+window.addEventListener('pagehide', pausePreview);
+for (const type of ['pointerdown', 'keydown']) document.addEventListener(type, event => {
+  if (event.target.closest('#editor-board, #event-list, #inspector-access')) pausePreview();
+}, true);
 $('#show-all').addEventListener('change', renderBoard);
+$('#show-random').addEventListener('change', renderBoard);
 $('#orientation').addEventListener('change', renderBoard);
 new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
 function validateSavedLevel({ draft = false } = {}) {

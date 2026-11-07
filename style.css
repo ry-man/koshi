@@ -42,13 +42,14 @@ body:has(#level-info[open]) { overflow: hidden; }
 #level-info-page { white-space: nowrap; letter-spacing: normal; }
 #level-info-close { grid-column: 3; justify-self: end; padding: 10px; }
 .level-info-content { overflow: auto; min-height: 0; }
+#level-info-title:focus { outline: none; }
 #level-info-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 18px; line-height: 1.6; }
 .level-info-graphics { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .level-info-graphics figure { margin: 0; width: min(200px, 100%); text-align: center; }
 .level-info-graphics .guide-picture, .level-info-graphics .guide-special-brick { width: 100%; height: 100px; }
 .level-info-graphics img.guide-picture { object-fit: contain; }
-#level-info-replay { margin-bottom: 12px; background: #3d5c27; color: #fff; }
-#level-info-replay:hover { background: #496e2f; }
+#level-info-replay { margin-bottom: 12px; background: #304438; color: #c0ccc2; }
+#level-info-replay:hover { background: #3a5142; }
 body:has(#cat-town-scene[open]) { overflow: hidden; }
 .phase-transition { position: fixed; inset: 0; width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; overflow: hidden; }
 .phase-transition::backdrop { background: transparent; }
@@ -203,7 +204,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .stat-label { display: block; color: var(--muted); font-size: 9px; margin-bottom: 8px; }
 .stat strong { font-size: 24px; font-weight: 500; white-space: nowrap; }
 .stat strong span { color: var(--muted); font: 14px 'DM Sans', sans-serif; }
-.stat strong.win-target, .stat strong.win-target span { color: #ffd36a; }
+.stat strong.win-target, .stat strong.win-target span, .briefing-conditions { color: #ffd36a; }
 .stat.lives { border: 0; padding: 0; min-width: 0; }
 .lives strong { color: var(--fast); letter-spacing: 4px; }
 .heart-cost { max-width: 150px; margin: 6px auto 0; color: #efb6c4; font-size: 10px; }
@@ -302,7 +303,12 @@ canvas { display: block; width: 100%; height: 100%; }
 .dialog { text-align: center; max-width: 410px; padding: 25px; }
 .overlay.level-briefing .dialog { max-width: 560px; padding: clamp(24px, 5vw, 48px); border: 1px solid #d3ef8b55; border-radius: 16px; background: #15252cf2; box-shadow: 0 24px 70px #0009, inset 0 1px #ffffff12; }
 .overlay.level-briefing .dialog h2 { font-size: clamp(30px, 5vw, 44px); }
-.briefing-conditions { white-space: pre-line; }
+.briefing-conditions { white-space: pre-line; font-weight: 700; }
+.briefing-conditions > p { margin: 0; }
+.briefing-objective { position: relative; }
+.briefing-objective-button { display: block; width: 100%; min-height: 44px; padding: 6px 8px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; }
+.briefing-objective-button:hover { background: #ffffff08; }
+.briefing-objective .map-collectible-description { white-space: normal; font-weight: 400; text-align: left; }
 .briefing-cat-block { margin-top: 20px; }
 .briefing-cat-block img { display: block; width: 50px; height: 50px; margin: 0 auto; }
 .level-results-cat-block { margin: 20px 0; text-align: center; }
@@ -347,8 +353,9 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
 .intro[hidden], .game-shell[hidden] { display: none; }
 .campaign-map-error { margin: 0; font-size: 12px; }
 .world-picker:has(.campaign-map-error:not([hidden])) { grid-template-rows: auto auto minmax(0, 1fr) auto; }
-.world-picker { width: min(900px, calc(100vw - 24px)); height: min(820px, calc(100svh - 24px)); overflow: hidden; }
-.world-picker:has(.map-layout[data-view="worlds"]) { width: calc(100vw - 32px); max-width: none; height: calc(100dvh - 32px); max-height: none; }
+.world-picker { width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; inset: 0; border: 0; border-radius: 0; overflow: hidden; }
+.world-picker::backdrop { background: var(--bg); }
+body:has(.world-picker[open]) { overflow: hidden; }
 .world-picker[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .world-picker .learning-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-height: 64px; gap: 12px; padding-bottom: 8px; }
 .world-picker .learning-heading h2 { font-size: 24px; }
@@ -503,8 +510,6 @@ footer > span:last-child { letter-spacing: 0; font-size: 10px; }.footer-dot { co
   .map-details { padding: 10px; }
 }
 @media (max-width: 760px) {
-  .world-picker { width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; inset: 0; border-radius: 0; }
-  .world-picker:has(.map-layout[data-view="worlds"]) { width: 100vw; height: 100dvh; }
   .map-viewport, .map-details { width: 100%; min-width: 0; scrollbar-gutter: auto; }
   .map-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, .9fr) minmax(0, 1.1fr); }
   .map-layout[data-view="worlds"] { grid-template-rows: minmax(0, 1fr); }

@@ -26,10 +26,16 @@ Only the title screen offers a **Beta / Official** selector. The world map and
 editor retain the selected game without offering a separate switch.
 Both campaigns share the gameplay engine, graphics, mechanics, and tutorial.
 **Beta** contains all existing worlds and levels, unchanged. **Official** has
-18 map destinations and temporary level 1 starters in its 17 playable worlds;
+18 map destinations and 17 playable worlds. Official **1-1**, **Beginner's
+Breakfast**, uses the authored source in `levels/official/world-1/1-1.json`:
+collect 20 food points in 50 seconds, with a Cat Block spawning at 15 seconds,
+the opening dialogue, Steering Bricks hints, and authored brick colors.
+Its runtime definition in `src/campaign.js` preserves the `official-1-1` save ID;
+the JSON is the source reference, not dynamically loaded at runtime.
+The other 16 playable worlds retain temporary level 1 starters;
 Cat Town remains a scene hub rather than a traditional level. Each starter has
 one Cat Block at time zero and a 10-second survival objective, ready to be
-overwritten as the Official levels are authored. The nine numbered-world
+overwritten as the Official levels are authored. The remaining eight numbered-world
 starters each open with Koshi saying "Hello world!" against that world's
 cutscene background; the special-world starters are unchanged. Official levels use the color
 of their world for the game's console-style framing. World and named level
@@ -53,7 +59,9 @@ head (9), and cat head (C). Each S world uses its primary world's emblem.
 In both campaigns, flag, star, and Cat Block totals stay at the top right of the
 map dialog, aligned with the World Map heading, outside the scrolling map.
 Beta and Official level selection use the same renderer, responsive map/details
-layout, level-node sizing, and textured block styling. The Official square-map
+layout, level-node sizing, and textured block styling. Both world and level
+selection fill the browser viewport with an opaque background, hiding prior
+gameplay while the map is open. The Official square-map
 settings apply only to the world overview, not to the levels inside a world.
 Official level maps tint their background, textured nodes, and routes with the
 associated world's color. Gameplay uses bolder world-colored outer framing and
@@ -118,6 +126,12 @@ Reduced-motion mode changes screens immediately.
 The editor's **Optional level information / tutorial** section lets authors
 enable an introduction, add/remove/reorder pages, and choose existing game
 component artwork. Each page has a title, explanation, and up to six graphics.
+The component list includes blue (Slow), green (Normal), and red (Fast)
+**Steering Bricks**, plus separate colors of slime, bubbles, and each paintbrush
+type. Select multiple variants to show them together on a page.
+Steering-brick captions break after "Brick" so each color's cooldown details
+start on the second line. The focused page heading has no browser-default outline;
+navigation buttons retain their keyboard focus indicators.
 Click **Apply information** before saving, exporting JSON, or playtesting.
 Disabling the section and applying removes the information from the level.
 Campaign levels remain read-only in the editor; use custom levels for authoring.
@@ -191,7 +205,9 @@ or click/tap the icon to keep the hint open. Hints float above the details conte
 without moving the objectives or statistics. Only one hint opens at a time.
 Press Escape to dismiss it.
 The pre-level mission briefing lists only
-active victory targets with emojis. Where applicable, a centered Cat Block image
+active victory targets with emojis. Each target supports click, touch, hover,
+and keyboard focus to show the same explanation as the level-selection map;
+Escape dismisses the explanation. Where applicable, a centered Cat Block image
 appears below them with the same `To earn Cat Brick: ...` objective as the editor
 and map, including when the Cat Brick has already been acquired.
 Uncollected stars and Cat Blocks use outlines with the same shape, size and
@@ -808,7 +824,7 @@ authored level content are unchanged.
 ## Graphical level editor
 
 Open [editor.html](./editor.html), or choose **Open level editor** in the game.
-The level settings show a live available-points reference for food, enemies and
+Directly above the board is a live available-points reference for food, enemies and
 soccer goals. It counts scheduled placements (including groups and enemy shield
 values) and one spawn from each active spawning brick. Batteries and Ditto
 Stamps can produce additional spawns, so the reference flags those possibilities
@@ -828,10 +844,11 @@ or build tools are needed.
 Placed enemies use compact icon markers, including Robo Koshi and Robo Snail.
 Robo Snail's marker shares its angular shell and eye-stalk drawing with its palette.
 The enemy and spawn-brick palettes show their corresponding outlined graphics.
+Cat Block artwork fits its palette icon without covering neighboring menu choices.
 
 ### Autoscrolling custom levels
 
-Enable **Autoscrolling level** in level settings and apply the settings. Length
+Enable **Autoscrolling level** in level settings; changes apply automatically. Length
 is the number of bricks along each long edge: 8 is a traditional single screen,
 with up to 1000 supported. The board extends horizontally on desktop and
 vertically in portrait without shrinking bricks or objects. Scroll the editor
@@ -961,8 +978,11 @@ Only a Boost launch during his rocking, red **ERROR!** eye display damages
 him. Six hits defeat him. The red, gold-bordered health bar below the counters
 tracks his health; his death animation finishes before Koshi celebrates.
 
-1. Set the level name, time limit, win condition, optional heart cost (blank disables
-   food-triggered hearts), and boundary brick set. Choose **Apply settings**.
+1. Set the level name, time limit, win condition, and optional heart cost (blank disables
+   food-triggered hearts). Settings apply automatically when you change a selection
+   or checkbox, or finish editing a field. Invalid settings are reported without
+   replacing the last valid level. **Level settings & introductions** is collapsible
+   and contains the optional cutscene and level information sections.
    Choose **Survive until time runs out**, or set food and/or enemy targets.
    A target of **0** disables that score requirement; at least one score target
    must be positive. Both positive targets must be met to win.
@@ -1019,8 +1039,23 @@ tracks his health; his death animation finishes before Koshi celebrates.
      group; **Duplicate**/**Delete** (or the Delete key) act on all selected
      events.
 5. Scrub **Preview time**. Disable **Show all spawn locations** to see which
-   objects have appeared and when food expires. This is a placement preview,
-   not an enemy-movement or collection simulation; **Playtest** runs the real
+   objects have appeared and when food expires. **Play** advances from the current
+   preview time to the end of the level; **Pause** stops it at the current position.
+   The speed dial runs from **0.25x** (quarter speed) to **4x** (quadruple speed),
+   with **1x** matching real time. Speed changes take effect during playback.
+   **Discretization** defaults to **None** for continuous slider movement. Choose
+   **0.5s**, **1s**, **5s**, **10s**, or **30s** to round manual slider movement to
+   the nearest multiple of that interval within the level duration. Arrow keys
+   move one interval at a time. Playback remains continuous and can still reach
+   the exact level end when its duration is not a multiple of the interval.
+   Scrubbing, interacting with the board or event inspector, switching/importing
+   levels, or hiding the editor tab pauses playback. Camera outlines follow the
+   preview time in autoscrolling levels. This is a placement preview,
+   not an enemy-movement or collection simulation. Disable **Show randomly
+   positioned spawns** to hide random events (including random groups and campaign
+   schedule examples) while retaining fixed placements. This preview-only toggle
+   does not remove events or change available-point totals.
+   **Playtest** runs the real
    game. Switch **Preview** to check phone portrait placement.
 6. **Save draft / Load draft** stores one level in this browser. Storage errors
    are reported; browser storage is not a portable backup, especially on

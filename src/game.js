@@ -228,8 +228,10 @@ const INFO_GRAPHICS = {
   ...Object.fromEntries(Object.entries(SWORDS).map(([id, value]) => [`weapon:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(CHARACTERS).filter(([id]) => !['koshi', 'tom', 'boss'].includes(id))
     .map(([id, name]) => [`enemy:${id}`, name])),
-  ...Object.fromEntries(Object.keys(SLIMES).map(id => [`slime:${id}`, `${id} slime`])),
-  ...Object.fromEntries(['slow', 'normal', 'fast', 'crumbler', 'warped', 'springs', 'spikes', 'conveyor']
+  ...Object.fromEntries(Object.keys(SLIMES).map(id => [`slime:${id}`, `${id[0].toUpperCase() + id.slice(1)} Slime`])),
+  ...Object.fromEntries([['slow', 'Blue'], ['normal', 'Green'], ['fast', 'Red']]
+    .map(([id, color]) => [`brick:${id}`, `${color} Steering Brick (${id}, ${COOLDOWNS[id]}s cooldown)`])),
+  ...Object.fromEntries(['crumbler', 'warped', 'springs', 'spikes', 'conveyor']
     .map(id => [`brick:${id}`, `${id} brick`])),
   ...Object.fromEntries(['cinder', 'goal', 'portal', 'toggle', 'spawner', 'turret', 'boost', 'barrier', 'boom-helmet']
     .map(id => [`special:${id}`, id.replaceAll('-', ' ')])),

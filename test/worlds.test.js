@@ -25,10 +25,13 @@ test('World Select shares the bottom action bar and styling with the level menu 
   assert.doesNotMatch(picker.slice(0, picker.indexOf('</header>')), /world-map-back/);
 });
 
-test('phone world map uses the full screen and does not reserve a hidden details row', () => {
+test('world and level maps fill every browser viewport with an opaque backdrop', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   const phoneRules = css.slice(css.indexOf('@media (max-width: 760px) {'));
-  assert.match(phoneRules, /\.world-picker\s*\{[^}]*width:\s*100vw;[^}]*height:\s*100dvh;[^}]*max-height:\s*100dvh;[^}]*margin:\s*0;/);
+  assert.match(css, /\.world-picker\s*\{[^}]*width:\s*100vw;[^}]*max-width:\s*none;[^}]*height:\s*100dvh;[^}]*max-height:\s*100dvh;[^}]*margin:\s*0;[^}]*inset:\s*0;[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
+  assert.doesNotMatch(css, /\.world-picker:has\(.map-layout\[data-view="worlds"\]\)/);
+  assert.match(css, /\.world-picker::backdrop\s*\{\s*background:\s*var\(--bg\);/);
+  assert.match(css, /body:has\(.world-picker\[open\]\)\s*\{\s*overflow:\s*hidden;/);
   assert.match(phoneRules, /\.map-layout\[data-view="worlds"\]\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/);
   assert.match(css, /\.world-picker\[open\]\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;/);
 });
@@ -709,12 +712,11 @@ test('Cat Block hints are available beside the star on touch and hover, and the 
   assert.equal(map.details.scrollTop, 0);
 });
 
-test('collectible hints float above content and mobile dialogs override browser width constraints', () => {
+test('collectible hints float above content and map dialogs override browser width constraints', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert.match(css, /\.map-collectible-description \{[^}]*position: absolute;[^}]*z-index: 5;/);
   assert.match(css, /\.map-level-heading \{[^}]*position: relative;/);
-  const phone = css.slice(css.indexOf('@media (max-width: 760px) {'));
-  assert.match(phone, /\.world-picker \{[^}]*width: 100vw;[^}]*max-width: none;[^}]*inset: 0;/);
+  assert.match(css, /\.world-picker \{[^}]*width: 100vw;[^}]*max-width: none;[^}]*inset: 0;/);
 });
 
 test('map Cat Brick hints match generated editor and briefing text for every trigger', () => {

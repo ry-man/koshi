@@ -222,7 +222,7 @@ test('editor settings toggle autoscroll, enforce minimum length, and protect com
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
   const $ = selector => {
-    if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {}, replaceChildren() {},
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {}, replaceChildren() {}, checkValidity: () => true,
       addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);
   };

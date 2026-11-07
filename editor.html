@@ -30,7 +30,8 @@
         <p data-campaign-label></p>
         <label>Level <select id="editor-level"><option value="custom">Your custom level (editable)</option></select></label>
       </section>
-      <section class="editor-panel" aria-label="Level settings">
+      <details class="editor-panel level-settings-panel" aria-label="Level settings" open>
+        <summary>Level settings &amp; introductions</summary>
         <fieldset id="settings-access" class="access-fields">
         <form id="settings-form" class="settings-grid">
           <label>Name <input id="level-name" maxlength="60" required value="My level"></label>
@@ -61,21 +62,9 @@
             <output id="cat-block-objective" aria-live="polite"></output>
           </fieldset>
           </details>
-          <button type="submit">Apply settings</button>
         </form>
         </fieldset>
-        <section class="point-reference" aria-labelledby="point-reference-heading">
-          <h2 id="point-reference-heading">Available points reference</h2>
-          <dl aria-live="polite">
-            <div><dt>Food points</dt><dd id="available-food">0</dd></div>
-            <div><dt>Enemy points</dt><dd id="available-enemy">0</dd></div>
-            <div><dt>Soccer goals</dt><dd id="available-soccer">0</dd></div>
-          </dl>
-          <p>Counts scheduled placements and one spawn per spawning brick, including groups and enemy shields. Actual scores depend on gameplay; soccer balls need goal bricks.</p>
-          <p id="point-reference-extra" hidden>Batteries or Ditto Stamps can produce additional spawns, so totals may be higher.</p>
-        </section>
-      </section>
-      <details class="editor-panel" aria-label="Pre-level cutscene">
+      <details class="introduction-panel" aria-label="Pre-level cutscene">
         <summary>Optional story cutscene</summary>
         <fieldset id="cutscene-access" class="access-fields">
         <form id="cutscene-form">
@@ -89,7 +78,7 @@
         </form>
         </fieldset>
       </details>
-      <details class="editor-panel" aria-label="Level information">
+      <details class="introduction-panel" aria-label="Level information">
         <summary>Optional level information / tutorial</summary>
         <fieldset id="level-info-access" class="access-fields">
           <form id="level-info-form">
@@ -102,10 +91,21 @@
           </form>
         </fieldset>
       </details>
+      </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
           <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
           <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
+          <section class="point-reference" aria-labelledby="point-reference-heading">
+            <h2 id="point-reference-heading">Available points reference</h2>
+            <dl aria-live="polite">
+              <div><dt>Food points</dt><dd id="available-food">0</dd></div>
+              <div><dt>Enemy points</dt><dd id="available-enemy">0</dd></div>
+              <div><dt>Soccer goals</dt><dd id="available-soccer">0</dd></div>
+            </dl>
+            <p>Counts scheduled placements and one spawn per spawning brick, including groups and enemy shields. Actual scores depend on gameplay; soccer balls need goal bricks.</p>
+            <p id="point-reference-extra" hidden>Batteries or Ditto Stamps can produce additional spawns, so totals may be higher.</p>
+          </section>
           <div id="editor-board-scroll" tabindex="0" role="region" aria-label="Scrollable level board">
           <div id="editor-board" data-orientation="landscape" tabindex="-1">
             <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
@@ -117,9 +117,26 @@
           </div>
           </div>
           <div class="timeline-controls">
-            <label for="timeline">Preview time <output id="time-label">0.0s</output></label>
-            <input id="timeline" type="range" min="0" max="60" step="0.1" value="0">
+            <div class="preview-playback-controls">
+              <label for="timeline">Preview time <output id="time-label" aria-live="off">0.0s</output></label>
+              <button id="preview-play" type="button" aria-pressed="false">Play</button>
+              <label for="preview-speed">Speed <output id="preview-speed-label">1x</output>
+                <input id="preview-speed" type="range" min="0.25" max="4" step="0.25" value="1">
+              </label>
+              <label for="timeline-discretization">Discretization
+                <select id="timeline-discretization">
+                  <option value="0">None</option>
+                  <option value="0.5">0.5s</option>
+                  <option value="1">1s</option>
+                  <option value="5">5s</option>
+                  <option value="10">10s</option>
+                  <option value="30">30s</option>
+                </select>
+              </label>
+            </div>
+            <input id="timeline" type="range" min="0" max="60" step="any" value="0">
             <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
+            <label class="inline-label"><input id="show-random" type="checkbox" checked> Show randomly positioned spawns</label>
           </div>
           <section id="camera-timeline" aria-label="Camera speed timeline" hidden>
             <h2>Camera speed timeline</h2>

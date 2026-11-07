@@ -433,11 +433,17 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
 test('opening briefings omit the Cat Brick objective and graphic after acquisition', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const node = () => ({
-    children: [], textContent: '',
+    children: [], textContent: '', attributes: {}, listeners: {},
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, listener) { this.listeners[name] = listener; },
   });
-  const context = vm.createContext({ document: { createElement: node }, KoshiGame: require('../src/game.js') });
+  const context = vm.createContext({
+    document: { createElement: node }, KoshiGame: require('../src/game.js'),
+    KoshiWorlds: {}, KoshiSaves: {}, KoshiCollectibles: {}, KoshiCatTown: {},
+  });
+  vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'world-map.js'), 'utf8'), context);
   vm.runInContext(source.slice(source.indexOf('function levelBriefingText('), source.indexOf('\nfunction showDialog(')), context);
   for (const [level, expected] of [
     [{ duration: 60, goal: 20 }, 'VICTORY CONDITIONS:\n🍗 Target: 20'],
@@ -445,12 +451,34 @@ test('opening briefings omit the Cat Brick objective and graphic after acquisiti
     [{ duration: 60, goalsGoal: 3 }, 'VICTORY CONDITIONS:\n⚽ Target: 3'],
     [{ duration: 60, goal: 10, killGoal: 5, goalsGoal: 2 }, 'VICTORY CONDITIONS:\n🍗 Target: 10\n👾 Target: 5\n⚽ Target: 2'],
     [{ duration: 90, goal: 0, survive: true }, 'VICTORY CONDITIONS:\n🕒 Survive Time: 90'],
+    [{ duration: 60, goal: 0, bossLevel: true }, 'VICTORY CONDITIONS:\nDefeat Tom the Toaster with 6 Boost hits while he is dizzy. No time limit.'],
   ]) {
     assert.equal(context.levelBriefingText(level), expected);
     const container = node();
     context.renderLevelBriefing(container, level, false);
     assert.equal(container.children.length, 1);
-    assert.equal(container.children[0].textContent, expected);
+    const conditions = container.children[0];
+    assert.equal([conditions.children[0].textContent,
+      ...conditions.children.slice(1).map(row => row.children[0].textContent)].join('\n'), expected);
+    const targets = context.KoshiWorldMap.objectiveTargets(level);
+    const labels = level.survive ? targets.slice(0, 1) : level.bossLevel
+      ? targets.filter(target => target.value === 'BOSS') : targets.slice(1);
+    conditions.children.slice(1).forEach((row, index) => {
+      const [button, hint] = row.children;
+      assert.equal(button.type, 'button');
+      assert.equal(button.attributes['aria-label'], labels[index].label);
+      assert.equal(button.attributes['aria-controls'], hint.id);
+      assert.equal(hint.textContent, labels[index].label);
+      assert.equal(hint.hidden, true);
+      button.listeners.click();
+      assert.equal(hint.hidden, false);
+      button.listeners.keydown({ key: 'Escape' });
+      assert.equal(hint.hidden, true);
+      button.listeners.focus();
+      assert.equal(hint.hidden, false);
+      button.listeners.blur();
+      assert.equal(hint.hidden, true);
+    });
     for (const acquired of [false, true]) {
       const description = 'Defeat the marked enemy in the first patrol.';
       context.renderLevelBriefing(container, { ...level, catBlock: { description } }, acquired);

@@ -161,7 +161,7 @@ test('Official can keep profiles before content exists without treating Beta sav
   assert.equal(storage.getItem(SAVE_KEY), snapshot);
 });
 
-test('classic browser startup selects Official starter levels and leaves Beta content intact', () => {
+test('classic browser startup selects Official levels and leaves Beta content intact', () => {
   const official = browserFixture();
   assert.equal(official.context.KoshiCampaignMode.active.id, 'official');
   assert.equal(official.context.KoshiCampaign.WORLDS.length, 18);
@@ -175,11 +175,11 @@ test('classic browser startup selects Official starter levels and leaves Beta co
   assert.equal(beta.errors.length, 0);
 });
 
-test('each playable Official starter has one time-zero Cat Block and a ten-second survival objective', () => {
+test('remaining Official starters have one time-zero Cat Block and a ten-second survival objective', () => {
   const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
   const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
   assert.equal(levels.length, 17);
-  for (const world of OFFICIAL_WORLDS.filter(world => !world.mapOnly)) {
+  for (const world of OFFICIAL_WORLDS.filter(world => !world.mapOnly && world.id !== '1')) {
     const level = levels.find(entry => entry.worldId === world.id);
     assert.ok(level, `${world.name} has a level`);
     assert.equal(level.number, '1');
@@ -190,12 +190,84 @@ test('each playable Official starter has one time-zero Cat Block and a ten-secon
     assert.deepEqual(level.weapons, []);
     assert.deepEqual(level.items, [[0, 'cat-block']]);
   }
-  const first = levels[0], game = new engine.Game(() => .5, { levels, level: levels.indexOf(first) });
+  const first = levels.find(level => level.worldId === '2');
+  const game = new engine.Game(() => .5, { levels, level: levels.indexOf(first) });
   game.start();
   assert.equal(game.pendingSpawns.size, 1);
   assert.equal([...game.pendingSpawns.values()][0].items[0].type, 'cat-block');
   for (let second = 0; second < 10; second++) game.update(1);
   assert.equal(game.state, 'won');
+});
+
+test('Official 1-1 faithfully imports the authored JSON while preserving its campaign identity', () => {
+  const source = JSON.parse(read('levels/official/world-1/1-1.json'));
+  engine.validateCustomLevel(source);
+  const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
+  const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  const level = levels.find(entry => entry.worldId === '1');
+  const { name, worldId, number, food, enemies, weapons, items, ...content } = level;
+  assert.equal(name, source.id);
+  assert.equal(number, '1');
+  assert.equal(level.id, 'official-1-1');
+  assert.deepEqual(content, { ...source, id: 'official-1-1', heartCost: Infinity });
+  assert.deepEqual([food, enemies, weapons, items], [[], [], [], []]);
+  assert.deepEqual(OFFICIAL_WORLDS[0].levels, { '1': source.id });
+  assert.equal(Object.hasOwn(OFFICIAL_LEVEL_DATA, 'Happy Meadows Starter'), false);
+
+  const { context } = browserFixture();
+  assert.equal(JSON.stringify(context.KoshiGame.LEVELS), JSON.stringify(levels));
+  context.Game = context.KoshiGame.Game;
+  const editor = read('src/editor.js');
+  vm.runInContext(editor.slice(editor.indexOf('function campaignPreview('), editor.indexOf('function syncAccess(')), context);
+  const preview = vm.runInContext('campaignPreview(0)', context);
+  assert.deepEqual(JSON.parse(JSON.stringify(preview.events)), [...source.events].sort((a, b) => a.time - b.time));
+  assert.equal(preview.heartCost, null);
+  assert.equal(preview.id, 'official-1-1');
+  assert.equal(preview.duration, 50);
+  assert.equal(preview.goal, 20);
+});
+
+test('Official 1-1 reproduces authored bricks and scheduled spawns in both board orientations', () => {
+  const source = JSON.parse(read('levels/official/world-1/1-1.json'));
+  const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
+  const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  for (const portrait of [false, true]) {
+    const game = new engine.Game(() => .5, { levels, level: 0, portrait });
+    const custom = new engine.Game(() => .5, { customLevel: source, portrait });
+    assert.deepEqual(game.bricks, custom.bricks);
+    assert.deepEqual(game.customEvents, custom.customEvents);
+    const points = source.events.filter(event => event.kind === 'food')
+      .reduce((sum, event) => sum + engine.FOODS[event.type].value * event.group.count, 0);
+    assert.equal(points, 30);
+    game.start();
+    assert.equal(game.items.length, 0);
+    assert.equal(game.nextCustom, 0, 'nothing spawns at time zero');
+    assert.equal(game.nextHeart, Infinity, 'heart purchases remain disabled');
+    for (const time of [5, 12, 15, 19, 25, 35, 40]) {
+      game.elapsed = time;
+      game.spawnCustomEvents();
+      const event = source.events.find(event => event.time === time);
+      if (event.kind === 'food') {
+        const spawned = game.food.filter(food => food.born === time);
+        assert.equal(spawned.length, event.group.count);
+        assert.ok(spawned.every(food => food.type === event.type && food.expires === time + 10));
+      }
+      assert.equal(game.items.filter(item => item.type === 'cat-block').length, time < 15 ? 0 : 1);
+    }
+    assert.equal(game.nextCustom, 7);
+    game.elapsed = 49;
+    game.score = 19;
+    game.update(.001);
+    assert.equal(game.state, 'playing', 'survival alone does not complete this level');
+    game.score = 20;
+    game.update(.001);
+    assert.equal(game.state, 'won');
+    const expired = new engine.Game(() => .5, { levels, level: 0, portrait });
+    expired.start();
+    expired.elapsed = 49.999;
+    expired.update(.001);
+    assert.equal(expired.state, 'lost', 'missing the food goal loses at 50 seconds');
+  }
 });
 
 test('numbered Official starters each have the matching Hello world cutscene', () => {
@@ -204,6 +276,7 @@ test('numbered Official starters each have the matching Hello world cutscene', (
     'alpine-litterbox', 'yarnball-moon', 'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
   const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
   for (const [index, theme] of themes.entries()) {
+    if (index === 0) continue;
     const level = levels.find(entry => entry.worldId === String(index + 1));
     assert.ok(level);
     assert.deepEqual(level.cutscene, {
@@ -223,7 +296,7 @@ test('Official world mappings cannot accidentally pull levels from the Beta data
   assert.throws(() => campaign.assembleCampaign(campaign.OFFICIAL_LEVEL_DATA), /Unknown level data/);
 });
 
-test('Official map keeps the octagon and Cat Town hub while playable worlds have temporary starters', () => {
+test('Official map keeps the octagon, Cat Town hub, and remaining temporary starters', () => {
   const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
   const find = id => OFFICIAL_WORLDS.find(world => world.id === id);
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -234,7 +307,7 @@ test('Official map keeps the octagon and Cat Town hub while playable worlds have
   assert.equal(OFFICIAL_WORLDS.length, 18);
   const officialLevels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
   assert.equal(officialLevels.length, 17);
-  assert.ok(officialLevels.every(level => level.number === '1' && level.duration === 10
+  assert.ok(officialLevels.filter(level => level.worldId !== '1').every(level => level.number === '1' && level.duration === 10
     && level.survive && level.items.length === 1 && level.items[0][0] === 0
     && level.items[0][1] === 'cat-block'));
   const side = distance(find('1').mapPosition, find('2').mapPosition);
@@ -251,7 +324,7 @@ test('Official map keeps the octagon and Cat Town hub while playable worlds have
     close(distance(world.mapPosition, following.mapPosition), side);
     close(distance(special.mapPosition, world.mapPosition), distance(special.mapPosition, following.mapPosition));
     assert.ok(distance(special.mapPosition, center) > 27);
-    assert.deepEqual(world.levels, { '1': `${world.name} Starter` });
+    assert.deepEqual(world.levels, { '1': i === 1 ? "Beginner's Breakfast" : `${world.name} Starter` });
     assert.deepEqual(special.levels, { '1': `${special.name} Starter` });
   }
   const town = find('C').mapPosition, first = find('1').mapPosition;

@@ -44,8 +44,9 @@ test('information schema checks exact page, text and artwork limits and rejects 
 
 function runtime(custom = false, storage = new Map()) {
   const nodes = new Map();
-  function node() {
+  function node(tagName) {
     return {
+      tagName,
       open: false, hidden: false, textContent: '', disabled: false, scrollTop: 0, children: [],
       append(...children) { this.children.push(...children); },
       replaceChildren(...children) { this.children = children; },
@@ -170,7 +171,10 @@ test('tips layout uses labelled compact arrows, a separate Close button and a gr
   assert.match(html, /aria-label="Previous page">&#8592;/);
   assert.match(html, /aria-label="Next page">&#8594;/);
   assert.match(html, /id="level-info-close" type="button">Close/);
-  assert.match(css, /#level-info-replay \{[^}]*background: #3d5c27; color: #fff;/);
+  assert.match(css, /#level-info-replay \{[^}]*background: #304438; color: #c0ccc2;/);
+  assert.match(css, /#level-info-replay:hover \{ background: #3a5142; \}/);
+  assert.match(css, /\.stat strong\.win-target, \.stat strong\.win-target span, \.briefing-conditions \{ color: #ffd36a; \}/);
+  assert.match(css, /\.briefing-conditions \{[^}]*font-weight: 700;/);
   assert.match(css, /\.level-info-navigation \{ grid-column: 2;/);
   assert.match(css, /#level-info-close \{ grid-column: 3; justify-self: end;/);
 });
@@ -215,6 +219,107 @@ test('opening order is cutscene, information, objectives and direct links share 
 });
 
 const editorSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+
+test('tips keep the title focused without a browser outline and break every steering caption after Brick', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(css, /#level-info-title:focus\s*\{\s*outline:\s*none;\s*\}/);
+  const { context, get } = runtime(true);
+  context.game.level.levelInfo = { pages: [{
+    title: 'Steering colors', text: 'Choose a color.',
+    graphics: ['brick:slow', 'brick:normal', 'brick:fast', 'slime:blue'],
+  }] };
+  context.showLevelInformation();
+  assert.equal(get('#level-info-title').focused, true);
+  const figures = get('#level-info-graphics').children;
+  for (const [index, color] of ['Blue', 'Green', 'Red'].entries()) {
+    const caption = figures[index].children[1];
+    assert.equal(caption.children[0], `${color} Steering Brick`);
+    assert.equal(caption.children[1].tagName, 'br');
+    assert.equal(caption.children.length, 3);
+    assert.match(caption.children[2], /^\((slow|normal|fast), \d+s cooldown\)$/);
+    assert.equal(figures[index].children[0].label, INFO_GRAPHICS[['brick:slow', 'brick:normal', 'brick:fast'][index]]);
+  }
+  assert.equal(figures[3].children[1].textContent, 'Blue Slime');
+  assert.equal(figures[3].children[1].children.length, 0);
+  assert.match(source, /title\.focus\(\{ preventScroll: true \}\)/);
+});
+
+test('information lists separate steering, slime, bubble, and paintbrush colors using compatible IDs', () => {
+  const groups = [
+    ['brick:slow', 'brick:normal', 'brick:fast'],
+    ['slime:blue', 'slime:green', 'slime:red'],
+    ['object:bubble-blue', 'object:bubble-green', 'object:bubble-red'],
+    ...['pencil', 'wide', 'roller'].map(brush => ['blue', 'green', 'red'].map(color => `item:paint-${brush}-${color}`)),
+  ];
+  for (const ids of groups) {
+    const level = validateCustomLevel({ ...blank(), levelInfo: { pages: [{
+      title: 'Colors', text: 'Compare each color.', graphics: ids,
+    }] } });
+    assert.deepEqual(level.levelInfo.pages[0].graphics, ids);
+    assert.equal(new Set(ids.map(id => INFO_GRAPHICS[id])).size, 3);
+    for (const [index, color] of ['Blue', 'Green', 'Red'].entries()) {
+      assert.ok(INFO_GRAPHICS[ids[index]].includes(color));
+    }
+    const { context, get } = runtime(true);
+    context.game.level.levelInfo = level.levelInfo;
+    context.showLevelInformation();
+    assert.deepEqual(Array.from(get('#level-info-graphics').children, figure => figure.children[0].id), ids);
+  }
+  for (const id of groups[0]) assert.match(INFO_GRAPHICS[id], /Steering Brick/);
+});
+
+test('editor information selector preserves all color variants and previews steering and slime as bricks', () => {
+  const selected = ['brick:slow', 'brick:normal', 'brick:fast', 'slime:blue', 'slime:green', 'slime:red'];
+  const nodes = [];
+  const node = () => ({
+    children: [], listeners: {},
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+    addEventListener(type, listener) { this.listeners[type] = listener; },
+    get selectedOptions() { return this.children.filter(child => child.selected); },
+  });
+  const pages = node(), pictures = [];
+  const context = {
+    INFO_GRAPHICS, COOLDOWNS: require('../src/game.js').COOLDOWNS,
+    document: { createElement() { const element = node(); nodes.push(element); return element; } },
+    $: () => pages,
+    picture(value, control) { const image = { value, control }; pictures.push(image); return image; },
+  };
+  vm.createContext(context);
+  vm.runInContext(editorSource.slice(editorSource.indexOf('function addInfoPage('), editorSource.indexOf('function populateLevelInfo(')), context);
+  context.addInfoPage({ title: 'Colors', text: 'Compare.', graphics: selected });
+  const select = nodes.find(element => element.className === 'info-graphics-select');
+  assert.deepEqual(select.children.map(option => option.value), Object.keys(INFO_GRAPHICS));
+  assert.deepEqual(select.selectedOptions.map(option => option.value), Object.keys(INFO_GRAPHICS).filter(id => selected.includes(id)));
+  assert.deepEqual(pictures.map(({ control }) => control), [
+    'info-slime', 'info-slime', 'info-slime', 'info-steering', 'info-steering', 'info-steering',
+  ]);
+});
+
+test('editor steering and slime previews retain their kind and distinct slime colors', () => {
+  const node = () => ({
+    children: [], style: {}, attributes: {}, classList: { add() {} },
+    append(child) { this.children.push(child); },
+    setAttribute(name, value) { this.attributes[name] = value; },
+  });
+  const { SLIMES, brickSlime } = require('../src/game.js');
+  const context = {
+    document: { createElement: node, createElementNS: node },
+    COLORS: { slow: '#7eacdb', normal: '#83bca1', fast: '#df8c81' }, SLIMES, brickSlime,
+  };
+  vm.createContext(context);
+  vm.runInContext(editorSource.slice(editorSource.indexOf('function picture('), editorSource.indexOf('\nfunction ', editorSource.indexOf('function picture(') + 1)), context);
+  for (const kind of ['slow', 'normal', 'fast']) {
+    assert.equal(context.picture(kind, 'info-steering').style.backgroundColor, context.COLORS[kind]);
+  }
+  for (const color of ['blue', 'green', 'red']) {
+    const image = context.picture(color, 'info-slime'), path = image.children[0].children[0];
+    assert.equal(image.style.backgroundColor, context.COLORS.normal);
+    assert.equal(path.style.fill, SLIMES[color].color);
+    assert.match(path.attributes.d, /^M/);
+    assert.doesNotMatch(path.attributes.d, /NaN|Infinity/);
+  }
+});
 
 test('editor applies validated information, removes it when disabled, and blocks invalid or read-only writes', () => {
   const handlers = new Map();

@@ -694,9 +694,27 @@ function levelBriefingText(level) {
 }
 
 function renderLevelBriefing(container, level, catBlockCollected = false) {
-  const conditions = document.createElement('p');
+  const conditions = document.createElement('div');
   conditions.className = 'briefing-conditions';
-  conditions.textContent = levelBriefingText(level);
+  const heading = document.createElement('p');
+  heading.textContent = 'VICTORY CONDITIONS:';
+  conditions.append(heading);
+  const { objectiveTargets, collectibleHint, hintActivator } = globalThis.KoshiWorldMap;
+  const targets = objectiveTargets(level);
+  const activateHint = hintActivator();
+  const lines = levelBriefingText(level).split('\n').slice(1);
+  const briefingTargets = level.survive ? targets.slice(0, 1)
+    : level.bossLevel ? targets.filter(target => target.value === 'BOSS') : targets.slice(1);
+  for (const [index, target] of briefingTargets.entries()) {
+    const row = document.createElement('div');
+    row.className = 'briefing-objective';
+    const button = document.createElement('button');
+    button.className = 'briefing-objective-button';
+    button.textContent = lines[index];
+    button.setAttribute('aria-label', target.label);
+    row.append(button, collectibleHint(button, `briefing-objective-description-${index}`, target.label, activateHint));
+    conditions.append(row);
+  }
   container.replaceChildren(conditions);
   if (level.catBlock && !catBlockCollected) {
     const section = document.createElement('div');
@@ -1127,7 +1145,10 @@ function renderLevelInfoPage() {
   document.querySelector('#level-info-text').textContent = page.text;
   const graphics = page.graphics.map(id => {
     const figure = document.createElement('figure'), caption = document.createElement('figcaption');
-    caption.textContent = INFO_GRAPHICS[id];
+    if (['brick:slow', 'brick:normal', 'brick:fast'].includes(id)) {
+      const [name, details] = INFO_GRAPHICS[id].split(' (');
+      caption.append(name, document.createElement('br'), `(${details}`);
+    } else caption.textContent = INFO_GRAPHICS[id];
     figure.append(guidePicture(id, INFO_GRAPHICS[id]), caption);
     return figure;
   });
