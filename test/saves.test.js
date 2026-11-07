@@ -180,7 +180,7 @@ test('legacy completions stay valid without fabricated statistics', () => {
     const result = { levelId: levelIds[0], time: 10, food: 25, enemy: 3, goals: 2, moves: 8 };
     const failed = {
       loss: { ...result, outcome: 'lost', time: 1, food: 999, enemy: 999, goals: 999, moves: 1 },
-      quit: { ...result, outcome: 'quit', time: 2, food: 1000, enemy: 1000, goals: 1000, moves: 0 },
+      quit: { ...result, outcome: 'quit', time: 6, food: 1000, enemy: 1000, goals: 1000, moves: 0 },
       checkpoint: { ...result, outcome: 'quit', inProgress: true, food: 2000, enemy: 2000, goals: 2000 },
     };
     const stats = levelStats(failed, levelIds[0]);
@@ -273,11 +273,11 @@ test('malformed saved attempt data is reported and left untouched', () => {
 
 test('provisional quits survive abrupt closure and are replaced, not duplicated, by final outcomes', () => {
   const { saves, storage } = fixture(), slot = saves.create(0, 'Player');
-  const pending = { levelId: levelIds[0], outcome: 'quit', time: 0, food: 0, enemy: 0, inProgress: true };
+  const pending = { levelId: levelIds[0], outcome: 'quit', time: 6, food: 0, enemy: 0, inProgress: true };
   saves.record(0, slot.id, 'closed', pending);
   const reloaded = new SaveSlots(levelIds, () => storage);
   assert.equal(levelStats(reloaded.load()[0].results, levelIds[0]).quits, 1, 'no shutdown callback is required');
-  saves.record(0, slot.id, 'closed', { ...pending, time: 4, food: 8 });
+  saves.record(0, slot.id, 'closed', { ...pending, time: 7, food: 8 });
   assert.equal(levelStats(saves.load()[0].results, levelIds[0]).quits, 1, 'checkpointing does not add attempts');
   assert.throws(() => saves.record(0, slot.id, 'closed', { ...pending, levelId: levelIds[1] }), /different saved result/);
   for (const [id, outcome] of [['won', 'won'], ['lost', 'lost'], ['quit', 'quit']]) {
@@ -295,6 +295,26 @@ test('provisional quits survive abrupt closure and are replaced, not duplicated,
   assert.equal(stats.lossPercent, 25);
   assert.deepEqual(reloaded.load()[0].completed, [levelIds[0]]);
   assert.equal(levelStats({ win: { levelId: levelIds[0], outcome: 'won', time: 1, food: 0, enemy: 0 } }, levelIds[0]).winPercent, 100);
+});
+
+test('only quits after five seconds count, including saved checkpoints and historical results', () => {
+  const result = { levelId: levelIds[0], time: 0, food: 0, enemy: 0 };
+  const results = {
+    quickQuit: { ...result, outcome: 'quit', time: 4.99 },
+    boundaryQuit: { ...result, outcome: 'quit', time: 5 },
+    quickCheckpoint: { ...result, outcome: 'quit', time: 5, inProgress: true },
+    longerQuit: { ...result, outcome: 'quit', time: 5.001 },
+    longerCheckpoint: { ...result, outcome: 'quit', time: 6, inProgress: true },
+    quickWin: { ...result, outcome: 'won', time: 1 },
+    quickLoss: { ...result, outcome: 'lost', time: 1 },
+  };
+  const stats = levelStats(results, levelIds[0]);
+  assert.equal(stats.wins, 1);
+  assert.equal(stats.losses, 1);
+  assert.equal(stats.quits, 2);
+  assert.equal(stats.winPercent, 25);
+  assert.equal(stats.lossPercent, 25);
+  assert.equal(levelStats({ quickQuit: results.quickQuit }, levelIds[0]).winPercent, null);
 });
 
 function uiFixture() {
@@ -434,6 +454,30 @@ test('UI checkpoints, quits, wins and losses reuse one attempt without counting 
       assert.equal(summary.previousStats.mostFood, null, 'the current checkpoint is not a previous record');
     }
   }
+});
+
+test('crossing the five-second threshold checkpoints once for abrupt termination', () => {
+  const { context, saves } = uiFixture(), slot = saves.create(0, 'Player');
+  context.activeSave = { index: 0, slot };
+  context.runSave = { index: 0, id: slot.id };
+  context.game.state = 'playing';
+  context.game.elapsed = 4;
+  context.game.update = seconds => { context.game.elapsed += seconds; };
+  context.checkpointAttempt();
+  Object.assign(context, {
+    lastTime: 0, phaseTransition: { busy: false }, cutscene: { active: false },
+    updateEnding() {}, recordCatBlockFinds() {}, syncUI() {}, render() {}, requestAnimationFrame() {},
+  });
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf('function frame(timestamp)'), source.indexOf('\ngame = createGame();')), context);
+  context.frame(1000);
+  assert.equal(levelStats(saves.load()[0].results, levelIds[0]).quits, 0);
+  context.frame(1001);
+  const saved = saves.load()[0].results['attempt-1'];
+  assert.ok(saved.time > 5);
+  assert.equal(levelStats({ saved }, levelIds[0]).quits, 1);
+  context.frame(2000);
+  assert.equal(saves.load()[0].results['attempt-1'].time, saved.time);
 });
 
 test('failed final writes retain the provisional quit and can retry the same outcome exactly once', () => {
@@ -642,7 +686,7 @@ test('starting campaign play queues last-played persistence and storage failures
   context.flushSaves();
   assert.equal(context.pendingSaves.length, 0);
   assert.equal(saves.load()[0].lastPlayed, levelIds[12]);
-  assert.equal(levelStats(saves.load()[0].results, levelIds[12]).quits, 1);
+  assert.equal(levelStats(saves.load()[0].results, levelIds[12]).quits, 0);
 });
 
 test('unrecoverable pending wins can be discarded only with confirmation', () => {

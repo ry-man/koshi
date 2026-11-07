@@ -64,8 +64,10 @@ detail panel and centers the map.
 Click a level to move Koshi and see its number, name, objectives, time limit,
 Boom Helmet activation limit when applicable, fastest winning time, fewest moves, highest food
 and enemy points, win/loss/quit totals, and win percentage (wins divided by all
-attempts, including quits; N/A before any attempts). Objectives use food, enemy and soccer-goal icons
-with their numerical targets, or just a clock for survival. Small labeled illustrations
+counted attempts, including quits after more than five seconds of play; N/A before any counted attempts).
+Boss levels have skull-shaped stops. Objectives use food, enemy and soccer-goal icons
+with their numerical targets, or just a clock for survival. Select an objective icon
+to see its explanation. Small labeled illustrations
 show the enemies, blocks, foods, weapons and items actually included, including
 spawner contents. Each level detail shows a gold star at the top right when any
 win was completed without taking damage; otherwise it shows the empty outline.
@@ -183,7 +185,8 @@ suggests them.
 
 Every started attempt autosaves to the selected slot as a provisional quit,
 replaced by a win or loss when play finishes; only wins mark levels complete.
-This records quits even if the app is closed or terminated without an exit event.
+The checkpoint counts as a quit only after more than five seconds of play, even if
+the app is closed or terminated without an exit event.
 Replaying an earlier
 level never removes progress; choosing levels out of order still records each
 completed level separately. Failed attempts and restarting do not erase wins.
@@ -194,7 +197,8 @@ continued or created slot is remembered for the title's **Continue as**
 button; if that slot was deleted (or older saves have no record), the first
 occupied slot is used instead. Custom levels and tutorials never change
 campaign saves. Quitting, restarting or leaving a started level before a result
-counts as one quit, not a loss. Briefings and cutscenes do not start an attempt.
+counts as one quit, not a loss, only after more than five seconds of play.
+This rule also applies to previously recorded attempts. Briefings and cutscenes do not start an attempt.
 Pausing or temporarily backgrounding the app does not end an attempt; resumed
 play replaces the same provisional quit. Guest statistics are kept only for the current page visit.
 All records use successful completions only: fastest time, highest food,
@@ -253,7 +257,7 @@ The objectives practice challenge uses real victory rules: collect one food and
 defeat one robot. Finish tutorial returns to the title.
 
 The open-doorway **Exit level** button in the game toolbar pauses play and asks
-whether to quit and return to the world map. **End Level** records a quit for a started attempt
+whether to quit and return to the world map. **End Level** counts a quit after more than five seconds of play
 and opens the world map; **Cancel** (or Escape) returns to the paused game.
 Leaving a tutorial discards its practice arena and restores the selected normal
 or custom level to a fresh ready state. Practice never modifies campaign levels
@@ -682,6 +686,12 @@ authored level content are unchanged.
 ## Graphical level editor
 
 Open [editor.html](./editor.html), or choose **Open level editor** in the game.
+The level settings show a live available-points reference for food, enemies and
+soccer goals. It counts scheduled placements (including groups and enemy shield
+values) and one spawn from each active spawning brick. Batteries and Ditto
+Stamps can produce additional spawns, so the reference flags those possibilities
+rather than claiming a fixed maximum. Actual scores depend on gameplay, and
+scoring soccer balls requires goal bricks.
 The **Level** library lists every built-in game level for read-only inspection.
 Select bricks and scheduled events, scrub the timeline, switch layouts, or read
 the cutscene. Spawn locations are deterministic examples of the game's randomized

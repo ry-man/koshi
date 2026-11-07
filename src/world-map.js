@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { LEVELS, levelObjective, catBlockObjective } = globalThis.KoshiGame;
+const { LEVELS, catBlockObjective } = globalThis.KoshiGame;
 const { WORLDS, worldLevels, levelFeatures, nextLevelIndex } = globalThis.KoshiWorlds;
 const { levelStats } = globalThis.KoshiSaves;
 const { catBlockIcon, goldStarIcon, collectibleTotals } = globalThis.KoshiCollectibles;
@@ -33,6 +33,11 @@ function collectibleHint(button, id, text, activate) {
     if (event.key === 'Escape') { pinned = false; reveal(false); }
   });
   return description;
+}
+
+function hintActivator() {
+  let hideHint;
+  return hide => { if (hideHint !== hide) hideHint?.(); hideHint = hide; };
 }
 
 class WorldMap {
@@ -137,6 +142,7 @@ class WorldMap {
       const row = Math.floor(i / 4), column = row % 2 ? 3 - i % 4 : i % 4;
       return { id: level.id, label: level.number, x: 12 + column * 25,
         y: (row * 100 + 80) / height * 100, theme: world.theme,
+        boss: level.bossLevel,
         subtitle: level === departure ? `From World ${level.worldId}` : null,
         completed: profile?.completed.includes(level.id),
         goldStar: levelStats(profile?.results, level.id).goldStar,
@@ -165,36 +171,38 @@ class WorldMap {
     if (next !== -1) this.selectLevel(destination);
     this.map.querySelector('[aria-pressed="true"]').focus({ preventScroll: true });
   }
-  objectives(level) {
-    const objective = document.createElement('p');
-    objective.className = 'map-objectives';
+  objectives(level, activateHint = hintActivator()) {
+    const objective = document.createElement('div'), row = document.createElement('div');
+    objective.className = 'map-objectives-container';
+    row.className = 'map-objectives';
     objective.setAttribute('role', 'group');
     objective.setAttribute('aria-label', 'Time limit and win objectives');
-    objective.title = levelObjective(level);
-    const timeLabel = level.bossLevel ? 'No time limit' : level.survive ? `Survive for ${level.duration}s` : `Time limit: ${level.duration}s`;
+    const timeLabel = level.bossLevel ? 'No time limit' : level.survive
+      ? `Survive for ${level.duration} seconds` : `Achieve win objective(s) in ${level.duration} seconds`;
     const targets = [
       { symbol: '🕒', value: level.bossLevel ? '∞' : `${level.duration}s`, label: timeLabel },
-      ...(level.bossLevel ? [{ symbol: '👾', value: 'BOSS', label: 'Defeat Tom the Toaster with 6 Boost hits' }] : []),
+      ...(level.bossLevel ? [{ symbol: '👾', value: 'BOSS', label: 'Defeat the boss' }] : []),
       ...(level.survive ? [] : [
         { symbol: '🍗', target: level.goal, name: 'food points' },
         { symbol: '👾', target: level.killGoal, name: 'enemy points' },
         { symbol: '⚽', target: level.goalsGoal, name: 'soccer goals' },
       ].filter(({ target }) => target > 0).map(({ symbol, target, name }) => ({
-        symbol, value: String(target), label: `${target} ${name}`,
+        symbol, value: String(target), label: `Get ${target} ${name}`,
       }))),
     ];
-    for (const { symbol, value, label } of targets) {
-      const badge = document.createElement('span'), icon = document.createElement('span');
+    objective.append(row);
+    for (const [index, { symbol, value, label }] of targets.entries()) {
+      const badge = document.createElement('button'), icon = document.createElement('span');
       badge.className = 'map-objective';
-      badge.title = label;
-      badge.setAttribute('aria-label', badge.title);
+      badge.setAttribute('aria-label', label);
       icon.textContent = symbol;
       icon.setAttribute('aria-hidden', 'true');
       badge.append(icon);
       const count = document.createElement('strong');
       count.textContent = value;
       badge.append(count);
-      objective.append(badge);
+      row.append(badge);
+      objective.append(collectibleHint(badge, `map-objective-description-${index}`, label, activateHint));
     }
     return objective;
   }
@@ -204,10 +212,9 @@ class WorldMap {
     this.setCutsceneOption(level);
     this.details.replaceChildren();
     this.details.scrollTop = 0;
-    let hideHint;
-    const activateHint = hide => { if (hideHint !== hide) hideHint?.(); hideHint = hide; };
+    const activateHint = hintActivator();
     const heading = document.createElement('header'), title = document.createElement('h3');
-    const objective = this.objectives(level), stats = document.createElement('dl');
+    const objective = this.objectives(level, activateHint), stats = document.createElement('dl');
     heading.className = 'map-level-heading';
     title.textContent = `Level ${level.number} - ${level.name}`;
     const profile = this.profile(), result = levelStats(profile?.results, level.id);
@@ -294,16 +301,10 @@ class WorldMap {
     const featureSection = document.createElement('section');
     featureSection.className = 'map-feature-section';
     featureSection.append(featureHeading, featureGroups);
-    const note = profile?.guest ? null : document.createElement('p');
-    if (note) {
-      note.className = 'map-note';
-      note.textContent = 'Every started attempt counts as a win, loss or quit. Win percentage is wins divided by all attempts. Earlier saved completions have no recorded statistics.';
-    }
     if (catBlockDescription) heading.append(catBlockDescription);
     heading.append(starDescription);
     this.details.append(heading);
     this.details.append(objective, stats);
-    if (note) this.details.append(note);
     this.details.append(featureSection);
   }
   setCutsceneOption(level) {
@@ -331,6 +332,7 @@ class WorldMap {
     for (const node of nodes) {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'map-node';
+      if (node.boss) button.classList.add('map-node-boss');
       button.dataset.node = node.id; button.dataset.theme = node.theme;
       button.style.left = `${node.x}%`; button.style.top = `${node.y}%`;
       button.setAttribute('aria-pressed', 'false');
@@ -339,8 +341,22 @@ class WorldMap {
         node.worldProgress.goldStars} of ${node.worldProgress.totalGoldStars} gold stars earned, ${
         node.worldProgress.catBlocks} of ${node.worldProgress.totalCatBlocks} Cat Blocks found` : '';
       button.setAttribute('aria-label', `${node.label}${node.subtitle ? ` - ${node.subtitle}` : ''}${
-        worldNode ? worldStatus : `${node.completed ? ', completed' : ''}${node.goldStar ? ', gold star earned' : ''}${
+        worldNode ? worldStatus : `${node.boss ? ', boss level' : ''}${node.completed ? ', completed' : ''}${node.goldStar ? ', gold star earned' : ''}${
           node.catBlock ? `, Cat Block available${node.catBlockFound ? ', found' : ''}` : ''}`}`);
+      if (node.boss) {
+        const skull = document.createElementNS(ns, 'svg');
+        skull.setAttribute('viewBox', '0 0 80 76'); skull.setAttribute('aria-hidden', 'true');
+        skull.classList.add('map-boss-skull');
+        const outline = document.createElementNS(ns, 'path');
+        outline.setAttribute('d', 'M40 3C20 3 8 15 8 31C8 36 9 40 10 43C6 49 6 55 10 58C13 61 17 61 21 62C24 63 23 68 25 70C27 73 32 73 34 70C36 74 41 74 43 70C45 74 50 74 52 70C55 73 60 73 62 70C64 68 63 63 66 62C70 61 74 61 76 58C80 54 78 48 74 43C76 39 76 35 76 31C76 15 62 3 40 3Z');
+        const eyes = document.createElementNS(ns, 'path');
+        eyes.setAttribute('d', 'M16 48C16 44 19 42 23 42C27 42 29 45 29 49C29 53 26 55 22 55C18 55 16 52 16 48ZM51 49C51 45 53 42 57 42C61 42 64 44 64 48C64 52 62 55 58 55C54 55 51 53 51 49Z');
+        eyes.classList.add('map-boss-eyes');
+        const nose = document.createElementNS(ns, 'path');
+        nose.setAttribute('d', 'M40 54C38 54 35 59 35 61C35 63 38 63 40 62C42 63 45 63 45 61C45 59 42 54 40 54Z');
+        nose.classList.add('map-boss-eyes');
+        skull.append(outline, eyes, nose); button.append(skull);
+      }
       const name = document.createElement('strong'); name.textContent = node.label;
       button.append(name);
       if (node.subtitle && this.view === 'worlds') {

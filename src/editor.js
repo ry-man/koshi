@@ -767,6 +767,7 @@ function renderBoard() {
   syncTool();
   previewGame = new Game(Math.random, { portrait, scale: portrait ? screenWidth / 600 : 1,
     ...(readOnly() ? { level: campaignIndex } : { customLevel: level }), editorPreview: true });
+  renderPointReference(level.events, previewGame.bricks);
   board.style.width = `${screenWidth * previewGame.width / previewGame.viewportWidth}px`;
   board.style.height = `${screenHeight * previewGame.height / previewGame.viewportHeight}px`;
   board.style.aspectRatio = 'auto';
@@ -1003,6 +1004,31 @@ function renderBoard() {
     markers.append(marker);
   });
   syncAccess();
+}
+
+function pointReference(events, bricks) {
+  const spawns = bricks.filter(brick => brick.absorbedBy === null && brick.spawner).map(brick => brick.spawner);
+  const totals = { food: 0, enemy: 0, soccer: 0 };
+  for (const source of [...events, ...spawns]) {
+    const count = source.group?.count ?? 1;
+    if (source.kind === 'food') totals.food += FOODS[source.type].value * count;
+    if (source.kind === 'enemy') totals.enemy += (source.shield ? SHIELDS[source.shield].hits : 1) * count;
+    if (source.kind === 'object' && source.type === 'soccer-ball') totals.soccer += count;
+  }
+  const scoringSpawner = spawns.some(source => source.kind === 'food' || source.kind === 'enemy'
+    || (source.kind === 'object' && source.type === 'soccer-ball'));
+  const extra = scoringSpawner && [...events, ...spawns].some(source =>
+    source.kind === 'item' && ['battery', 'ditto-stamp'].includes(source.type));
+  return { ...totals, extra };
+}
+
+function renderPointReference(events, bricks) {
+  const totals = pointReference(events, bricks);
+  for (const kind of ['food', 'enemy', 'soccer']) {
+    const output = $(`#available-${kind}`), value = String(totals[kind]);
+    if (output.textContent !== value) output.textContent = value;
+  }
+  $('#point-reference-extra').hidden = !totals.extra;
 }
 
 function render() {

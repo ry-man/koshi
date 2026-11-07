@@ -17,6 +17,7 @@ test('World Select shares the bottom action bar and styling with the level menu 
   const picker = html.slice(html.indexOf('<dialog id="level-picker"'), html.indexOf('<dialog id="save-slots"'));
   const actions = picker.slice(picker.indexOf('<div class="save-actions">'));
   assert.doesNotMatch(picker, /Click a world to move Koshi/);
+  assert.doesNotMatch(picker, /Waving flags mark completed stops/);
   assert.match(actions, /id="world-map-back" class="title-secondary"[\s\S]*id="level-picker-close" class="title-secondary"/);
   assert.match(actions, /id="world-map-back"[^>]*>World Select<\/button>/);
   assert.match(actions, /id="skip-cutscene-option"[^>]*>[\s\S]*id="skip-cutscene" type="checkbox"[\s\S]*Skip cutscene/);
@@ -28,6 +29,7 @@ test('phone world map uses the full screen and does not reserve a hidden details
   const phoneRules = css.slice(css.indexOf('@media (max-width: 760px) {'));
   assert.match(phoneRules, /\.world-picker\s*\{[^}]*width:\s*100vw;[^}]*height:\s*100dvh;[^}]*max-height:\s*100dvh;[^}]*margin:\s*0;/);
   assert.match(phoneRules, /\.map-layout\[data-view="worlds"\]\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/);
+  assert.match(css, /\.world-picker\[open\]\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;/);
 });
 
 test('worlds partition all 62 campaign identities into themed groups of 10, 25, 14, 12 and 1', () => {
@@ -314,6 +316,7 @@ test('details show saved outcome statistics, no fabricated legacy bests, and hel
   assert.equal(map.details.children[0].children[1].children[0].children[0].getAttribute('fill'), 'none');
   assert.equal(map.details.children[0].children[1].getAttribute('aria-label'), 'Gold star not earned: complete without taking damage');
   assert.doesNotMatch(details, /Win \/ loss percentages|50\.0% \/ /);
+  assert.doesNotMatch(details, /Every started attempt|wins divided by all attempts/);
   assert.match(details, /Fewest moves\s+7\b/);
   assert.ok(!details.includes('Moves to beat'));
   map.selectLevel(LEVELS[1]); details = text(map.details);
@@ -416,6 +419,14 @@ test('Cat Block hints are available beside the star on touch and hover, and the 
   star.listeners.click();
   star.listeners.keydown({ key: 'Escape' });
   assert.equal(starDescription.hidden, true);
+  const objectiveButton = map.details.children[1].children[0].children[0];
+  const objectiveDescription = map.details.children[1].children[1];
+  star.listeners.click();
+  objectiveButton.listeners.click();
+  assert.equal(starDescription.hidden, true);
+  assert.equal(objectiveDescription.hidden, false);
+  information.listeners.focus();
+  assert.equal(objectiveDescription.hidden, true);
   map.details.scrollTop = 100;
   map.selectLevel(levels[1]);
   assert.equal(map.details.scrollTop, 0);
@@ -510,21 +521,46 @@ test('world selection shows campaign collectible totals but level maps do not', 
   assert.equal(map.map.children.some(child => child.className === 'collectible-totals'), false);
 });
 
-test('map objectives use accessible icons and positive targets, or only a clock for survival', () => {
+test('map objectives provide accessible popovers for every target and survival or boss time', () => {
   const { map, text } = mapFixture();
   for (const [level, labels, display] of [
-    [{ goal: 20 }, ['Time limit: 60s', '20 food points'], '🕒 60s 🍗 20'],
-    [{ killGoal: 12 }, ['Time limit: 60s', '12 enemy points'], '🕒 60s 👾 12'],
-    [{ goalsGoal: 3 }, ['Time limit: 60s', '3 soccer goals'], '🕒 60s ⚽ 3'],
-    [{ goal: 5, killGoal: 2, goalsGoal: 1 }, ['Time limit: 60s', '5 food points', '2 enemy points', '1 soccer goals'], '🕒 60s 🍗 5 👾 2 ⚽ 1'],
-    [{ survive: true }, ['Survive for 60s'], '🕒 60s'],
+    [{ goal: 20 }, ['Achieve win objective(s) in 60 seconds', 'Get 20 food points'], '🕒 60s 🍗 20'],
+    [{ killGoal: 12 }, ['Achieve win objective(s) in 60 seconds', 'Get 12 enemy points'], '🕒 60s 👾 12'],
+    [{ goalsGoal: 3 }, ['Achieve win objective(s) in 60 seconds', 'Get 3 soccer goals'], '🕒 60s ⚽ 3'],
+    [{ goal: 5, killGoal: 2, goalsGoal: 1 }, ['Achieve win objective(s) in 60 seconds', 'Get 5 food points', 'Get 2 enemy points', 'Get 1 soccer goals'], '🕒 60s 🍗 5 👾 2 ⚽ 1'],
+    [{ survive: true }, ['Survive for 60 seconds'], '🕒 60s'],
+    [{ bossLevel: true }, ['No time limit', 'Defeat the boss'], '🕒 ∞ 👾 BOSS'],
   ]) {
     const objective = map.objectives({ duration: 60, goal: 0, killGoal: 0, goalsGoal: 0, ...level });
     assert.equal(objective.getAttribute('aria-label'), 'Time limit and win objectives');
-    assert.deepEqual(Array.from(objective.children, badge => badge.getAttribute('aria-label')), labels);
-    assert.equal(text(objective).trim().replace(/\s+/g, ' '), display);
-    assert.ok(objective.children.every(badge => badge.children[0].getAttribute('aria-hidden') === 'true'));
+    const badges = objective.children[0].children;
+    assert.deepEqual(Array.from(badges, badge => badge.getAttribute('aria-label')), labels);
+    assert.equal(text(objective.children[0]).trim().replace(/\s+/g, ' '), display);
+    badges.forEach((badge, index) => {
+      const description = objective.children[index + 1];
+      assert.equal(badge.type, 'button');
+      assert.equal(badge.children[0].getAttribute('aria-hidden'), 'true');
+      assert.equal(badge.getAttribute('aria-controls'), description.id);
+      assert.equal(description.textContent, labels[index]);
+      badge.listeners.click();
+      assert.equal(description.hidden, false);
+      badge.listeners.keydown({ key: 'Escape' });
+      assert.equal(description.hidden, true);
+    });
   }
+});
+
+test('boss levels render a skull stop with an accessible boss label', () => {
+  const { map } = mapFixture();
+  map.open(); map.showWorld(WORLDS[1]);
+  const nodes = map.map.querySelectorAll('.map-node');
+  const boss = nodes.find(node => node.dataset.node === LEVELS.find(level => level.bossLevel).id);
+  assert.match(boss.getAttribute('aria-label'), /boss level/);
+  const skull = boss.children.find(child => child.attributes?.viewBox === '0 0 80 76');
+  assert.ok(skull);
+  assert.equal(skull.children.length, 3, 'skull has an outline, eyes and nose');
+  assert.ok(nodes.filter(node => node !== boss).every(node =>
+    !node.children.some(child => child.attributes?.viewBox === '0 0 80 76')));
 });
 
 test('custom editor play remains available outside worlds and switching back restores world controls', () => {

@@ -4091,7 +4091,11 @@ function frame(timestamp) {
   const seconds = lastTime === null ? 0 : (timestamp - lastTime) / 1000;
   if (!phaseTransition.busy) {
     if (cutscene.active) cutscene.update(seconds);
-    else game.update(seconds);
+    else {
+      const previousElapsed = game.elapsed;
+      game.update(seconds);
+      if (game.state === 'playing' && previousElapsed <= 5 && game.elapsed > 5) checkpointAttempt();
+    }
     updateEnding(seconds);
   }
   recordCatBlockFinds();

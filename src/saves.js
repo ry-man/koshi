@@ -19,7 +19,8 @@ function validateResult(result, levelIds) {
 }
 
 function levelStats(results, levelId) {
-  const attempts = Object.values(results ?? {}).filter(result => result.levelId === levelId);
+  const attempts = Object.values(results ?? {}).filter(result => result.levelId === levelId
+    && (result.outcome !== 'quit' || result.time > 5));
   const wins = attempts.filter(result => result.outcome === 'won');
   const losses = attempts.filter(result => result.outcome === 'lost').length;
   const quits = attempts.filter(result => result.outcome === 'quit').length;

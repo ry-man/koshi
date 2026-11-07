@@ -1,12 +1,49 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, SHIELDS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
+
+test('point reference counts event groups, shield values and one spawn per active brick', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const nodes = new Map();
+  const context = vm.createContext({ FOODS, SHIELDS, $: selector => {
+    if (!nodes.has(selector)) nodes.set(selector, {});
+    return nodes.get(selector);
+  } });
+  vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
+  const events = [
+    { kind: 'food', type: 'H', group: { count: 3 } },
+    { kind: 'food', type: 'S' },
+    { kind: 'enemy', type: 'mouse', shield: 'blue', group: { count: 2 } },
+    { kind: 'enemy', type: 'boss' },
+    { kind: 'object', type: 'soccer-ball', group: { count: 4 } },
+    { kind: 'item', type: 'battery' },
+  ];
+  const bricks = [
+    { absorbedBy: null, spawner: { kind: 'food', type: 'L' } },
+    { absorbedBy: null, spawner: { kind: 'enemy', type: 'wheel', shield: 'green' } },
+    { absorbedBy: null, spawner: { kind: 'object', type: 'soccer-ball' } },
+    { absorbedBy: 1, spawner: { kind: 'food', type: 'H' } },
+    { absorbedBy: null, spawner: null },
+  ];
+  context.renderPointReference(events, bricks);
+  assert.equal(nodes.get('#available-food').textContent, '27');
+  assert.equal(nodes.get('#available-enemy').textContent, '12');
+  assert.equal(nodes.get('#available-soccer').textContent, '5');
+  assert.equal(nodes.get('#point-reference-extra').hidden, false);
+  context.renderPointReference([], []);
+  for (const kind of ['food', 'enemy', 'soccer']) assert.equal(nodes.get(`#available-${kind}`).textContent, '0');
+  assert.equal(nodes.get('#point-reference-extra').hidden, true);
+  context.renderPointReference([{ kind: 'item', type: 'ditto-stamp' }], bricks);
+  assert.equal(nodes.get('#point-reference-extra').hidden, false);
+  context.renderPointReference([{ kind: 'item', type: 'battery' }], [{ absorbedBy: null, spawner: { kind: 'heart', type: 'heart' } }]);
+  assert.equal(nodes.get('#point-reference-extra').hidden, true);
+});
 
 test('the event category pane contains its complete form and actions', () => {
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');

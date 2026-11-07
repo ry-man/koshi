@@ -76,7 +76,6 @@
       <header class="learning-heading">
         <h2 id="level-picker-heading">World map</h2>
       </header>
-      <p>Waving flags mark completed stops.</p>
       <div id="map-layout" class="map-layout">
         <div class="map-viewport"><div id="world-map" class="world-map" role="group" aria-label="Adventure map"></div></div>
         <section id="map-details" class="map-details" aria-live="polite" aria-atomic="true"></section>
@@ -130,7 +129,7 @@
     </dialog>
     <dialog id="exit-confirm" class="install-dialog exit-confirm" aria-labelledby="exit-confirm-heading" aria-describedby="exit-confirm-message">
       <h2 id="exit-confirm-heading">Quit this level?</h2>
-      <p id="exit-confirm-message">Do you really want to quit and return to the world map? An unfinished, started attempt will count as a quit.</p>
+      <p id="exit-confirm-message">Do you really want to quit and return to the world map? An unfinished attempt counts as a quit only after more than 5 seconds of play.</p>
       <div class="save-actions">
         <button id="exit-confirm-end" class="primary" type="button">End Level</button>
         <button id="exit-confirm-cancel" class="title-secondary" type="button">Cancel</button>

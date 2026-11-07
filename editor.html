@@ -62,6 +62,16 @@
           <button type="submit">Apply settings</button>
         </form>
         </fieldset>
+        <section class="point-reference" aria-labelledby="point-reference-heading">
+          <h2 id="point-reference-heading">Available points reference</h2>
+          <dl aria-live="polite">
+            <div><dt>Food points</dt><dd id="available-food">0</dd></div>
+            <div><dt>Enemy points</dt><dd id="available-enemy">0</dd></div>
+            <div><dt>Soccer goals</dt><dd id="available-soccer">0</dd></div>
+          </dl>
+          <p>Counts scheduled placements and one spawn per spawning brick, including groups and enemy shields. Actual scores depend on gameplay; soccer balls need goal bricks.</p>
+          <p id="point-reference-extra" hidden>Batteries or Ditto Stamps can produce additional spawns, so totals may be higher.</p>
+        </section>
       </section>
       <details class="editor-panel" aria-label="Pre-level cutscene">
         <summary>Optional story cutscene</summary>
