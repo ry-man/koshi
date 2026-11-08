@@ -94,9 +94,12 @@ test('browser engine uses the supplied world mappings and both entry points load
     const html = fs.readFileSync(path.join(root, file), 'utf8');
     assert.ok(html.indexOf('src="./src/campaign.js"') < html.indexOf('src="./src/game.js"'));
     assert.ok(html.includes('src="./src/campaign.js"'));
+    assert.ok(html.indexOf('src="./src/official-levels.generated.js"') < html.indexOf('src="./src/campaign.js"'));
+    assert.ok(html.includes('src="./src/official-levels.generated.js"'));
   }
   const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
   assert.ok(sw.includes("'./src/campaign.js'"));
+  assert.ok(sw.includes("'./src/official-levels.generated.js'"));
   const worlds = [{ id: 'bonus', next: [], levels: { 'bonus-1': 'Pancake trampoline' } }];
   const context = vm.createContext({ KoshiCampaign: {
     assembleCampaign: data => assembleCampaign(data, worlds),

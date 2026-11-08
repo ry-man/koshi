@@ -4,6 +4,8 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
+    "build": "node tools/build-official-levels.js",
+    "pretest": "npm run build",
     "test": "node --test",
     "start": "node tools/serve.js"
   }

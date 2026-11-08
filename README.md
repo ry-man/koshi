@@ -1,15 +1,17 @@
 # Koshi's Quest
 
 A browser arcade game starring Koshi, a grey tabby with a big appetite.
-Built with vanilla JavaScript, HTML, and Canvas. No build step or runtime
-dependencies are required. The initial implementation follows
+Built with vanilla JavaScript, HTML, and Canvas. No runtime dependencies are
+required; Official JSON levels are bundled using Node.js. The initial implementation follows
 [the game description](./game_description.md), with 49 main campaign levels across three worlds,
 12 optional challenge levels in World 3S, and an autoscroll showcase in World 4.
 
 ## Play locally
 
 Double-click [index.html](./index.html) to open the game directly in your browser.
-No server or installation is required.
+No server or installation is required to play the checked-in generated campaign.
+After changing Official JSON levels, use the local server below or run
+`npm run build` before opening the files directly.
 
 Alternatively, install Node.js 24 or newer, then run:
 
@@ -19,6 +21,62 @@ npm start
 
 Open <http://127.0.0.1:4173>. On Windows, use `npm.cmd start` if PowerShell
 blocks the npm script. Both direct `file://` access and HTTP hosting are supported.
+The server regenerates the Official bundle at startup and on game/editor page
+refresh, so edits to published JSON files appear without restarting it.
+
+## Publishing Official levels
+
+1. Export a level from the editor to `levels/official/`, usually under its world
+   folder, for example `world-1/1-2.json`.
+2. Add an entry to [campaign.json](./levels/official/campaign.json):
+
+   ```json
+   {
+     "file": "world-1/1-2.json",
+     "worldId": "1",
+     "number": "2",
+     "id": "official-1-2"
+   }
+   ```
+
+3. Refresh the game or editor served by `npm start`. Existing manifest entries
+   need no changes when you edit their JSON content.
+4. Run `npm test`, then commit and push the JSON, manifest, and regenerated
+   bundle to publish. GitHub Pages runs generation and validation before testing
+   and deploying, including the bundle in the offline cache.
+
+Only manifest-listed files are published; other JSON exports remain drafts.
+Paths are relative to `levels/official/` and use `/` separators. `worldId` must
+identify a playable Official world (for example `1`, `S1`, or `9`).
+`number` is the displayed level number within that world, stored as a string.
+The JSON's `id` is the editor's level name; the manifest's `id` is the permanent
+save identity. Keep that permanent ID unchanged when renaming or moving a level,
+and update only `file` when moving its JSON. Level names, permanent IDs, source
+files, and world/number pairs must be unique. Numeric level numbers sort
+numerically within a world; other number strings follow manifest order.
+
+The first published level in a world replaces that world's temporary starter;
+worlds without authored levels retain their existing starters. Preserve a
+starter's `official-<worldId>-1` ID when replacing its first level to retain
+progress. Cat Town remains a scene hub and cannot receive level entries.
+Beta content is unaffected.
+
+`npm run build` validates all listed files using the editor/game schema and
+generates [official-levels.generated.js](./src/official-levels.generated.js).
+Do not edit that bundle manually. It is checked in to support direct `file://`
+play; the JSON and manifest are the sources of truth. Invalid JSON, missing
+files, duplicate identities/numbers/names, and invalid worlds stop generation
+with a file-specific error and leave the last generated bundle intact. The
+local server reports the error instead of serving a successful stale refresh.
+On Windows, use `npm.cmd run build` and `npm.cmd test` if needed.
+
+You can also ask Copilot to "update the Official levels from the latest JSON
+files" or invoke `/sync-official-levels` where skill slash commands are supported.
+The repository's [sync-official-levels skill](./.github/skills/sync-official-levels/SKILL.md)
+guides validation, regeneration, tests, and review. Unlisted files remain drafts
+unless explicitly approved for publication; committing and pushing are separate
+actions requiring your request. Skills must be enabled and discovered by the
+Copilot environment; the build/test validation does not depend on skill loading.
 
 ## Beta and Official games
 
@@ -30,8 +88,8 @@ Both campaigns share the gameplay engine, graphics, mechanics, and tutorial.
 Breakfast**, uses the authored source in `levels/official/world-1/1-1.json`:
 collect 20 food points in 50 seconds, with a Cat Block spawning at 15 seconds,
 the opening dialogue, Steering Bricks hints, and authored brick colors.
-Its runtime definition in `src/campaign.js` preserves the `official-1-1` save ID;
-the JSON is the source reference, not dynamically loaded at runtime.
+Its manifest entry preserves the `official-1-1` save ID; JSON changes are
+automatically bundled for local refreshes and deployment.
 The other 16 playable worlds retain temporary level 1 starters;
 Cat Town remains a scene hub rather than a traditional level. Each starter has
 one Cat Block at time zero and a 10-second survival objective, ready to be

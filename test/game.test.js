@@ -36,12 +36,12 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 14);
+  assert.equal(scripts.length, 15);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
   }
-  const ordered = ['campaign-mode', 'campaign', 'game', 'brick-visuals', 'cutscene', 'learning', 'saves', 'worlds', 'collectibles', 'cat-town', 'world-map', 'transitions', 'app', 'pwa'];
+  const ordered = ['campaign-mode', 'official-levels.generated', 'campaign', 'game', 'brick-visuals', 'cutscene', 'learning', 'saves', 'worlds', 'collectibles', 'cat-town', 'world-map', 'transitions', 'app', 'pwa'];
   for (const [index, name] of ordered.entries()) {
     assert.ok(scripts[index][1].includes(`src="./src/${name}.js"`));
   }
@@ -49,6 +49,7 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
     location: { search: '', hash: '' }, localStorage: { getItem: () => null }, URLSearchParams,
   });
   vm.runInContext(readFileSync(path.join(root, 'src', 'campaign-mode.js'), 'utf8'), context);
+  vm.runInContext(readFileSync(path.join(root, 'src', 'official-levels.generated.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'campaign.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'game.js'), 'utf8'), context);
   vm.runInContext(readFileSync(path.join(root, 'src', 'learning.js'), 'utf8'), context);

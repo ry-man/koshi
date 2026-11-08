@@ -123,11 +123,15 @@ OFFICIAL_WORLDS.push(
     mapPosition: { x: 10, y: 50 }, mapOnly: true, levels: {} },
 );
 const OFFICIAL_LEVEL_DATA = {};
+const officialLevels = typeof module !== 'undefined' && module.exports
+  ? require('./official-levels.generated.js') : globalThis.KoshiOfficialLevels;
+if (!Array.isArray(officialLevels)) throw new Error('Official level bundle is missing. Run npm run build.');
+const authoredWorlds = new Set(officialLevels.map(entry => entry.worldId));
 const officialSceneThemes = ['happy-meadows', 'catnip-beach', 'fuzzy-falls', 'mouser-mesa',
   'alpine-litterbox', 'yarnball-moon', 'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
 // Cat Town is a scene hub; unauthored Official worlds use temporary starters.
 for (const world of OFFICIAL_WORLDS.filter(entry => entry.id !== 'C')) {
-  if (world.id === '1') continue;
+  if (authoredWorlds.has(world.id)) continue;
   const name = `${world.name} Starter`;
   world.levels = { '1': name };
   OFFICIAL_LEVEL_DATA[name] = {
@@ -141,79 +145,19 @@ for (const world of OFFICIAL_WORLDS.filter(entry => entry.id !== 'C')) {
     } } : {}),
   };
 }
-// Authored from levels/official/world-1/1-1.json; keep the campaign ID stable for existing saves.
-const breakfastName = "Beginner's Breakfast";
-OFFICIAL_WORLDS[0].levels = { '1': breakfastName };
-OFFICIAL_LEVEL_DATA[breakfastName] = {
-  version: 1, id: 'official-1-1', name: breakfastName,
-  duration: 50, goal: 20, heartCost: Infinity, brickSet: 1,
-  bossLevel: false, killGoal: 0, survive: false,
-  food: [], enemies: [], weapons: [], items: [],
-  events: [
-    { time: 5, kind: 'food', type: 'S', random: true,
-      group: { shape: 'line', count: 3, size: .25, angle: 30 }, lifetime: 10 },
-    { time: 12, kind: 'food', type: 'S', random: true,
-      group: { shape: 'line', count: 4, size: .25, angle: 90 }, lifetime: 10 },
-    { time: 19, kind: 'food', type: 'S', random: true,
-      group: { shape: 'line', count: 4, size: .4, angle: 175 }, lifetime: 10 },
-    { time: 15, kind: 'item', type: 'cat-block', random: true },
-    { time: 25, kind: 'food', type: 'P', random: true,
-      group: { shape: 'circle', count: 4, size: .32 }, lifetime: 10 },
-    { time: 35, kind: 'food', type: 'P', random: true,
-      group: { shape: 'line', count: 4, size: .5, angle: 66 }, lifetime: 10 },
-    { time: 40, kind: 'food', type: 'S', random: true,
-      group: { shape: 'line', count: 3, size: .25, angle: 90 }, lifetime: 10 },
-  ],
-  catBlock: {
-    description: 'To earn Cat Brick: Find during gameplay when it spawns.',
-    messages: {
-      item: 'Koshi found the Cat Block!',
-      enemy: 'Koshi found a Cat Block carried by an enemy!',
-      chest: 'Koshi opened the treasure chest and found the Cat Block!',
-      achievement: 'Koshi earned the Cat Brick!',
-    },
-    trigger: { type: 'spawn' },
-  },
-  cutscene: {
-    theme: 'happy-meadows',
-    lines: [
-      ['tom', 'I am Tom the Duck, leader of the evil robot alliance. I am here to destroy all living creatures on this planet. Surrender, silly kitty, and we may spare your life!'],
-      ['koshi', "Whoa there, quackers! You ain't talking to no ordinary cat! I'm Koshi, the warrior of legends, eater of many foods! You can't scare me!"],
-      ['tom', "Oh yeah? Eater of many foods? You're just a little tiny furball! I bet you couldn't even eat this giant pile of food I have planned to materialize right in front of us from thin air in the near future!"],
-      ['koshi', 'Challenge accepted, bub! I have an appetite which is unmatched. Bring it on!'],
-    ].map(([speaker, text]) => ({
-      speaker, text, actors: [{ character: 'koshi', x: .28, y: .65 }, { character: 'tom', x: .5, y: .65 }],
-    })),
-  },
-  levelInfo: {
-    pages: [{
-      title: 'Steering Bricks',
-      text: 'Touch bricks to have Koshi move directly towards them. Careful, bricks must recharge before you can touch them again! Also, blue bricks take longer to cooldown, while red bricks take less time to cooldown.',
-      graphics: ['brick:slow', 'brick:normal', 'brick:fast'],
-    }, {
-      title: 'Food',
-      text: 'Collect strawberries and pretzels for food points. Strawberries are worth 1 point and pretzels are worth 2 points. Use these to increase your food score!',
-      graphics: ['food:S', 'food:P'],
-    }],
-  },
-  brickTypes: [
-    ['bottom', .2, .4, 'slow'],
-    ['top', .6, .8, 'slow'],
-    ['right', .125, .25, 'slow'],
-    ['left', .25, .375, 'slow'],
-    ['left', .625, .75, 'slow'],
-    ['top', .4, .6, 'fast'],
-    ['bottom', .4, .6, 'fast'],
-    ['left', .125, .25, 'fast'],
-    ['left', .75, .875, 'fast'],
-    ['right', .875, 1, 'fast'],
-  ].map(([edge, start, end, kind]) => ({
-    edge, start, end, kind, crumbler: null, warped: null,
-    slimeColor: 'green', conveyorDirection: 'clockwise',
-    slimed: false, springs: false, spikes: false, conveyor: false,
-    portal: null, turret: null, toggle: null, boost: false, spawner: null,
-  })),
-};
+for (const { worldId, number, id, level } of officialLevels) {
+  const world = OFFICIAL_WORLDS.find(world => world.id === worldId && !world.mapOnly);
+  if (!world) throw new Error(`Invalid authored Official world: ${worldId}`);
+  const name = level.id;
+  if (Object.hasOwn(OFFICIAL_LEVEL_DATA, name) || Object.hasOwn(world.levels, number)) {
+    throw new Error(`Duplicate authored Official level: ${worldId}/${number} (${name})`);
+  }
+  Object.defineProperty(world.levels, number, { value: name, enumerable: true, configurable: true, writable: true });
+  Object.defineProperty(OFFICIAL_LEVEL_DATA, name, { enumerable: true, configurable: true, writable: true, value: {
+    ...level, id, name, heartCost: level.heartCost ?? Infinity,
+    food: [], enemies: [], weapons: [], items: [],
+  } });
+}
 const activeWorlds = globalThis.KoshiCampaignMode?.active.id === 'official' ? OFFICIAL_WORLDS : BETA_WORLDS;
 
 function assembleCampaign(levelData, worlds = activeWorlds) {

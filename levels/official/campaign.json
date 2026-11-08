@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "levels": [
+    {
+      "file": "world-1/1-1.json",
+      "worldId": "1",
+      "number": "1",
+      "id": "official-1-1"
+    }
+  ]
+}

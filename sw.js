@@ -10,6 +10,7 @@ const ASSETS = [
   './style.css',
   './editor.css',
   './src/campaign-mode.js',
+  './src/official-levels.generated.js',
   './src/campaign.js',
   './src/game.js',
   './src/brick-visuals.js',
