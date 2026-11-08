@@ -147,7 +147,10 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
       remove(name) { this.values.delete(name); },
       contains(name) { return this.values.has(name); },
     },
-    append(...children) { this.children.push(...children); },
+    append(...children) {
+      for (const child of children) Object.defineProperty(child, 'parentElement', { value: this, configurable: true });
+      this.children.push(...children);
+    },
     prepend(...children) { this.children.unshift(...children); },
     replaceChildren(...children) { this.children = children; },
     setAttribute(name, value) { this.attributes[name] = String(value); },
@@ -191,7 +194,7 @@ function mapFixture(profile = { guest: true, completed: [], results: {} }, custo
   });
   map.map.clientWidth = 800; map.map.clientHeight = 400;
   const text = node => [node.textContent ?? '', ...node.children.map(text)].join(' ');
-  return { map, selection, elements, text, motion, pictures };
+  return { map, selection, elements, text, motion, pictures, context };
 }
 
 test('Official and Beta level selection share map sizing, node rendering, texture, and layout settings', () => {
@@ -860,6 +863,29 @@ test('map objectives provide accessible popovers for every target and survival o
       assert.equal(description.hidden, true);
     });
   }
+});
+
+test('information bubbles anchor to their item and stay within their containing frame', () => {
+  const { context } = mapFixture();
+  const parent = {
+    clientWidth: 600, clientLeft: 1, clientTop: 1, scrollLeft: 0, scrollTop: 0,
+    getBoundingClientRect: () => ({ left: 100, top: 200 }),
+  };
+  const description = { offsetParent: parent, style: {},
+    getBoundingClientRect: () => ({ width: 200 }) };
+  const button = { getBoundingClientRect: () => ({ left: 120, width: 44, bottom: 244 }) };
+  context.KoshiWorldMap.positionHint(button, description);
+  assert.equal(description.style.left, '0px', 'leftmost icon is not right-aligned to the frame');
+  assert.equal(description.style.top, '49px', 'bubble is six pixels below its icon');
+  button.getBoundingClientRect = () => ({ left: 390, width: 44, bottom: 244 });
+  context.KoshiWorldMap.positionHint(button, description);
+  assert.equal(description.style.left, '211px', 'middle icon centers its bubble');
+  button.getBoundingClientRect = () => ({ left: 680, width: 44, bottom: 244 });
+  context.KoshiWorldMap.positionHint(button, description);
+  assert.equal(description.style.left, '400px', 'rightmost icon is clamped within the frame');
+  parent.scrollTop = 50;
+  context.KoshiWorldMap.positionHint(button, description);
+  assert.equal(description.style.top, '99px', 'coordinates account for scrolling');
 });
 
 test('boss levels render a skull stop with an accessible boss label', () => {

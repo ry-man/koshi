@@ -20,6 +20,18 @@ const OFFICIAL_EMBLEMS = {
   9: 'M22 2H26V6H30V10H38V14H42V30H38V34H10V30H6V14H10V10H22ZM14 18V24H20V18ZM28 18V24H34V18ZM18 28V30H30V28Z',
 };
 
+function positionHint(button, description) {
+  const parent = description.offsetParent;
+  if (!parent) return;
+  const anchor = button.getBoundingClientRect(), bounds = parent.getBoundingClientRect();
+  const width = description.getBoundingClientRect().width;
+  const left = Math.max(0, Math.min(parent.clientWidth - width,
+    anchor.left - bounds.left - parent.clientLeft + (anchor.width - width) / 2));
+  description.style.left = `${left + parent.scrollLeft}px`;
+  description.style.right = 'auto';
+  description.style.top = `${anchor.bottom - bounds.top - parent.clientTop + parent.scrollTop + 6}px`;
+}
+
 function collectibleHint(button, id, text, activate) {
   const description = document.createElement('p');
   description.id = id;
@@ -32,10 +44,15 @@ function collectibleHint(button, id, text, activate) {
   button.setAttribute('aria-controls', id);
   button.setAttribute('aria-describedby', id);
   let pinned = false;
+  const position = () => positionHint(button, description);
   const reveal = visible => {
     if (visible) activate(dismiss);
     description.hidden = !visible;
     button.setAttribute('aria-expanded', String(visible));
+    if (visible) {
+      position();
+      description.parentElement.addEventListener('scroll', position, true);
+    }
   };
   const dismiss = () => { pinned = false; reveal(false); };
   button.addEventListener('mouseenter', () => reveal(true));
@@ -707,6 +724,7 @@ class WorldMap {
 }
 
 WorldMap.objectiveTargets = objectiveTargets;
+WorldMap.positionHint = positionHint;
 WorldMap.collectibleHint = collectibleHint;
 WorldMap.hintActivator = hintActivator;
 globalThis.KoshiWorldMap = WorldMap;

@@ -265,7 +265,9 @@ Press Escape to dismiss it.
 The pre-level mission briefing lists only
 active victory targets with emojis. Each target supports click, touch, hover,
 and keyboard focus to show the same explanation as the level-selection map;
-Escape dismisses the explanation. Where applicable, a centered Cat Block image
+Explanations appear beside their associated item, constrained horizontally to
+the containing frame, and follow scrolling. Escape dismisses the explanation.
+Where applicable, a centered Cat Block image
 appears below them with the same `To earn Cat Brick: ...` objective as the editor
 and map, including when the Cat Brick has already been acquired.
 Uncollected stars and Cat Blocks use outlines with the same shape, size and

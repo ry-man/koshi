@@ -435,7 +435,7 @@ test('opening briefings omit the Cat Brick objective and graphic after acquisiti
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const node = () => ({
     children: [], textContent: '', attributes: {}, listeners: {},
-    append(...children) { this.children.push(...children); },
+    append(...children) { for (const child of children) child.parentElement = this; this.children.push(...children); },
     replaceChildren(...children) { this.children = children; },
     setAttribute(name, value) { this.attributes[name] = value; },
     addEventListener(name, listener) { this.listeners[name] = listener; },
