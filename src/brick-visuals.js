@@ -1,7 +1,10 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, obstructionGeometry, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
+const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
+const HAZARD_FLAME = 'M-24 18 Q-12 12 -20 -2 L-10 -18 Q-13 -2 -4 -8 L3 -17 Q12 -4 9 2 Q18 -10 24 -20 Q16 3 24 18 Z';
+const MISSILE_BODY = 'M-14 -7 H9 Q24 -7 24 0 Q24 7 9 7 H-14 Z';
+const MISSILE_FINS = 'M-15 -6 L-25 -16 L-5 -10 V-6 M-15 6 L-25 16 L-5 10 V6 M-22 0 H-4';
 const FLAME = 'M0 20 C-24 16 -22 -6 -10 -12 Q-8 -2 -3 -5 Q7 -14 3 -24 C26 -7 26 16 0 20 Z';
 const FENCE = 'M-22 -6 H22 M-22 6 H22 M-18 -14 V14 M-6 -14 V14 M6 -14 V14 M18 -14 V14';
 const BOOM_TIME_TYPES = new Set(['boom-time-red', 'boom-time-green', 'boom-time-blue']);
@@ -153,12 +156,74 @@ function specialLabel(brick) {
         : spawn?.kind === 'object' ? OBJECTS[spawn.type].name
         : spawn?.kind === 'enemy' ? CHARACTERS[spawn.type]
         : spawn?.type;
-  return `${brick.power ? `, Power: ${brick.powerOn ? 'on' : 'off'}` : ''}${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}${brick.barrier ? ', Barrier: selection extends or retracts an enemy and bomb fence' : ''}${brick.turret ? `, ${brick.turret} turret` : ''}`;
+  const hazard = brick.hazard ? `, Hazard: ${HAZARDS[brick.hazard.type].name}${brick.hazard.power ? `, active with ${brick.hazard.power} power` : ', always operating'}${HAZARDS[brick.hazard.type].interval ? `, shoots every ${brick.hazard.interval ?? HAZARDS[brick.hazard.type].interval}s` : ''}` : '';
+  return `${brick.power ? `, Power: ${brick.powerOn ? 'on' : 'off'}` : ''}${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}${brick.barrier ? ', Barrier: selection extends or retracts an enemy and bomb fence' : ''}${brick.turret ? `, ${brick.turret} turret` : ''}${hazard}`;
 }
 function svgNode(tag, attributes = {}) {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
   return node;
+}
+// Power-linked hazard frame: beveled bars between quarter-circle corner plates.
+function hazardBorder(members, shape, color) {
+  const outline = shape.corners?.length ? shape : brickShape(members);
+  const sections = members.some(part => part.sourceId !== undefined) ? members.filter(part => part.sourceId !== undefined) : members;
+  const thin = Math.min(...sections.map(part => Math.min(part.w, part.h)));
+  const band = Math.min(5.5, thin * .18), radius = Math.min(12, thin * .4);
+  const reach = Math.sqrt(radius ** 2 - band ** 2);
+  const point = ([px, py]) => `${+px.toFixed(3)} ${+py.toFixed(3)}`;
+  const unit = (a, b) => { const length = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[0] - a[0]) / length, (b[1] - a[1]) / length]; };
+  const along = (p, d, distance, n = [0, 0], inset = 0) => [p[0] + d[0] * distance + n[0] * inset, p[1] + d[1] * distance + n[1] * inset];
+  let bandPath = '', plates = '', sheen = '', light = '', dark = '';
+  const bevel = (normal, d) => { if (normal[0] + normal[1] < 0) light += d; else dark += d; };
+  for (const loop of outline.corners) {
+    const count = loop.length;
+    const edges = loop.map((p, i) => {
+      const d = unit(p, loop[(i + 1) % count]);
+      return { p, q: loop[(i + 1) % count], d, n: [-d[1], d[0]] };
+    });
+    // Outlines wind with the solid on the right, so cross > 0 marks a convex corner.
+    const convex = edges.map((edge, i) => {
+      const previous = edges[(i + count - 1) % count];
+      return previous.d[0] * edge.d[1] - previous.d[1] * edge.d[0] > 0;
+    });
+    const inner = edges.map((edge, i) => {
+      const previous = edges[(i + count - 1) % count];
+      return [edge.p[0] + band * (previous.n[0] + edge.n[0]), edge.p[1] + band * (previous.n[1] + edge.n[1])];
+    });
+    bandPath += `M${loop.map(point).join('L')}ZM${inner.map(point).join('L')}Z`;
+    edges.forEach((edge, i) => {
+      const length = Math.hypot(edge.q[0] - edge.p[0], edge.q[1] - edge.p[1]);
+      const start = convex[i] ? reach : band, end = length - (convex[(i + 1) % count] ? reach : band);
+      if (end > start) {
+        bevel(edge.n, `M${point(along(edge.p, edge.d, start, edge.n, band - .8))}L${point(along(edge.p, edge.d, end, edge.n, band - .8))}`);
+        sheen += `M${point(along(edge.p, edge.d, start, edge.n, band / 2))}L${point(along(edge.p, edge.d, end, edge.n, band / 2))}`;
+      }
+      bevel([-edge.n[0], -edge.n[1]], `M${point(along(edge.p, edge.d, 0, edge.n, .8))}L${point(along(edge.p, edge.d, length, edge.n, .8))}`);
+      if (!convex[i]) return;
+      const previous = edges[(i + count - 1) % count], p = edge.p;
+      const back = [-previous.d[0], -previous.d[1]], middle = unit([0, 0], [back[0] + edge.d[0], back[1] + edge.d[1]]);
+      plates += `M${point(p)}L${point(along(p, back, radius))}A${radius} ${radius} 0 0 0 ${point(along(p, edge.d, radius))}Z`;
+      const r = radius - .8;
+      for (const [from, to] of [[back, middle], [middle, edge.d]]) {
+        bevel(unit([0, 0], [from[0] + to[0], from[1] + to[1]]), `M${point(along(p, from, r))}A${r} ${r} 0 0 0 ${point(along(p, to, r))}`);
+      }
+      sheen += `M${point(along(p, back, radius * .55))}A${radius * .55} ${radius * .55} 0 0 0 ${point(along(p, edge.d, radius * .55))}`;
+    });
+  }
+  const border = svgNode('svg', { class: 'brick-hazard-border', viewBox: `0 0 ${outline.w} ${outline.h}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+  border.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+  border.style.clipPath = shape.roundedClipPath;
+  const outlineStroke = { stroke: '#17212a', 'stroke-width': .9, 'stroke-linejoin': 'round' };
+  border.append(
+    svgNode('path', { class: 'hazard-border-shadow', d: bandPath, transform: 'translate(0 1.2)', 'fill-rule': 'evenodd', fill: '#000000', opacity: .4 }),
+    svgNode('path', { class: 'hazard-border-shadow', d: plates, transform: 'translate(0 1.2)', fill: '#000000', opacity: .4 }),
+    svgNode('path', { class: 'hazard-border-band', d: bandPath, 'fill-rule': 'evenodd', fill: color, ...outlineStroke }),
+    svgNode('path', { class: 'hazard-border-plates', d: plates, fill: color, ...outlineStroke }),
+    svgNode('path', { class: 'hazard-border-sheen', d: sheen, fill: 'none', stroke: '#ffffff', 'stroke-width': band * .3, 'stroke-linecap': 'round', opacity: .16 }),
+    svgNode('path', { class: 'hazard-border-light', d: light, fill: 'none', stroke: '#ffffff', 'stroke-width': .9, opacity: .45 }),
+    svgNode('path', { class: 'hazard-border-dark', d: dark, fill: 'none', stroke: '#000000', 'stroke-width': 1.1, opacity: .4 }));
+  return border;
 }
 function brickInfoBounds(brick, members) {
   const shape = brickShape(members);
@@ -197,7 +262,7 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
   let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null, turretFill = null;
   let powerDisc = null, powerMark = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
-  const source = brick.turret && groupCenterBrick && groupCenterBrick.id !== brick.id ? groupCenterBrick : null;
+  const source = (brick.turret || brick.hazard) && groupCenterBrick && groupCenterBrick.id !== brick.id ? groupCenterBrick : null;
   const infoBounds = source ? { x: source.x, y: source.y, w: source.w, h: source.h } : brickInfoBounds(brick, members);
   const vertical = (source ?? brick).h > (source ?? brick).w;
   if (brick.kind === 'goal') {
@@ -243,7 +308,7 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
     }
   }
   button.dataset.specialVertical = String(vertical);
-  const slots = [brick.spawner || brick.boost || brick.barrier || brick.turret ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
+  const slots = [brick.spawner || brick.boost || brick.barrier || brick.turret || brick.hazard ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
     brick.warped ? 'warped' : null, brick.toggle ? 'toggle' : null, brick.power ? 'power' : null].filter(Boolean);
   const length = slots.reduce((total, slot) => total + (slot === 'toggle' ? 94 : 64), 0);
   const stacked = !vertical && brick.w / brick.h < 2 && brick.toggle && slots.length > 2;
@@ -263,6 +328,50 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
       : { x: offset, y: 0, width: size, height: 58 })) node.setAttribute(name, value);
     info.append(node); offset += stacked ? 58 : size;
   };
+  if (brick.hazard) {
+    if (brick.hazard.power) button.append(hazardBorder(members, shape, brick.hazard.power === 'black' ? '#000000' : '#ffd92f'));
+    // Bordered hazards shrink their icon so the frame never covers it.
+    const span = brick.hazard.power ? 40 : 28;
+    symbol = svgNode('svg', { class: 'brick-item-symbol brick-hazard-symbol', viewBox: `${-span} ${-span} ${span * 2} ${span * 2}`, 'aria-hidden': 'true' });
+    const type = brick.hazard.type;
+    const layer = (d, fill, stroke = '#17212a', width = 2) => symbol.append(svgNode('path', { d, fill, stroke, 'stroke-width': width }));
+    if (type === 'laser') {
+      const spark = Array.from({ length: 16 }, (_, i) => {
+        const angle = i * Math.PI / 8, radius = i % 4 === 0 ? 12 : i % 2 === 0 ? 8.5 : 5;
+        return `${i ? 'L' : 'M'}${(13 + Math.cos(angle) * radius).toFixed(2)} ${(Math.sin(angle) * radius).toFixed(2)}`;
+      }).join(' ') + ' Z';
+      // The beam lies along the brick's long side, tapering away from the spark.
+      const along = vertical ? 'rotate(90)' : null;
+      for (const [d, fill, stroke, width] of [
+        ['M-25 -1 L9 -4.5 L9 4.5 L-25 1 Z', '#f04444', '#17212a', 1.5],
+        [spark, '#f04444', '#17212a', 1.5],
+        ['M-22 0 H9', 'none', '#ffe0d6', 1.2],
+        ['M13 -3.2 A3.2 3.2 0 1 1 12.99 -3.2 Z', '#fff2dd', 'none', 0],
+      ]) symbol.append(svgNode('path', { d, fill, stroke, 'stroke-width': width, 'stroke-linejoin': 'round', ...(along ? { transform: along } : {}) }));
+    } else if (type === 'flame') {
+      layer(HAZARD_FLAME, '#ff812d');
+      layer('M-12 17 Q-5 12 -8 6 Q-2 10 2 3 Q5 13 14 8 L17 17 Z', '#ffe15a', 'none');
+    } else if (type === 'missile') {
+      layer(MISSILE_FINS, '#df4141', '#9c2626', 3);
+      layer(MISSILE_BODY, '#aeb7bd');
+      layer('M-11 -3 H8', 'none', '#edf1f4', 2);
+    } else if (type === 'obstructor') {
+      const fill = brick.hazard.color ?? OBJECTS['obstruction-circle'].color, accent = brick.hazard.patternColor ?? '#dbe6ed';
+      layer(SYMBOLS['obstruction-circle'], fill, '#17232c', 2.5);
+      const pattern = brick.hazard.pattern ?? 'solid';
+      if (pattern === 'polka-dots') layer('M-7 -9 a3 3 0 1 0 .1 0 M7 -9 a3 3 0 1 0 .1 0 M0 3 a3 3 0 1 0 .1 0 M-11 7 a3 3 0 1 0 .1 0 M11 7 a3 3 0 1 0 .1 0', accent, 'none');
+      else if (pattern === 'stripes') layer('M-14 -6 L-6 -14 M-15 6 L6 -15 M-6 15 L15 -6 M6 14 L14 6', 'none', accent, 4);
+      else if (pattern === 'checkered') layer('M-12 -12 H0 V0 H-12 Z M0 0 H12 V12 H0 Z', accent, 'none');
+      layer('M-13 -9 A16 16 0 0 1 9 -14', 'none', '#ffffffa0', 3);
+      layer('M14 9 A16 16 0 0 1 -9 14', 'none', '#00000066', 3);
+    } else {
+      const color = OBJECTS[type].color;
+      layer(SYMBOLS[type], type.startsWith('bubble-') ? `${color}33` : color, color, 3);
+      if (type.startsWith('bubble-')) layer('M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17', 'none', '#ffffff', 2);
+      else layer('M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0', 'none', '#fff4d5', 2);
+    }
+    place(symbol, 'symbol');
+  }
   if (brick.portal) {
     cloud = svgNode('svg', { class: 'brick-portal-cloud', viewBox: `0 0 ${shape.w} ${shape.h}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
     cloud.style.color = PORTALS[brick.portal];
@@ -423,6 +532,7 @@ function updateBrick(visual, brick, elapsed, sunglassesActive = false) {
   if (visual.symbol) {
     visual.symbol.dataset.spawnReady = String(Boolean((brick.spawner || brick.turret) && !brick.spawned));
     visual.symbol.style.opacity = brick.boost ? '.8' : '1';
+    if (brick.hazard) visual.symbol.style.opacity = hazardEnabled(brick, Boolean(brick.powerOn)) ? '1' : '.4';
     if (brick.spawner?.type === 'magic-sunglasses') visual.symbol.style.setProperty('--item-color', `hsl(${elapsed * 140 % 360}, 85%, 70%)`);
   }
   if (visual.turretFill) {

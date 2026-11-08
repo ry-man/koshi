@@ -59,7 +59,7 @@ const CAT_BRICK_TYPES = {
   slow: 'Slow', normal: 'Normal', fast: 'Fast', cinder: 'Cinder', goal: 'Goal',
   crumbler: 'Crumbler', warped: 'Warped', slimed: 'Slimed', springs: 'Springs',
   spikes: 'Spikes', conveyor: 'Conveyor', portal: 'Portal', toggle: 'Toggle', power: 'Power',
-  spawner: 'Spawning', boost: 'Boost', barrier: 'Barrier', turret: 'Turret',
+  spawner: 'Spawning', boost: 'Boost', barrier: 'Barrier', turret: 'Turret', hazard: 'Hazard',
 };
 const CAT_BLOCK_TRIGGERS = {
   spawn: { text: 'Find during gameplay when it spawns.' },
@@ -162,7 +162,14 @@ const SWORDS = {
 };
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
-const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'turret'];
+const HAZARDS = {
+  laser: { name: 'Laser' }, flame: { name: 'Flame' },
+  missile: { name: 'Missile', interval: 10 },
+  ...Object.fromEntries(['bubble', 'bumper'].flatMap(kind => ['red', 'green', 'blue'].map(color =>
+    [`${kind}-${color}`, { name: `${color[0].toUpperCase() + color.slice(1)} ${kind === 'bubble' ? 'Bubble' : 'Bumper'} Gun`, interval: 3 }]))),
+  obstructor: { name: 'Obstructor Gun', interval: 3, appearance: true },
+};
+const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'turret', 'hazard'];
 const DITTO_PROPERTIES = ['kind', 'crumbler', 'warped', 'toggle', 'power', 'slimeColor', 'conveyorDirection', ...CONTACT_SURFACES];
 
 function dittoProperties(brick) {
@@ -171,6 +178,10 @@ function dittoProperties(brick) {
 }
 
 function brickEnabled(brick) { return !brick.toggle || brick.toggleRemaining === 0; }
+function hazardEnabled(brick, powerOn) {
+  return Boolean(brick.hazard
+    && (!brick.hazard.power || (brick.hazard.power === 'black') === powerOn));
+}
 
 function goalTiles(members) {
   const tiles = [];
@@ -202,14 +213,14 @@ function applyBrickTypes(bricks, entries = []) {
       if (['cinder', 'goal'].includes(brick.kind)) {
         for (const attribute of ['crumbler', 'warped', 'toggle']) brick[attribute] = null;
         brick.power = false;
-        for (const attribute of CONTACT_SURFACES) brick[attribute] = ['portal', 'spawner', 'turret'].includes(attribute) ? null : false;
+        for (const attribute of CONTACT_SURFACES) brick[attribute] = ['portal', 'spawner', 'turret', 'hazard'].includes(attribute) ? null : false;
         continue;
       }
       for (const attribute of ['crumbler', 'warped', 'slimeColor', 'conveyorDirection', 'toggle', 'power', ...CONTACT_SURFACES]) {
         if (entry[attribute] === undefined) continue;
         brick[attribute] = entry[attribute] && typeof entry[attribute] === 'object' ? { ...entry[attribute] } : entry[attribute];
         if (CONTACT_SURFACES.includes(attribute) && entry[attribute]) {
-          for (const other of CONTACT_SURFACES) if (other !== attribute) brick[other] = ['portal', 'spawner', 'turret'].includes(other) ? null : false;
+          for (const other of CONTACT_SURFACES) if (other !== attribute) brick[other] = ['portal', 'spawner', 'turret', 'hazard'].includes(other) ? null : false;
         }
       }
     }
@@ -234,7 +245,7 @@ const INFO_GRAPHICS = {
     .map(([id, color]) => [`brick:${id}`, `${color} Steering Brick (${id}, ${COOLDOWNS[id]}s cooldown)`])),
   ...Object.fromEntries(['crumbler', 'warped', 'springs', 'spikes', 'conveyor']
     .map(id => [`brick:${id}`, `${id} brick`])),
-  ...Object.fromEntries(['cinder', 'goal', 'portal', 'toggle', 'power', 'spawner', 'turret', 'boost', 'barrier', 'boom-helmet']
+  ...Object.fromEntries(['cinder', 'goal', 'portal', 'toggle', 'power', 'spawner', 'turret', 'hazard', 'boost', 'barrier', 'boom-helmet']
     .map(id => [`special:${id}`, id.replaceAll('-', ' ')])),
 };
 
@@ -1667,6 +1678,32 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         if (entry.turret !== null && !['fireball', 'laser'].includes(entry.turret)) fail(`Brick override ${i + 1} has an unknown turret type.`);
         override.turret = entry.turret;
       }
+      if (entry.hazard !== undefined) {
+        const hazard = entry.hazard;
+        if (hazard === null) override.hazard = null;
+        else {
+          if (!hazard || typeof hazard !== 'object' || Array.isArray(hazard) || typeof hazard.type !== 'string'
+            || !Object.hasOwn(HAZARDS, hazard.type)) fail(`Brick override ${i + 1} has an unknown hazard type.`);
+          override.hazard = { type: hazard.type };
+          if (hazard.power !== undefined) {
+            if (hazard.power !== null && !['black', 'yellow'].includes(hazard.power)) fail(`Brick override ${i + 1} has an unknown hazard power color.`);
+            override.hazard.power = hazard.power;
+          }
+          if (hazard.interval !== undefined) {
+            if (!HAZARDS[hazard.type].interval) fail(`Brick override ${i + 1}: continuous hazards cannot have a firing interval.`);
+            override.hazard.interval = number(hazard.interval, .1, 3600, `Brick override ${i + 1} hazard interval`);
+          }
+          for (const field of ['color', 'pattern', 'patternColor']) {
+            if (hazard[field] === undefined) continue;
+            if (!HAZARDS[hazard.type].appearance) fail(`Brick override ${i + 1}: only Obstructor Guns have a ${field}.`);
+            if (field === 'pattern' ? !OBSTRUCTION_PATTERNS.includes(hazard[field])
+              : typeof hazard[field] !== 'string' || !/^#[0-9a-f]{6}$/i.test(hazard[field])) {
+              fail(`Brick override ${i + 1} has an invalid obstructor ${field}.`);
+            }
+            override.hazard[field] = hazard[field];
+          }
+        }
+      }
       if (entry.toggle !== undefined) {
         if (entry.toggle !== null && ![1, 2, 4].includes(entry.toggle)) fail(`Brick override ${i + 1} toggle must require 1, 2, or 4 clicks.`);
         override.toggle = entry.toggle;
@@ -1830,7 +1867,7 @@ function turretGeometry(brick, width, height, catRadius = 21) {
   return { edge, anchor, center, direction, domeRadius: TURRET_DOME_RADIUS };
 }
 
-function middleBrickInGroup(owner, bricks, perimeter) {
+function middleBrickInGroup(owner, bricks, perimeter, width = null, height = null, catRadius = 21) {
   const ids = new Set(bricks.filter(brick => brick.id === owner.id || brick.absorbedBy === owner.id).map(brick => brick.id));
   if (ids.size < 2) return owner;
   const n = perimeter.length;
@@ -1838,7 +1875,21 @@ function middleBrickInGroup(owner, bricks, perimeter) {
   const start = first < 0 ? perimeter.indexOf(owner.id) : first;
   const chain = Array.from({ length: n }, (_, k) => perimeter[(start + k) % n]).filter(id => ids.has(id));
   // The perimeter runs clockwise, so even-sized groups use the clockwise middle sub-brick.
-  return bricks[chain[Math.floor(chain.length / 2)]];
+  const middle = Math.floor(chain.length / 2);
+  // A corner sub-brick whose face center is covered by the perpendicular wall cannot launch
+  // shots or portal exits, so use the nearest clear sub-brick (clockwise first on ties).
+  width ??= Math.max(...bricks.map(brick => brick.x + brick.w)) + Math.min(...bricks.map(brick => brick.x));
+  height ??= Math.max(...bricks.map(brick => brick.y + brick.h)) + Math.min(...bricks.map(brick => brick.y));
+  const clear = brick => {
+    const { center } = turretGeometry(brick, width, height, catRadius);
+    return !bricks.some(other => other.id !== brick.id && circleTouchesBrick(center.x, center.y, catRadius, other));
+  };
+  for (let distance = 0; distance < chain.length; distance++) {
+    for (const index of distance ? [middle + distance, middle - distance] : [middle]) {
+      if (index >= 0 && index < chain.length && clear(bricks[chain[index]])) return bricks[chain[index]];
+    }
+  }
+  return bricks[chain[middle]];
 }
 
 function brickEditRegions(bricks) {
@@ -1940,12 +1991,13 @@ function brickShape(parts, crumbly = false, wear = 0, bounds = null) {
   }
   const clipPath = `polygon(evenodd, ${polygon.map(([px, py]) => `${px / w * 100}% ${py / h * 100}%`).join(', ')})`;
   let roundedPath = path, roundedClipPath = clipPath;
+  // Crumbled loops include cut points, so only clean outlines expose their corner vertices.
+  const corners = crumbly ? [] : loops.map(loop => loop.slice(0, -1).filter((point, i, all) => {
+    const previous = all[(i + all.length - 1) % all.length], next = all[(i + 1) % all.length];
+    return (point[0] - previous[0]) * (next[1] - point[1]) !== (point[1] - previous[1]) * (next[0] - point[0]);
+  }));
   if (!crumbly) {
-    const roundedLoops = loops.map(loop => {
-      const vertices = loop.slice(0, -1).filter((point, i, all) => {
-        const previous = all[(i + all.length - 1) % all.length], next = all[(i + 1) % all.length];
-        return (point[0] - previous[0]) * (next[1] - point[1]) !== (point[1] - previous[1]) * (next[0] - point[0]);
-      });
+    const roundedLoops = corners.map(vertices => {
       const radius = Math.min(6, Math.max(...parts.map(part => Math.min(part.w, part.h) / 4)));
       return vertices.flatMap((point, i) => {
         const previous = vertices[(i + vertices.length - 1) % vertices.length], next = vertices[(i + 1) % vertices.length];
@@ -1969,7 +2021,7 @@ function brickShape(parts, crumbly = false, wear = 0, bounds = null) {
     }
     roundedClipPath = `polygon(evenodd, ${points.map(([px, py]) => `${px / w * 100}% ${py / h * 100}%`).join(', ')})`;
   }
-  return { x, y, w, h, path, clipPath, roundedPath, roundedClipPath, cracks };
+  return { x, y, w, h, path, clipPath, roundedPath, roundedClipPath, cracks, corners };
 }
 
 function brickInnerEdges(parts, width, height) {
@@ -2690,6 +2742,11 @@ class Game {
     this.turretFades = [];
     this.turretProjectiles = [];
     this.turretEffects = [];
+    this.hazardTimers = new Map();
+    this.hazardBeams = [];
+    this.hazardFlames = [];
+    this.hazardMissiles = [];
+    this.hazardExplosions = [];
     this.cookieActive = false;
     this.cookieLickUntil = 0;
     this.enemiesSleepUntil = 0;
@@ -3125,7 +3182,7 @@ class Game {
     }
     if (brick.spawned) return;
     brick.spawned = true;
-    const geometry = turretGeometry(middleBrickInGroup(brick, this.bricks, this.perimeter), this.width, this.height, this.cat.radius);
+    const geometry = turretGeometry(this.groupSource(brick), this.width, this.height, this.cat.radius);
     this.activeTurret = {
       brickId: brick.id, type: brick.turret, ...geometry,
       aim: geometry.direction, remaining: TURRET_DURATION, shotsRemaining: TURRET_SHOTS,
@@ -3222,6 +3279,192 @@ class Game {
     });
   }
 
+  hazardObstacleTime(point, dx, dy, radius, parts, ignore = null) {
+    let time = Infinity;
+    for (const part of this.collisionCandidates(parts, point.x, point.y, dx, dy, radius)) {
+      if (Math.hypot(point.x - Math.max(part.x, Math.min(part.x + part.w, point.x)),
+        point.y - Math.max(part.y, Math.min(part.y + part.h, point.y))) <= radius) return 0;
+      time = Math.min(time, brickContact(point.x, point.y, dx, dy, radius, { ...part, collisionBody: null }));
+    }
+    for (const obstruction of this.obstructions) if (obstruction !== ignore) {
+      if (obstructionSurface(point.x, point.y, obstruction).gap <= radius) return 0;
+      time = Math.min(time, obstructionContact(point.x, point.y, dx, dy, radius, obstruction));
+    }
+    for (const bumper of this.bumpers) if (bumper !== ignore) {
+      if (Math.hypot(point.x - bumper.x, point.y - bumper.y) <= radius + bumper.radius) return 0;
+      time = Math.min(time, circleContact(point.x - bumper.x, point.y - bumper.y, dx, dy, radius + bumper.radius));
+    }
+    return time;
+  }
+
+  updateHazardEmitters(dt, parts) {
+    this.hazardBeams = [];
+    this.hazardFlames = [];
+    this.hazardExplosions = this.hazardExplosions.filter(effect => (effect.age += dt) < .42);
+    for (const brick of this.bricks) {
+      if (!brick.hazard || brick.absorbedBy !== null || !parts.some(part => part.id === brick.id)) {
+        this.hazardTimers.delete(brick.id);
+        continue;
+      }
+      const visible = this.brickVisible(brick, parts.filter(part => part.id === brick.id));
+      if (!visible) { this.hazardTimers.delete(brick.id); continue; }
+      const { type } = brick.hazard, definition = HAZARDS[type];
+      let timer = this.hazardTimers.get(brick.id);
+      if (!timer || timer.hazard !== brick.hazard) {
+        timer = { hazard: brick.hazard, remaining: brick.hazard.interval ?? definition.interval };
+        this.hazardTimers.set(brick.id, timer);
+      }
+      if (!hazardEnabled(brick, this.powerOn)) continue;
+      const source = this.groupSource(brick);
+      const { anchor, direction } = turretGeometry(source, this.width, this.height);
+      if (type === 'flame') {
+        this.hazardFlames.push(...parts.filter(part => part.id === brick.id));
+      } else if (type === 'laser') {
+        const start = { x: anchor.x + direction.x * .1, y: anchor.y + direction.y * .1 };
+        const length = Math.hypot(this.width, this.height);
+        const dx = direction.x * length, dy = direction.y * length;
+        const contact = Math.min(1, this.hazardObstacleTime(start, dx, dy, 0, parts));
+        this.hazardBeams.push({ start, end: { x: start.x + dx * contact, y: start.y + dy * contact } });
+      } else {
+        if (type.startsWith('bubble-') && this.bubbleTrap) {
+          timer.remaining = brick.hazard.interval ?? definition.interval;
+          continue;
+        }
+        timer.remaining -= dt;
+        if (timer.remaining > 1e-9) continue;
+        timer.remaining += brick.hazard.interval ?? definition.interval;
+        const radius = type === 'missile' ? 9 : type.startsWith('bubble-') ? 24 : 48;
+        const spawn = { x: anchor.x + direction.x * (radius + .1), y: anchor.y + direction.y * (radius + .1) };
+        // In a corner pocket the shot slides along the face until the perpendicular wall clears it.
+        const { tangent, offset } = this.wallClearance(spawn, direction, radius, parts);
+        const point = { x: spawn.x + tangent.x * offset, y: spawn.y + tangent.y * offset };
+        const speed = type === 'missile' ? 150 : 120;
+        const motion = { vx: direction.x * speed, vy: direction.y * speed, hazardShot: true };
+        // Render-only launch state lets the shot visibly push out of the brick face.
+        const emerge = { x: anchor.x + tangent.x * offset, y: anchor.y + tangent.y * offset, dx: direction.x, dy: direction.y, age: 0 };
+        if (type === 'missile') this.hazardMissiles.push({ ...point, ...motion, radius, angle: Math.atan2(direction.y, direction.x) });
+        else if (type.startsWith('bubble-')) this.bubbles.push({ ...this.createBubble(point, type), ...motion, emerge });
+        else if (type === 'obstructor') {
+          const { color, pattern, patternColor } = brick.hazard;
+          this.obstructions.push({ ...this.createObstruction(point, { type: 'obstruction-circle', color, pattern, patternColor }), ...motion, emerge });
+        } else this.bumpers.push({ ...this.createBumper(point, type), ...motion, emerge });
+      }
+    }
+    for (const field of ['bubbles', 'bumpers', 'obstructions']) {
+      this[field] = this[field].filter(shot => {
+        if (!shot.hazardShot) return true;
+        if (shot.emerge) shot.emerge.age += dt;
+        shot.previousX = shot.x; shot.previousY = shot.y;
+        const dx = shot.vx * dt, dy = shot.vy * dt;
+        if (field === 'bubbles') {
+          const contact = this.hazardObstacleTime(shot, dx, dy, shot.radius, parts, shot);
+          if (contact <= 1) {
+            this.bubblePops.push({ x: shot.x + dx * contact, y: shot.y + dy * contact, color: shot.color, age: 0 });
+            return false;
+          }
+        }
+        shot.x += dx; shot.y += dy;
+        if (field === 'bubbles' && this.bubbleTrap
+          && Math.hypot(shot.x - this.bubbleTrap.x, shot.y - this.bubbleTrap.y) <= shot.radius + this.cat.radius) {
+          this.bubblePops.push({ x: shot.x, y: shot.y, color: shot.color, age: 0 });
+          return false;
+        }
+        if (field === 'bubbles') return this.entityIntersectsBounds(shot, this.simulationBounds(), 100);
+        // Bumper and obstructor shots pass through everything until wholly off the board.
+        const radius = shot.radius ?? obstructionGeometry(shot).radius;
+        return this.entityIntersectsBounds({ x: shot.x, y: shot.y, radius }, this.simulationBounds());
+      });
+    }
+  }
+
+  hazardObjectContact(object, dx, dy, dt) {
+    if (!object.hazardShot) return dx || dy
+      ? circleContact(this.cat.x - object.x, this.cat.y - object.y, dx, dy, this.cat.radius + object.radius)
+      : Math.hypot(this.cat.x - object.x, this.cat.y - object.y) <= this.cat.radius + object.radius ? 0 : Infinity;
+    const x = object.hazardShot ? object.previousX : object.x;
+    const y = object.hazardShot ? object.previousY : object.y;
+    if (Math.hypot(this.cat.x - x, this.cat.y - y) <= this.cat.radius + object.radius) return 0;
+    return circleContact(this.cat.x - x, this.cat.y - y,
+      dx - (object.hazardShot ? object.vx * dt : 0), dy - (object.hazardShot ? object.vy * dt : 0), this.cat.radius + object.radius);
+  }
+
+  catInsideBrick(parts, tolerance = 1e-3) {
+    const cat = this.cat;
+    return parts.some(part => Math.hypot(cat.x - Math.max(part.x, Math.min(part.x + part.w, cat.x)),
+      cat.y - Math.max(part.y, Math.min(part.y + part.h, cat.y))) < cat.radius - tolerance);
+  }
+
+  // Obstructor shots shove Koshi like a moving wall; pinned against a brick, he is crushed.
+  pushCatWithShots(parts) {
+    const shots = this.obstructions.filter(shot => shot.hazardShot);
+    const cat = this.cat, depth = shot => cat.radius - obstructionSurface(cat.x, cat.y, shot).gap;
+    if (!shots.some(shot => depth(shot) > 1e-7)) return;
+    const startX = cat.x, startY = cat.y;
+    for (let pass = 0; pass < 12; pass++) {
+      let moved = false;
+      for (const shot of shots) {
+        const overlap = depth(shot);
+        if (overlap <= 1e-7) continue;
+        const { nx, ny } = obstructionSurface(cat.x, cat.y, shot);
+        cat.x += nx * (overlap + 1e-6); cat.y += ny * (overlap + 1e-6);
+        moved = true;
+      }
+      for (const part of parts) {
+        const px = Math.max(part.x, Math.min(part.x + part.w, cat.x)), py = Math.max(part.y, Math.min(part.y + part.h, cat.y));
+        const gap = Math.hypot(cat.x - px, cat.y - py), overlap = cat.radius - gap;
+        if (overlap <= 1e-7 || gap < 1e-9) continue;
+        cat.x += (cat.x - px) / gap * (overlap + 1e-6); cat.y += (cat.y - py) / gap * (overlap + 1e-6);
+        moved = true;
+      }
+      if (!moved) break;
+    }
+    if (this.bubbleTrap) {
+      for (const key of ['x', 'fromX']) this.bubbleTrap[key] += cat.x - startX;
+      for (const key of ['y', 'fromY']) this.bubbleTrap[key] += cat.y - startY;
+    }
+    this.conveyorRide = null;
+    if (shots.some(shot => depth(shot) > .25) || this.catInsideBrick(parts, .25)) {
+      this.hearts = 0;
+      this.tookDamage = true;
+      cat.vx = 0; cat.vy = 0;
+      this.boosted = false; this.target = null;
+      this.state = 'lost';
+    }
+  }
+
+  updateHazardDamage(dt, parts, startX, startY) {
+    const cat = this.cat, dx = cat.x - startX, dy = cat.y - startY;
+    for (const beam of this.hazardBeams) {
+      const body = { x: Math.min(beam.start.x, beam.end.x) - 5, y: Math.min(beam.start.y, beam.end.y) - 5,
+        w: Math.abs(beam.end.x - beam.start.x) + 10, h: Math.abs(beam.end.y - beam.start.y) + 10 };
+      if (distanceToSegment(cat.x, cat.y, beam.start.x, beam.start.y, beam.end.x, beam.end.y) <= cat.radius + 5
+        || brickContact(startX, startY, dx, dy, cat.radius, body) <= 1) this.takeDamage();
+    }
+    for (const part of this.hazardFlames) {
+      const gap = Math.hypot(cat.x - Math.max(part.x, Math.min(part.x + part.w, cat.x)),
+        cat.y - Math.max(part.y, Math.min(part.y + part.h, cat.y)));
+      if (gap <= cat.radius + 8 || brickContact(startX, startY, dx, dy, cat.radius + 8, { ...part, collisionBody: null }) <= 1) this.takeDamage();
+    }
+    this.hazardMissiles = this.hazardMissiles.filter(missile => {
+      const desired = Math.atan2(cat.y - missile.y, cat.x - missile.x);
+      const difference = Math.atan2(Math.sin(desired - missile.angle), Math.cos(desired - missile.angle));
+      missile.angle += Math.max(-.65 * dt, Math.min(.65 * dt, difference));
+      missile.vx = Math.cos(missile.angle) * 150; missile.vy = Math.sin(missile.angle) * 150;
+      const mx = missile.vx * dt, my = missile.vy * dt;
+      const catTime = Math.hypot(missile.x - startX, missile.y - startY) <= missile.radius + cat.radius ? 0
+        : circleContact(missile.x - startX, missile.y - startY, mx - dx, my - dy, missile.radius + cat.radius);
+      const obstacleTime = this.hazardObstacleTime(missile, mx, my, missile.radius, parts);
+      const contact = Math.min(1, catTime, obstacleTime);
+      missile.x += mx * contact; missile.y += my * contact;
+      if (catTime <= 1 || obstacleTime <= 1) {
+        if (catTime <= obstacleTime + 1e-9) this.takeDamage();
+        this.hazardExplosions.push({ x: missile.x, y: missile.y, age: 0 });
+        return false;
+      }
+      return this.entityIntersectsBounds(missile, this.simulationBounds(), 100);
+    });
+  }
+
   updateTurrets(seconds) {
     this.turretFades = this.turretFades.filter(turret => {
       turret.age += seconds;
@@ -3276,8 +3519,35 @@ class Game {
     }
   }
 
+  groupSource(brick) {
+    return middleBrickInGroup(brick, this.bricks, this.perimeter, this.width, this.height, this.cat.radius);
+  }
+
+  // Distance along a wall, toward the board center, to the first spot where a circle of
+  // `radius` in front of `point` clears every brick; 0 when already clear or nowhere clear.
+  wallClearance(point, direction, radius, parts) {
+    const tangent = direction.x ? { x: 0, y: Math.sign(this.height / 2 - point.y) }
+      : { x: Math.sign(this.width / 2 - point.x), y: 0 };
+    const maxDistance = Math.abs(tangent.x ? this.width / 2 - point.x : this.height / 2 - point.y);
+    const blocked = distance => parts.some(part => circleTouchesBrick(
+      point.x + tangent.x * distance, point.y + tangent.y * distance, radius, part));
+    if (!blocked(0) || !maxDistance) return { tangent, offset: 0 };
+    let clearDistance = null;
+    for (let distance = 1; distance <= maxDistance; distance++) {
+      if (!blocked(distance)) { clearDistance = distance; break; }
+    }
+    if (clearDistance === null) return { tangent, offset: 0 };
+    let low = clearDistance - 1, high = clearDistance;
+    for (let i = 0; i < 20; i++) {
+      const middle = (low + high) / 2;
+      if (blocked(middle)) low = middle;
+      else high = middle;
+    }
+    return { tangent, offset: high + .001 };
+  }
+
   portalExit(brick, parts = this.brickParts()) {
-    const exitBrick = middleBrickInGroup(brick, this.bricks, this.perimeter);
+    const exitBrick = this.groupSource(brick);
     const edge = brickRegions(this.bricks, this.width, this.height).get(exitBrick.id).edge;
     const direction = { top: [0, 1], right: [-1, 0], bottom: [0, -1], left: [1, 0] }[edge];
     const markerX = exitBrick.x + exitBrick.w / 2;
@@ -3288,24 +3558,8 @@ class Game {
       y: markerY + direction[1] * normalOffset,
       nx: direction[0], ny: direction[1], markerX, markerY,
     };
-    const tangent = direction[0] ? { x: 0, y: Math.sign(this.height / 2 - markerY) }
-      : { x: Math.sign(this.width / 2 - markerX), y: 0 };
-    const maxDistance = Math.abs(tangent.x ? this.width / 2 - markerX : this.height / 2 - markerY);
-    const blocked = distance => parts.some(part => circleTouchesBrick(
-      exit.x + tangent.x * distance, exit.y + tangent.y * distance, this.cat.radius, part));
-    if (!blocked(0) || !maxDistance) return exit;
-    let clearDistance = null;
-    for (let distance = 1; distance <= maxDistance; distance++) {
-      if (!blocked(distance)) { clearDistance = distance; break; }
-    }
-    if (clearDistance === null) return exit;
-    let low = clearDistance - 1, high = clearDistance;
-    for (let i = 0; i < 20; i++) {
-      const middle = (low + high) / 2;
-      if (blocked(middle)) low = middle;
-      else high = middle;
-    }
-    const offset = high + .001;
+    const { tangent, offset } = this.wallClearance(exit, { x: direction[0], y: direction[1] }, this.cat.radius, parts);
+    if (!offset) return exit;
     exit.x += tangent.x * offset;
     exit.y += tangent.y * offset;
     exit.markerX += tangent.x * offset;
@@ -6227,6 +6481,9 @@ class Game {
     this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();
+    this.updateHazardEmitters(dt, parts);
+    this.pushCatWithShots(parts);
+    if (this.state !== 'playing') { this.tickStart = null; return; }
     for (const part of parts) {
       if (this.touchingPart(part)) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
     }
@@ -6317,13 +6574,13 @@ class Game {
       }
       bumperTime = Infinity;
       for (const bumper of this.bumpers) {
-        const time = circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius);
+        const time = this.hazardObjectContact(bumper, dx, dy, dt);
         if (time < bumperTime) bumperTime = time;
       }
       if (bumperTime < contact - 1e-9) { contact = bumperTime; contacts = []; }
       if (bumperTime <= contact + 1e-9 && bumperTime <= 1) {
         bumperContacts = this.bumpers.filter(bumper =>
-          Math.abs(circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius) - bumperTime) <= 1e-9);
+          Math.abs(this.hazardObjectContact(bumper, dx, dy, dt) - bumperTime) <= 1e-9);
       }
       collectingSaw = this.items.some(item => item.type === 'saw-blade'
         && (item.expires == null || item.expires > this.elapsed + 1e-9)
@@ -6342,20 +6599,27 @@ class Game {
         bumperContacts = [];
         bumperTime = Infinity;
         for (const bumper of this.bumpers) {
-          const time = circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius);
+          const time = this.hazardObjectContact(bumper, dx, dy, dt);
           if (time < bumperTime) bumperTime = time;
         }
         if (bumperTime < contact - 1e-9) { contact = bumperTime; contacts = []; }
         if (bumperTime <= contact + 1e-9 && bumperTime <= 1) {
           bumperContacts = this.bumpers.filter(bumper =>
-            Math.abs(circleContact(cat.x - bumper.x, cat.y - bumper.y, dx, dy, cat.radius + bumper.radius) - bumperTime) <= 1e-9);
+            Math.abs(this.hazardObjectContact(bumper, dx, dy, dt) - bumperTime) <= 1e-9);
         }
       }
     }
+    if (!dx && !dy && !this.bubbleTrap) {
+      bumperTime = Math.min(Infinity, ...this.bumpers.filter(bumper => bumper.hazardShot)
+        .map(bumper => this.hazardObjectContact(bumper, 0, 0, dt)));
+      if (bumperTime <= 1) {
+        contact = bumperTime;
+        bumperContacts = this.bumpers.filter(bumper => bumper.hazardShot
+          && Math.abs(this.hazardObjectContact(bumper, 0, 0, dt) - bumperTime) <= 1e-9);
+      }
+    }
     if (!this.bubbleTrap) for (const bubble of this.bubbles) {
-      const time = dx || dy
-        ? circleContact(cat.x - bubble.x, cat.y - bubble.y, dx, dy, cat.radius + bubble.radius)
-        : Math.hypot(cat.x - bubble.x, cat.y - bubble.y) <= cat.radius + bubble.radius ? 0 : Infinity;
+      const time = this.hazardObjectContact(bubble, dx, dy, dt);
       if (time < bubbleTime) { bubbleTime = time; bubbleHit = bubble; }
     }
     if (bubbleHit && bubbleTime <= contact + 1e-9 && bubbleTime <= 1
@@ -6401,6 +6665,7 @@ class Game {
       this.tickStart = null; return;
     }
     this.updateTurrets(dt);
+    this.updateHazardDamage(dt, parts, startX, startY);
     const sawTarget = contacts.map(part => this.bricks[part.id]).find(brick => !['cinder', 'goal'].includes(brick.kind));
     const sawed = sawTarget && this.sawBrick(sawTarget, parts);
     if (!sawed) {
@@ -6461,9 +6726,16 @@ class Game {
           distance = 1;
         }
         nx /= distance; ny /= distance;
-        const incoming = cat.vx * nx + cat.vy * ny;
+        const incoming = (cat.vx - (bumper.hazardShot ? bumper.vx : 0)) * nx
+          + (cat.vy - (bumper.hazardShot ? bumper.vy : 0)) * ny;
         if (incoming >= -1e-9) continue;
-        Object.assign(cat, reflectVelocity(cat.vx, cat.vy, { x: nx, y: ny }));
+        if (bumper.hazardShot) {
+          const speed = Math.hypot(cat.vx, cat.vy) || SPEED;
+          const reflected = reflectVelocity(cat.vx - bumper.vx, cat.vy - bumper.vy, { x: nx, y: ny });
+          const length = Math.hypot(reflected.vx, reflected.vy);
+          cat.vx = reflected.vx / length * speed; cat.vy = reflected.vy / length * speed;
+          this.conveyorRide = null;
+        } else Object.assign(cat, reflectVelocity(cat.vx, cat.vy, { x: nx, y: ny }));
         const multiplier = OBJECTS[bumper.type].speedMultiplier;
         cat.vx *= multiplier; cat.vy *= multiplier;
         cat.x = bumper.x + nx * (cat.radius + bumper.radius + .01);
@@ -6471,6 +6743,13 @@ class Game {
         bumper.hitAt = this.elapsed;
         bumper.hitNormal = { x: nx, y: ny };
         this.target = null;
+      }
+      if (this.catInsideBrick(parts)) {
+        this.hearts = 0;
+        this.tookDamage = true;
+        cat.vx = 0; cat.vy = 0;
+        this.boosted = false;
+        this.conveyorRide = null;
       }
     }
     if (rideEnd && !this.conveyorEdge(ride.id, parts)) {
@@ -6502,6 +6781,8 @@ class Game {
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
 const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+api.HAZARDS = HAZARDS;
+api.hazardEnabled = hazardEnabled;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

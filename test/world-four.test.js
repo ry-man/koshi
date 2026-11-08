@@ -119,7 +119,8 @@ test('25% of playable bricks are enlarged, one third have extras, and steering c
     for (const group of level.brickGroups) {
       for (const id of group.members) assert.equal(game.bricks[id].kind, game.bricks[group.owner].kind);
     }
-    for (const attribute of ['crumbler', 'warped', 'toggle', ...CONTACT_SURFACES]) {
+    assert.ok(game.bricks.every(brick => !brick.hazard), 'new custom hazards do not alter the authored campaign');
+    for (const attribute of ['crumbler', 'warped', 'toggle', ...CONTACT_SURFACES.filter(surface => surface !== 'hazard')]) {
       assert.ok(game.bricks.some(brick => brick[attribute]), attribute);
     }
     assert.deepEqual(portalPairIssues(game.bricks), []);

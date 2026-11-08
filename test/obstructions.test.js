@@ -634,7 +634,7 @@ test('obstruction graphics clip every pattern to its shape and use both chosen c
   }
 });
 
-test('the editor provides the same 100 unique color presets for both colors and both placement methods', () => {
+test('the editor provides the same 100 unique color presets for both colors in placements, spawners, and obstructor guns', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const makeNode = () => ({
     children: [], style: {}, attributes: {}, listeners: {},
@@ -643,7 +643,7 @@ test('the editor provides the same 100 unique color presets for both colors and 
     addEventListener(name, callback) { this.listeners[name] = callback; },
   });
   const inputs = new Map(), menus = [];
-  for (const prefix of ['event', 'brick-spawn']) for (const field of ['color', 'patternColor']) {
+  for (const prefix of ['event', 'brick-spawn', 'brick-hazard']) for (const field of ['color', 'patternColor']) {
     inputs.set(`#${prefix}-${field}`, { value: '#123456', events: [],
       parentElement: { after: node => menus.push(node) },
       dispatchEvent(event) { this.events.push(event.type); },
@@ -656,7 +656,7 @@ test('the editor provides the same 100 unique color presets for both colors and 
   const setup = source.indexOf('function setupObstructionColors(');
   vm.runInContext(source.slice(setup, source.indexOf('\nfunction ', setup + 1)), context);
   context.setupObstructionColors();
-  assert.equal(menus.length, 4);
+  assert.equal(menus.length, 6);
   const colors = menus[0].children[1].children.map(button => button.style.backgroundColor);
   assert.equal(colors.length, 100);
   assert.equal(new Set(colors).size, 100);

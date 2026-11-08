@@ -1347,7 +1347,7 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { value: '', checked: false,
-      querySelector: () => null, replaceChildren() {}, setAttribute() {} });
+      parentElement: {}, querySelector: () => null, replaceChildren() {}, setAttribute() {} });
     return nodes.get(selector);
   };
   const regionKey = region => `${region.edge}:${region.start}:${region.end}`;

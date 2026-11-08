@@ -127,6 +127,12 @@ test('Koshi moves into the turret, then stays in place as it exits', () => {
 
 test('merged turret bricks spawn and draw their icon on the middle sub-brick, rounding clockwise', () => {
   const base = new Game(() => .5), top = base.perimeter.slice(1, 4);
+  // A side brick spanning a landscape corner has the top/bottom row across its face.
+  const clear = id => {
+    const { center } = turretGeometry(base.bricks[id], base.width, base.height);
+    return !base.bricks.some(other => other.id !== id && other.x < center.x + 21 && other.x + other.w > center.x - 21
+      && other.y < center.y + 21 && other.y + other.h > center.y - 21);
+  };
   const node = (_namespace, tag) => ({
     tag, attributes: {}, children: [], dataset: {}, style: { setProperty() {} },
     setAttribute(name, value) { this.attributes[name] = String(value); },
@@ -136,12 +142,17 @@ test('merged turret bricks spawn and draw their icon on the middle sub-brick, ro
   vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8'), context);
   const cases = [[top, top[1]], [top.slice(0, 2), top[1]], [base.perimeter.slice(1, 5), top[2]]];
   const regions = brickRegions(base.bricks, base.width, base.height);
+  let blockedCorners = 0;
   for (let i = 0; i < base.perimeter.length; i++) {
     const a = base.perimeter[i], b = base.perimeter[(i + 1) % base.perimeter.length];
     if (regions.get(a).edge === regions.get(b).edge) continue;
-    cases.push([[a, b], b], [[base.perimeter[(i + base.perimeter.length - 1) % base.perimeter.length],
-      a, b, base.perimeter[(i + 2) % base.perimeter.length]], b]);
+    const after = base.perimeter[(i + 2) % base.perimeter.length];
+    if (!clear(b)) blockedCorners++;
+    // An obstructed clockwise middle moves to the nearest clear sub-brick, clockwise first.
+    cases.push([[a, b], clear(b) ? b : a], [[base.perimeter[(i + base.perimeter.length - 1) % base.perimeter.length],
+      a, b, after], clear(b) ? b : after]);
   }
+  assert.equal(blockedCorners, 2);
   for (const [members, middle] of cases) {
     const owner = members[0], region = brickEditRegions(base.bricks).get(owner);
     const customLevel = { ...blank(), brickTypes: [{ ...region, kind: 'normal', turret: 'laser' }], brickGroups: [{ owner, members }] };
@@ -377,6 +388,7 @@ test('laser effects use light blue beams and glow with a pale blue core', () => 
   });
   const context = vm.createContext({ ctx, game: { turretProjectiles: [],
     turretEffects: [{ type: 'laser', age: .05, start: { x: 10, y: 20 }, end: { x: 100, y: 150 } }] } });
+  vm.runInContext(source.slice(source.indexOf('function drawLaserBeam('), source.indexOf('function drawHazards(')), context);
   vm.runInContext(source.slice(source.indexOf('function drawTurretEffects('), source.indexOf('function render(now)')), context);
   context.drawTurretEffects(ctx);
   assert.ok(calls.some(([name, color]) => name === 'strokeStyle' && color === '#7dd3fc'));

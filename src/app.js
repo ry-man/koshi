@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, middleBrickInGroup, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
@@ -647,7 +647,7 @@ function makeBrickButtons() {
       container.append(conveyor);
     }
     const special = decorateBrick(button, brick, members, game.width, game.height,
-      brick.turret || brick.portal ? middleBrickInGroup(brick, game.bricks, game.perimeter) : null,
+      brick.turret || brick.portal || brick.hazard ? game.groupSource(brick) : null,
       brick.portal ? game.portalExit(brick) : null);
     exposePortalCloud(special, container);
     exposeBrickInfo(special, container, brick, game.width, game.height);
@@ -1453,6 +1453,7 @@ function guidePicture(picture, title, fillBrick = false) {
       barrier: type === 'barrier',
       power: type === 'power',
       turret: type === 'turret' ? 'laser' : null,
+      hazard: type === 'hazard' ? { type: 'flame' } : null,
       spawner: type === 'spawner' ? { kind: 'enemy', type: 'mouse' } : null };
     decorateBrick(image, brick, [brick]);
     return image;
@@ -2010,6 +2011,67 @@ function drawTurretRim(context, turret, opacity = 1) {
   context.restore();
 }
 
+function drawLaserBeam(context, beam, hazard = false) {
+  context.lineCap = 'round';
+  context.shadowColor = hazard ? '#ff4545' : '#7dd3fc'; context.shadowBlur = 20;
+  context.strokeStyle = context.shadowColor; context.lineWidth = 10;
+  context.beginPath(); context.moveTo(beam.start.x, beam.start.y); context.lineTo(beam.end.x, beam.end.y); context.stroke();
+  context.shadowBlur = 0;
+  context.strokeStyle = hazard ? '#ffd1c7' : '#e0f2fe'; context.lineWidth = 3;
+  context.beginPath(); context.moveTo(beam.start.x, beam.start.y); context.lineTo(beam.end.x, beam.end.y); context.stroke();
+}
+
+function drawHazards(context, camera = null) {
+  const visible = (x, y, w = 0, h = 0, margin = 32) => !camera || cameraBoundsVisible(camera, x, y, w, h, margin);
+  for (const beam of game.hazardBeams) {
+    if (!visible(Math.min(beam.start.x, beam.end.x), Math.min(beam.start.y, beam.end.y),
+      Math.abs(beam.end.x - beam.start.x), Math.abs(beam.end.y - beam.start.y))) continue;
+    context.save(); drawLaserBeam(context, beam, true); context.restore();
+  }
+  for (const part of game.hazardFlames) {
+    if (!visible(part.x, part.y, part.w, part.h)) continue;
+    context.save();
+    context.strokeStyle = '#ff7928'; context.lineWidth = 10;
+    context.shadowColor = '#ff7928'; context.shadowBlur = 12;
+    context.strokeRect(part.x, part.y, part.w, part.h);
+    context.shadowBlur = 0; context.strokeStyle = '#ffe15a'; context.lineWidth = 3;
+    context.strokeRect(part.x, part.y, part.w, part.h);
+    const geometry = globalThis.KoshiGame.turretGeometry(part, game.width, game.height);
+    const vertical = geometry.direction.x !== 0, length = vertical ? part.h : part.w;
+    for (let along = 6; along < length; along += 13) {
+      const x = vertical ? geometry.anchor.x : part.x + along;
+      const y = vertical ? part.y + along : geometry.anchor.y;
+      const reach = 7 + Math.sin(game.elapsed * 12 + along) * 2;
+      context.beginPath(); context.moveTo(x - (vertical ? 0 : 5), y - (vertical ? 5 : 0));
+      context.lineTo(x + geometry.direction.x * reach, y + geometry.direction.y * reach);
+      context.lineTo(x + (vertical ? 0 : 5), y + (vertical ? 5 : 0)); context.closePath();
+      context.fillStyle = '#ffb52e'; context.fill();
+    }
+    context.restore();
+  }
+  for (const missile of game.hazardMissiles) {
+    if (!visible(missile.x, missile.y)) continue;
+    context.save(); context.translate(missile.x, missile.y); context.rotate(missile.angle);
+    context.fillStyle = '#ffb52e';
+    context.beginPath(); context.moveTo(-12, -4); context.lineTo(-22 - Math.sin(game.elapsed * 30) * 3, 0); context.lineTo(-12, 4); context.closePath(); context.fill();
+    context.fillStyle = '#df4141'; context.strokeStyle = '#17212a'; context.lineWidth = 1.5;
+    context.beginPath(); context.moveTo(-10, -4); context.lineTo(-15, -11); context.lineTo(0, -6);
+    context.lineTo(0, 6); context.lineTo(-15, 11); context.lineTo(-10, 4); context.closePath(); context.fill(); context.stroke();
+    context.fillStyle = '#aeb7bd';
+    context.beginPath(); context.moveTo(-12, -5); context.lineTo(5, -5);
+    context.quadraticCurveTo(18, 0, 5, 5); context.lineTo(-12, 5); context.closePath(); context.fill(); context.stroke();
+    context.restore();
+  }
+  for (const effect of game.hazardExplosions) {
+    if (!visible(effect.x, effect.y, 0, 0, 100)) continue;
+    const progress = effect.age / .42;
+    context.save(); context.globalAlpha *= 1 - progress;
+    context.fillStyle = '#ff693c55'; context.strokeStyle = '#ffb35a'; context.lineWidth = 3 * (1 - progress);
+    context.beginPath(); context.arc(effect.x, effect.y, 12 + progress * 50, 0, Math.PI * 2); context.fill(); context.stroke();
+    context.restore();
+  }
+}
+
 function drawTurretEffects(context, camera = null) {
   for (const projectile of game.turretProjectiles) {
     if (camera && !cameraBoundsVisible(camera, projectile.x, projectile.y, 0, 0, 32)) continue;
@@ -2034,13 +2096,7 @@ function drawTurretEffects(context, camera = null) {
     context.save();
     context.globalAlpha *= 1 - progress;
     if (effect.type === 'laser') {
-      context.lineCap = 'round';
-      context.shadowColor = '#7dd3fc'; context.shadowBlur = 20;
-      context.strokeStyle = '#7dd3fc'; context.lineWidth = 10;
-      context.beginPath(); context.moveTo(effect.start.x, effect.start.y); context.lineTo(effect.end.x, effect.end.y); context.stroke();
-      context.shadowBlur = 0;
-      context.strokeStyle = '#e0f2fe'; context.lineWidth = 3;
-      context.beginPath(); context.moveTo(effect.start.x, effect.start.y); context.lineTo(effect.end.x, effect.end.y); context.stroke();
+      drawLaserBeam(context, effect);
     } else {
       const radius = 12 + progress * 75;
       context.fillStyle = '#ff693c55';
@@ -2087,7 +2143,9 @@ function render(now) {
   }
   ctx.strokeStyle = '#9dbb9e09'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
-  for (const obstruction of game.obstructions) if (visible(obstruction)) drawObstruction(ctx, obstruction);
+  for (const obstruction of game.obstructions) if (visible(obstruction)) {
+    drawEmergingShot(obstruction, obstruction.color ?? OBJECTS[obstruction.type].color, shot => drawObstruction(ctx, shot));
+  }
   for (const effect of game.obstructionDestructions) if (visible(effect, 160)) drawObstructionDestruction(ctx, effect);
   const streamRows = powerupStreamRows(game);
   drawMusicStream(game, streamRows.music);
@@ -2132,7 +2190,7 @@ function render(now) {
     drawGameItem(item);
     drawObjectLifetime(item);
   }
-  for (const bubble of game.bubbles) if (visible(bubble)) drawBubble(bubble);
+  for (const bubble of game.bubbles) if (visible(bubble)) drawEmergingShot(bubble, SLIMES[bubble.color].color, drawBubble);
   for (const heart of game.healing) {
     if (!visible(heart)) continue;
     ctx.fillStyle = '#ef9d9d'; ctx.font = '30px sans-serif'; ctx.textAlign = 'center';
@@ -2189,7 +2247,9 @@ function render(now) {
     }
   }
   for (const ball of game.soccerBalls ?? []) if (visible(ball)) drawSoccerBall(ctx, ball);
-  for (const bumper of game.bumpers ?? []) if (visible(bumper)) drawBumper(ctx, bumper, game.elapsed);
+  for (const bumper of game.bumpers ?? []) if (visible(bumper)) {
+    drawEmergingShot(bumper, OBJECTS[bumper.type]?.color ?? '#ffffff', shot => drawBumper(ctx, shot, game.elapsed));
+  }
   for (const effect of game.goalEffects ?? []) if (visible(effect)) drawGoalSpark(ctx, effect);
   for (const effect of game.brickDestructions) {
     if (!game.level.autoscroll || effect.members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 40))) drawBrickDestructionSmoke(effect);
@@ -2293,6 +2353,7 @@ function render(now) {
     drawSword(swordX, swordY, color, label);
   }
   drawTurretEffects(ctx, game.level.autoscroll ? camera : null);
+  drawHazards(ctx, game.level.autoscroll ? camera : null);
   ctx = boardCtx;
 }
 
@@ -2581,6 +2642,33 @@ function drawBubble(bubble, trapped = false) {
       ctx.strokeStyle = '#123c50'; ctx.lineWidth = 3.5; ctx.stroke();
       ctx.strokeStyle = '#d7faff'; ctx.lineWidth = 1.5; ctx.stroke();
     }
+  }
+  ctx.restore();
+}
+
+const SHOT_EMERGE = .5;
+// Gun shots slide out from behind the brick face while a muzzle ring flares at the opening.
+function drawEmergingShot(shot, color, draw) {
+  const age = shot.emerge?.age ?? Infinity;
+  if (!(age < SHOT_EMERGE)) { draw(shot); return; }
+  const { x, y, dx, dy } = shot.emerge, angle = Math.atan2(dy, dx);
+  const t = Math.max(0, age / SHOT_EMERGE), ease = t * t * (3 - 2 * t);
+  const lag = (shot.radius * 2 + .1) * (1 - ease), scale = .6 + .4 * ease;
+  const cx = shot.x - dx * lag, cy = shot.y - dy * lag;
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(angle);
+  ctx.beginPath(); ctx.rect(0, -shot.radius * 3, shot.radius * 6, shot.radius * 6); ctx.clip();
+  ctx.rotate(-angle); ctx.translate(cx - x, cy - y); ctx.scale(scale, scale);
+  draw({ ...shot, x: 0, y: 0 });
+  ctx.restore();
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(angle);
+  ctx.globalAlpha *= 1 - t;
+  ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(2 + t * 6, 0, 3 + t * 7, shot.radius * (.9 + t * .35), 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  for (const side of [-1, 1]) for (const step of [.55, 1]) {
+    ctx.beginPath(); ctx.arc(3 + t * 14 * step, side * shot.radius * (.75 + t * .5) * step, 2.5 * (1 - t), 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }

@@ -140,7 +140,8 @@ test('turret drawing keeps crossing beams and overlapping blasts but skips dista
     ],
   };
   const effects = source.slice(source.indexOf('function drawTurretEffects('), source.indexOf('function cameraBoundsVisible('));
-  vm.runInNewContext(`${helper}\n${effects}\ndrawTurretEffects(context, camera);`, { game, context, camera });
+  const beam = source.slice(source.indexOf('function drawLaserBeam('), source.indexOf('function drawHazards('));
+  vm.runInNewContext(`${helper}\n${beam}\n${effects}\ndrawTurretEffects(context, camera);`, { game, context, camera });
   assert.equal(arcs.length, 4, 'one projectile and one blast each draw two circles');
   assert.equal(lines.length, 2, 'one crossing laser draws its glow and core');
   assert.deepEqual(lines[0], [0, 300]);

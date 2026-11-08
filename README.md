@@ -453,7 +453,7 @@ The title screen includes two learning paths:
   enemy, item, object, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.
-- **Tutorial** opens 55 interactive practice steps on the real game board. It
+- **Tutorial** opens 56 interactive practice steps on the real game board. It
   includes hands-on combat with every robot, practice for each item mechanic,
   the contact surfaces and special bricks, and bumper, bubble, and obstruction
   interactions, alongside movement, food, healing, spawn warnings, and objectives.
@@ -1095,8 +1095,8 @@ tracks his health; his death animation finishes before Koshi celebrates.
    clicks do not toggle power. **Power Blocks starting color** in Level settings
    selects the shared initial state: off (yellow circle, black symbol) or on
    (black circle, yellow symbol). Restart restores that choice; newly stamped
-   Power Blocks use the current shared state. Power does not affect other game
-   elements yet.
+   Power Blocks use the current shared state. Hazard Bricks with a black or
+   yellow border operate only when Power Blocks match that border.
    Set the selection limit (default 5) or warp duration
    (default 15 seconds). Changes apply immediately. Each brick
    can have its own type, independent of the preset. Applying a different boundary
@@ -1342,6 +1342,8 @@ have a 96-unit diameter, stay fixed and bounce Koshi and enemies away. Red incre
 Bumpers block Robo Jackolantern fire in their circular shadow, like obstructions.
 Their two-second appearance warnings and overlap clearing use the obstruction
 rules, including lethal overlap with Koshi and unscored environmental enemy deaths.
+A bounce off any bumper, fixed or fired by a bumper gun, that forces Koshi into a
+brick kills him immediately, even while protected.
 Food, weapons, items and healing hearts cannot overlap bumpers or obstructions:
 random pickups avoid them, and covered live or queued pickups are removed.
 Custom levels can also place blue, green and red bubbles (`bubble-blue`,
@@ -1783,6 +1785,41 @@ Optional `power` is a boolean; `true` adds a Power Block switch and `false`
 removes it. Level-wide `powerOn` is an optional boolean specifying the shared
 starting state (default `false`, yellow face). Gameplay changes to this state
 are not exported; all Power Blocks switch together.
+Optional `hazard` is `null` (remove the surface) or an object with `type`:
+`laser`, `flame`, `missile`, `bubble-red`, `bubble-green`, `bubble-blue`,
+`bumper-red`, `bumper-green`, `bumper-blue`, or `obstructor`. In the editor, select the
+**Hazard** contact surface, then its type. Hazards operate continuously without
+being touched or selected, and never damage enemies. Lasers fire inward through
+Koshi, damaging him without blocking his movement, and stop at solid obstacles.
+Flames cover the brick surface and damage Koshi on contact. Missiles fly at
+150 board units/second and turn at no more than 0.65 radians/second, allowing
+Koshi to dodge them into bricks, obstructions, or bumpers; impacts explode
+without destroying obstacles or harming enemies. Bubble and bumper guns fire
+straight inward at 120 board units/second, using the existing colored bubbles
+and bumpers. Obstructor guns fire circular obstructions (radius 48, the bumper size) at the same speed; optional `hazard.color`/`hazard.patternColor` (`#rrggbb`) and `hazard.pattern` (an obstruction pattern) set their look like standalone obstructions, and are rejected on other hazard types. Obstructor shots block enemies and objects like other obstructions without harming them, shove Koshi without damage, and kill him instantly if they pin him against a brick. Each shot visibly pushes out of the brick face behind a fading
+muzzle ring during its first half second (render-only; its collision position
+is unchanged). All bubble guns suspend firing while Koshi is trapped; bubbles
+already fired that reach the trapped Koshi pop to prevent a pileup.
+Gun bubbles pop with the trap-escape pop animation when they hit a solid
+obstacle. Bumper and obstructor shots pass through bricks, obstructions, and
+bumpers, disappearing only once wholly off the board (the simulation area on
+autoscroll levels). Cooling, exhausted, or Toggle-disabled bricks still operate their hazards,
+just like other contact surfaces.
+
+Each gun's optional `interval` is 0.1–3600 seconds, edited with **Hazard shot
+interval**. The default is 10 seconds for missiles and 3 seconds for bubble/
+bumper/obstructor guns; the first shot waits that interval after the brick appears on
+screen. Timers pause while power disables the hazard, reset when the
+brick leaves the screen, and do not advance while the game is paused. Continuous
+laser/flame hazards do not accept an interval. Optional `hazard.power` is
+`null` (no border, always operating), `"black"` (black border, active when
+`powerOn` is true), or `"yellow"` (yellow border, active when `powerOn` is
+false). This is an attribute of the hazard, not another brick type. Borders
+are beveled black or yellow frames with quarter-circle corner plates joined by
+rectangular bars, and bordered icons shrink slightly to stay clear of them.
+Turning power off stops emission, not projectiles already fired. Hazard settings
+survive import/export, playtesting, combining/splitting bricks, and Ditto
+stamping. Existing campaign levels are unchanged.
 Optional `slimed`, `springs`, `spikes`, and `conveyor` are booleans; `false` removes the attribute.
 They are mutually exclusive: importing more than one as `true` in the same
 override is an error, while enabling one in the editor replaces the others.
@@ -1828,7 +1865,13 @@ identifies a fireball turret, without interior symbols.
 The icon rotates with the board edge so its flat base faces the brick's outer side.
 On a merged turret brick, the icon and the dome sit on the middle sub-brick
 along the perimeter; with an even number of sub-bricks, the clockwise middle
-one is used. Once the turret is used, its semicircle turns grey until a
+one is used. If that sub-brick spans a board corner so the perpendicular wall
+covers its inward face, the nearest sub-brick with a clear face is used instead
+(clockwise first). Merged portals (exit oval) and gun/laser/missile Hazard
+Bricks (icon and launch point) use the same choice. On every level and layout,
+if a gun or missile shot would still overlap a perpendicular wall at its launch
+point (corner bricks, or the thicker bricks of small phone screens), it slides
+along the face toward the board center until it fits, as portal exits do. Once the turret is used, its semicircle turns grey until a
 Battery recharges it.
 Touching the brick moves Koshi into its inward-facing, translucent blue protective dome;
 click or tap a point to aim and fire. Both turret types aim from the barrel pivot

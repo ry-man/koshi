@@ -235,7 +235,7 @@ illustrate every brick, enemy, item, object, and weapon using the gameplay shape
 Story instructions are not part of this guide. Each topic links to a related
 tutorial step. Escape or Back to title closes the guide.
 
-The interactive tutorial uses the actual game board and mechanics in 55 isolated
+The interactive tutorial uses the actual game board and mechanics in 56 isolated
 practice steps. It includes a hands-on defeat lesson for every robot, exercises
 for every item mechanic and contact surface, special brick interactions, and
 bumper, bubble, and obstruction practice, as well as movement, food, healing,
@@ -447,6 +447,43 @@ and its white knob displays the remaining count in large bold type.
 At zero the brick enables; the next successful activation disables
 it and resets its count. Toggle state only controls whether the brick can be
 selected; all contact effects remain active, including Boost launches.
+
+Hazard Bricks are available for custom levels without changing the campaign.
+They operate continuously by default and never damage enemies. Their centered
+icons show a red laser burst, orange/yellow flame, grey missile with red fins,
+or the corresponding colored bubble/bumper, or a patterned obstruction. Lasers fire straight inward using
+the turret beam style in red; Koshi can pass through but takes damage. Flames
+cover the brick surface and damage him on contact. Missiles move at 150 board
+units/second, turn at no more than 0.65 radians/second, and explode on Koshi,
+bricks, obstructions, or bumpers without damaging enemies or destroying objects.
+Bubble and bumper guns fire straight inward at 120 board units/second in red,
+green, or blue, retaining existing trap durations and bounce speed modifiers.
+Obstructor guns fire bumper-sized circular obstructions at the same speed, with
+color, pattern, and pattern color set in the editor like standalone obstructions.
+They block enemies without harming them and push Koshi without damage.
+Each shot slides out from behind the brick face with a fading muzzle ring.
+If a perpendicular wall would cover the shot at its launch point (corner bricks
+or the thicker bricks of small phone screens), the launch point slides along
+the face toward the board center until the shot fits, like a portal exit.
+All bubble guns stop firing while Koshi is trapped; fired bubbles that reach
+him during confinement pop to avoid stockpiling another trap. Gun bubbles that
+hit a brick, obstruction, or bumper burst with the usual bubble-pop animation.
+Bumper and obstructor shots instead pass through bricks, obstructions, and
+bumpers, disappearing only once they have fully left the board.
+
+The editor's Hazard surface has a type, optional power border, and a per-brick
+shot interval for missile/bubble/bumper/obstructor guns (0.1-3600 seconds). Missiles default
+to 10 seconds between shots, starting after appearing on screen; the other guns
+default to 3 seconds. No border operates regardless of power; black borders
+operate only with black Power Blocks, yellow only with yellow Power Blocks.
+Power borders are beveled frames in the Power Block black or yellow, with
+quarter-circle plates in each corner joined by rectangular bars; bordered
+icons are drawn slightly smaller so the frame never covers them.
+Changing power stops emission, not shots already fired. Timers freeze while
+power disables a hazard or gameplay is paused and reset when it leaves the
+screen. Cooldown, Crumbler exhaustion, and Toggle affect selection only, not
+hazard operation. Hazard attributes persist through drafts, JSON, playtests,
+combining/splitting, and Ditto copies.
 
 Spawning bricks show a prominent item-colored icon with a thin dark outline
 and a dark rainbow glow for their configured
@@ -707,6 +744,8 @@ Swords randomly appear and do not ever disappear unless Koshi picks them up. Kos
 
 ## Death
 Koshi dies if he either runs out of hearts or if he runs off of the edge of the screen.
+He also dies instantly, even while protected, if a bumper (fixed or fired from a bumper gun)
+knocks him into a brick, or an obstructor gun's shot pins him against one.
 
 ### Campaign: The food rescue
 

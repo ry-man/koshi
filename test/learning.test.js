@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 55);
+  assert.equal(LESSONS.length, 56);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -181,6 +181,13 @@ test('new item and object lessons complete only after their mechanic is used', (
   wait(turret, 1);
   assert.equal(turret.game.fireTurretAt(turret.game.width / 2, turret.game.height / 2), true);
   assert.equal(turret.observe(), true);
+  const hazard = practice('hazard');
+  assert.equal(hazard.observe(), false);
+  aim(hazard); wait(hazard, 1.5);
+  assert.ok(hazard.game.tookDamage);
+  assert.equal(hazard.observe(), false, 'must leave the flame after contact');
+  assert.equal(aim(hazard, opposite(hazard)), true);
+  assert.equal(hazard.observe(), true);
 });
 
 for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scale: .3 }]) {
