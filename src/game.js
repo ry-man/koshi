@@ -42,6 +42,9 @@ const ITEMS = {
   'kitty-cape': { name: 'Kitty Cape', icon: '⚡', color: '#b5d77c' },
   'ditto-stamp': { name: 'Ditto Stamp', icon: '▣', color: '#f59a50' },
   'spooky-mask': { name: 'Spooky Mask', icon: '👹', color: '#d73642' },
+  'cat-shield-red': { name: 'Red Cat Shield', icon: '🛡️', color: '#ed5555', catShield: 'red' },
+  'cat-shield-green': { name: 'Green Cat Shield', icon: '🛡️', color: '#63d877', catShield: 'green' },
+  'cat-shield-blue': { name: 'Blue Cat Shield', icon: '🛡️', color: '#519eff', catShield: 'blue' },
   'cat-block': { name: 'Cat Block', icon: '🐱', color: '#f5b52e' },
   key: { name: 'Key', icon: '🗝️', color: '#f0ce35' },
   'treasure-chest': { name: 'Treasure Chest', icon: '🧰', color: '#a66b36' },
@@ -161,6 +164,11 @@ const SWORDS = {
   gold: { name: 'Gold Sword', color: '#f3d16b', seconds: 15 },
 };
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
+const CAT_SHIELDS = {
+  red: { hits: 1, next: null, color: '#ed5555' },
+  green: { hits: 2, next: 'red', color: '#63d877' },
+  blue: { hits: 3, next: 'green', color: '#519eff' },
+};
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
 const HAZARDS = {
   laser: { name: 'Laser' }, flame: { name: 'Flame' },
@@ -2774,6 +2782,7 @@ class Game {
     this.portalArrival = null;
     this.portalTrips = 0;
     this.weapon = null;
+    this.catShield = null;
     this.nextEnemy = 0;
     this.nextWeapon = 0;
     this.nextItem = 0;
@@ -2844,7 +2853,8 @@ class Game {
 
   takeDamage() {
     if (this.state !== 'playing' || this.hearts <= 0 || this.invulnerable || this.activeTurret) return false;
-    this.hearts--;
+    if (this.catShield) this.catShield = CAT_SHIELDS[this.catShield].next;
+    else this.hearts--;
     this.tookDamage = true;
     this.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
     return true;
@@ -6175,6 +6185,8 @@ class Game {
     } else if (item.type === 'smiley-cookie') {
       this.cookieActive = true;
       this.cookieLickUntil = 0;
+    } else if (ITEMS[item.type]?.catShield) {
+      this.catShield = ITEMS[item.type].catShield;
     } else if (ITEMS[item.type]?.seconds) this.timeBonus += ITEMS[item.type].seconds;
     else if (ITEMS[item.type]?.counts && this.activationsRemaining !== null && this.state === 'playing') {
       this.activationsRemaining += ITEMS[item.type].counts;
@@ -6780,7 +6792,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.hazardEnabled = hazardEnabled;
 if (typeof module !== 'undefined' && module.exports) {

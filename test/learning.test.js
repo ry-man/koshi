@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 56);
+  assert.equal(LESSONS.length, 57);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -76,7 +76,8 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
     assert.ok(LESSONS.some(lesson => lesson.id === id), `missing practice type: ${id}`);
   }
   for (const type of Object.keys(ITEMS)) {
-    const id = type.startsWith('stopwatch') ? 'stopwatch'
+    const id = type.startsWith('cat-shield-') ? 'cat-shield'
+      : type.startsWith('stopwatch') ? 'stopwatch'
       : type.startsWith('boom-time') ? 'boom-time'
         : type.startsWith('paint-') ? 'paintbrush'
           : ['smiley-cookie'].includes(type) ? 'cookie'
@@ -94,7 +95,7 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
     assert.ok(LESSONS.some(lesson => lesson.id === id), `missing enemy lesson: ${id}`);
   }
   for (const id of [
-    'cookie', 'stopwatch', 'boom-time', 'battery', 'music-box', 'spooky-mask', 'kitty-cape',
+    'cookie', 'stopwatch', 'boom-time', 'battery', 'cat-shield', 'music-box', 'spooky-mask', 'kitty-cape',
     'magic-sunglasses', 'eggplant', 'saw-blade', 'ditto-stamp', 'paintbrush', 'keys',
   ]) assert.ok(LESSONS.some(lesson => lesson.id === id), `missing item lesson: ${id}`);
   for (const id of ['bumper', 'bubble', 'obstruction']) {
@@ -103,6 +104,18 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
   const objectives = GUIDE.find(chapter => chapter.title === 'Objectives');
   for (const level of LEVELS) {
     assert.equal(objectives.sections.find(([title]) => title === `Level ${level.number}`)[1], `${levelObjective(level)}.`);
+  }
+});
+
+test('Cat Shield tutorial demonstrates a blue shield absorbing damage and stepping down to green', () => {
+  for (const options of [{}, { portrait: true, scale: .35 }]) {
+    const tutorial = practice('cat-shield', options);
+    aim(tutorial);
+    wait(tutorial, 2);
+    assert.equal(tutorial.game.catShield, 'green');
+    assert.equal(tutorial.game.hearts, 3);
+    assert.equal(tutorial.game.tookDamage, true);
+    assert.equal(tutorial.observe(), true);
   }
 });
 

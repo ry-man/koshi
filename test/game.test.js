@@ -5,7 +5,7 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-test('Koshi artwork matches his circular collision radius without scaling weapon effects', () => {
+test('Koshi artwork matches his circular collision radius without a weapon halo', () => {
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const source = app.slice(app.indexOf('function drawCat('), app.indexOf('\nfunction updateEnding('));
   const game = new Game(() => .5);
@@ -25,8 +25,7 @@ test('Koshi artwork matches his circular collision radius without scaling weapon
     circles.length = 0;
     game.weapon = { type: 'wood' };
     context.drawCat(game.cat.x, game.cat.y, 0, hurt);
-    assert.equal(circles[0], 44, 'sword effect keeps its original size');
-    assert.equal(circles[1], game.cat.radius, 'body radius matches collision radius');
+    assert.deepEqual(circles, [game.cat.radius], 'weapon pickups do not draw a circle around Koshi');
     assert.equal(scale, 1, 'drawing restores the canvas scale');
     assert.equal(stack.length, 0);
   }
@@ -90,15 +89,15 @@ test('moves count successful steering and mid-flight redirects, not invalid clic
 });
 
 test('weapon status announces remaining attacks or seconds and the sword blade shows the count', () => {
-  const { SWORDS } = require('../src/game.js');
+  const { SWORDS, CAT_SHIELDS } = require('../src/game.js');
   const root = path.resolve(__dirname, '..');
   const app = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
   const body = app.slice(app.indexOf('  const weaponCount ='), app.indexOf('  const batteryLabel ='));
   assert.ok(body.length > 0);
   const display = `{${body}}`;
-  const weaponStatus = { textContent: '' };
+  const weaponStatus = { textContent: '' }, shieldStatus = { textContent: '' };
   const game = { elapsed: 2, weapon: null };
-  const context = vm.createContext({ game, SWORDS, weaponStatus });
+  const context = vm.createContext({ game, SWORDS, CAT_SHIELDS, weaponStatus, shieldStatus });
   for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 5], ['gold', Infinity]]) {
     game.weapon = { type, uses, expires: 17 };
     vm.runInContext(display, context);
@@ -110,6 +109,10 @@ test('weapon status announces remaining attacks or seconds and the sword blade s
   game.weapon = null;
   vm.runInContext(display, context);
   assert.equal(weaponStatus.textContent, 'Weapon: no sword equipped');
+  assert.equal(shieldStatus.textContent, 'Cat Shield: none');
+  game.catShield = 'blue';
+  vm.runInContext(display, context);
+  assert.equal(shieldStatus.textContent, 'Cat Shield: blue, 3 hits remaining');
   assert.match(app, /const label = String\(remaining\);[\s\S]*drawSword\(swordX, swordY, color, label\)/);
 });
 

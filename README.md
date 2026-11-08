@@ -1484,6 +1484,13 @@ without stacking speed. Pause freezes the effect and animation; restart clears
 both. Available in custom-level placements and item spawners with optional
 ground lifetimes. Level 3-3 introduces it in the campaign.
 
+Cat Shields (`cat-shield-red`, `cat-shield-green`, `cat-shield-blue`) absorb
+one, two, or three hits respectively before Koshi loses a heart. Each absorbed
+hit weakens the shield from blue to green to red; collecting another shield
+replaces the current one, even when it has fewer hits. A circular shield
+surrounds Koshi in its current color. All three are available for
+custom-level placements and item spawners; no campaign placements are added.
+
 Magical Sunglasses (`magic-sunglasses`) have sparkling, color-cycling frames.
 They fly onto Koshi's face and bypass cooldowns, Toggle locks, and exhausted
 Crumblers for ten seconds; cinder and absorbed bricks remain unselectable.

@@ -69,6 +69,7 @@ const SYMBOLS = {
   'boom-time': 'M-5 -16 H5 L8 -14 Q20 -16 21 -3 A21 21 0 1 1 -21 -3 Q-20 -16 -8 -14 Z',
   'music-box': 'M-20 -8 H12 L20 -13 V13 L12 18 H-20 Z M-16 -12 H15 V-8 H-16 Z M12 -8 L20 -13 V-10 L12 -5 Z M20 1 H25 M25 -2 A3 3 0 1 1 25 4 M-2 -3 V9 M-2 -3 L7 -6 V5 M-2 2 A5 5 0 1 1 -2 3',
   'cat-block': 'M-17 -12 L-12 -22 L-3 -17 H3 L12 -22 L17 -12 Q22 -7 20 12 Q0 25 -20 12 Q-22 -7 -17 -12 Z M-10 -2 A2 2 0 1 0 -10 -1 M10 -2 A2 2 0 1 0 10 -1 M-7 8 Q0 14 7 8 M-20 -2 L-27 -5 M20 -2 L27 -5 M-10 -23 V-29 H10 V-23 M-8 -29 V-23 M8 -29 V-23',
+  'cat-shield': 'M-25 -34 L-14 -20 Q-9 -17 -6 -17 L0 -29 L6 -17 Q9 -17 14 -20 L25 -34 L25 13 Q24 30 8 32 Q2 34 0 42 Q-2 34 -8 32 Q-24 30 -25 13 Z M-12 -5 L-8 -10 L-3 -5 M12 -5 L8 -10 L3 -5 M-3 2 L3 2 L0 5 Z M0 5 V11 M0 11 Q-7 19 -12 12 M0 11 Q7 19 12 12 M-11 2 L-21 -3 M-16 8 H-23 M-15 14 L-21 19 M11 2 L21 -3 M16 8 H23 M15 14 L21 19',
   key: 'M-4 -5 A10 10 0 1 1 4 -5 A10 10 0 1 1 -4 -5 M0 4 V23 M0 14 H8 V20 H0 M0 21 H7',
   'treasure-chest': 'M-21 -10 Q-21 -20 -10 -20 H10 Q21 -20 21 -10 V17 H-21 Z M-21 -5 H21 M-4 -5 V7 H4 V-5 M-15 -16 V-12 M15 -16 V-12',
   eggplant: 'M-8 -14 C4 -27 25 -11 18 5 C12 20 -6 22 -17 10 C-28 -3 -17 -19 -7 -16 L-14 -24 L-4 -21 L0 -28 L4 -19 L15 -22 L8 -14',
@@ -86,7 +87,8 @@ function spawnSymbol(spawn) {
   return SYMBOLS[spawn.kind === 'weapon' ? 'sword' : spawn.kind === 'heart' ? 'heart'
     : spawn.kind === 'item' && BOOM_TIME_TYPES.has(spawn.type) ? 'boom-time'
       : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch'
-        : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}` : spawn.type];
+        : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}`
+          : spawn.kind === 'item' && ITEMS[spawn.type]?.catShield ? 'cat-shield' : spawn.type];
 }
 
 function drawPaintbrush(ctx, item) {

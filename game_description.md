@@ -188,6 +188,15 @@ refresh the ten seconds without stacking speed. Pause freezes the power and
 animation; restart clears both. The cape supports custom-level placements,
 optional ground lifetimes, and item spawners, without changing campaign levels.
 
+Cat Shields (`cat-shield-red`, `cat-shield-green`, `cat-shield-blue`) use a
+cat-face shield design with smooth upper corners, a wide triangular center
+bump, and shaded depth. The shield item absorbs one, two, or three hits. Each
+hit weakens the shield through blue, green, and red; once broken, further hits
+cost hearts. While equipped, Koshi is surrounded by a simple circular shield in
+the current color. Collecting another shield replaces the current one,
+including downgrades. These variants support custom-level placements and item
+spawners only; campaign levels are unchanged.
+
 Music Box sleep and its scrolling score last **10 seconds**; another pickup
 refreshes the timer. Spooky Mask shows a scrolling banner of ghosts and demon
 heads throughout its ten-second fear effect. Simultaneous timed power-up
@@ -528,6 +537,8 @@ pickups do not stack, and a held saw takes priority without consuming the stamp.
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask are available in the editor for
 custom levels and introduced individually in Levels 2-11 through 2-21.
+Cat Shields are also available for custom-level placements and item spawners;
+they are not added to campaign levels.
 Paintbrushes come in red, green and blue, in three shapes: a thin pencil-like
 brush with paint on its tip (1 brick contact), a wide brush with angled bristles
 and painted tips, with a small downward drip only from the longest bristles,

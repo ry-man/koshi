@@ -22,7 +22,8 @@ function gameWithItem(type, duration = 30) {
 
 test('the original 19 levels retain their item schedules and spawn bricks', () => {
   const removed = new Set(['smiley-cookie', 'stopwatch', 'stopwatch-green', 'stopwatch-blue',
-    'battery', 'music-box', 'eggplant', 'saw-blade', 'magic-sunglasses', 'ditto-stamp', 'spooky-mask']);
+    'battery', 'music-box', 'eggplant', 'saw-blade', 'magic-sunglasses', 'ditto-stamp', 'spooky-mask',
+    'cat-shield-red', 'cat-shield-green', 'cat-shield-blue']);
   for (const level of LEVELS.slice(0, 19)) {
     assert.ok((level.items ?? []).every(([, type]) => !removed.has(type)), level.name);
     assert.ok((level.events ?? []).every(event => event.kind !== 'item' || !removed.has(event.type)), level.name);
@@ -181,7 +182,8 @@ test('music box artwork includes a winding lever, shaded sides, and a larger out
     set(target, name, value) { target[name] = value; return true; },
   });
   const context = vm.createContext({ ctx, ITEMS });
-  vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
+  vm.runInContext(source.slice(source.indexOf('function drawCatShield('), source.indexOf('\nfunction updateEnding('))
+    + source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
   context.drawGameItem({ x: 0, y: 0, type: 'music-box' });
   assert.ok(operations.some(([name, ...args]) => name === 'fill' && args.includes('#613951')), 'box sides have a deep shadow');
   assert.ok(operations.some(([name, ...args]) => name === 'fill' && args.includes('#955779')), 'the side face is separately shaded');
@@ -347,7 +349,8 @@ test('eggplant uses depth shading without penalty text, and sparkle pops grow th
   const context = vm.createContext({ ctx, ITEMS, FOODS: require('../src/game.js').FOODS, SWORDS: require('../src/game.js').SWORDS,
     FOOD_COLORS: { H: '#f7d26d' },
     drawSword: (...args) => operations.push(['sword', ...args]) });
-  vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
+  vm.runInContext(source.slice(source.indexOf('function drawCatShield('), source.indexOf('\nfunction updateEnding('))
+    + source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
   context.drawGameItem({ x: 0, y: 0, type: 'eggplant' });
   assert.equal(operations.filter(([name]) => name === 'stop').length, 4);
   assert.ok(!operations.some(([name]) => name === 'fillText' || name === 'strokeText'));
@@ -385,7 +388,8 @@ test('battery artwork has a grey positive terminal, shaded yellow top, and dark 
     },
   });
   const context = vm.createContext({ ctx, ITEMS });
-  vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
+  vm.runInContext(source.slice(source.indexOf('function drawCatShield('), source.indexOf('\nfunction updateEnding('))
+    + source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
   context.drawGameItem({ x: 0, y: 0, type: 'battery' });
   assert.equal(gradients.length, 3, 'body and terminal have separate depth gradients');
   assert.ok(gradients[0].stops.some(([, color]) => color === '#ffe66b'));
@@ -415,7 +419,8 @@ test('all stopwatch graphics match their bonus and color, with matching editor a
     },
   });
   const context = vm.createContext({ ctx, ITEMS });
-  vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
+  vm.runInContext(source.slice(source.indexOf('function drawCatShield('), source.indexOf('\nfunction updateEnding('))
+    + source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
   for (const [type, color, seconds] of [['stopwatch', '#d94a4a', 10], ['stopwatch-green', '#399d4a', 30], ['stopwatch-blue', '#287dcc', 60]]) {
     operations.length = 0;
     context.drawGameItem({ x: 0, y: 0, type });
@@ -426,4 +431,84 @@ test('all stopwatch graphics match their bonus and color, with matching editor a
     assert.equal(spawnColor(spawn), color);
     assert.equal(spawnSymbol(spawn), spawnSymbol({ kind: 'item', type: 'stopwatch' }));
   }
+});
+
+test('Cat Shield pickups use the cat-face design and matching color in game and editor', () => {
+  const { spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
+  const { readFileSync } = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const operations = [], gradients = [];
+  const ctx = new Proxy({ fillStyle: '', strokeStyle: '', globalAlpha: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'createLinearGradient') return (...args) => {
+        const gradient = { args, stops: [], addColorStop(offset, color) { this.stops.push([offset, color]); } };
+        gradients.push(gradient);
+        return gradient;
+      };
+      return (...args) => operations.push({ name, args, fill: target.fillStyle, stroke: target.strokeStyle });
+    },
+  });
+  const context = vm.createContext({ ctx, ITEMS });
+  vm.runInContext(source.slice(source.indexOf('function drawCatShield('), source.indexOf('\nfunction updateEnding('))
+    + source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
+  for (const [type, color] of [
+    ['cat-shield-red', '#ed5555'], ['cat-shield-green', '#63d877'], ['cat-shield-blue', '#519eff'],
+  ]) {
+    operations.length = 0;
+    gradients.length = 0;
+    context.drawGameItem({ x: 0, y: 0, type });
+    assert.ok(operations.some(op => op.name === 'fill' && op.fill === gradients[0]), `${type} uses its shaded fill`);
+    assert.ok(operations.some(op => op.name === 'stroke' && op.stroke === color), `${type} uses its tier color`);
+    assert.ok(operations.some(op => op.name === 'stroke' && op.stroke === '#17212a'), 'the cat-face details have a dark outline');
+    assert.deepEqual(gradients[0].stops.map(([, shade]) => shade), [
+      { '#ed5555': '#ffc2b8', '#63d877': '#d3ffb0', '#519eff': '#c5e8ff' }[color],
+      color,
+      { '#ed5555': '#a82f3b', '#63d877': '#287b4b', '#519eff': '#2958a2' }[color],
+    ], 'the face shield uses graduated shading for depth');
+    const spawn = { kind: 'item', type };
+    assert.equal(spawnColor(spawn), color);
+    assert.equal(spawnSymbol(spawn), spawnSymbol({ kind: 'item', type: 'cat-shield-red' }));
+    assert.match(spawnSymbol(spawn), /M-25 -34.*L0 -29 L6 -17/, 'spawner icon has the wider center peak');
+    assert.doesNotMatch(spawnSymbol(spawn), /M-16 -27|M16 -27/, 'spawner icon has smooth upper corners');
+    assert.match(spawnSymbol(spawn), /M-12 -5 L-8 -10 L-3 -5.*M12 -5 L8 -10 L3 -5/,
+      'both eyes use the same dark strokes as the mouth');
+    assert.match(spawnSymbol(spawn), /M-11 2 L-21 -3 M-16 8 H-23 M-15 14 L-21 19 M11 2 L21 -3 M16 8 H23 M15 14 L21 19/,
+      'the two lower whiskers on each side are shortened at their inner ends');
+    assert.ok(operations.filter(op => op.name === 'stroke' && op.stroke === '#17212a').length >= 10,
+      'canvas art draws dark eyes, mouth, and whiskers');
+  }
+});
+
+test('equipped Cat Shield is a plain circular ring in its active color', () => {
+  const { readFileSync } = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const operations = [];
+  const ctx = new Proxy({ fillStyle: '', strokeStyle: '', lineWidth: 0, globalAlpha: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      return (...args) => operations.push({ name, args, fill: target.fillStyle, stroke: target.strokeStyle,
+        width: target.lineWidth, alpha: target.globalAlpha });
+    },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source.slice(source.indexOf('function drawEquippedCatShield('), source.indexOf('\nfunction updateEnding(')), context);
+  context.drawEquippedCatShield(100, 200, 30, '#519eff');
+  assert.ok(operations.some(op => op.name === 'arc' && op.args[0] === 100 && op.args[1] === 200 && op.args[2] === 30));
+  assert.ok(operations.some(op => op.name === 'stroke' && op.stroke === '#519eff' && op.width === 4));
+  assert.ok(operations.some(op => op.name === 'fill' && op.fill === '#519eff' && op.alpha === .1));
+});
+
+test('swept Cat Shield pickups equip and replace Koshi’s shield', () => {
+  const game = gameWithItem('cat-shield-blue');
+  game.items = [{ x: game.cat.x, y: game.cat.y, type: 'cat-shield-blue' }];
+  game.combat(0, game.cat.x, game.cat.y);
+  assert.equal(game.catShield, 'blue');
+  game.items = [{ x: game.cat.x, y: game.cat.y, type: 'cat-shield-red' }];
+  game.combat(0, game.cat.x, game.cat.y);
+  assert.equal(game.catShield, 'red');
 });

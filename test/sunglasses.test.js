@@ -245,7 +245,7 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
     buttons: [{ brick, members: game.brickParts().filter(part => part.id === brick.id), button, special, usesLeft: brick.usesLeft },
       { brick: cinder, members: [cinder], button: cinderButton }, { brick: goal, members: [goal], button: goalButton }],
     timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
-    weaponStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
+    weaponStatus: node(), shieldStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
     displayedStuck: false, displayedState: 'playing', displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
     syncBrickDestructions() {}, syncLevelRewards() {}, levelInfoReplay: node(),
     showDialog() {}, status: node(), overlay: node(),

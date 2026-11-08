@@ -20,6 +20,10 @@ const GUIDE = [
     practice: 'cookie',
     sections: [
       [ITEMS['smiley-cookie'].name, 'Koshi opens wide and vacuums every food item on the board toward his moving mouth. He keeps moving normally, scores each snack, then licks his lips.', 'item:smiley-cookie'],
+      ...['red', 'green', 'blue'].map((color, index) => {
+        const type = `cat-shield-${color}`, hits = index + 1;
+        return [ITEMS[type].name, `Absorbs ${hits} hit${hits === 1 ? '' : 's'} before Koshi loses a heart. Each hit weakens the shield and changes it to the next color; another Cat Shield replaces the current one, even if it is weaker.`, `item:${type}`];
+      }),
       [ITEMS.key.name, 'Collect keys from pickups or defeated key-carrying enemies. The Keys counter shows your stock. Touch a treasure chest with enough keys to spend the required number and open it.', 'item:key'],
       [ITEMS['treasure-chest'].name, 'A chest is a locked Cat Block source, not a regular pickup. Collect the required keys first, then touch the chest to open it. A chest without enough keys stays in place.', 'item:treasure-chest'],
       [ITEMS['cat-block'].name, 'Collect the Cat Block from its pickup, a marked carrier, or an unlocked chest. In campaign play it is kept on a win; leaving or losing forfeits an unbanked block. Each level can award it only once per profile.', 'item:cat-block'],
@@ -190,6 +194,7 @@ const LESSONS = [
   })),
   { id: 'springs', title: 'Springs', instruction: 'Aim at the outlined brown Spring. Koshi bounces instead of stopping. Try redirecting him during the bounce.' },
   { id: 'mouse', title: 'Swords & Robo Mouse', instruction: 'Choose a sword below, then aim at the outlined brick. Pick up the sword before reaching the mouse; attacks are automatic. Try each sword with Retry.' },
+  { id: 'cat-shield', title: 'Cat Shields', instruction: 'Collect the blue Cat Shield, then touch the Robo Mouse. It absorbs three hits, changing blue to green to red before it breaks; your hearts stay full.' },
   { id: 'wheel', title: 'Robo Wheel', instruction: 'Aim at the outlined brick to collect a sword and intercept a wheel at the inner perimeter. Unlike a mouse, it keeps rolling along the wall.' },
   { id: 'goalie', title: 'Robo Goalie', instruction: 'Collect a sword and intercept the Goalie. It guards a Goal and cannot hurt Koshi, but it can block soccer shots.' },
   { id: 'robo-snail', title: 'Robo Snail', instruction: 'Collect a sword and defeat the continuously wandering Snail. Watch every brick cooldown freeze for 20 seconds after the defeat.' },
@@ -424,6 +429,10 @@ class Tutorial {
     if (id === 'stopwatch') addItem('stopwatch');
     if (id === 'boom-time') addItem('boom-time-blue');
     if (id === 'battery') addItem('battery');
+    if (id === 'cat-shield') {
+      addItem('cat-shield-blue');
+      game.robots.push({ ...along(.8), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
+    }
     if (id === 'music-box' || id === 'spooky-mask') addItem(id);
     if (id === 'kitty-cape') addItem(id);
     if (id === 'magic-sunglasses') {
@@ -531,6 +540,7 @@ class Tutorial {
       stopwatch: game.timeBonus >= 10,
       'boom-time': game.activationsRemaining > 2,
       battery: game.batteries === 0 && this.target.spawned && game.items.some(item => item.type === 'stopwatch'),
+      'cat-shield': game.catShield === 'green' && game.hearts === 3 && game.tookDamage,
       'music-box': game.musicStreamUntil > game.elapsed,
       'spooky-mask': game.maskActive && game.robots.some(enemy => enemy.afraid),
       'kitty-cape': game.capeActive,

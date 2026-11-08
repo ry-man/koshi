@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, brickSpikes, SPEED } = require('../src/game.js');
+const { Game, ITEMS, brickSpikes, SPEED } = require('../src/game.js');
 
 function arena(options = {}) {
   const game = new Game(() => .25, { ...options, customLevel: {
@@ -54,6 +54,36 @@ test('damage feedback and invulnerability share an exact one-second deadline', (
   assert.equal(game.invulnerable, false);
   assert.equal(game.damageProgress, null);
   assert.equal(game.takeDamage(), false, 'ready scenes cannot take damage');
+});
+
+test('Cat Shields absorb hits in descending color tiers and new pickups replace the current shield', () => {
+  const game = arena();
+  for (const [type, start, afterHit] of [
+    ['cat-shield-blue', 'blue', 'green'],
+    ['cat-shield-green', 'green', 'red'],
+    ['cat-shield-red', 'red', null],
+  ]) {
+    game.collectItem({ type });
+    assert.equal(game.catShield, start);
+    game.invulnerableUntil = game.elapsed;
+    assert.equal(game.takeDamage(), true);
+    assert.equal(game.catShield, afterHit);
+    assert.equal(game.hearts, 3, 'a shield absorbs the hit instead of removing a heart');
+    assert.equal(game.tookDamage, true);
+  }
+  game.invulnerableUntil = game.elapsed;
+  game.collectItem({ type: 'cat-shield-blue' });
+  game.collectItem({ type: 'cat-shield-red' });
+  assert.equal(game.catShield, 'red', 'a new shield can downgrade the current protection');
+  assert.equal(game.takeDamage(), true);
+  assert.equal(game.catShield, null);
+  assert.equal(game.hearts, 3);
+  game.invulnerableUntil = game.elapsed;
+  assert.equal(game.takeDamage(), true);
+  assert.equal(game.hearts, 2, 'damage reaches hearts after the shield breaks');
+  game.reset();
+  assert.equal(game.catShield, null, 'restart clears shield protection');
+  assert.equal(ITEMS['cat-shield-blue'].catShield, 'blue');
 });
 
 test('multiple robots and repeated collisions during protection cannot stack or refresh damage', () => {

@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
@@ -42,6 +42,7 @@ const toast = document.querySelector('#toast');
 const levelSelect = document.querySelector('#level-select');
 const skipCutscene = document.querySelector('#skip-cutscene');
 const weaponStatus = document.querySelector('#weapon-status');
+const shieldStatus = document.querySelector('#shield-status');
 const catBlockArt = new Image();
 catBlockArt.src = './icons/cat-building-block.png';
 globalThis.koshiCatBlockArt = catBlockArt;
@@ -917,6 +918,10 @@ function syncUI() {
     ? `Weapon: ${SWORDS[game.weapon.type].name}, ${weaponCount} ${timedWeapon ? 'seconds' : 'attacks'} remaining`
     : 'Weapon: no sword equipped';
   if (weaponStatus.textContent !== weaponLabel) weaponStatus.textContent = weaponLabel;
+  const shieldLabel = game.catShield
+    ? `Cat Shield: ${game.catShield}, ${CAT_SHIELDS[game.catShield].hits} hit${CAT_SHIELDS[game.catShield].hits === 1 ? '' : 's'} remaining`
+    : 'Cat Shield: none';
+  if (shieldStatus.textContent !== shieldLabel) shieldStatus.textContent = shieldLabel;
   const batteryLabel = `Batteries: ${game.batteries}`;
   document.querySelector('#battery-count').textContent = `🔋 ${game.batteries}`;
   document.querySelector('#battery-status').setAttribute('aria-label', batteryLabel);
@@ -1702,11 +1707,6 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
   const darkRed = hurt && Math.floor(damageProgress * 4) % 2 === 0;
   const fur = hurt ? darkRed ? '#dc626b' : '#f2a0a5' : '#abb5bd';
   const stripes = hurt ? '#923c49' : '#596571';
-  if (game.weapon && !expression) {
-    ctx.strokeStyle = SWORDS[game.weapon.type].color;
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.stroke();
-  }
   ctx.shadowColor = '#0008'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 5;
   ctx.fillStyle = fur;
   const sawAge = game.sawStartedAt == null || game.cat.x !== x || game.cat.y !== y ? null : now - game.sawStartedAt;
@@ -1809,6 +1809,58 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
   for (const sign of [-1, 1]) {
     for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], hurt ? '#ffd3d5' : '#d7dfdc', 1.2);
   }
+  ctx.restore();
+}
+
+function drawCatShield(x, y, color, scale = 1, fillOpacity = 1) {
+  const shades = {
+    '#ed5555': ['#ffc2b8', '#ed5555', '#a82f3b'],
+    '#63d877': ['#d3ffb0', '#63d877', '#287b4b'],
+    '#519eff': ['#c5e8ff', '#519eff', '#2958a2'],
+  }[color];
+  const strokeLine = (points, width) => {
+    ctx.beginPath();
+    points.forEach(([px, py], index) => index ? ctx.lineTo(px, py) : ctx.moveTo(px, py));
+    ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.stroke();
+  };
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.beginPath();
+  ctx.moveTo(-25, -34); ctx.lineTo(-14, -20); ctx.quadraticCurveTo(-9, -17, -6, -17);
+  ctx.lineTo(0, -29); ctx.lineTo(6, -17); ctx.quadraticCurveTo(9, -17, 14, -20);
+  ctx.lineTo(25, -34); ctx.lineTo(25, 13);
+  ctx.quadraticCurveTo(24, 30, 8, 32); ctx.quadraticCurveTo(2, 34, 0, 42);
+  ctx.quadraticCurveTo(-2, 34, -8, 32); ctx.quadraticCurveTo(-24, 30, -25, 13);
+  ctx.closePath();
+  const gradient = ctx.createLinearGradient(-22, -30, 22, 36);
+  gradient.addColorStop(0, shades[0]); gradient.addColorStop(.52, shades[1]); gradient.addColorStop(1, shades[2]);
+  ctx.save(); ctx.globalAlpha *= fillOpacity; ctx.fillStyle = gradient; ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#17212a'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#17212a';
+  for (const sign of [-1, 1]) {
+    ctx.strokeStyle = '#17212a';
+    strokeLine([[sign * 12, -5], [sign * 8, -10], [sign * 3, -5]], 2);
+    strokeLine([[sign * 11, 2], [sign * 21, -3]], 1.7);
+    strokeLine([[sign * 16, 8], [sign * 23, 8]], 1.7);
+    strokeLine([[sign * 15, 14], [sign * 21, 19]], 1.7);
+  }
+  ctx.beginPath(); ctx.moveTo(-3, 2); ctx.lineTo(3, 2); ctx.lineTo(0, 5); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.7;
+  ctx.beginPath(); ctx.moveTo(0, 5); ctx.lineTo(0, 11);
+  ctx.quadraticCurveTo(-7, 19, -12, 12); ctx.moveTo(0, 11);
+  ctx.quadraticCurveTo(7, 19, 12, 12); ctx.stroke();
+  ctx.restore();
+}
+
+function drawEquippedCatShield(x, y, radius, color) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.save(); ctx.fillStyle = color; ctx.globalAlpha *= .1; ctx.fill(); ctx.restore();
+  ctx.shadowColor = color; ctx.shadowBlur = 12;
+  ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.stroke();
+  ctx.shadowBlur = 0; ctx.lineWidth = 1.5; ctx.strokeStyle = '#ffffffb0'; ctx.stroke();
   ctx.restore();
 }
 
@@ -2274,6 +2326,7 @@ function render(now) {
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
   drawWornCape(game, game.cat.x, game.cat.y);
+  if (game.catShield) drawEquippedCatShield(game.cat.x, game.cat.y, game.cat.radius + 9, CAT_SHIELDS[game.catShield].color);
   for (const turret of game.turretFades) {
     const opacity = Math.max(0, 1 - turret.age / .4);
     drawTurretBase(ctx, turret, opacity);
@@ -2843,6 +2896,8 @@ function drawGameItem(item) {
     ctx.fillText(String(required), 0, 28);
   } else if (ITEMS[item.type]?.brush) {
     drawPaintbrush(ctx, ITEMS[item.type]);
+  } else if (ITEMS[item.type]?.catShield) {
+    drawCatShield(0, 0, ITEMS[item.type].color, .7);
   } else if (item.type === 'smiley-cookie') {
     ctx.fillStyle = '#c78d50'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff8ec'; ctx.beginPath(); ctx.arc(0, 0, 15.5, 0, Math.PI * 2); ctx.fill();
