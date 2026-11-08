@@ -1075,6 +1075,16 @@ tracks his health; his death animation finishes before Koshi celebrates.
    or overfilled pairs show a warning but allow editing;
    each used color must have exactly two bricks before export or playtest.
    **Toggle** adds an independent 1-, 2-, or 4-activation cycle.
+   **Power** adds a circular black-and-yellow power switch with a shaded,
+   beveled face over any red, green,
+   or blue steering brick. Selecting any Power Block successfully swaps all
+   Power Blocks to the same color without changing steering or recharge time.
+   It can coexist with other modifiers and a contact surface. Contact and failed
+   clicks do not toggle power. **Power Blocks starting color** in Level settings
+   selects the shared initial state: off (yellow circle, black symbol) or on
+   (black circle, yellow symbol). Restart restores that choice; newly stamped
+   Power Blocks use the current shared state. Power does not affect other game
+   elements yet.
    Set the selection limit (default 5) or warp duration
    (default 15 seconds). Changes apply immediately. Each brick
    can have its own type, independent of the preset. Applying a different boundary
@@ -1755,6 +1765,10 @@ slot order when phone left/right edges become desktop top/bottom.
 Optional
 `crumbler` is an integer selection limit (1–100000); `warped` is a duration
 in seconds (0.1–3600). Set either to `null` to explicitly remove that attribute.
+Optional `power` is a boolean; `true` adds a Power Block switch and `false`
+removes it. Level-wide `powerOn` is an optional boolean specifying the shared
+starting state (default `false`, yellow face). Gameplay changes to this state
+are not exported; all Power Blocks switch together.
 Optional `slimed`, `springs`, `spikes`, and `conveyor` are booleans; `false` removes the attribute.
 They are mutually exclusive: importing more than one as `true` in the same
 override is an error, while enabling one in the editor replaces the others.

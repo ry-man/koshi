@@ -223,12 +223,13 @@ function picture(value, control) {
     path.setAttribute('d', 'M-22 16V-2A22 22 0 0 1 22 -2V16ZM0 -24V-28M-8 0H8V12H-8Z');
     path.setAttribute('fill', '#6c9bbd'); path.setAttribute('stroke', '#203342');
     svg.append(path); image.append(svg);
-  } else if (['portal', 'toggle', 'spawner', 'boost', 'cinder', 'goal', 'turret'].includes(value) || control === 'brick-toggle-clicks') {
+  } else if (['portal', 'toggle', 'power', 'spawner', 'boost', 'cinder', 'goal', 'turret'].includes(value) || control === 'brick-toggle-clicks') {
     const brick = { x: 0, y: 0, w: 88, h: 52 };
     if (value === 'portal') brick.portal = 'purple';
     if (value === 'toggle' || control === 'brick-toggle-clicks') { brick.toggle = control === 'brick-toggle-clicks' ? Number(value) : 1; brick.toggleRemaining = brick.toggle; }
     if (value === 'spawner') brick.spawner = { kind: 'heart', type: 'heart' };
     if (value === 'boost') brick.boost = true;
+    if (value === 'power') brick.power = true;
     if (value === 'turret') brick.turret = $('#brick-turret-type').value || 'laser';
     if (immutableBrick(value)) brick.kind = value;
     decorateBrick(image, brick, [brick]);
@@ -288,7 +289,7 @@ function setupPalettes() {
     select.parentElement.after(palette);
     palettes.set(id, { select, palette, signature: null, buttons: [] });
   }
-  for (const [container, attributes] of [['surface-palette', ['plain', ...CONTACT_SURFACES]], ['attribute-palette', ['crumbler', 'warped', 'toggle']]]) {
+  for (const [container, attributes] of [['surface-palette', ['plain', ...CONTACT_SURFACES]], ['attribute-palette', ['crumbler', 'warped', 'toggle', 'power']]]) {
     for (const attribute of attributes) {
       const name = { plain: 'Plain', slimed: 'Slime', spawner: 'Spawner', turret: 'Turret' }[attribute] ?? attribute[0].toUpperCase() + attribute.slice(1);
       const button = choiceButton(attribute, name, 'surface', () => {
@@ -773,8 +774,8 @@ function renderBrickInspector(bricks) {
     if (color === MIXED) mixedOption($('#brick-slime-color')); else $('#brick-slime-color').value = color;
   }
   if (!chosen.length) {
-    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-toggle']) $(selector).disabled = true;
-    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-toggle']) $(selector).indeterminate = false;
+    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-toggle', '#brick-power']) $(selector).disabled = true;
+    for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-toggle', '#brick-power']) $(selector).indeterminate = false;
     $('#brick-selection').textContent = '';
     return;
   }
@@ -792,7 +793,7 @@ function renderBrickInspector(bricks) {
   };
   flag('#brick-crumbler', '#brick-uses', chosen.map(brick => brick.crumbler), 5);
   flag('#brick-warped', '#brick-warp-seconds', chosen.map(brick => brick.warped), 15);
-  for (const attribute of [...CONTACT_SURFACES, 'toggle']) {
+  for (const attribute of [...CONTACT_SURFACES, 'toggle', 'power']) {
     const box = $(`#brick-${attribute}`), count = chosen.filter(brick => brick[attribute]).length;
     box.disabled = inert;
     box.checked = count === chosen.length;
@@ -1437,7 +1438,7 @@ function brickEntry(brick, region) {
   return { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null,
     slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs),
     spikes: Boolean(brick.spikes), conveyor: Boolean(brick.conveyor), conveyorDirection: brick.conveyorDirection ?? 'clockwise',
-    portal: brick.portal ?? null, toggle: brick.toggle ?? null, spawner: brick.spawner ? { ...brick.spawner } : null, boost: Boolean(brick.boost), turret: brick.turret ?? null };
+    portal: brick.portal ?? null, toggle: brick.toggle ?? null, power: Boolean(brick.power), spawner: brick.spawner ? { ...brick.spawner } : null, boost: Boolean(brick.boost), turret: brick.turret ?? null };
 }
 function saveBrick(event) {
   attempt(() => {
@@ -1461,6 +1462,7 @@ function saveBrick(event) {
       if (id === 'brick-warped') entry.warped = $('#brick-warped').checked ? entry.warped ?? number('#brick-warp-seconds') ?? 15 : null;
       if (id === 'brick-warp-seconds' && entry.warped && number('#brick-warp-seconds') !== null) entry.warped = number('#brick-warp-seconds');
       if (id === 'brick-toggle') entry.toggle = $('#brick-toggle').checked ? Number($('#brick-toggle-clicks').value || 1) : null;
+      if (id === 'brick-power') entry.power = $('#brick-power').checked;
       if (id === 'brick-toggle-clicks' && $('#brick-toggle-clicks').value !== MIXED) entry.toggle = Number($('#brick-toggle-clicks').value);
       if (id === 'brick-portal-color' && $('#brick-portal-color').value !== MIXED) entry.portal = $('#brick-portal-color').value;
       if (id === 'brick-spawn-item' && $('#brick-spawn-item').value !== MIXED) {
@@ -1569,7 +1571,7 @@ function splitBricks() {
     message('Combined bricks split. Each retains the group\'s current attributes.');
   });
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type']) {
+for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-power', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type']) {
   $(selector).addEventListener('change', saveBrick);
 }
 for (const selector of ['#brick-spawn-fixed', '#brick-spawn-x', '#brick-spawn-y']) $(selector).addEventListener('change', saveBrick);
@@ -1805,6 +1807,9 @@ function applyLevelSettings() {
         activationLimit: $('#activation-limit').value === '' ? null : Number($('#activation-limit').value),
       } : {}),
       heartCost: $('#heart-cost').value === '' ? null : Number($('#heart-cost').value),
+      ...($('#power-start').value === 'on' || level.powerOn !== undefined ? {
+        powerOn: $('#power-start').value === 'on',
+      } : {}),
     });
     level = candidate; markChanged(); populateSettings(); render(); message('Level settings applied.');
   });
@@ -1819,6 +1824,7 @@ function populateSettings() {
   $('#kill-goal').value = level.killGoal ?? 0;
   $('#goals-goal').value = level.goalsGoal ?? 0;
   $('#activation-limit').value = level.activationLimit ?? '';
+  $('#power-start').value = level.powerOn ? 'on' : 'off';
   $('#win-condition').value = level.survive ? 'survive' : 'scores';
   $('#boss-level-enabled').checked = Boolean(level.bossLevel);
   updateWinCondition();

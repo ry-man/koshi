@@ -1443,6 +1443,7 @@ function guidePicture(picture, title, fillBrick = false) {
       portal: type === 'portal' ? 'purple' : null, toggle: type === 'toggle' ? 4 : null,
       toggleRemaining: type === 'toggle' ? 4 : 0, boost: type === 'boost',
       barrier: type === 'barrier',
+      power: type === 'power',
       turret: type === 'turret' ? 'laser' : null,
       spawner: type === 'spawner' ? { kind: 'enemy', type: 'mouse' } : null };
     decorateBrick(image, brick, [brick]);

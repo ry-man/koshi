@@ -58,7 +58,7 @@ const CAT_BLOCK_MESSAGES = {
 const CAT_BRICK_TYPES = {
   slow: 'Slow', normal: 'Normal', fast: 'Fast', cinder: 'Cinder', goal: 'Goal',
   crumbler: 'Crumbler', warped: 'Warped', slimed: 'Slimed', springs: 'Springs',
-  spikes: 'Spikes', conveyor: 'Conveyor', portal: 'Portal', toggle: 'Toggle',
+  spikes: 'Spikes', conveyor: 'Conveyor', portal: 'Portal', toggle: 'Toggle', power: 'Power',
   spawner: 'Spawning', boost: 'Boost', barrier: 'Barrier', turret: 'Turret',
 };
 const CAT_BLOCK_TRIGGERS = {
@@ -163,7 +163,7 @@ const SWORDS = {
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const PORTALS = { red: '#ef655f', orange: '#ef9947', yellow: '#e8d25a', green: '#7dcc77', blue: '#55a7ee', purple: '#b18be5' };
 const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'turret'];
-const DITTO_PROPERTIES = ['kind', 'crumbler', 'warped', 'toggle', 'slimeColor', 'conveyorDirection', ...CONTACT_SURFACES];
+const DITTO_PROPERTIES = ['kind', 'crumbler', 'warped', 'toggle', 'power', 'slimeColor', 'conveyorDirection', ...CONTACT_SURFACES];
 
 function dittoProperties(brick) {
   return Object.fromEntries(DITTO_PROPERTIES.map(key => [key,
@@ -201,10 +201,11 @@ function applyBrickTypes(bricks, entries = []) {
       brick.kind = entry.kind;
       if (['cinder', 'goal'].includes(brick.kind)) {
         for (const attribute of ['crumbler', 'warped', 'toggle']) brick[attribute] = null;
+        brick.power = false;
         for (const attribute of CONTACT_SURFACES) brick[attribute] = ['portal', 'spawner', 'turret'].includes(attribute) ? null : false;
         continue;
       }
-      for (const attribute of ['crumbler', 'warped', 'slimeColor', 'conveyorDirection', 'toggle', ...CONTACT_SURFACES]) {
+      for (const attribute of ['crumbler', 'warped', 'slimeColor', 'conveyorDirection', 'toggle', 'power', ...CONTACT_SURFACES]) {
         if (entry[attribute] === undefined) continue;
         brick[attribute] = entry[attribute] && typeof entry[attribute] === 'object' ? { ...entry[attribute] } : entry[attribute];
         if (CONTACT_SURFACES.includes(attribute) && entry[attribute]) {
@@ -233,7 +234,7 @@ const INFO_GRAPHICS = {
     .map(([id, color]) => [`brick:${id}`, `${color} Steering Brick (${id}, ${COOLDOWNS[id]}s cooldown)`])),
   ...Object.fromEntries(['crumbler', 'warped', 'springs', 'spikes', 'conveyor']
     .map(id => [`brick:${id}`, `${id} brick`])),
-  ...Object.fromEntries(['cinder', 'goal', 'portal', 'toggle', 'spawner', 'turret', 'boost', 'barrier', 'boom-helmet']
+  ...Object.fromEntries(['cinder', 'goal', 'portal', 'toggle', 'power', 'spawner', 'turret', 'boost', 'barrier', 'boom-helmet']
     .map(id => [`special:${id}`, id.replaceAll('-', ' ')])),
 };
 
@@ -1501,6 +1502,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     if (!Number.isInteger(value.activationLimit)) fail('Activation limit must be a whole number.');
   }
   if (value.survive !== undefined && typeof value.survive !== 'boolean') fail('Survive must be a boolean.');
+  if (value.powerOn !== undefined && typeof value.powerOn !== 'boolean') fail('Starting power must be a boolean.');
   if (value.survive && (goal || killGoal || goalsGoal)) fail('Survival cannot be combined with food, enemy or soccer goals.');
   if (value.bossLevel !== undefined && typeof value.bossLevel !== 'boolean') fail('Boss level must be a boolean.');
   if (value.bossLevel && value.survive) fail('Boss levels cannot use survival as their win condition.');
@@ -1581,6 +1583,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   if (value.killGoal !== undefined) result.killGoal = killGoal;
   if (value.goalsGoal !== undefined) result.goalsGoal = goalsGoal;
   if (value.activationLimit !== undefined) result.activationLimit = value.activationLimit;
+  if (value.powerOn !== undefined) result.powerOn = value.powerOn;
   if (value.survive !== undefined) result.survive = value.survive;
   if (value.autoscroll !== undefined) {
     const scroll = value.autoscroll;
@@ -1651,7 +1654,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         if (!['clockwise', 'counterclockwise'].includes(entry.conveyorDirection)) fail(`Brick override ${i + 1} has an unknown conveyor direction.`);
         override.conveyorDirection = entry.conveyorDirection;
       }
-      for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor', 'barrier']) {
+      for (const attribute of ['slimed', 'springs', 'spikes', 'conveyor', 'barrier', 'power']) {
         if (entry[attribute] === undefined) continue;
         if (typeof entry[attribute] !== 'boolean') fail(`Brick override ${i + 1} ${attribute} must be a boolean.`);
         override[attribute] = entry[attribute];
@@ -1698,8 +1701,8 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (override.spikes && (override.slimed || override.springs)) fail(`Brick override ${i + 1} cannot combine Spikes with Slimed or Springs.`);
       if (override.conveyor && (override.slimed || override.springs || override.spikes)) fail(`Brick override ${i + 1} cannot combine Conveyor with another surface.`);
       if (CONTACT_SURFACES.filter(attribute => override[attribute]).length > 1) fail(`Brick override ${i + 1} cannot combine contact surfaces.`);
-      if (override.kind === 'cinder' && ['crumbler', 'warped', 'toggle', ...CONTACT_SURFACES].some(attribute => override[attribute])) fail(`Brick override ${i + 1}: Cinder bricks cannot have modifiers or contact surfaces.`);
-      if (override.kind === 'goal' && ['crumbler', 'warped', 'toggle', ...CONTACT_SURFACES].some(attribute => override[attribute])) fail(`Brick override ${i + 1}: Goal bricks cannot have modifiers or contact surfaces.`);
+      if (override.kind === 'cinder' && ['crumbler', 'warped', 'toggle', 'power', ...CONTACT_SURFACES].some(attribute => override[attribute])) fail(`Brick override ${i + 1}: Cinder bricks cannot have modifiers or contact surfaces.`);
+      if (override.kind === 'goal' && ['crumbler', 'warped', 'toggle', 'power', ...CONTACT_SURFACES].some(attribute => override[attribute])) fail(`Brick override ${i + 1}: Goal bricks cannot have modifiers or contact surfaces.`);
       return override;
     });
   }
@@ -2728,6 +2731,7 @@ class Game {
       }
     }
     applyBrickTypes(this.bricks, this.level.brickTypes);
+    this.powerOn = this.level.powerOn ?? false;
     for (const brick of this.bricks) {
       brick.usesLeft = brick.crumbler ?? null;
       brick.absorbedBy = null;
@@ -2737,6 +2741,7 @@ class Game {
       brick.hitNormal = null;
       brick.hitPoint = null;
       brick.toggleRemaining = brick.toggle ?? 0;
+      brick.powerOn = this.powerOn;
       brick.spawned = false;
     }
     applyBrickGroups(this.bricks, this.level.brickGroups);
@@ -2821,6 +2826,10 @@ class Game {
       if (brick.usesLeft !== null) brick.usesLeft--;
     }
     if (brick.warped) this.absorbNeighbor(brick);
+    if (brick.power) {
+      this.powerOn = !this.powerOn;
+      for (const other of this.bricks) other.powerOn = this.powerOn;
+    }
     if (brick.barrier) {
       const fence = this.barriers.find(fence => fence.id === brick.id);
       if (fence) fence.extending = !fence.extending;
@@ -5959,6 +5968,7 @@ class Game {
         member.crumbler = null; member.warped = null; member.warpUntil = null;
         member.usesLeft = null; member.readyAt = 0;
         member.toggle = null; member.toggleRemaining = 0;
+        member.power = false; member.powerOn = false;
         member.slimed = false; member.springs = false; member.spikes = false;
         member.conveyor = false; member.portal = null; member.spawner = null; member.boost = false; member.barrier = false;
         member.hitAt = null; member.hitNormal = null; member.hitPoint = null;
@@ -6013,6 +6023,7 @@ class Game {
       member.readyAt = 0;
       member.usesLeft = member.crumbler ?? null;
       member.toggleRemaining = member.toggle ?? 0;
+      member.powerOn = this.powerOn;
       member.spawned = false;
       member.warpUntil = null;
       member.hitAt = null; member.hitNormal = null; member.hitPoint = null;

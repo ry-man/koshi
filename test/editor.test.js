@@ -295,15 +295,18 @@ test('settings changes automatically update the level, report invalid fields, an
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);
   context.populateSettings();
+  assert.equal($('#power-start').value, 'off');
   for (const [selector, value, field, expected] of [
     ['#level-name', 'Renamed', 'id', 'Renamed'], ['#duration', '45', 'duration', 45],
     ['#goal', '10', 'goal', 10], ['#kill-goal', '5', 'killGoal', 5],
     ['#goals-goal', '2', 'goalsGoal', 2], ['#heart-cost', '7', 'heartCost', 7],
     ['#activation-limit', '12', 'activationLimit', 12], ['#activation-limit', '', 'activationLimit', null],
+    ['#power-start', 'on', 'powerOn', true], ['#power-start', 'off', 'powerOn', false],
   ]) {
     $(selector).value = value;
     $('#settings-form').listeners.change();
     assert.equal(context.level[field], expected);
+    if (field === 'powerOn') assert.equal($('#power-start').value, value);
   }
   $('#autoscroll-enabled').checked = true;
   $('#autoscroll-enabled').listeners.change();
@@ -1367,7 +1370,7 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
   };
   let game = setup(blank());
   const target = game.bricks[game.perimeter[0]], region = brickEditRegions(game.bricks).get(target.id);
-  target.crumbler = 5; target.warped = 15; target.spawner = { kind: 'food', type: 'S', lifetime: 5 };
+  target.crumbler = 5; target.warped = 15; target.power = true; target.spawner = { kind: 'food', type: 'S', lifetime: 5 };
   context.selectedBricks.add(regionKey(region));
   $('#brick-kind').value = 'goal';
   context.saveBrick({ target: { id: 'brick-kind' } });
@@ -1375,7 +1378,7 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
   game = setup(context.level); context.selectedBricks.add(regionKey(region));
   context.renderBrickInspector(game.bricks);
   assert.equal($('#brick-kind').disabled, false, 'goal type remains editable');
-  for (const id of ['crumbler', 'warped', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'toggle']) {
+  for (const id of ['crumbler', 'warped', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'toggle', 'power']) {
     assert.equal($(`#brick-${id}`).disabled, true, `${id} is unavailable for goals`);
   }
   const saved = JSON.stringify(context.level);
@@ -1385,10 +1388,24 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
   context.saveBrick({ target: { id: 'brick-kind' } });
   assert.equal(context.level.brickTypes[0].kind, 'normal');
   game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  $('#brick-power').checked = true;
+  context.saveBrick({ target: { id: 'brick-power' } });
+  assert.equal(context.level.brickTypes[0].power, true);
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  context.renderBrickInspector(game.bricks);
+  assert.equal($('#brick-power').disabled, false);
+  assert.equal($('#brick-power').checked, true);
+  assert.equal(context.brickEntry(game.bricks[target.id], region).powerOn, undefined, 'runtime state is not exported');
   $('#brick-spawn-item').value = 'object:soccer-ball';
   $('#brick-spawn-lifetime').value = '10'; $('#brick-spawn-shield').value = 'blue';
   context.saveBrick({ target: { id: 'brick-spawn-item' } });
   assert.deepEqual(JSON.parse(JSON.stringify(context.level.brickTypes[0].spawner)), { kind: 'object', type: 'soccer-ball' });
+  assert.equal(context.level.brickTypes[0].power, true, 'changing contact surfaces preserves Power');
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  $('#brick-power').checked = false;
+  context.saveBrick({ target: { id: 'brick-power' } });
+  assert.equal(context.level.brickTypes[0].power, false);
+  assert.equal(context.level.brickTypes[0].spawner.type, 'soccer-ball', 'removing Power preserves contact surfaces');
   game = setup(context.level); context.selectedBricks.add(regionKey(region));
   context.renderBrickInspector(game.bricks);
   assert.equal($('#brick-spawn-item').disabled, false);

@@ -44,6 +44,7 @@
           <label>Soccer goals (0 disables) <input id="goals-goal" type="number" min="0" max="100000" step="1" value="0" required></label>
           <label>Boom Helmet activation limit (blank: unlimited) <input id="activation-limit" type="number" min="1" max="100000" step="1" placeholder="Unlimited"></label>
           <label>Heart cost <input id="heart-cost" type="number" min="1" max="100000" step="1" placeholder="None (disabled)"></label>
+          <label>Power Blocks starting color (all blocks)<select id="power-start"><option value="off">Yellow face / black symbol (off)</option><option value="on">Black face / yellow symbol (on)</option></select></label>
           <div class="full-width autoscroll-settings">
             <label class="inline-label"><input id="autoscroll-enabled" type="checkbox"> Autoscrolling level</label>
             <fieldset id="autoscroll-settings" disabled hidden>
@@ -170,6 +171,7 @@
             <label><input id="brick-conveyor" type="checkbox" disabled> Conveyor</label>
             <label><input id="brick-portal" type="checkbox" disabled> Portal</label>
             <label><input id="brick-toggle" type="checkbox" disabled> Toggle</label>
+            <label><input id="brick-power" type="checkbox" disabled> Power</label>
             <label><input id="brick-spawner" type="checkbox" disabled> Spawning</label>
             <label><input id="brick-boost" type="checkbox" disabled> Boost</label>
             <label><input id="brick-barrier" type="checkbox" disabled> Barrier</label>

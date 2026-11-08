@@ -153,7 +153,7 @@ function specialLabel(brick) {
         : spawn?.kind === 'object' ? OBJECTS[spawn.type].name
         : spawn?.kind === 'enemy' ? CHARACTERS[spawn.type]
         : spawn?.type;
-  return `${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}${brick.barrier ? ', Barrier: selection extends or retracts an enemy and bomb fence' : ''}${brick.turret ? `, ${brick.turret} turret` : ''}`;
+  return `${brick.power ? `, Power: ${brick.powerOn ? 'on' : 'off'}` : ''}${brick.portal ? `, ${brick.portal} portal: paired teleport` : ''}${brick.toggle ? `, Toggle: ${brick.toggle} clicks, ${brick.toggleRemaining} more until enabled` : ''}${spawn ? `, Spawning: ${spawnName}${brick.spawned ? ', already used' : ', once on contact'}` : ''}${brick.boost ? ', Boost: double-speed fiery launch from rest' : ''}${brick.barrier ? ', Barrier: selection extends or retracts an enemy and bomb fence' : ''}${brick.turret ? `, ${brick.turret} turret` : ''}`;
 }
 function svgNode(tag, attributes = {}) {
   const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -195,6 +195,7 @@ function brickInfoBounds(brick, members) {
 }
 function decorateBrick(button, brick, members, width, height, groupCenterBrick = null, portalExit = null) {
   let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null, turretFill = null;
+  let powerDisc = null, powerMark = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
   const source = brick.turret && groupCenterBrick && groupCenterBrick.id !== brick.id ? groupCenterBrick : null;
   const infoBounds = source ? { x: source.x, y: source.y, w: source.w, h: source.h } : brickInfoBounds(brick, members);
@@ -243,7 +244,7 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
   }
   button.dataset.specialVertical = String(vertical);
   const slots = [brick.spawner || brick.boost || brick.barrier || brick.turret ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
-    brick.warped ? 'warped' : null, brick.toggle ? 'toggle' : null].filter(Boolean);
+    brick.warped ? 'warped' : null, brick.toggle ? 'toggle' : null, brick.power ? 'power' : null].filter(Boolean);
   const length = slots.reduce((total, slot) => total + (slot === 'toggle' ? 94 : 64), 0);
   const stacked = !vertical && brick.w / brick.h < 2 && brick.toggle && slots.length > 2;
   const rows = slots.length - 1;
@@ -377,13 +378,37 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
     toggle.append(group);
     place(toggle, 'toggle');
   }
-  const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerCount, warpCount, turretFill };
+  if (brick.power) {
+    const power = svgNode('svg', { class: 'brick-power', viewBox: '-29 -29 58 58', 'aria-hidden': 'true' });
+    powerDisc = svgNode('circle', { cx: 0, cy: 0, r: 27 });
+    const mark = 'M-8 -14 A17 17 0 1 0 8 -14 M0 -21 V-2';
+    powerMark = svgNode('path', { d: mark,
+      fill: 'none', 'stroke-width': 6, 'stroke-linecap': 'butt' });
+    power.append(
+      svgNode('circle', { class: 'power-shadow', cx: 0, cy: 1.5, r: 27, fill: '#000000', opacity: .45 }),
+      powerDisc,
+      svgNode('path', { class: 'power-sheen', d: 'M-27 0 A27 27 0 0 1 27 0 Q0 -15 -27 0 Z', fill: '#ffffff', opacity: .12 }),
+      svgNode('path', { class: 'power-shade', d: 'M-27 0 A27 27 0 0 0 27 0 Q0 39 -27 0 Z', fill: '#000000', opacity: .24 }),
+      svgNode('path', { class: 'power-bevel-light', d: 'M-24 6 A25 25 0 0 1 18 -17',
+        fill: 'none', stroke: '#ffffff', 'stroke-width': 1.5, opacity: .42 }),
+      svgNode('path', { class: 'power-bevel-dark', d: 'M24 -6 A25 25 0 0 1 -18 17',
+        fill: 'none', stroke: '#000000', 'stroke-width': 2, opacity: .4 }),
+      svgNode('path', { class: 'power-mark-shadow', d: mark, transform: 'translate(0 1.2)',
+        fill: 'none', stroke: '#000000', 'stroke-width': 7, opacity: .4 }),
+      powerMark);
+    place(power, 'power');
+  }
+  const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerCount, warpCount, turretFill, powerDisc, powerMark };
   updateBrick(visual, brick, 0);
   return visual;
 }
 function updateBrick(visual, brick, elapsed, sunglassesActive = false) {
   const enabled = sunglassesActive || brickEnabled(brick);
   visual.button.dataset.toggleDisabled = String(!enabled);
+  if (visual.powerDisc) {
+    visual.powerDisc.setAttribute('fill', brick.powerOn ? '#000000' : '#ffd92f');
+    visual.powerMark.setAttribute('stroke', brick.powerOn ? '#ffd92f' : '#000000');
+  }
   if (visual.cloud) {
     // Moving dashes jump at the closed outline's seam; breathe the fixed mist instead.
     visual.cloud.querySelector('.portal-puffs').style.opacity = String(.7 + Math.sin(elapsed * 1.5) * .1);
