@@ -1698,9 +1698,11 @@ function line(points, color, width = 2) {
 }
 
 function drawCat(x, y, now, damageProgress = null, boostReady = false, expression = null) {
+  const playerCharacter = typeof game !== 'undefined' && game?.cat?.x === x && game?.cat?.y === y;
   if (expression === null && typeof game !== 'undefined' && game?.cat?.x === x && game?.cat?.y === y) {
     expression = game.cookieActive ? 'eating' : game.cookieLickUntil > game.elapsed ? 'licking' : null;
   }
+  const healthExpression = playerCharacter && expression === null && game.hearts <= 2 ? game.hearts : null;
   ctx.save();
   ctx.translate(x, y);
   const hurt = damageProgress !== null;
@@ -1760,6 +1762,10 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     }
   }
   ctx.restore();
+  if (healthExpression === 1) {
+    line([[-12, 1], [-9, 3], [-6, 1]], '#596571', 1.5);
+    line([[6, 1], [9, 3], [12, 1]], '#596571', 1.5);
+  }
   if (hurt) {
     line([[-14, -12], [-6, -8]], '#672c39', 2.5);
     line([[6, -8], [14, -12]], '#672c39', 2.5);
@@ -1787,6 +1793,10 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     ctx.beginPath(); ctx.ellipse(0, 21, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
   } else if (hurt || expression === 'lost') {
     ctx.moveTo(-8, 16); ctx.quadraticCurveTo(0, 7, 8, 16);
+  } else if (healthExpression === 2) {
+    ctx.moveTo(-8, 12); ctx.lineTo(8, 12);
+  } else if (healthExpression === 1) {
+    ctx.moveTo(-8, 12); ctx.quadraticCurveTo(0, 5, 8, 12);
   } else if (expression === 'licking') {
     ctx.moveTo(-8, 12); ctx.quadraticCurveTo(0, 19, 8, 12);
     ctx.stroke();

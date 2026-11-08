@@ -196,6 +196,38 @@ test('Koshi shows red blinking fur and an upset face only while the shared damag
   assert.match(source, /drawCat\(game\.cat\.x, game\.cat\.y, game\.elapsed, game\.damageProgress, game\.boostReady\)/);
 });
 
+test('Koshi’s face shows a neutral mouth at two hearts and a frown with eye bags at one', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const drawing = source.slice(source.indexOf('function line('), source.indexOf('function render('));
+  const curves = [], lines = [];
+  const ctx = {
+    save() {}, restore() {}, translate() {}, beginPath() {}, moveTo() {}, closePath() {},
+    arc() {}, ellipse() {}, stroke() {}, scale() {},
+    fill() {},
+    lineTo(...args) { lines.push(args); },
+    quadraticCurveTo(...args) { curves.push(args); },
+  };
+  const game = arena();
+  game.cat.x = 0; game.cat.y = 0;
+  const context = vm.createContext({ ctx, game });
+  vm.runInContext(drawing, context);
+  const draw = hearts => {
+    game.hearts = hearts;
+    curves.length = 0; lines.length = 0;
+    context.drawCat(0, 0, game.elapsed);
+    return { curves: [...curves], lines: [...lines] };
+  };
+  const fullHealth = draw(3);
+  assert.ok(fullHealth.curves.some(args => args.join(',') === '-4,16,-8,11'), 'three hearts keep the smile');
+  const twoHearts = draw(2);
+  assert.ok(twoHearts.lines.some(args => args.join(',') === '8,12'), 'two hearts flatten the mouth');
+  assert.ok(!twoHearts.curves.some(args => args.join(',') === '-4,16,-8,11'));
+  const oneHeart = draw(1);
+  assert.ok(oneHeart.curves.some(args => args.join(',') === '0,5,8,12'), 'one heart shows a frown');
+  assert.ok(oneHeart.lines.some(args => args.join(',') === '-9,3'), 'eye bags appear under the left eye');
+  assert.ok(oneHeart.lines.some(args => args.join(',') === '9,3'), 'eye bags appear under the right eye');
+});
+
 test('boost-ready Koshi has a wide glowing mouth and two red glowing eyes without changing fur', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const operations = [], stack = [];
