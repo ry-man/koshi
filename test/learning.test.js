@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { GUIDE, LESSONS, Tutorial } = require('../src/learning.js');
-const { Game, CHARACTERS, ITEMS, OBJECTS, SWORDS, LEVELS, CONTACT_SURFACES, brickRegions, levelObjective } = require('../src/game.js');
+const { Game, CHARACTERS, ITEMS, OBJECTS, SWORDS, WEAPONS, LEVELS, CONTACT_SURFACES, brickRegions, levelObjective } = require('../src/game.js');
 
 const indexOf = id => LESSONS.findIndex(lesson => lesson.id === id);
 function practice(id, options = {}) {
@@ -56,7 +56,7 @@ test('guide illustrates every brick, enemy, heart, weapon, and power-up without 
     'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped', 'brick:warped-crumbler',
     'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'brick:conveyor', 'heart',
     'special:cinder', 'special:goal', 'object:soccer-ball', 'special:portal', 'special:toggle', 'special:spawner', 'special:turret', 'special:boost',
-    'enemy:mouse', 'enemy:wheel', 'enemy:ram', 'enemy:bucket', ...Object.keys(SWORDS).map(type => `weapon:${type}`),
+    'enemy:mouse', 'enemy:wheel', 'enemy:ram', 'enemy:bucket', ...Object.keys(WEAPONS).map(type => `weapon:${type}`),
     'item:smiley-cookie', 'item:stopwatch', 'item:stopwatch-green', 'item:stopwatch-blue', 'item:battery', 'item:music-box', 'item:eggplant', 'item:saw-blade', 'item:magic-sunglasses', 'item:ditto-stamp', 'item:spooky-mask',
   ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
   assert.equal(new Set(pictures).size, pictures.length);
@@ -133,12 +133,12 @@ test('boss tutorial requires six dizzy Boost hits and the completed death animat
   assert.equal(tutorial.observe(), true);
 });
 
-test('tutorial sword choices match the game catalog', () => {
+test('tutorial weapon choices match the game catalog', () => {
   const html = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'index.html'), 'utf8');
-  for (const [type, sword] of Object.entries(SWORDS)) {
+  for (const [type, weapon] of Object.entries(WEAPONS)) {
     const option = html.match(new RegExp(`<option value="${type}"[^>]*>([^<]+)<`));
-    assert.ok(option, `missing ${type} sword option`);
-    assert.ok(option[1].includes(sword.uses ? `${sword.uses} hit` : `${sword.seconds} seconds`), `${type} label matches its uses`);
+    assert.ok(option, `missing ${type} option`);
+    assert.ok(option[1].includes(`${weapon.uses} hit`), `${type} label matches its hit count`);
   }
 });
 
@@ -314,7 +314,7 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
 
   test(`sword pickups and enemy intercepts complete without damage on ${layout}`, () => {
     for (const id of ['mouse', 'wheel', 'ram', 'bucket', 'objectives']) {
-      for (const sword of Object.keys(SWORDS)) {
+      for (const sword of Object.keys(WEAPONS)) {
         const tutorial = new Tutorial(); tutorial.sword = sword; tutorial.select(indexOf(id), options);
         aim(tutorial); wait(tutorial, .9);
         assert.equal(tutorial.observe(), true, `${id} using ${sword}`);

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, SPEED, PORTALS, FOODS, SWORDS, CONTACT_SURFACES, brickEnabled, brickRegions, brickShape, middleBrickInGroup, validateCustomLevel } = require('../src/game.js');
+const { Game, SPEED, PORTALS, FOODS, WEAPONS, CONTACT_SURFACES, brickEnabled, brickRegions, brickShape, middleBrickInGroup, validateCustomLevel } = require('../src/game.js');
 const { Tutorial, LESSONS } = require('../src/learning.js');
 const { spawnSymbol, decorateBrick, updateBrick, specialLabel } = require('../src/brick-visuals.js');
 const { readFileSync } = require('node:fs');
@@ -324,7 +324,7 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
   test(`spawning bricks trigger once by contact, never by selection, in ${layout}`, () => {
     for (const spawn of [
       ...Object.keys(FOODS).map(type => ({ kind: 'food', type, lifetime: 10 })),
-      ...Object.keys(SWORDS).map(type => ({ kind: 'weapon', type })),
+      ...Object.keys(WEAPONS).map(type => ({ kind: 'weapon', type })),
       { kind: 'enemy', type: 'mouse' }, { kind: 'enemy', type: 'wheel' }, { kind: 'enemy', type: 'ram' }, { kind: 'enemy', type: 'bucket' }, { kind: 'heart', type: 'heart' },
     ]) {
       const game = arena(options), brick = edgeBrick(game, 'right');
@@ -748,7 +748,7 @@ test('shared visuals render matching portal colors, countdown switches and grey 
   }
   for (const spawn of [
     ...Object.keys(FOODS).map(type => ({ kind: 'food', type })),
-    ...Object.keys(SWORDS).map(type => ({ kind: 'weapon', type })),
+    ...Object.keys(WEAPONS).map(type => ({ kind: 'weapon', type })),
     { kind: 'enemy', type: 'mouse' }, { kind: 'enemy', type: 'wheel' }, { kind: 'heart', type: 'heart' },
   ]) {
     assert.ok(spawnSymbol(spawn));
@@ -757,7 +757,7 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     assert.equal(visual.symbol.style.opacity, '1');
     assert.equal(visual.symbol.dataset.spawnReady, 'true');
     assert.equal(visual.symbol.style['--item-color'], context.KoshiBrickVisuals.spawnColor(spawn));
-    if (spawn.kind === 'weapon') assert.equal(visual.symbol.style['--item-color'], SWORDS[spawn.type].color);
+    if (spawn.kind === 'weapon') assert.equal(visual.symbol.style['--item-color'], WEAPONS[spawn.type].color);
     assert.equal(visual.symbol.children[0].attributes.class, 'item-outline');
     assert.equal(visual.symbol.children[1].attributes.class, 'item-color');
     assert.equal(visual.symbol.children[0].attributes.d, visual.symbol.children[1].attributes.d);

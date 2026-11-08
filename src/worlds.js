@@ -2,7 +2,7 @@
 'use strict';
 
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS } = engine;
+const { LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS } = engine;
 
 const { WORLDS } = typeof module !== 'undefined' && module.exports ? require('./campaign.js') : globalThis.KoshiCampaign;
 
@@ -35,7 +35,7 @@ function levelFeatures(level) {
   const add = (picture, name) => features.set(picture, { picture, name: titleCase(name) });
   const event = (kind, type) => {
     if (kind === 'item' && type === 'cat-block') return;
-    const catalog = { food: FOODS, item: ITEMS, object: OBJECTS, weapon: SWORDS, enemy: CHARACTERS };
+    const catalog = { food: FOODS, item: ITEMS, object: OBJECTS, weapon: WEAPONS, enemy: CHARACTERS };
     add(`${kind}:${type}`, kind === 'enemy' ? CHARACTERS[type]
       : catalog[kind]?.[type]?.name ?? (type === 'soccer-ball' ? 'Soccer ball' : type));
   };

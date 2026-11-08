@@ -2,7 +2,7 @@
 'use strict';
 
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { Game, COOLDOWNS, SLIMES, FOODS, ITEMS, OBJECTS, SWORDS, LEVELS, SPEED, COW_SPEED, brickRegions, levelObjective } = engine;
+const { Game, COOLDOWNS, SLIMES, FOODS, ITEMS, OBJECTS, WEAPONS, LEVELS, SPEED, COW_SPEED, brickRegions, levelObjective } = engine;
 
 const GUIDE = [
   {
@@ -149,12 +149,14 @@ const GUIDE = [
       ['Robo Koshi', 'This robotic copy waits one second, rushes to the place Koshi stood when it spawned, then follows Koshi’s recorded path a short time behind. Keep moving or change direction to avoid meeting your own trail; a sword or Boost can defeat it.', 'enemy:robo-koshi'],
       ['Tom the Toaster', 'Boss levels have one boss and no time limit. Dodge Tom’s spinning toast and rapid straight-line ricochets with no warning path. His charged attack fires blue toast that turns a non-Cinder brick blue, then black toast that destroys a non-Boost brick. After one to four attacks, his eyes scroll ERROR! and he rocks gently. Launch from a Boost brick to hit him then. Six hits empty his health bar; his death animation finishes before Koshi celebrates.', 'enemy:boss'],
       ['Damage & defeats', 'Unarmed contact with hostile robots costs one heart; Robo Goalie is harmless. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
-      ...Object.entries(SWORDS).map(([type, sword]) => [
-        sword.name,
-        type === 'gold' ? `${sword.seconds} seconds of unlimited attacks from pickup; pause freezes the timer.` : `${sword.uses} attack${sword.uses === 1 ? '' : 's'} before breaking. Shield hits also spend an attack. Works on every enemy type.`,
+      ...Object.entries(WEAPONS).map(([type, weapon]) => [
+        weapon.name,
+        weapon.hammer
+          ? `${weapon.uses} hammer hits. Each contact spends as many hits as possible to damage an enemy shield or defeat an unshielded enemy, using no more hits than needed.`
+          : `${weapon.uses} sword hit${weapon.uses === 1 ? '' : 's'} before breaking. Shield hits also spend a hit. Works on every enemy type.`,
         `weapon:${type}`,
       ]),
-      ['One sword at a time', 'Every collected sword replaces your current sword and resets its attack count or timer. A weaker sword can reduce your remaining attacks. Uncollected swords remain until their optional on-screen lifetime expires, or until the level ends.'],
+      ['One weapon at a time', 'Every collected sword or hammer replaces your current weapon and resets its hit count. A weaker weapon can reduce your remaining hits. Uncollected weapons remain until their optional on-screen lifetime expires, or until the level ends.'],
     ],
   },
   {

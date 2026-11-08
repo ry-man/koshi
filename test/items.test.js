@@ -244,7 +244,7 @@ test('timed collectible expiry starts at appearance, survives preview reservatio
   }
 });
 
-test('expired objects cannot be collected, but ground expiry does not shorten an equipped sword', () => {
+test('expired objects cannot be collected, and pickup lifetime does not shorten equipped weapon hits', () => {
   const game = new Game(() => .5, { customLevel: level([]) });
   game.start(); game.elapsed = 1;
   const point = { x: game.cat.x, y: game.cat.y };
@@ -256,7 +256,7 @@ test('expired objects cannot be collected, but ground expiry does not shorten an
   assert.equal(game.pickups.length, 0);
   game.weapons = [game.createCollectible(1, 'gold', .1, point)];
   game.combat(0, point.x, point.y);
-  assert.equal(game.weapon.expires, 16, 'gold keeps its fifteen seconds from pickup');
+  assert.equal(game.weapon.uses, 10, 'gold retains its ten-hit count');
   game.update(.2);
   assert.equal(game.weapon.type, 'gold');
 });
@@ -346,9 +346,9 @@ test('eggplant uses depth shading without penalty text, and sparkle pops grow th
     },
   });
 
-  const context = vm.createContext({ ctx, ITEMS, FOODS: require('../src/game.js').FOODS, SWORDS: require('../src/game.js').SWORDS,
+  const context = vm.createContext({ ctx, ITEMS, FOODS: require('../src/game.js').FOODS, WEAPONS: require('../src/game.js').WEAPONS,
     FOOD_COLORS: { H: '#f7d26d' },
-    drawSword: (...args) => operations.push(['sword', ...args]) });
+    drawWeapon: (...args) => operations.push(['weapon', ...args]) });
   vm.runInContext(source.slice(source.indexOf('function drawCatShield('), source.indexOf('\nfunction updateEnding('))
     + source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
   context.drawGameItem({ x: 0, y: 0, type: 'eggplant' });

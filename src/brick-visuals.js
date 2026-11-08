@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, ITEMS, OBJECTS, SWORDS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
+const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
 const HAZARD_FLAME = 'M-24 18 Q-12 12 -20 -2 L-10 -18 Q-13 -2 -4 -8 L3 -17 Q12 -4 9 2 Q18 -10 24 -20 Q16 3 24 18 Z';
 const MISSILE_BODY = 'M-14 -7 H9 Q24 -7 24 0 Q24 7 9 7 H-14 Z';
 const MISSILE_FINS = 'M-15 -6 L-25 -16 L-5 -10 V-6 M-15 6 L-25 16 L-5 10 V6 M-22 0 H-4';
@@ -56,6 +56,7 @@ const SYMBOLS = {
   'bubble-green': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
   'bubble-red': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
   sword: 'M0 -23 L6 -14 L4 8 H-4 L-6 -14 Z M-10 9 H10 M0 9 V22',
+  hammer: 'M-13 -19 H13 L17 -15 V-4 L13 0 H5 L3 3 H-3 L-5 0 H-13 L-17 -4 V-15 Z M0 -3 V27',
   S: 'M-14 -8 Q-18 7 0 19 Q18 7 14 -8 Z M-14 -8 L-4 -6 L0 -16 L4 -6 L14 -8 M-6 0 L-5 3 M5 4 L4 7',
   P: 'M0 -2 C-20 -32 -30 10 -10 12 C8 16 24 -8 12 -14 C0 -26 -14 6 0 14 C22 26 26 -8 6 -6 M-14 10 L14 -10',
   B: 'M-18 -14 Q-12 22 18 12 L20 4 Q-6 12 -12 -16 Z',
@@ -84,7 +85,7 @@ const SYMBOLS = {
 };
 
 function spawnSymbol(spawn) {
-  return SYMBOLS[spawn.kind === 'weapon' ? 'sword' : spawn.kind === 'heart' ? 'heart'
+  return SYMBOLS[spawn.kind === 'weapon' ? WEAPONS[spawn.type].hammer ? 'hammer' : 'sword' : spawn.kind === 'heart' ? 'heart'
     : spawn.kind === 'item' && BOOM_TIME_TYPES.has(spawn.type) ? 'boom-time'
       : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch'
         : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}`
@@ -141,7 +142,7 @@ function drawPaintbrush(ctx, item) {
   ctx.restore();
 }
 function spawnColor(spawn) {
-  if (spawn.kind === 'weapon') return SWORDS[spawn.type].color;
+  if (spawn.kind === 'weapon') return WEAPONS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return spawn.type === 'robo-koshi' ? '#454d52' : ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
     : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-cow' ? '#9451bd'
@@ -153,7 +154,7 @@ function spawnColor(spawn) {
 function specialLabel(brick) {
   const spawn = brick.spawner;
   const spawnName = spawn?.kind === 'food' ? FOODS[spawn.type].name
-    : spawn?.kind === 'weapon' ? SWORDS[spawn.type].name
+    : spawn?.kind === 'weapon' ? WEAPONS[spawn.type].name
       : spawn?.kind === 'item' ? ITEMS[spawn.type].name
         : spawn?.kind === 'object' ? OBJECTS[spawn.type].name
         : spawn?.kind === 'enemy' ? CHARACTERS[spawn.type]

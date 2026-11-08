@@ -462,7 +462,7 @@ The title screen includes two learning paths:
 
 The tutorial selector can jump to **any step at any time**, without unlocking
 earlier lessons. Previous/Next, Retry step, and Exit tutorial remain available;
-the combat steps also let players try wood, bronze, silver, or gold swords.
+the combat steps also let players try swords and hammers.
 Completed-topic badges last for the current tutorial visit. Retrying resets the
 arena and current action feedback while keeping those badges. Practice has no
 time limit or story scenes, and a failed attempt can be retried or skipped.
@@ -565,12 +565,14 @@ the board; phones keep compact controls above it without scrolling away from pla
   Touch the heart to restore one heart, capped at three. No hearts spawn in Levels 1–1 through 1–3.
   Campaign costs are `ceil(all available food points / 5)`, including food-spawning
   bricks, so even collecting every food creates no more than five hearts.
-- From Level 1–3, collect a sword to automatically strike robots within its reach.
-  **Wood** has 1 attack, **bronze** 3, **silver** 5; **gold** lasts
-  15 seconds from pickup and has unlimited attacks during that time.
-  Shield hits also spend attacks. Each collected sword replaces the current sword
-  and resets its count or timer, even if it is weaker. Uncollected swords and
-  hearts do not expire. Pause freezes sword time.
+- From Level 1–3, collect a weapon to automatically strike robots within its reach.
+  **Wood** has 1 hit, **bronze** 3, **silver** 5, and **gold** 10.
+  Swords spend one hit per enemy contact, including contacts that damage a shield.
+  Bronze, silver, and gold hammers have 3, 5, and 10 hits; on each contact,
+  a hammer spends only as many hits as needed to break the enemy's shield and
+  defeat it, or all remaining hits if its charges run out first. Each collected
+  weapon replaces the current weapon and resets its hit count, even if it is weaker.
+  Uncollected weapons and hearts do not expire.
 - The dotted aiming line is subtle and transparent (15% opacity). A small red circle
   with a plus sign and thin black outline marks the exact clicked location,
   drawn above the bricks so it stays visible.
@@ -1264,7 +1266,7 @@ key carriers contribute their full counts toward chest requirements.
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
 `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
 `robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`; weapon types are `wood`,
-`bronze`, `silver`, `gold`.
+`bronze`, `silver`, `gold`, `hammer-bronze`, `hammer-silver`, and `hammer-gold`.
 Item types (`kind: "item"`) include `cat-block`, `key`, and `treasure-chest` as
 well as the power-ups. A Cat Block can be placed directly, carried by a custom
 enemy (`"carriesCatBlock": true`, dropped when defeated), or put in a chest.
@@ -1867,7 +1869,8 @@ returns to random spawning. All settings survive save/export/import/playtest.
 
 Spawner types:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
-`wood`, `bronze`, `silver`, or `gold`; `enemy` uses `mouse`, `wheel`, `ram`,
+`wood`, `bronze`, `silver`, `gold`, `hammer-bronze`, `hammer-silver`, or
+`hammer-gold`; `enemy` uses `mouse`, `wheel`, `ram`,
 `bucket`, `ball`, `jackolantern`, `snake`, or `goalie`;
 `item` uses one of the item types above; `heart` uses type `heart`.
 Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
@@ -2087,7 +2090,7 @@ rounded exterior and interior corners, without seams between their segments.
   Toggle state only controls selection: disabled toggles are unselectable, but
   all contact surfaces still work. Absorbed and exhausted toggle bricks do not advance their cycles.
 - **Spawning:** the brick shows a prominent item-colored icon with a thin dark
-  outline and a dark rainbow glow. Sword icons use the corresponding weapon colors.
+  outline and a dark rainbow glow. Sword and hammer icons use the corresponding weapon colors.
   The icon represents its
   configured food, sword, robot, or heart. Touching it spawns **one** object at
   a random safe location, immediately, without a timed spawn warning. Wheels
@@ -2095,9 +2098,9 @@ rounded exterior and interior corners, without seams between their segments.
   Once physical contact spawns the item, its icon becomes contrasting dark grey
   without a glow, and it cannot spawn again until restart, even
   after leaving, returning, being absorbed, or restoring from a Warped group.
-- Swords have thin dark outlines around their blades, guards, and handles.
+- Swords and hammers have thin dark outlines around their blades/heads and handles.
   Bronze uses a dark green patina, distinct from brown wood, silver, and gold.
-  These colors are shared by gameplay swords, editor palettes, and spawner icons.
+  These colors are shared by gameplay weapons, editor palettes, and spawner icons.
 - **Boost:** when Koshi is physically resting against a Boost surface, even if Toggle-disabled,
   his next successful launch travels at **840 game units/second**, twice his
   normal speed. A glowing fireball overlays him and defeats both robot types
@@ -2114,7 +2117,7 @@ Example paired portals and two other special bricks (saved phone slots):
   { "edge": "top", "start": 0, "end": 0.2, "kind": "normal", "portal": "purple" },
   { "edge": "bottom", "start": 0, "end": 0.2, "kind": "normal", "portal": "purple" },
   { "edge": "top", "start": 0.4, "end": 0.6, "kind": "fast", "boost": true, "toggle": 2 },
-  { "edge": "bottom", "start": 0.4, "end": 0.6, "kind": "normal", "spawner": { "kind": "weapon", "type": "silver" } }
+  { "edge": "bottom", "start": 0.4, "end": 0.6, "kind": "normal", "spawner": { "kind": "weapon", "type": "hammer-silver" } }
 ]
 ```
 - Pause freezes slime locks, release feedback, spring compression, belt rotation,

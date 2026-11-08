@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, SWORDS, SHIELDS } = require('../src/game.js');
+const { Game, LEVELS, SWORDS, WEAPONS, SHIELDS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -337,23 +337,15 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
   assert.match(source, /for \(const enemy of robotDrawOrder\(game\.enemyDeaths\.filter\(visibleRobot\)\)\) drawEnemyDeath\(enemy\)/);
 });
 
-test('gold has unlimited defeats for 15 seconds and pause freezes its timer', () => {
+test('gold sword has exactly ten hits and no timed expiry', () => {
   const game = arena();
   equip(game, 'gold');
-  const expiry = game.weapon.expires;
-  game.robots = Array.from({ length: 25 }, () => mouse(game));
-  game.update(.01);
-  assert.equal(game.enemies, 25);
-  assert.equal(game.hearts, 3);
-  game.pause();
-  game.update(30);
-  assert.equal(game.weapon.expires, expiry);
-  game.resume();
-  // Isolate timed expiry from level events.
-  game.nextEnemy = LEVELS[1].enemies.length;
-  game.update(14.9);
-  assert.equal(game.weapon.type, 'gold');
-  game.update(.1);
+  assert.equal(game.weapon.uses, 10);
+  for (let hit = 0; hit < 10; hit++) {
+    game.robots = [mouse(game)];
+    game.update(.01);
+    assert.equal(game.enemies, hit + 1);
+  }
   assert.equal(game.weapon, null);
 });
 
@@ -493,30 +485,82 @@ test('shield hits consume wood, boosts respect protection without using swords, 
   assert.equal(goalGame.state, 'won');
 });
 
-test('every sword replaces the current weapon and resets attacks or gold time', () => {
+test('every weapon replaces the current weapon and resets its hit count', () => {
   const game = arena();
-  assert.deepEqual(Object.fromEntries(Object.entries(SWORDS).map(([type, sword]) => [type, sword.uses ?? sword.seconds])),
-    { wood: 1, bronze: 3, silver: 5, gold: 15 });
-  for (const current of Object.keys(SWORDS)) {
-    for (const replacement of Object.keys(SWORDS)) {
+  assert.deepEqual(Object.fromEntries(Object.entries(WEAPONS).map(([type, weapon]) => [type, weapon.uses])),
+    { wood: 1, bronze: 3, silver: 5, gold: 10, 'hammer-bronze': 3, 'hammer-silver': 5, 'hammer-gold': 10 });
+  for (const current of Object.keys(WEAPONS)) {
+    for (const replacement of Object.keys(WEAPONS)) {
       equip(game, current);
-      if (current !== 'gold') game.weapon.uses = 1;
-      else game.weapon.expires = game.elapsed + 2;
+      game.weapon.uses = 1;
       const distant = { x: game.cat.x + 200, y: game.cat.y, type: 'gold' };
       game.weapons.push(distant);
       game.weapons.push({ x: game.cat.x, y: game.cat.y, type: replacement });
       game.combat(0, game.cat.x, game.cat.y);
       assert.equal(game.weapon.type, replacement);
-      assert.equal(game.weapon.uses, SWORDS[replacement].uses);
-      assert.equal(game.weapon.expires, replacement === 'gold' ? game.elapsed + 15 : Infinity);
-      assert.deepEqual(game.weapons, [distant], 'uncollected swords persist');
+      assert.equal(game.weapon.uses, WEAPONS[replacement].uses);
+      assert.equal(game.weapon.expires, Infinity);
+      assert.deepEqual(game.weapons, [distant], 'uncollected weapons persist');
       game.weapons = [];
     }
   }
 });
 
+test('hammers spend only the shield hits needed and preserve partial damage', () => {
+  for (const [type, shield, uses, remaining, defeated, remainingShield] of [
+    ['hammer-bronze', 'red', 3, 1, true, null],
+    ['hammer-silver', 'green', 5, 2, true, null],
+    ['hammer-silver', 'blue', 2, 0, false, 'red'],
+    ['hammer-bronze', 'blue', 3, 0, false, null],
+  ]) {
+    const game = arena();
+    const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'mouse', shield, x: .5, y: .5 })[0];
+    game.robots = [enemy];
+    game.weapon = { type, uses, expires: Infinity };
+    game.combat(0, game.cat.x, game.cat.y);
+    assert.equal(game.enemies, defeated ? enemy.defeatPoints ?? 1 : 0);
+    assert.equal(game.weapon?.uses ?? 0, remaining);
+    if (!defeated) {
+      assert.equal(enemy.shield, remainingShield, 'insufficient hits leave the shield at its damaged tier');
+      assert.equal(game.robots.length, 1);
+    } else {
+      assert.equal(game.robots.length, 0);
+    }
+  }
+});
+
+test('sword and hammer contacts create one timed attack effect; protected contacts do not', () => {
+  for (const type of ['silver', 'hammer-silver']) {
+    const game = arena();
+    const enemy = mouse(game);
+    game.robots = [enemy];
+    game.weapon = { type, uses: 5, expires: Infinity };
+    game.combat(0, game.cat.x, game.cat.y);
+    assert.equal(game.weaponAttacks.length, 1);
+    assert.deepEqual(game.weaponAttacks[0], {
+      x: enemy.x, y: enemy.y, type, age: 0,
+    });
+    game.elapsed = enemy.invulnerableUntil - .001;
+    game.combat(0, game.cat.x, game.cat.y);
+    assert.equal(game.weaponAttacks.length, 1, 'invulnerable enemies do not trigger another attack effect');
+    game.reset();
+    assert.deepEqual(game.weaponAttacks, []);
+  }
+});
+
+test('attack effects freeze on pause and fade after the level ends', () => {
+  const game = arena();
+  game.weaponAttacks.push({ x: game.cat.x, y: game.cat.y, type: 'silver', age: 0 });
+  game.pause(); game.update(.3);
+  assert.equal(game.weaponAttacks[0].age, 0);
+  game.resume(); game.update(.2);
+  assert.ok(Math.abs(game.weaponAttacks[0].age - .2) < 1e-9);
+  game.state = 'won'; game.update(.4);
+  assert.deepEqual(game.weaponAttacks, []);
+});
+
 test('every sword defeats wheels too, and swept motion collects weapons and hearts', () => {
-  for (const type of Object.keys(SWORDS)) {
+  for (const type of Object.keys(WEAPONS)) {
     const game = arena();
     equip(game, type);
     game.spawnEnemies([0, 'wheel', 1]);

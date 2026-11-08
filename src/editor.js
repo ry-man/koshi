@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
@@ -33,7 +33,7 @@ const OBSTRUCTION_COLORS = [
   '#fecdd3', '#b7707d', '#f43f5e', '#be123c', '#4c0519',
   '#ead8c5', '#a58b73', '#a66b36', '#704522', '#29190d',
 ];
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: SWORDS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -403,7 +403,7 @@ function mixedOption(select) {
 function typeOptions(type, showLifetime) {
   const kind = $('#event-kind').value;
   const types = kind === MIXED ? [] : kind === 'food' ? Object.entries(FOODS).map(([key, food]) => [key, `${food.icon} ${food.name} (+${food.value})`])
-    : kind === 'weapon' ? Object.entries(SWORDS).map(([key, sword]) => [key, sword.name])
+    : kind === 'weapon' ? Object.entries(WEAPONS).map(([key, weapon]) => [key, weapon.name])
       : kind === 'item' ? Object.entries(ITEMS).map(([key, item]) => [key, item.name])
         : kind === 'object' ? Object.entries(OBJECTS).map(([key, item]) => [key, item.name])
         : Object.entries(CHARACTERS).filter(([key]) => !['koshi', 'tom'].includes(key));
@@ -512,7 +512,7 @@ function setupObstructionColors() {
 
 function description(event) {
   return event.kind === 'food' ? `${FOODS[event.type].icon} ${FOODS[event.type].name}`
-    : event.kind === 'weapon' ? SWORDS[event.type].name
+    : event.kind === 'weapon' ? WEAPONS[event.type].name
       : event.kind === 'item' ? ITEMS[event.type].name
         : event.kind === 'object' ? OBJECTS[event.type].name
         : `${CHARACTERS[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}${event.carriesCatBlock ? ' · carries Cat Block' : ''}${event.carriesKey ? ' · carries key' : ''}`;
@@ -1012,7 +1012,7 @@ function renderBoard() {
       if (event.lifetime != null) marker.dataset.previewEnd = event.time + event.lifetime;
     }
     marker.style.left = `${point.x / previewGame.width * 100}%`; marker.style.top = `${point.y / previewGame.height * 100}%`;
-    marker.style.color = event.kind === 'weapon' ? SWORDS[event.type].color : '';
+    marker.style.color = event.kind === 'weapon' ? WEAPONS[event.type].color : '';
     if (event.shield) marker.style.boxShadow = `0 0 0 3px ${SHIELDS[event.shield].color}`;
     const selected = spawnKey ? selectedBricks.has(spawnKey) : selectedEvents.has(index);
     marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);

@@ -88,8 +88,8 @@ test('moves count successful steering and mid-flight redirects, not invalid clic
   assert.equal(game.moves, 0);
 });
 
-test('weapon status announces remaining attacks or seconds and the sword blade shows the count', () => {
-  const { SWORDS, CAT_SHIELDS } = require('../src/game.js');
+test('weapon status announces remaining hits and weapon illustrations show the count', () => {
+  const { WEAPONS, CAT_SHIELDS } = require('../src/game.js');
   const root = path.resolve(__dirname, '..');
   const app = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
   const body = app.slice(app.indexOf('  const weaponCount ='), app.indexOf('  const batteryLabel ='));
@@ -97,31 +97,29 @@ test('weapon status announces remaining attacks or seconds and the sword blade s
   const display = `{${body}}`;
   const weaponStatus = { textContent: '' }, shieldStatus = { textContent: '' };
   const game = { elapsed: 2, weapon: null };
-  const context = vm.createContext({ game, SWORDS, CAT_SHIELDS, weaponStatus, shieldStatus });
-  for (const [type, uses] of [['wood', 1], ['bronze', 3], ['silver', 5], ['gold', Infinity]]) {
-    game.weapon = { type, uses, expires: 17 };
+  const context = vm.createContext({ game, WEAPONS, CAT_SHIELDS, weaponStatus, shieldStatus });
+  for (const type of Object.keys(WEAPONS)) {
+    const uses = WEAPONS[type].uses;
+    game.weapon = { type, uses, expires: Infinity };
     vm.runInContext(display, context);
-    assert.match(weaponStatus.textContent, new RegExp(`${SWORDS[type].name}, ${type === 'gold' ? '15 seconds' : `${uses} attacks`} remaining`));
+    assert.match(weaponStatus.textContent, new RegExp(`${WEAPONS[type].name}, ${uses} hit${uses === 1 ? '' : 's'} remaining`));
   }
-  game.elapsed = 5.2;
-  vm.runInContext(display, context);
-  assert.match(weaponStatus.textContent, /12 seconds remaining/);
   game.weapon = null;
   vm.runInContext(display, context);
-  assert.equal(weaponStatus.textContent, 'Weapon: no sword equipped');
+  assert.equal(weaponStatus.textContent, 'Weapon: none equipped');
   assert.equal(shieldStatus.textContent, 'Cat Shield: none');
   game.catShield = 'blue';
   vm.runInContext(display, context);
   assert.equal(shieldStatus.textContent, 'Cat Shield: blue, 3 hits remaining');
-  assert.match(app, /const label = String\(remaining\);[\s\S]*drawSword\(swordX, swordY, color, label\)/);
+  assert.match(app, /drawWeapon\(0, 0, type, game\.weapon\?\.type === type \? String\(game\.weapon\.uses\) : undefined\)/);
 });
 
-test('weapon counts are passed to the equipped sword without a separate badge', () => {
-  const { SWORDS } = require('../src/game.js');
+test('weapon counts are passed to the equipped weapon without a separate badge', () => {
+  const { WEAPONS } = require('../src/game.js');
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  const start = app.indexOf('  if (game.weapon) {', app.indexOf('function render('));
+  const start = app.indexOf('  const swing =', app.indexOf('function render('));
   const body = app.slice(start, app.indexOf('  drawTurretEffects(ctx', start));
-  for (const [type, uses, label] of [['wood', 3, '3'], ['gold', Infinity, '12']]) {
+  for (const [type, uses, label] of [['wood', 3, '3'], ['hammer-gold', 10, '10']]) {
     const arcs = [], texts = [], swords = [];
     const ctx = new Proxy({}, {
       get(target, name) {
@@ -131,12 +129,88 @@ test('weapon counts are passed to the equipped sword without a separate badge', 
         return () => {};
       },
     });
-    const game = { cat: { x: 400, y: 300 }, elapsed: 5, weapon: { type, uses, expires: 17 } };
-    vm.runInNewContext(body, { game, SWORDS, ctx, drawSword: (...args) => swords.push(args) });
-    assert.deepEqual(swords[0], [430, 280, SWORDS[type].color, label]);
+    const game = { cat: { x: 400, y: 300 }, elapsed: 5, weapon: { type, uses, expires: Infinity }, weaponAttacks: [] };
+    vm.runInNewContext(body, { game, WEAPONS, ctx, visible: () => true,
+      drawAttackPop() {}, drawWeapon: (...args) => swords.push(args) });
+    assert.deepEqual(swords[0], [0, 0, type, label]);
     assert.deepEqual(texts, []);
     assert.deepEqual(arcs, []);
   }
+});
+
+test('recent sword and hammer attacks swing through 45 degrees, including the last hit', () => {
+  const { WEAPONS } = require('../src/game.js');
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = app.indexOf('  const swing =', app.indexOf('function render('));
+  const body = app.slice(start, app.indexOf('  drawTurretEffects(ctx', start));
+  for (const type of ['bronze', 'hammer-gold']) {
+    const rotations = [], weapons = [];
+    const ctx = new Proxy({}, {
+      get(_target, name) {
+        return name === 'rotate' ? angle => rotations.push(angle) : () => {};
+      },
+    });
+    const game = { elapsed: 5.09, cat: { x: 400, y: 300 }, weapon: null,
+      weaponAttacks: [{ x: 430, y: 300, type, age: .09 }] };
+    vm.runInNewContext(body, { game, WEAPONS, ctx, visible: () => true,
+      drawAttackPop() {}, drawWeapon: (...args) => weapons.push(args) });
+    assert.ok(Math.abs(rotations[0] - Math.PI / 4) < 1e-9, `${type} swings 45 degrees`);
+    assert.deepEqual(weapons[0], [0, 0, type, undefined]);
+  }
+});
+
+test('attack pop draws a bright, fading comic burst with POW lettering', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const source = app.slice(app.indexOf('function drawAttackPop('), app.indexOf('\nfunction drawGameItem('));
+  const operations = [], stack = [];
+  const ctx = new Proxy({ globalAlpha: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'save') return () => stack.push(target.globalAlpha);
+      if (name === 'restore') return () => { target.globalAlpha = stack.pop(); };
+      if (name === 'lineTo') return (...args) => operations.push([name, ...args]);
+      if (name === 'fillText' || name === 'strokeText') return (...args) => operations.push([name, ...args]);
+      if (name === 'fill' || name === 'stroke') return () => operations.push([name, target.fillStyle, target.globalAlpha]);
+      return () => {};
+    },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source, context);
+  context.drawAttackPop({ x: 100, y: 80 }, .1);
+  assert.equal(operations.filter(([name]) => name === 'lineTo').length, 23);
+  assert.ok(operations.some(([name, text]) => name === 'fillText' && text === 'POW!'));
+  const burst = operations.find(([name]) => name === 'fill');
+  assert.ok(Math.abs(burst[2] - (1 - .1 / .55)) < 1e-9, 'the burst fades as it grows');
+  const alpha = ctx.globalAlpha;
+  assert.equal(alpha, 1, 'drawing restores canvas opacity');
+});
+
+test('hammer artwork uses a simple small double-ended head, skinny long handle, and full-head count', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const source = app.slice(app.indexOf('function drawHammer('), app.indexOf('\nfunction drawWeapon('));
+  const points = [], lines = [], labels = [], fills = [];
+  const ctx = new Proxy({ fillStyle: '' }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'moveTo' || name === 'lineTo') return (...args) => points.push([name, ...args]);
+      if (name === 'fillText') return (...args) => labels.push(args);
+      if (name === 'fill') return () => fills.push(target.fillStyle);
+      return () => {};
+    },
+  });
+  const context = vm.createContext({ ctx, line: (...args) => lines.push(args) });
+  vm.runInContext(source, context);
+  context.drawHammer(0, 0, '#d5e0ec', '5');
+  assert.deepEqual(points[0], ['moveTo', -13, -19]);
+  assert.ok(points.some(([command, x]) => command === 'lineTo' && x === 17), 'head keeps its clipped, double-ended outline');
+  assert.ok(points.some(([command, x, y]) => command === 'lineTo' && x === 3 && y === 3), 'head retains a narrow central socket');
+  assert.equal(JSON.stringify(lines), JSON.stringify([
+    [[[0, -3], [0, 27]], '#17212a', 7],
+    [[[0, -3], [0, 27]], '#8a6953', 5],
+  ]), 'handle is slim and longer than the sword handle');
+  assert.deepEqual(fills, ['#d5e0ec'], 'hammer head has no decorative details');
+  assert.equal(labels[0][0], '5');
+  assert.equal(labels[0][3], 28, 'hit count spans most of the hammer head');
 });
 
 test('aiming draws a subtle transparent dotted line and an exact red outlined target above bricks', () => {

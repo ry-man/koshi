@@ -162,8 +162,14 @@ const SWORDS = {
   wood: { name: 'Wood Sword', color: '#b88b60', uses: 1 },
   bronze: { name: 'Bronze Sword', color: '#4f8067', uses: 3 },
   silver: { name: 'Silver Sword', color: '#d5e0ec', uses: 5 },
-  gold: { name: 'Gold Sword', color: '#f3d16b', seconds: 15 },
+  gold: { name: 'Gold Sword', color: '#f3d16b', uses: 10 },
 };
+const HAMMERS = {
+  'hammer-bronze': { name: 'Bronze Hammer', color: SWORDS.bronze.color, uses: 3, hammer: true },
+  'hammer-silver': { name: 'Silver Hammer', color: SWORDS.silver.color, uses: 5, hammer: true },
+  'hammer-gold': { name: 'Gold Hammer', color: SWORDS.gold.color, uses: 10, hammer: true },
+};
+const WEAPONS = { ...SWORDS, ...HAMMERS };
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const CAT_SHIELDS = {
   red: { hits: 1, next: null, color: '#ed5555' },
@@ -246,7 +252,7 @@ const INFO_GRAPHICS = {
   ...Object.fromEntries(Object.entries(FOODS).map(([id, value]) => [`food:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(ITEMS).map(([id, value]) => [`item:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(OBJECTS).map(([id, value]) => [`object:${id}`, value.name])),
-  ...Object.fromEntries(Object.entries(SWORDS).map(([id, value]) => [`weapon:${id}`, value.name])),
+  ...Object.fromEntries(Object.entries(WEAPONS).map(([id, value]) => [`weapon:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(CHARACTERS).filter(([id]) => !['koshi', 'tom', 'boss'].includes(id))
     .map(([id, name]) => [`enemy:${id}`, name])),
   ...Object.fromEntries(Object.keys(SLIMES).map(id => [`slime:${id}`, `${id[0].toUpperCase() + id.slice(1)} Slime`])),
@@ -1558,7 +1564,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, boss: true }, weapon: SWORDS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, boss: true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (!random && !group) {
       if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
@@ -1724,7 +1730,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: SWORDS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -2736,6 +2742,7 @@ class Game {
     this.foodId = 0;
     this.robots = [];
     this.enemyDeaths = [];
+    this.weaponAttacks = [];
     this.boss = null;
     this.bossDefeated = false;
     this.bossProjectiles = [];
@@ -3708,7 +3715,7 @@ class Game {
       }
     }
     return items.filter(item => !(Object.hasOwn(FOODS, item.type) || Object.hasOwn(ITEMS, item.type)
-      || Object.hasOwn(SWORDS, item.type)) || this.pickupClear(item));
+      || Object.hasOwn(WEAPONS, item.type)) || this.pickupClear(item));
   }
 
   spawn(event) {
@@ -5894,9 +5901,9 @@ class Game {
     });
     // Swept pickups replace the sword in encounter order, not spawn-array order.
     for (const { item } of collected.sort((a, b) => a.entry - b.entry)) {
-      const sword = SWORDS[item.type];
+      const weapon = WEAPONS[item.type];
       this.catBlockProgress.swords++;
-      this.weapon = { type: item.type, uses: sword.uses, expires: sword.seconds ? this.elapsed + sword.seconds : Infinity };
+      this.weapon = { type: item.type, uses: weapon.uses, expires: Infinity };
       this.recordPickup(item, 'weapon');
     }
     const collectedItems = [];
@@ -6097,14 +6104,24 @@ class Game {
       }
       if (!this.activeTurret && (this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
         if (this.enemyDamageProgress(enemy) === null) {
-          if (!this.boosted && Number.isFinite(this.weapon.uses) && --this.weapon.uses === 0) this.weapon = null;
-          if (enemy.shield) {
-            enemy.shield = SHIELDS[enemy.shield].next;
-            enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
-          } else {
-            this.defeatEnemy(enemy);
-            return false;
+          if (!this.boosted) {
+            this.weaponAttacks = this.weaponAttacks.filter(attack => attack.age < .55);
+            this.weaponAttacks.push({ x: enemy.x, y: enemy.y, type: this.weapon.type, age: 0 });
           }
+          const hammer = !this.boosted && WEAPONS[this.weapon.type].hammer;
+          const hits = hammer ? Math.min(this.weapon.uses, enemy.shield ? SHIELDS[enemy.shield].hits : 1) : 1;
+          if (!this.boosted) {
+            this.weapon.uses -= hits;
+            if (this.weapon.uses === 0) this.weapon = null;
+          }
+          for (let hit = 0; hit < hits; hit++) {
+            if (enemy.shield) enemy.shield = SHIELDS[enemy.shield].next;
+            else {
+              this.defeatEnemy(enemy);
+              return false;
+            }
+          }
+          enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
         }
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
@@ -6434,10 +6451,18 @@ class Game {
     });
   }
 
+  updateWeaponAttacks(seconds) {
+    this.weaponAttacks = this.weaponAttacks.filter(attack => {
+      attack.age += seconds;
+      return attack.age < .55 - 1e-9;
+    });
+  }
+
   update(seconds) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     if (this.state === 'playing' && this.bossDefeated) {
       this.updateEnemyDeaths(seconds);
+      this.updateWeaponAttacks(seconds);
       this.updateBrickDestructions(seconds);
       if (!this.enemyDeaths.some(enemy => enemy.type === 'boss')) {
         this.state = 'won';
@@ -6448,6 +6473,7 @@ class Game {
     if (this.state === 'won' || this.state === 'lost') {
       this.updateEnemyDeaths(seconds);
       this.updateGoalEffects(seconds);
+      this.updateWeaponAttacks(seconds);
       this.updatePickups(seconds);
       this.updateBrickDestructions(seconds);
       this.updateObstructionDestructions(seconds);
@@ -6474,6 +6500,7 @@ class Game {
     if (this.checkOffscreenDeath()) { this.tickStart = null; return; }
     this.updateEnemyDeaths(dt);
     this.updateGoalEffects(dt);
+    this.updateWeaponAttacks(dt);
     this.updatePickups(dt);
     this.updateBrickDestructions(dt);
     this.updateObstructionDestructions(dt);
@@ -6852,7 +6879,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.hazardEnabled = hazardEnabled;
 if (typeof module !== 'undefined' && module.exports) {

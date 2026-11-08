@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
@@ -910,13 +910,10 @@ function syncUI() {
   goalCount.classList.toggle('win-target', soccerGoalTarget);
   goalCount.setAttribute('aria-label', soccerGoalTarget
     ? `${soccerGoals} of ${goalsGoal} goals scored` : `${soccerGoals} goals scored`);
-  const weaponCount = game.weapon
-    ? Number.isFinite(game.weapon.uses) ? game.weapon.uses : Math.ceil(Math.max(0, game.weapon.expires - game.elapsed))
-    : null;
-  const timedWeapon = game.weapon && !Number.isFinite(game.weapon.uses);
+  const weaponCount = game.weapon ? game.weapon.uses : null;
   const weaponLabel = game.weapon
-    ? `Weapon: ${SWORDS[game.weapon.type].name}, ${weaponCount} ${timedWeapon ? 'seconds' : 'attacks'} remaining`
-    : 'Weapon: no sword equipped';
+    ? `Weapon: ${WEAPONS[game.weapon.type].name}, ${weaponCount} hit${weaponCount === 1 ? '' : 's'} remaining`
+    : 'Weapon: none equipped';
   if (weaponStatus.textContent !== weaponLabel) weaponStatus.textContent = weaponLabel;
   const shieldLabel = game.catShield
     ? `Cat Shield: ${game.catShield}, ${CAT_SHIELDS[game.catShield].hits} hit${CAT_SHIELDS[game.catShield].hits === 1 ? '' : 's'} remaining`
@@ -1541,7 +1538,7 @@ function guidePicture(picture, title, fillBrick = false) {
     drawRobot({ type, x: 80, y: 42, distance: 0 });
   } else if (kind === 'weapon') {
     ctx.save(); ctx.translate(80, 40); ctx.scale(1.25, 1.25);
-    drawSword(0, 0, SWORDS[type].color); ctx.restore();
+    drawWeapon(0, 0, type); ctx.restore();
   } else if (kind === 'item') {
     drawGameItem({ x: 80, y: 42, type });
   } else {
@@ -2263,7 +2260,7 @@ function render(now) {
   }
   for (const item of game.weapons) {
     if (!visible(item)) continue;
-    drawSword(item.x, item.y, SWORDS[item.type].color);
+    drawWeapon(item.x, item.y, item.type);
     drawObjectLifetime(item);
   }
   for (const enemy of game.robots) {
@@ -2409,14 +2406,18 @@ function render(now) {
     }
     ctx.restore();
   }
-  if (game.weapon) {
-    const color = SWORDS[game.weapon.type].color;
-    const swordX = game.cat.x + 30, swordY = game.cat.y - 20;
-    const timedWeapon = !Number.isFinite(game.weapon.uses);
-    const remaining = timedWeapon
-      ? Math.ceil(Math.max(0, game.weapon.expires - game.elapsed)) : game.weapon.uses;
-    const label = String(remaining);
-    drawSword(swordX, swordY, color, label);
+  const swing = [...game.weaponAttacks].reverse().find(attack => attack.age < .18);
+  if (game.weapon || swing) {
+    const type = game.weapon?.type ?? swing.type;
+    const age = swing && swing.type === type ? swing.age : null;
+    const swingAngle = age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4;
+    ctx.save(); ctx.translate(game.cat.x + 30, game.cat.y - 20); ctx.rotate(swingAngle);
+    drawWeapon(0, 0, type, game.weapon?.type === type ? String(game.weapon.uses) : undefined);
+    ctx.restore();
+  }
+  for (const attack of game.weaponAttacks) {
+    const age = attack.age;
+    if (age >= 0 && age < .55 && visible(attack, 64)) drawAttackPop(attack, age);
   }
   drawTurretEffects(ctx, game.level.autoscroll ? camera : null);
   drawHazards(ctx, game.level.autoscroll ? camera : null);
@@ -2669,7 +2670,7 @@ function drawPickupPop(pickup) {
   ctx.globalAlpha = 1 - progress;
   const scale = progress < .22 ? 1 + progress / .22 * .25 : 1.25 * (1 - (progress - .22) / .78);
   ctx.save(); ctx.scale(scale, scale);
-  if (pickup.kind === 'weapon') drawSword(0, 0, SWORDS[pickup.type].color);
+  if (pickup.kind === 'weapon') drawWeapon(0, 0, pickup.type);
   else if (pickup.kind === 'item') drawGameItem({ x: 0, y: 0, type: pickup.type });
   else drawFoodBadge(pickup.type);
   ctx.restore();
@@ -2892,6 +2893,60 @@ function drawSword(x, y, color, label) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(label, 0, 0, 9);
   }
+  ctx.restore();
+}
+
+function drawHammer(x, y, color, label) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(.5);
+  line([[0, -3], [0, 27]], '#17212a', 7);
+  line([[0, -3], [0, 27]], '#8a6953', 5);
+  ctx.fillStyle = color; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-13, -19); ctx.lineTo(13, -19); ctx.lineTo(17, -15); ctx.lineTo(17, -4);
+  ctx.lineTo(13, 0); ctx.lineTo(5, 0); ctx.lineTo(3, 3); ctx.lineTo(-3, 3);
+  ctx.lineTo(-5, 0); ctx.lineTo(-13, 0); ctx.lineTo(-17, -4); ctx.lineTo(-17, -15);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (label !== undefined) {
+    const [red, green, blue] = color.slice(1).match(/../g).map(component => {
+      const value = parseInt(component, 16) / 255;
+      return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+    });
+    const luminance = .2126 * red + .7152 * green + .0722 * blue;
+    ctx.fillStyle = (luminance + .05) / .05 >= 1.05 / (luminance + .05) ? '#000000' : '#ffffff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, 0, -9, 28);
+  }
+  ctx.restore();
+}
+
+function drawWeapon(x, y, type, label) {
+  const weapon = WEAPONS[type];
+  if (weapon.hammer) drawHammer(x, y, weapon.color, label);
+  else drawSword(x, y, weapon.color, label);
+}
+
+function drawAttackPop(attack, age) {
+  const progress = Math.min(1, age / .55);
+  const scale = .55 + progress * .65;
+  ctx.save(); ctx.translate(attack.x, attack.y - progress * 18);
+  ctx.rotate(-.16 + progress * .32); ctx.scale(scale, scale);
+  ctx.globalAlpha = 1 - progress;
+  ctx.beginPath();
+  for (let point = 0; point < 24; point++) {
+    const angle = point / 24 * Math.PI * 2 - Math.PI / 2;
+    const radius = point % 2 ? 19 : 29;
+    const x = Math.cos(angle) * radius, y = Math.sin(angle) * radius;
+    if (point) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#ffe45c'; ctx.strokeStyle = '#a8322b'; ctx.lineWidth = 4;
+  ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#fff6bd'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.font = 'bold 17px "Space Grotesk", sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3; ctx.strokeStyle = '#fff8df'; ctx.strokeText('POW!', 0, 1);
+  ctx.fillStyle = '#8f251e'; ctx.fillText('POW!', 0, 1);
   ctx.restore();
 }
 

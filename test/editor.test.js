@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, SHIELDS, SWORDS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, SHIELDS, SWORDS, WEAPONS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -1179,7 +1179,7 @@ test('custom objectives, duration, heart costs, and every pickup type use the re
     assert.equal(game.healing.length, 0);
     assert.equal(game.spawnCues.filter(cue => cue.kind === 'heart').length, FOODS[type].value);
   }
-  for (const type of Object.keys(SWORDS)) {
+  for (const type of Object.keys(WEAPONS)) {
     const game = new Game(() => .1, { customLevel: { ...blank(), events: [{ ...event('weapon', type, 0), x: .5, y: .5 }] } });
     game.start(); game.update(.01);
     assert.equal(game.weapon.type, type);
@@ -1203,7 +1203,7 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
     return inputs.get(selector);
   };
   const context = vm.createContext({
-    $, FOODS, SWORDS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {},
+    $, FOODS, SWORDS, WEAPONS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {},
     snapWheel,
     document: { createElement: () => ({}) }, MIXED: '',
     level: blank(), selectedEvents: new Set(), touched: new Set(),
@@ -1284,7 +1284,7 @@ test('snake event selectors and editor placements use Wheel edge snapping', () =
     return inputs.get(selector);
   };
   const context = vm.createContext({
-    $, FOODS, SWORDS, CHARACTERS: require('../src/game.js').CHARACTERS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {}, snapWheel,
+    $, FOODS, SWORDS, WEAPONS, CHARACTERS: require('../src/game.js').CHARACTERS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {}, snapWheel,
     document: { createElement: () => ({}) }, MIXED: '', selectedEvents: new Set(), selectedBricks: new Set(),
     touched: new Set(), level: blank(), readOnly: () => false, syncPalettes() {},
   });
