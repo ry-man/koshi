@@ -4,6 +4,50 @@ const { collectibleStats, levelRewardStates, catBlockIcon, goldStarIcon } = requ
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { Game } = require('../src/game.js');
+
+test('live Cat Block reminders reflect all achievement conditions without awarding rewards early', () => {
+  const cases = [
+    [{ type: 'time', amount: 5 }, game => { game.elapsed = 4; }, game => { game.elapsed = 5; }],
+    [{ type: 'food', amount: 5 }, game => { game.score = 5; }, game => { game.score = 4; }],
+    [{ type: 'enemyPoints', amount: 5 }, game => { game.enemies = 5; }, game => { game.enemies = 4; }],
+    [{ type: 'goals', amount: 2 }, game => { game.goals = 2; }, game => { game.goals = 1; }],
+    [{ type: 'moves', amount: 2 }, game => { game.moves = 2; }, game => { game.moves = 3; }],
+    [{ type: 'enemyMin', amount: 2, enemyType: 'mouse' }, game => { game.catBlockProgress.defeated.mouse = 2; }, game => { game.catBlockProgress.defeated.mouse = 1; }],
+    [{ type: 'enemyMax', amount: 2, enemyType: 'mouse' }, game => { game.catBlockProgress.defeated.mouse = 2; }, game => { game.catBlockProgress.defeated.mouse = 3; }],
+    [{ type: 'enemiesMax', amount: 2 }, game => { game.catBlockProgress.defeated = { mouse: 1, wheel: 1 }; }, game => { game.catBlockProgress.defeated.wheel = 2; }],
+    [{ type: 'noSwords' }, game => { game.catBlockProgress.swords = 0; }, game => { game.catBlockProgress.swords = 1; }],
+    [{ type: 'noHearts' }, game => { game.catBlockProgress.hearts = 0; }, game => { game.catBlockProgress.hearts = 1; }],
+    [{ type: 'bricksMin', amount: 1, brickType: 'power' }, game => { game.bricks[0].power = true; }, game => { game.bricks[0].power = false; }],
+    [{ type: 'bricksMax', amount: 0, brickType: 'power' }, game => { game.bricks[0].power = false; }, game => { game.bricks[0].power = true; }],
+    [{ type: 'noSelect', brickType: 'slow' }, game => { game.catBlockProgress.selected.clear(); }, game => { game.catBlockProgress.selected.add('slow'); }],
+    [{ type: 'noTouch', brickType: 'slow' }, game => { game.catBlockProgress.touched.clear(); }, game => { game.catBlockProgress.touched.add('slow'); }],
+  ];
+  for (const [trigger, satisfy, invalidate] of cases) {
+    const game = new Game(() => .5, { customLevel: {
+      version: 1, id: 'Live rewards', duration: 30, goal: 100, heartCost: null,
+      brickSet: 1, events: [], catBlock: { description: 'Reward', trigger },
+    } });
+    const state = () => levelRewardStates(game, {}, 'run').catBlock;
+    satisfy(game);
+    assert.equal(state(), 'uncollected', `${trigger.type}: ready is not an active attempt`);
+    game.start();
+    assert.equal(state(), 'pending', `${trigger.type}: satisfied while playing`);
+    game.pause();
+    assert.equal(state(), 'pending', `${trigger.type}: paused preserves eligibility`);
+    game.resume();
+    invalidate(game);
+    assert.equal(state(), 'uncollected', `${trigger.type}: condition no longer satisfied`);
+    satisfy(game);
+    assert.equal(state(), 'pending');
+    assert.equal(game.catBlockCollected, false, `${trigger.type}: preview never collects`);
+    assert.deepEqual(game.catBlockEvents, []);
+    game.state = 'lost';
+    assert.equal(state(), 'uncollected');
+    game.catBlockPreviouslyCollected = true;
+    assert.equal(state(), 'owned', 'previously owned rewards stay owned');
+  }
+});
 
 test('HUD reuses icons while unchanged and does not turn current-run rewards into previously owned ones', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
@@ -16,7 +60,7 @@ test('HUD reuses icons while unchanged and does not turn current-run rewards int
   const context = {
     game, activeSave: null, guestProfile: { results: {} }, pendingSaves: [], runSave: null, attemptId: 'current',
     levelRewardStates, displayedLevelRewards: '', levelRewardGame: null, previousLevelRewardResults: {},
-    goldStarIcon: owned => ({ owned }), catBlockIcon: owned => ({ owned }),
+    goldStarIcon: owned => ({ owned }), catBlockIcon: (owned, document, color, outlineWidth) => ({ owned, outlineWidth }),
     document: { createElement: node, querySelector: () => rewards },
   };
   vm.createContext(context);
@@ -30,6 +74,7 @@ test('HUD reuses icons while unchanged and does not turn current-run rewards int
   context.guestProfile.results.current = { levelId: 'a', outcome: 'won', damageFree: true };
   context.syncLevelRewards();
   assert.ok(rewards.children.every(badge => badge.className.includes('pending')));
+  assert.equal(rewards.children[1].children[0].outlineWidth, 6, 'pending Cat Block uses a brighter, thicker outline');
   context.game = { ...game, state: 'ready', catBlockPreviouslyCollected: true };
   context.attemptId = 'next';
   context.syncLevelRewards();
@@ -113,4 +158,7 @@ test('collectible states share identical geometry and change only fill or alpha-
   const guiBlock = catBlockIcon(false, document, 'currentColor');
   assert.equal(guiBlock.children[0].children[0].children[2].attributes['flood-color'], 'currentColor',
     'GUI outlines inherit the same neutral or pending gold color as stars');
+  const pendingBlock = catBlockIcon(false, document, 'currentColor', 6);
+  assert.equal(pendingBlock.children[0].children[0].children[0].attributes.radius, '6');
+  assert.equal(primitives[0].attributes.radius, '3', 'map and uncollected outlines remain unchanged');
 });

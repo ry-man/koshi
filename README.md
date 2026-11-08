@@ -169,9 +169,14 @@ spaced tracker row is **Koshi's Health**, **Food**, **Enemies**, **Batteries**,
 Beside the level number, Gold Star and Cat Block outlines remind players of
 uncollected rewards; rewards earned on previous winning runs are filled.
 An unowned star glows while the current run remains damage-free, and an unowned
-Cat Block glows after collection; these remain provisional until victory.
+Cat Block glows after collection or whenever its achievement condition would
+be satisfied if the level ended now. The glow updates as conditions change,
+including score thresholds, move/time limits, pickups, and the current brick
+layout; these remain provisional until victory. This indicator does not award
+the block early or change the existing inclusive move limit.
 Losing removes the provisional glow. Levels without a Cat Block omit its icon.
-Both provisional rewards use a gold border glow.
+Both provisional rewards use the same gold glow; the Cat Block's brighter,
+thicker outline matches the star's glow.
 The opening objectives omit Cat Block instructions and artwork when already owned.
 Moving between the main menu, story scenes, and gameplay uses a horizontal
 black sawtooth wipe: cover the old phase, change screens while fully black,
@@ -198,9 +203,12 @@ Information appears after any opening cutscene and before the objectives.
 Small left/right arrows beside the page counter browse pages; **Close** or
 Escape proceeds to objectives. Nothing moves
 and the level clock stays frozen until the objectives' **Start** is pressed.
-Campaign information appears automatically on the first visit in this browser;
-closing marks it viewed. Beta and Official keep separate viewed
-records, and changing the information shows it again. **Tips & Hints**
+Campaign information appears automatically on the first visit for the selected
+save slot in this browser; closing marks it viewed for that save only.
+Beta and Official keep separate viewed records, and changing the information
+shows it again. Replacing a deleted save does not inherit its viewed records.
+Unsaved play always treats information as unseen, including on restart.
+Old browser-wide viewed records are ignored. **Tips & Hints**
 on the objectives allows replay. Custom playtests always show it for testing.
 No existing campaign levels have been given information pages automatically.
 
@@ -319,8 +327,12 @@ Level numbers stay on one line. **World Select** and
 **Skip cutscene** share the bottom action bar with **Play Level** when a level
 is selected; **Back to menu** appears there on the world-selection view.
 When a level with a cutscene is selected, **Skip cutscene** replaces **Back to
-menu**. Cutscenes play on first visits and default to skipped after being
-viewed; restarting a level does not replay its cutscene.
+menu**. Cutscenes play on first visits for the selected save slot and default
+to skipped after being viewed by that save; restarting a saved level does not
+replay its cutscene unless skipping is disabled. Viewing is isolated by save
+identity and game (Beta or Official), including after a save is deleted and
+replaced. Unsaved play and custom playtests always treat cutscenes as unseen
+and show them again on restart, regardless of the skip checkbox.
 Back to menu or Escape cancels without changing the current gameplay level.
 Mouse, touch and keyboard activation are supported, with reduced-motion support.
 Level selection remains unrestricted for practice.

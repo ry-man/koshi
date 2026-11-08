@@ -30,14 +30,16 @@ function storageKey(kind, id = 'beta') {
   return id === 'beta' ? LEGACY_KEYS[kind] : `koshi-official-${kind}-v1`;
 }
 
-function cutsceneKey(levelId, id = 'beta') {
+function cutsceneKey(levelId, id = 'beta', saveId) {
   campaign(id);
-  return `${id === 'beta' ? 'koshi-cutscene-viewed' : 'koshi-official-cutscene-viewed'}:${encodeURIComponent(levelId)}`;
+  if (typeof saveId !== 'string' || !saveId) throw new Error('Choose a save slot to remember viewed cutscenes.');
+  return `koshi-${id}-cutscene-viewed:${encodeURIComponent(saveId)}:${encodeURIComponent(levelId)}`;
 }
 
-function levelInfoKey(levelId, id = 'beta') {
+function levelInfoKey(levelId, id = 'beta', saveId) {
   campaign(id);
-  return `koshi-${id}-level-info-viewed:${encodeURIComponent(levelId)}`;
+  if (typeof saveId !== 'string' || !saveId) throw new Error('Choose a save slot to remember viewed level information.');
+  return `koshi-${id}-level-info-viewed:${encodeURIComponent(saveId)}:${encodeURIComponent(levelId)}`;
 }
 
 function gameURL(path, hash = '', id = active.id) {

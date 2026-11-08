@@ -61,6 +61,7 @@ function runtime(custom = false, storage = new Map()) {
   const calls = [];
   const context = {
     game: { level: { id: 'shared-id', levelInfo: information() }, customLevel: custom },
+    runSave: custom ? null : { id: 'slot-a' },
     validateLevelInfo, INFO_GRAPHICS, campaignMode, campaignId: 'beta', viewedLevelInfo: new Map(),
     infoPages: null, infoPage: 0, lastTime: 100,
     levelInfoDialog: get('#level-info'), overlay: node(), play: node(),
@@ -121,9 +122,10 @@ test('first visits persist across reloads, isolate campaigns, and reappear when 
   official.context.campaignId = 'official';
   official.context.showLevelInformation();
   assert.equal(official.context.levelInfoDialog.open, true);
-  assert.notEqual(campaignMode.levelInfoKey('same', 'beta'), campaignMode.levelInfoKey('same', 'official'));
+  assert.notEqual(campaignMode.levelInfoKey('same', 'beta', 'slot-a'), campaignMode.levelInfoKey('same', 'official', 'slot-a'));
   assert.throws(() => campaignMode.levelInfoKey('same', 'invalid'));
-  assert.equal(campaignMode.levelInfoKey('a:b', 'official'), 'koshi-official-level-info-viewed:a%3Ab');
+  assert.equal(campaignMode.levelInfoKey('a:b', 'official', 'slot:a'), 'koshi-official-level-info-viewed:slot%3Aa:a%3Ab');
+  assert.throws(() => campaignMode.levelInfoKey('same'), /save slot/);
 });
 
 test('custom playtests always show information without persisting campaign preferences', () => {
@@ -136,6 +138,33 @@ test('custom playtests always show information without persisting campaign prefe
   context.levelInfoDialog.close();
   context.showLevelInformation();
   assert.equal(context.levelInfoDialog.open, false);
+});
+
+test('hints viewing is isolated by save identity and unsaved play never remembers viewing', () => {
+  const { context, storage } = runtime();
+  storage.set('koshi-beta-level-info-viewed:shared-id', JSON.stringify(information()));
+  context.showLevelInformation();
+  assert.equal(context.levelInfoDialog.open, true, 'legacy global viewing does not belong to a slot');
+  context.finishLevelInformation();
+  context.runSave = { id: 'slot-b' };
+  context.showLevelInformation();
+  assert.equal(context.levelInfoDialog.open, true);
+  context.finishLevelInformation();
+  context.runSave = { id: 'replacement-slot-a' };
+  context.showLevelInformation();
+  assert.equal(context.levelInfoDialog.open, true, 'reusing a slot position does not inherit viewing');
+  context.finishLevelInformation();
+  context.runSave = { id: 'slot-a' };
+  context.showLevelInformation();
+  assert.equal(context.levelInfoDialog.open, false, 'returning to the original slot remembers hints');
+  context.runSave = null;
+  const storedCount = storage.size;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    context.showLevelInformation();
+    assert.equal(context.levelInfoDialog.open, true);
+    context.finishLevelInformation();
+  }
+  assert.equal(storage.size, storedCount, 'unsaved play does not write viewed state');
 });
 
 test('arrow navigation stops at page boundaries and only Close or Escape exits the tips dialog', () => {
@@ -201,6 +230,7 @@ test('opening order is cutscene, information, objectives and direct links share 
   const calls = [];
   const context = {
     game: { level: { id: '1', cutscene: {} } }, skipCutscene: { checked: false }, overlay: {},
+    runSave: { id: 'slot-a' }, isCutsceneViewed: () => true,
     cutscene: { open: () => calls.push('cutscene') }, showLevelInformation: () => calls.push('information'),
   };
   vm.createContext(context);

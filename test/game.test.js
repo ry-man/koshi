@@ -334,6 +334,7 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
   const stored = new Map(), messages = [];
   const context = vm.createContext({
     viewedCutscenes: new Set(),
+    activeSave: { index: 0, slot: { id: 'slot-a' } }, runSave: { id: 'slot-a' }, game: { customLevel: false },
     campaignMode: require('../src/campaign-mode.js'), campaignId: 'beta', LEVELS,
     localStorage: {
       getItem(key) { return stored.get(key) ?? null; },
@@ -343,12 +344,31 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
     console: { error(...args) { messages.push(args); } },
   });
   vm.runInContext(helpers, context);
+  stored.set('koshi-cutscene-viewed:1-1', 'true');
   assert.equal(context.isCutsceneViewed('1-1'), false);
   context.markCutsceneViewed('1-1');
   assert.equal(context.isCutsceneViewed('1-1'), true);
   context.viewedCutscenes.clear();
   assert.equal(context.isCutsceneViewed('1-1'), true, 'the viewed state survives a reload');
   assert.equal(messages.length, 0);
+  context.activeSave = { index: 1, slot: { id: 'slot-b' } };
+  assert.equal(context.isCutsceneViewed('1-1'), false, 'another slot has not seen the scene');
+  context.runSave = { id: 'slot-b' };
+  context.markCutsceneViewed('1-1');
+  assert.equal(context.isCutsceneViewed('1-1'), true);
+  context.activeSave = { index: 0, slot: { id: 'replacement-a' } };
+  assert.equal(context.isCutsceneViewed('1-1'), false, 'replacement saves do not inherit viewing');
+  context.campaignId = 'official';
+  context.activeSave = { index: 0, slot: { id: 'slot-a' } };
+  assert.equal(context.isCutsceneViewed('1-1'), false, 'another campaign does not inherit viewing');
+  context.campaignId = 'beta';
+  context.activeSave = null; context.runSave = null;
+  const storedCount = stored.size;
+  context.markCutsceneViewed('1-1');
+  assert.equal(context.isCutsceneViewed('1-1'), false);
+  assert.equal(stored.size, storedCount, 'unsaved viewing is not persisted');
+  context.activeSave = { index: 0, slot: { id: 'slot-a' } };
+  context.runSave = { id: 'slot-a' };
 
   const begin = source.slice(source.indexOf('function begin()'), source.indexOf('\nfunction startLevel()'));
   const dialog = () => ({ open: true, close() { this.open = false; } });
@@ -357,7 +377,7 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
   Object.assign(context, {
     phaseTransition: { run(action) { action(); } },
     titleScreen: dialog(), saveDialog: dialog(), levelPicker: dialog(),
-    skipCutscene, activeSave: null, tutorial: null,
+    skipCutscene, activeSave: { index: 0, slot: { id: 'slot-a' } }, tutorial: null,
     createGame() { return { level: { id: '1-1', number: '1-1', cutscene: {} }, customLevel: false }; },
     makeAttemptId() { return 'attempt'; }, saveResult() {}, updateSaveProfile() {}, makeBrickButtons() {},
     displayedState: null, trail: [], toast: { textContent: '' }, lastTime: null,
@@ -374,6 +394,14 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
   context.begin();
   assert.equal(opened, 1, 'the retry does not repeat the viewed cutscene');
   assert.equal(briefings, 1, 'skipping still presents the level briefing');
+  context.activeSave = null;
+  context.begin();
+  assert.equal(opened, 2, 'unsaved retries show the cutscene despite the skip checkbox');
+  context.begin();
+  assert.equal(opened, 3, 'unsaved viewing never carries into the next attempt');
+  context.activeSave = { index: 1, slot: { id: 'new-slot' } };
+  context.begin();
+  assert.equal(opened, 4, 'switching to an unseen save ignores a stale checked skip checkbox');
 });
 
 test('HUD counters follow health, food, enemies, soccer goals, keys, batteries order', () => {

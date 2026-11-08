@@ -190,22 +190,26 @@ function reportCutsceneStorageError(error) {
   message.hidden = false;
 }
 
-function isCutsceneViewed(levelId) {
-  if (viewedCutscenes.has(levelId)) return true;
+function isCutsceneViewed(levelId, saveId = activeSave?.slot.id) {
+  if (!saveId) return false;
+  const key = campaignMode.cutsceneKey(levelId, campaignId, saveId);
+  if (viewedCutscenes.has(key)) return true;
   try {
-    if (localStorage.getItem(campaignMode.cutsceneKey(levelId, campaignId)) === 'true') {
-      viewedCutscenes.add(levelId);
+    if (localStorage.getItem(key) === 'true') {
+      viewedCutscenes.add(key);
     }
   } catch (error) {
     reportCutsceneStorageError(error);
   }
-  return viewedCutscenes.has(levelId);
+  return viewedCutscenes.has(key);
 }
 
 function markCutsceneViewed(levelId) {
-  viewedCutscenes.add(levelId);
+  if (!runSave || game.customLevel) return;
+  const key = campaignMode.cutsceneKey(levelId, campaignId, runSave.id);
+  viewedCutscenes.add(key);
   try {
-    localStorage.setItem(campaignMode.cutsceneKey(levelId, campaignId), 'true');
+    localStorage.setItem(key, 'true');
   } catch (error) {
     reportCutsceneStorageError(error);
   }
@@ -830,7 +834,7 @@ function syncLevelRewards() {
     badge.setAttribute('role', 'img');
     badge.setAttribute('aria-label', description);
     badge.title = description;
-    badge.append(icon(state === 'owned', document, 'currentColor'));
+    badge.append(icon(state === 'owned', document, 'currentColor', state === 'pending' ? 6 : 3));
     badges.push(badge);
   }
   document.querySelector('#level-rewards').replaceChildren(...badges);
@@ -1104,7 +1108,8 @@ function showLevelBriefing() {
 }
 
 function showLevelIntroduction() {
-  if (game.level.cutscene && (game.customLevel || !skipCutscene.checked)) {
+  if (game.level.cutscene && (game.customLevel || !runSave
+    || !isCutsceneViewed(game.level.id, runSave.id) || !skipCutscene.checked)) {
     overlay.hidden = true;
     cutscene.open(game.level.cutscene, game.level.number ?? game.level.id);
   } else showLevelInformation();
@@ -1114,10 +1119,12 @@ function showLevelInformation(replay = false) {
   if (!game.level.levelInfo) { showLevelBriefing(); return; }
   const info = validateLevelInfo(game.level.levelInfo);
   const signature = JSON.stringify(info);
-  let viewed = viewedLevelInfo.get(game.level.id) === signature;
-  if (!game.customLevel && !viewed) {
+  const key = !game.customLevel && runSave
+    ? campaignMode.levelInfoKey(game.level.id, campaignId, runSave.id) : null;
+  let viewed = key !== null && viewedLevelInfo.get(key) === signature;
+  if (key && !viewed) {
     try {
-      viewed = localStorage.getItem(campaignMode.levelInfoKey(game.level.id, campaignId)) === signature;
+      viewed = localStorage.getItem(key) === signature;
     } catch (error) { reportLevelInfoError(error); }
   }
   if (viewed && !replay && !game.customLevel) { showLevelBriefing(); return; }
@@ -1163,10 +1170,11 @@ function renderLevelInfoPage() {
 function finishLevelInformation() {
   if (!levelInfoDialog.open) return;
   const signature = JSON.stringify({ pages: infoPages });
-  viewedLevelInfo.set(game.level.id, signature);
-  if (!game.customLevel) {
+  if (!game.customLevel && runSave) {
+    const key = campaignMode.levelInfoKey(game.level.id, campaignId, runSave.id);
+    viewedLevelInfo.set(key, signature);
     try {
-      localStorage.setItem(campaignMode.levelInfoKey(game.level.id, campaignId), signature);
+      localStorage.setItem(key, signature);
     } catch (error) { reportLevelInfoError(error); }
   }
   levelInfoDialog.close();

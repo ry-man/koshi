@@ -112,6 +112,7 @@ test('completion thresholds use strict time, inclusive score/goal/move boundarie
     for (const [value, expected] of [[passing, true], [failing, false]]) {
       const game = create({ type, amount });
       game[field] = value;
+      assert.equal(game.catBlockAchievementSatisfied, expected, `${type} previews the actual victory boundary`);
       game.checkCatBlockAchievement();
       assert.equal(game.catBlockCollected, false, `${type} must wait for victory`);
       assert.equal(win(game), expected, `${type}: ${value}`);

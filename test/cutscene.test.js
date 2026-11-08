@@ -23,6 +23,7 @@ test('editor playtests show cutscenes before briefing and replay them even when 
   const calls = [];
   const context = vm.createContext({
     game: { customLevel: true, level: level() },
+    runSave: { id: 'slot-a' }, isCutsceneViewed: () => true,
     skipCutscene: { checked: true }, overlay: { hidden: false },
     cutscene: { open: (value, id) => calls.push({ kind: 'scene', value, id }) },
     showLevelInformation: () => calls.push({ kind: 'information' }),

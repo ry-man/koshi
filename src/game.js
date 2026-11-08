@@ -5873,10 +5873,9 @@ class Game {
     }
   }
 
-  checkCatBlockAchievement() {
+  get catBlockAchievementSatisfied() {
     const trigger = this.level.catBlock?.trigger;
-    if (!trigger || this.catBlockCollected || ['spawn', 'carrier', 'chest'].includes(trigger.type)) return;
-    if (this.state !== 'won' && (trigger.type !== 'enemyMin' || this.state !== 'playing')) return;
+    if (!trigger || ['spawn', 'carrier', 'chest'].includes(trigger.type)) return false;
     const progress = this.catBlockProgress;
     const defeats = progress.defeated[trigger.enemyType] ?? 0;
     const bricks = () => this.bricks.filter(brick => brick.absorbedBy === null && matchesCatBrickType(brick, trigger.brickType)).length;
@@ -5897,7 +5896,13 @@ class Game {
       case 'noSelect': earned = !progress.selected.has(trigger.brickType); break;
       case 'noTouch': earned = !progress.touched.has(trigger.brickType); break;
     }
-    if (earned) this.collectCatBlock('achievement');
+    return earned;
+  }
+
+  checkCatBlockAchievement() {
+    if (this.catBlockCollected) return;
+    if (this.state !== 'won' && (this.level.catBlock?.trigger?.type !== 'enemyMin' || this.state !== 'playing')) return;
+    if (this.catBlockAchievementSatisfied) this.collectCatBlock('achievement');
   }
 
   collectItem(item) {

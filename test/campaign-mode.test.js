@@ -101,11 +101,13 @@ test('campaign storage preserves legacy Beta keys and isolates all Official prog
   assert.equal(mode.storageKey('saves'), SAVE_KEY);
   assert.equal(mode.storageKey('recent'), RECENT_KEY);
   assert.equal(mode.storageKey('draft'), 'koshi-level-editor-v1');
-  assert.equal(mode.cutsceneKey('1-1'), 'koshi-cutscene-viewed:1-1');
+  assert.equal(mode.cutsceneKey('1-1', 'beta', 'slot-a'), 'koshi-beta-cutscene-viewed:slot-a:1-1');
   for (const kind of ['saves', 'recent', 'draft', 'selection']) {
     assert.notEqual(mode.storageKey(kind, 'beta'), mode.storageKey(kind, 'official'));
   }
-  assert.notEqual(mode.cutsceneKey('1-1', 'beta'), mode.cutsceneKey('1-1', 'official'));
+  assert.notEqual(mode.cutsceneKey('1-1', 'beta', 'slot-a'), mode.cutsceneKey('1-1', 'official', 'slot-a'));
+  assert.notEqual(mode.cutsceneKey('1-1', 'beta', 'slot-a'), mode.cutsceneKey('1-1', 'beta', 'slot-b'));
+  assert.throws(() => mode.cutsceneKey('1-1'), /save slot/);
   assert.throws(() => mode.storageKey('saves', 'missing'), /Unknown game/);
   assert.equal(mode.gameURL('./index.html', '#campaign=1-1', 'official'), './index.html?game=official#campaign=1-1');
 });

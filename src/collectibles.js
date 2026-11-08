@@ -26,11 +26,11 @@ function levelRewardStates(game, results, attemptId) {
   return {
     star: earnedStar ? 'owned' : eligible && !game.tookDamage ? 'pending' : 'uncollected',
     catBlock: !game.level.catBlock ? null : game.catBlockPreviouslyCollected ? 'owned'
-      : eligible && game.catBlockCollected ? 'pending' : 'uncollected',
+      : eligible && (game.catBlockCollected || game.catBlockAchievementSatisfied) ? 'pending' : 'uncollected',
   };
 }
 
-function catBlockIcon(found, document, outlineColor = '#829096') {
+function catBlockIcon(found, document, outlineColor = '#829096', outlineWidth = 3) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 100 100');
@@ -45,7 +45,7 @@ function catBlockIcon(found, document, outlineColor = '#829096') {
     const filter = document.createElementNS(ns, 'filter');
     filter.setAttribute('id', id);
     for (const [tag, attributes] of [
-      ['feMorphology', { in: 'SourceAlpha', operator: 'erode', radius: '3', result: 'inside' }],
+      ['feMorphology', { in: 'SourceAlpha', operator: 'erode', radius: String(outlineWidth), result: 'inside' }],
       ['feComposite', { in: 'SourceAlpha', in2: 'inside', operator: 'out', result: 'outline' }],
       ['feFlood', { 'flood-color': outlineColor }],
       ['feComposite', { in2: 'outline', operator: 'in' }],
