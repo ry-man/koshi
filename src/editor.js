@@ -4,7 +4,7 @@
 const { Game, LEVELS, FOODS, ITEMS, OBJECTS, SWORDS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
-const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
@@ -1018,7 +1018,18 @@ function renderBoard() {
     marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);
     marker.setAttribute('aria-pressed', String(selected));
     const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s${event.random || event.previewRandom ? ' · random' : ''}`;
-    if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
+    if (event.kind === 'object' && OBJECTS[event.type].catCircle) {
+      const diameter = OBJECTS[event.type].radius * 2;
+      const frameSize = diameter + 12;
+      marker.classList.add('cat-circle-marker');
+      marker.style.width = `${frameSize / previewGame.width * 100}%`;
+      marker.style.height = `${frameSize / previewGame.height * 100}%`;
+      const image = document.createElement('canvas');
+      image.width = frameSize; image.height = frameSize;
+      image.setAttribute('aria-hidden', 'true');
+      drawCatCircle(image.getContext('2d'), { x: frameSize / 2, y: frameSize / 2, radius: OBJECTS[event.type].radius });
+      marker.append(image, label);
+    } else if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
       const { width, height } = obstructionGeometry(event);
       const frameWidth = Math.max(width + 4, event.destructible ? 40 : 0);
       const frameHeight = Math.max(height + 4, event.destructible ? 30 : 0);

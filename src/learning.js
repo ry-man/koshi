@@ -77,6 +77,11 @@ const GUIDE = [
         `A bubble captures Koshi and holds him at its center for ${SLIMES[object.bubbleColor].duration} seconds. He cannot steer while trapped; enemies can still hurt him. The bubble then bursts. Matching colors use the same durations as slime.`,
         `object:${type}`,
       ]),
+      ...Object.entries(OBJECTS).filter(([, object]) => object.catCircle).map(([type, object]) => [
+        object.name,
+        'A Cat Circle pulls Koshi smoothly to its center, like a bubble, then lets you steer again immediately. The circle stays in place after use. Bricks and bumpers can keep him from reaching it.',
+        `object:${type}`,
+      ]),
       ...Object.entries(OBJECTS).filter(([, object]) => object.obstruction).map(([type]) => [
         OBJECTS[type].name,
         'A fixed obstruction blocks Koshi, enemies, soccer balls and Robo Jackolantern fire waves. Koshi slides along its edge when moving into it. Some campaign obstructions appear during play; custom levels can also set an obstruction to destructible, in which case a Fireball Turret can destroy it.',
@@ -208,6 +213,7 @@ const LESSONS = [
   { id: 'jackolantern', title: 'Robo Jackolantern', instruction: 'Collect a sword and intercept the pumpkin robot. Watch its half-second stomp warning: square fire waves grow until blocked by bricks, fences or obstructions.' },
   { id: 'snake', title: 'Robo Snake', instruction: 'Collect a sword and intercept the snake’s head at the inner perimeter. Avoid its three spiked body panels: they cannot be attacked and remain dangerous even during sleep or fear.' },
   { id: 'soccer', title: 'Soccer balls & goals', instruction: 'Select the outlined brick to bump the soccer ball off-center and kick it into the neighboring silver goal. Balls are not collected; watch the Goals counter and scoring spark cloud.' },
+  { id: 'cat-circle', title: 'Cat Circles', instruction: 'Steer into the Cat Circle. Koshi glides to its center, then you can immediately click another valid brick to leave. The circle stays in place; bricks and bumpers can block the way.' },
   { id: 'healing', title: 'Heal with food', instruction: 'You have two hearts and 9 food. Collect the strawberry to reach 10, then head back along your route to collect the healing heart.' },
   { id: 'warnings', title: 'Spawn warnings', instruction: 'Wait for the skull, swirl, and star at 2 seconds. They reveal objects at 3 seconds. Then aim at the outlined brick to collect the snack.' },
   { id: 'pause', title: 'Pause & resume', instruction: 'Press Pause (or Escape), then Resume. The clock, movement, previews, and all brick timers freeze while paused.' },
@@ -261,6 +267,7 @@ class Tutorial {
     this.previewSeen = false;
     this.rideSeen = false;
     this.bubbleSeen = false;
+    this.circleRestSeen = false;
     this.obstructionSeen = false;
     this.stampCaptured = false;
     this.currentComplete = false;
@@ -362,6 +369,7 @@ class Tutorial {
       kind: 'object', type: 'bubble-blue', x: (along(.52).x - game.bounds().left) / (game.bounds().right - game.bounds().left),
       y: (along(.52).y - game.bounds().top) / (game.bounds().bottom - game.bounds().top),
     })[0]);
+    if (id === 'cat-circle') game.catCircles.push(game.createCatCircle(along(.52), 'cat-circle'));
     if (id === 'obstruction') game.obstructions.push(game.createCustomSpawn({
       kind: 'object', type: 'obstruction-circle', x: (along(.58).x - game.bounds().left) / (game.bounds().right - game.bounds().left),
       y: (along(.58).y - game.bounds().top) / (game.bounds().bottom - game.bounds().top),
@@ -490,6 +498,7 @@ class Tutorial {
     if (game.spawnCues.length) this.previewSeen = true;
     if (game.conveyorRide?.id === this.target.id) this.rideSeen = true;
     if (game.bubbleTrap) this.bubbleSeen = true;
+    if (game.catCircleTrap || game.catCircleIgnore) this.circleRestSeen = true;
     if (game.obstructions.some(obstruction =>
       Math.hypot(game.cat.x - obstruction.x, game.cat.y - obstruction.y) <= game.cat.radius + obstruction.radius + .05)) {
       this.obstructionSeen = true;
@@ -517,6 +526,7 @@ class Tutorial {
       jackolantern: game.enemies >= 1,
       snake: game.enemies >= 1,
       soccer: game.goals >= 1,
+      'cat-circle': this.circleRestSeen && this.actions > 1 && game.catCircleTrap === null && game.catCircleIgnore === null,
       healing: game.hearts === 3 && game.score >= 10,
       warnings: this.previewSeen && game.score > 0,
       pause: this.paused && game.state === 'playing',

@@ -587,6 +587,30 @@ function drawBarrier(ctx, fence) {
   ctx.stroke(); ctx.restore();
 }
 
+function drawCatCircle(ctx, circle) {
+  const radius = 54;
+  ctx.save(); ctx.translate(circle.x, circle.y);
+  ctx.scale((circle.radius ?? 54) / radius, (circle.radius ?? 54) / radius);
+  ctx.fillStyle = '#174f36'; ctx.globalAlpha *= .24;
+  ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = .65; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, radius - 1, 0, Math.PI * 2); ctx.strokeStyle = '#174f36'; ctx.stroke();
+  ctx.translate(0, -7);
+  ctx.globalAlpha = .72; ctx.fillStyle = '#174f36';
+  ctx.beginPath();
+  ctx.moveTo(-22, 18); ctx.lineTo(-22, -15); ctx.lineTo(-9, -9);
+  ctx.quadraticCurveTo(0, -13, 9, -9); ctx.lineTo(22, -15); ctx.lineTo(22, 18);
+  ctx.quadraticCurveTo(22, 29, 11, 29); ctx.lineTo(-11, 29);
+  ctx.quadraticCurveTo(-22, 29, -22, 18); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#9dbb9e'; ctx.globalAlpha = .8;
+  for (const x of [-9, 9]) {
+    ctx.beginPath(); ctx.ellipse(x, 8, 2.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.beginPath(); ctx.moveTo(-3, 18); ctx.lineTo(0, 21); ctx.lineTo(3, 18); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, 21); ctx.lineTo(0, 25); ctx.strokeStyle = '#9dbb9e'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
+}
+
 function goalLines(part) {
   const x = part.x + 2, y = part.y + 2, right = part.x + part.w - 2, bottom = part.y + part.h - 2;
   const vertical = part.h > part.w;
@@ -764,7 +788,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, drawBarrier, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

@@ -124,6 +124,7 @@ const OBJECTS = {
   'bubble-blue': { name: 'Blue Bubble', icon: '🔵', color: '#287dcc', bubble: true, bubbleColor: 'blue' },
   'bubble-green': { name: 'Green Bubble', icon: '🟢', color: '#399d4a', bubble: true, bubbleColor: 'green' },
   'bubble-red': { name: 'Red Bubble', icon: '🔴', color: '#cd4136', bubble: true, bubbleColor: 'red' },
+  'cat-circle': { name: 'Cat Circle', icon: '🐱', color: '#174f36', catCircle: true, radius: 24 },
   'obstruction-circle': { name: 'Circle Obstruction', icon: '\u25cf', color: '#718596', obstruction: 'circle' },
   'obstruction-diamond': { name: 'Diamond Obstruction', icon: '\u25c6', color: '#718596', obstruction: 'diamond' },
   'obstruction-circle-large': { name: 'Large Circle Obstruction', icon: '\u25cf', color: '#718596', obstruction: 'circle', radius: 96 },
@@ -2699,6 +2700,7 @@ class Game {
     this.goals = 0;
     this.soccerBalls = [];
     this.bubbles = [];
+    this.catCircles = [];
     this.bubblePops = [];
     this.bumpers = [];
     this.obstructions = [];
@@ -2728,6 +2730,8 @@ class Game {
     this.stuckColor = 'green';
     this.releasedAt = null;
     this.bubbleTrap = null;
+    this.catCircleTrap = null;
+    this.catCircleIgnore = null;
     this.pickups = [];
     this.foodId = 0;
     this.robots = [];
@@ -2868,7 +2872,7 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.activeTurret || this.bubbleTrap
+    if (this.state !== 'playing' || this.activeTurret || this.bubbleTrap || this.catCircleTrap
       || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick) || !this.brickVisible(brick)) return false;
     if (this.level.autoscroll) {
       const camera = this.camera();
@@ -3140,7 +3144,8 @@ class Game {
       } else {
         const target = spawn.kind === 'enemy' ? this.robots : spawn.kind === 'food' ? this.food
           : spawn.kind === 'weapon' ? this.weapons : spawn.kind === 'item' ? this.items : spawn.kind === 'heart' ? this.healing
-            : OBJECTS[spawn.type].bumper ? this.bumpers : OBJECTS[spawn.type].bubble ? this.bubbles : this.soccerBalls;
+            : OBJECTS[spawn.type].bumper ? this.bumpers : OBJECTS[spawn.type].bubble ? this.bubbles
+              : OBJECTS[spawn.type].catCircle ? this.catCircles : this.soccerBalls;
         target.push(...items);
         this.clearBlockedPickups();
       }
@@ -3162,6 +3167,7 @@ class Game {
           items: [this.createBumper(point, spawn.type)] });
       }
       else if (OBJECTS[spawn.type].bubble) this.bubbles.push(this.createBubble(point, spawn.type));
+      else if (OBJECTS[spawn.type].catCircle) this.catCircles.push(this.createCatCircle(point, spawn.type));
       else if (OBJECTS[spawn.type].obstruction) {
         const obstruction = this.createObstruction(point, spawn);
         this.pendingSpawns.set({}, { kind: 'obstruction', time: this.elapsed + 2, duration: 2, items: [obstruction] });
@@ -3431,6 +3437,10 @@ class Game {
     if (this.bubbleTrap) {
       for (const key of ['x', 'fromX']) this.bubbleTrap[key] += cat.x - startX;
       for (const key of ['y', 'fromY']) this.bubbleTrap[key] += cat.y - startY;
+    }
+    if (this.catCircleTrap) {
+      this.catCircleIgnore = this.catCircleTrap.circle;
+      this.catCircleTrap = null;
     }
     this.conveyorRide = null;
     if (shots.some(shot => depth(shot) > .25) || this.catInsideBrick(parts, .25)) {
@@ -3835,6 +3845,7 @@ class Game {
   spawnRadius(event) {
     if (event.kind !== 'object') return event.type === 'ditto-stamp' ? DITTO_STAMP_RADIUS : 18;
     if (OBJECTS[event.type].bumper) return 48;
+    if (OBJECTS[event.type].catCircle) return OBJECTS[event.type].radius;
     if (OBJECTS[event.type].obstruction) {
       const geometry = obstructionGeometry(event);
       return Math.max(geometry.width, geometry.height) / 2;
@@ -3939,7 +3950,8 @@ class Game {
       const event = this.customEvents[this.nextCustom++];
       const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items
         : event.kind === 'object' ? OBJECTS[event.type].bumper ? this.bumpers
-          : OBJECTS[event.type].bubble ? this.bubbles : OBJECTS[event.type].obstruction ? this.obstructions : this.soccerBalls : this.robots;
+          : OBJECTS[event.type].bubble ? this.bubbles : OBJECTS[event.type].catCircle ? this.catCircles
+            : OBJECTS[event.type].obstruction ? this.obstructions : this.soccerBalls : this.robots;
       const items = this.takeSpawn(event, entry => this.createCustomSpawn(entry));
       if (event.kind === 'enemy') {
         const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
@@ -4024,8 +4036,9 @@ class Game {
     }
     if (event.kind === 'object') return [OBJECTS[event.type].bumper
       ? this.createBumper(point, event.type) : OBJECTS[event.type].bubble
-        ? this.createBubble(point, event.type) : OBJECTS[event.type].obstruction
-          ? this.createObstruction(point, event) : this.createSoccerBall(point)];
+        ? this.createBubble(point, event.type) : OBJECTS[event.type].catCircle
+          ? this.createCatCircle(point, event.type) : OBJECTS[event.type].obstruction
+            ? this.createObstruction(point, event) : this.createSoccerBall(point)];
     const enemy = { ...point, type: event.type, radius: event.type === 'robo-cow' ? 26 : 19,
       carriesCatBlock: !this.catBlockCollected && event.carriesCatBlock === true,
       ...(event.carriesKey ? { carriesKey: true } : {}),
@@ -4062,6 +4075,10 @@ class Game {
 
   createBubble(point, type) {
     return { ...point, type, color: OBJECTS[type].bubbleColor, radius: 24 };
+  }
+
+  createCatCircle(point, type) {
+    return { ...point, type, radius: OBJECTS[type].radius };
   }
 
   createBumper(point, type) {
@@ -6393,6 +6410,23 @@ class Game {
     this.cat.y = trap.fromY + (trap.y - trap.fromY) * smooth;
   }
 
+  updateCatCircleTrap(seconds) {
+    const trap = this.catCircleTrap;
+    if (!trap) return;
+    trap.age += seconds;
+    if (trap.age >= trap.transition - 1e-9) {
+      this.cat.x = trap.x;
+      this.cat.y = trap.y;
+      this.catCircleIgnore = trap.circle;
+      this.catCircleTrap = null;
+      return;
+    }
+    const progress = Math.min(1, trap.age / trap.transition);
+    const smooth = progress * progress * (3 - 2 * progress);
+    this.cat.x = trap.fromX + (trap.x - trap.fromX) * smooth;
+    this.cat.y = trap.fromY + (trap.y - trap.fromY) * smooth;
+  }
+
   updateBubblePops(seconds) {
     this.bubblePops = this.bubblePops.filter(pop => {
       pop.age += seconds;
@@ -6458,6 +6492,7 @@ class Game {
       this.stuckUntil = 0;
     }
     this.updateBubbleTrap(dt);
+    this.updateCatCircleTrap(dt);
     if (this.checkOffscreenDeath()) { this.tickStart = null; return; }
     this.restoreWarps();
     this.updateBarriers(dt);
@@ -6525,7 +6560,8 @@ class Game {
         rideEnd = remaining <= CONVEYOR_SPEED * dt + 1e-9;
       }
     }
-    let dx = this.bubbleTrap ? 0 : cat.vx * dt, dy = this.bubbleTrap ? 0 : cat.vy * dt;
+    let dx = this.bubbleTrap || this.catCircleTrap ? 0 : cat.vx * dt;
+    let dy = this.bubbleTrap || this.catCircleTrap ? 0 : cat.vy * dt;
     if (this.obstructions.length) {
       const motion = { x: cat.x + dx, y: cat.y + dy, radius: cat.radius };
       this.moveAroundObstructions(motion, cat, true);
@@ -6621,7 +6657,7 @@ class Game {
         }
       }
     }
-    if (!dx && !dy && !this.bubbleTrap) {
+    if (!dx && !dy && !this.bubbleTrap && !this.catCircleTrap) {
       bumperTime = Math.min(Infinity, ...this.bumpers.filter(bumper => bumper.hazardShot)
         .map(bumper => this.hazardObjectContact(bumper, 0, 0, dt)));
       if (bumperTime <= 1) {
@@ -6630,16 +6666,30 @@ class Game {
           && Math.abs(this.hazardObjectContact(bumper, 0, 0, dt) - bumperTime) <= 1e-9);
       }
     }
-    if (!this.bubbleTrap) for (const bubble of this.bubbles) {
+    if (!this.bubbleTrap && !this.catCircleTrap) for (const bubble of this.bubbles) {
       const time = this.hazardObjectContact(bubble, dx, dy, dt);
       if (time < bubbleTime) { bubbleTime = time; bubbleHit = bubble; }
     }
+    let circleHit = null, circleTime = Infinity;
+    if (!this.bubbleTrap && !this.catCircleTrap) for (const circle of this.catCircles) {
+      if (circle === this.catCircleIgnore) continue;
+      const time = this.hazardObjectContact(circle, dx, dy, dt);
+      if (time < circleTime) { circleTime = time; circleHit = circle; }
+    }
     if (bubbleHit && bubbleTime <= contact + 1e-9 && bubbleTime <= 1
-      && bubbleTime <= bumperTime + 1e-9) {
+      && bubbleTime <= bumperTime + 1e-9 && bubbleTime <= circleTime + 1e-9) {
       contact = bubbleTime;
       contacts = [];
       bumperContacts = [];
       bumperTime = Infinity;
+    }
+    if (circleHit && circleTime < contact - 1e-9 && circleTime < bumperTime - 1e-9
+      && circleTime < bubbleTime - 1e-9) {
+      contact = circleTime;
+      contacts = [];
+      bumperContacts = [];
+      bumperTime = Infinity;
+      bubbleHit = null;
     }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
     for (const part of contacts) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
@@ -6663,6 +6713,12 @@ class Game {
       cat.vx = 0; cat.vy = 0;
       this.bubbleTrap = { color: bubbleHit.color, fromX: endX, fromY: endY,
         x: bubbleHit.x, y: bubbleHit.y, age: 0, transition: .18, duration: SLIMES[bubbleHit.color].duration };
+    }
+    if (circleHit && circleTime <= contact + 1e-9 && circleTime <= 1 && !bubbleHit) {
+      this.catCircleTrap = { circle: circleHit, fromX: endX, fromY: endY,
+        x: circleHit.x, y: circleHit.y, age: 0, transition: .18 };
+      cat.vx = 0; cat.vy = 0;
+      this.target = null;
     }
     const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
     const sawing = this.sawStartedAt !== null || collectingSaw;
@@ -6752,6 +6808,7 @@ class Game {
         cat.vx *= multiplier; cat.vy *= multiplier;
         cat.x = bumper.x + nx * (cat.radius + bumper.radius + .01);
         cat.y = bumper.y + ny * (cat.radius + bumper.radius + .01);
+        if (this.catCircleTrap) this.catCircleTrap = null;
         bumper.hitAt = this.elapsed;
         bumper.hitNormal = { x: nx, y: ny };
         this.target = null;
@@ -6768,6 +6825,9 @@ class Game {
       this.conveyorRide = null;
       cat.vx = 0; cat.vy = 0;
     }
+    if (this.catCircleIgnore
+      && Math.hypot(cat.x - this.catCircleIgnore.x, cat.y - this.catCircleIgnore.y)
+        > this.catCircleIgnore.radius + cat.radius + 1e-6) this.catCircleIgnore = null;
     if (!cat.vx && !cat.vy) this.boosted = false;
     this.clearBlockedPickups();
     if (this.checkOffscreenDeath()) {

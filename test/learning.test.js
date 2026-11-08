@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 57);
+  assert.equal(LESSONS.length, 58);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -87,6 +87,7 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
   for (const type of Object.keys(OBJECTS)) {
     const id = type.startsWith('bumper-') ? 'bumper'
       : type.startsWith('bubble-') ? 'bubble'
+        : type === 'cat-circle' ? 'cat-circle'
         : type.startsWith('obstruction-') ? 'obstruction'
           : type === 'soccer-ball' ? 'soccer' : null;
     assert.ok(id && LESSONS.some(lesson => lesson.id === id), `missing tutorial for object: ${type}`);
@@ -98,7 +99,7 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
     'cookie', 'stopwatch', 'boom-time', 'battery', 'cat-shield', 'music-box', 'spooky-mask', 'kitty-cape',
     'magic-sunglasses', 'eggplant', 'saw-blade', 'ditto-stamp', 'paintbrush', 'keys',
   ]) assert.ok(LESSONS.some(lesson => lesson.id === id), `missing item lesson: ${id}`);
-  for (const id of ['bumper', 'bubble', 'obstruction']) {
+  for (const id of ['bumper', 'bubble', 'cat-circle', 'obstruction']) {
     assert.ok(LESSONS.some(lesson => lesson.id === id), `missing object lesson: ${id}`);
   }
   const objectives = GUIDE.find(chapter => chapter.title === 'Objectives');
@@ -168,6 +169,14 @@ test('new item and object lessons complete only after their mechanic is used', (
   const bubble = practice('bubble');
   aim(bubble); wait(bubble, 6);
   assert.equal(bubble.observe(), true);
+  const circle = practice('cat-circle');
+  aim(circle); wait(circle, 2);
+  assert.equal(circle.game.catCircleTrap, null);
+  assert.equal(circle.game.catCircleIgnore, circle.game.catCircles[0]);
+  assert.equal(circle.observe(), false, 'must leave the rest spot after arriving');
+  assert.equal(aim(circle, opposite(circle)), true);
+  wait(circle, .5);
+  assert.equal(circle.observe(), true);
   const obstruction = practice('obstruction');
   aim(obstruction); wait(obstruction, 1);
   assert.equal(obstruction.obstructionSeen, true);

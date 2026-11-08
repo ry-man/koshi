@@ -1349,6 +1349,10 @@ random pickups avoid them, and covered live or queued pickups are removed.
 Custom levels can also place blue, green and red bubbles (`bubble-blue`,
 `bubble-green`, `bubble-red`); they trap Koshi for the same 5-, 3- and
 1-second durations as the corresponding slime colors.
+Cat Circles (`cat-circle`) are dark-green, semi-transparent rest spots with a
+cat-head icon, the same size as bubbles. Contact smoothly pulls Koshi to the
+center, after which he can be redirected immediately. Cat Circles remain in
+place after use; bricks and bumpers take priority if they block the route.
 Circle and diamond obstructions (`obstruction-circle`, `obstruction-diamond`)
 are fixed solids, each 96 units wide and tall (twice a bumper's diameter).
 Their large variants (`obstruction-circle-large`, `obstruction-diamond-large`)
@@ -1672,6 +1676,11 @@ Blue, green and red Bubbles (`bubble-blue`, `bubble-green`, `bubble-red`) are
 custom-level objects slightly larger than Koshi. Contact pulls Koshi smoothly
 to the center, where he is held for the matching slime duration: 5, 3 or 1
 seconds. Enemies can still hurt him, and he can still attack with his sword.
+Cat Circles (`cat-circle`) are small, fixed, dark-green rest spots. Like a
+bubble, contact pulls Koshi smoothly to the center; unlike a bubble, there is
+no timed hold and the circle is never consumed. Koshi can be redirected as soon
+as he reaches the center. Bricks and bumpers take priority when they block his
+route.
 A thin ring around Koshi steadily loses arc length from capture until release.
 When it reaches zero, the bubble bursts into fading watery ripples and droplets.
 Pause freezes the countdown and pop animation; restarting clears them.

@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, CHARACTERS, SWORDS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = globalThis.KoshiCollectibles;
@@ -1478,6 +1478,8 @@ function guidePicture(picture, title, fillBrick = false) {
     drawBumper(ctx, { x: 80, y: 42, type, radius: 22 }, 0);
   } else if (kind === 'object' && OBJECTS[type]?.bubble) {
     drawBubble({ x: 80, y: 42, color: OBJECTS[type].bubbleColor, radius: 24 });
+  } else if (kind === 'object' && OBJECTS[type]?.catCircle) {
+    drawCatCircle(ctx, { x: 80, y: 42, radius: 24 });
   } else if (kind === 'object' && OBJECTS[type]?.obstruction) {
     drawObstruction(ctx, { x: 80, y: 40, type, radius: 32 });
   } else if (kind === 'brick' || kind === 'slime') {
@@ -2205,6 +2207,7 @@ function render(now) {
   }
   ctx.strokeStyle = '#9dbb9e09'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
+  for (const circle of game.catCircles) if (visible(circle)) drawCatCircle(ctx, circle);
   for (const obstruction of game.obstructions) if (visible(obstruction)) {
     drawEmergingShot(obstruction, obstruction.color ?? OBJECTS[obstruction.type].color, shot => drawObstruction(ctx, shot));
   }
