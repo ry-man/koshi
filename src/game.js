@@ -5168,7 +5168,8 @@ class Game {
       if (!fence.extending) { fence.length = Math.max(0, fence.length - 180 * seconds); continue; }
       const segment = this.barrierSegments().find(segment => segment.id === fence.id);
       const distance = Math.hypot(this.width, this.height);
-      let limit = distance;
+      let limit = Math.max(0, segment.nx > 0 ? this.width - segment.x
+        : segment.nx < 0 ? segment.x : segment.ny > 0 ? this.height - segment.y : segment.y);
       for (const part of [...parts, ...this.barrierParts()]) {
         if (part.id === fence.id) continue;
         if (segment.x >= part.x && segment.x <= part.x + part.w

@@ -4,7 +4,7 @@ const { Game, LEVELS, validateCustomLevel, brickRegions } = require('../src/game
 const { FENCE, drawBarrier, specialLabel } = require('../src/brick-visuals.js');
 
 function arena(options = {}) {
-  const game = new Game(() => .5, { ...options, customLevel: {
+  const game = new Game(() => .5, { ...options, customLevel: options.customLevel ?? {
     version: 1, id: 'Fence test', duration: 60, goal: 1000, heartCost: null, brickSet: 1, events: [],
   } });
   game.start();
@@ -31,6 +31,19 @@ test('Barrier validates, rejects conflicting surfaces, and leaves campaign level
 });
 
 for (const options of [{}, { portrait: true, scale: .3 }]) {
+  test(`every boundary brick keeps its fence inside the level, including corner gaps ${JSON.stringify(options)}`, () => {
+    const base = arena(options);
+    for (const id of base.perimeter) {
+      const game = arena(options), brick = game.bricks[id];
+      brick.barrier = true;
+      game.barriers.push({ id, length: 0, extending: true });
+      game.updateBarriers(100);
+      const fence = game.barrierSegments()[0];
+      assert.ok(fence.endX >= 0 && fence.endX <= game.width, `brick ${id}: endX ${fence.endX}`);
+      assert.ok(fence.endY >= 0 && fence.endY <= game.height, `brick ${id}: endY ${fence.endY}`);
+    }
+  });
+
   test(`fences extend perpendicular on all edges, stop at bricks, retract, pause and reset ${JSON.stringify(options)}`, () => {
     for (const name of ['top', 'bottom', 'left', 'right']) {
       const game = arena(options), brick = edge(game, name);
@@ -70,6 +83,36 @@ test('a perpendicular fence stops at an existing fence and extends after it retr
   game.updateBarriers(10); game.updateBarriers(10);
   assert.ok(game.barriers.find(f => f.id === left.id).length > horizontal.length);
 });
+
+for (const options of [{}, { portrait: true, scale: .3 },
+  { customLevel: { version: 1, id: 'Long fence', duration: 60, goal: 1000, heartCost: null,
+    brickSet: 1, events: [], autoscroll: { length: 24, speed: .25, events: [] } } }]) {
+  test(`fences stop exactly at level boundaries when their path has no blocking brick ${JSON.stringify(options)}`, () => {
+    for (const name of ['top', 'bottom', 'left', 'right']) {
+      const game = arena(options);
+      const brick = edge(game, name);
+      brick.barrier = true;
+      game.barriers.push({ id: brick.id, length: 0, extending: true });
+      const parts = game.brickParts.bind(game);
+      game.brickParts = () => parts().filter(part => part.id === brick.id);
+      const start = game.barrierSegments()[0];
+      const limit = start.nx > 0 ? game.width - start.x : start.nx < 0 ? start.x
+        : start.ny > 0 ? game.height - start.y : start.y;
+      game.updateBarriers(100);
+      const fence = game.barrierSegments()[0];
+      assert.equal(fence.length, limit);
+      assert.ok(fence.endX >= 0 && fence.endX <= game.width);
+      assert.ok(fence.endY >= 0 && fence.endY <= game.height);
+      assert.equal(start.nx ? fence.endX : fence.endY,
+        start.nx > 0 ? game.width : start.nx < 0 ? 0 : start.ny > 0 ? game.height : 0);
+      game.updateBarriers(100);
+      assert.equal(game.barriers[0].length, limit, 'fence never continues beyond the edge');
+      game.barriers[0].extending = false;
+      game.updateBarriers(.1);
+      assert.equal(game.barriers[0].length, limit - 18);
+    }
+  });
+}
 
 test('Koshi crosses fences without a collision or movement change', () => {
   const game = arena(), top = edge(game, 'top'), left = edge(game, 'left');

@@ -1547,7 +1547,9 @@ Barrier bricks (`barrier: true`) extend a dark green translucent fence when
 successfully selected, and retract it on the next successful selection. Normal
 cooldowns and selection locks apply. The fence grows at 180 game units/second
 from the center of the arena-facing surface, perpendicular to the brick, until
-it reaches another brick or fence. Retraction uses the same speed. Koshi passes
+it reaches another brick, fence, or the level boundary. Gaps between boundary
+bricks cannot let a fence extend outside the level; scrolling levels use the
+full level boundary, not the current camera edge. Retraction uses the same speed. Koshi passes
 through; all enemies and flying Bucket bombs are blocked and bounce or reverse.
 Wheels remain on their perimeter route. Pause freezes fences and restart clears
 them. Fence push-outs choose positions within the enclosing bricks, so enemies
