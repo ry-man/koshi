@@ -11,7 +11,7 @@ function fixture({ duration = 20, time = 2, speed = 1 } = {}) {
   let now = 0, nextFrame = 0;
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, {
-      value: '', max: duration, style: {}, listeners: {}, attributes: {}, children: [],
+      value: '', max: duration, style: {}, dataset: {}, listeners: {}, attributes: {}, children: [],
       setAttribute(name, value) { this.attributes[name] = value; },
       addEventListener(type, listener) { this.listeners[type] = listener; },
       querySelectorAll() { return this.children; },
@@ -32,6 +32,7 @@ function fixture({ duration = 20, time = 2, speed = 1 } = {}) {
   const cameras = [], level = { duration, autoscroll: { length: 16, speed: .25 } };
   const context = {
     $, level, connectingSpawn: null,
+    board: { clientHeight: 600 },
     previewGame: { width: 1000, height: 600,
       camera(time) { cameras.push(time); return { x: time * 10, y: 0, width: 500, height: 600 }; } },
     performance: { now: () => now },
@@ -56,6 +57,50 @@ function fixture({ duration = 20, time = 2, speed = 1 } = {}) {
     speed(value) { $('#preview-speed').value = value; $('#preview-speed').listeners.input(); },
   };
 }
+
+test('Dynamic View follows camera position only when enabled for an autoscrolling level', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  assert.match(html, /<input id="dynamic-view" type="checkbox" disabled> Dynamic View/);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
+  assert.match(css, /#editor-board-scroll\[data-dynamic-view="true"\] \{ overflow: hidden; max-height: none; \}/);
+  assert.match(css, /#editor-board-scroll\[data-dynamic-view="true"\]\[data-orientation="portrait"\] \{ width: min\(100%, 340px\);/);
+  assert.doesNotMatch(css, /#editor-board-scroll\[data-orientation="portrait"\]\s*\{[^}]*max-height:/);
+  const f = fixture();
+  const viewport = f.$('#editor-board-scroll');
+  Object.assign(viewport, { scrollLeft: 17, scrollTop: 23, clientLeft: 0, clientTop: 0 });
+  viewport.getBoundingClientRect = () => ({ left: 100, top: 200 });
+  const board = f.context.board;
+  Object.assign(board, { clientWidth: 1000, clientHeight: 600, clientLeft: 1, clientTop: 1 });
+  board.getBoundingClientRect = () => ({ left: 100 - viewport.scrollLeft, top: 200 - viewport.scrollTop });
+  f.context.renderPreviewTime(5);
+  assert.equal(viewport.scrollLeft, 17);
+  assert.equal(viewport.scrollTop, 23);
+  assert.equal(viewport.style.height, '', 'manual view fits the full board height and horizontal scrollbar');
+  assert.equal(f.$('#dynamic-view').disabled, false);
+  f.$('#dynamic-view').checked = true;
+  f.context.renderPreviewTime(5);
+  assert.equal(viewport.scrollLeft, 51);
+  assert.equal(viewport.scrollTop, 1);
+  assert.equal(viewport.style.height, '600px');
+  assert.equal(viewport.dataset.dynamicView, 'true');
+  f.context.renderPreviewTime(10);
+  assert.equal(viewport.scrollLeft, 101);
+  f.$('#dynamic-view').checked = false;
+  viewport.scrollLeft = 333;
+  f.context.renderPreviewTime(12);
+  assert.equal(viewport.scrollLeft, 333, 'manual view remains independent of time');
+  assert.equal(viewport.style.height, '', 'disabling Dynamic View restores automatic height');
+  f.$('#dynamic-view').checked = true;
+  f.context.previewGame.camera = () => ({ x: 0, y: 240, width: 1000, height: 300 });
+  f.context.renderPreviewTime(12);
+  assert.equal(viewport.scrollTop, 241, 'portrait camera follows the vertical axis');
+  assert.equal(viewport.style.height, '300px');
+  delete f.context.level.autoscroll;
+  f.context.renderPreviewTime(12);
+  assert.equal(f.$('#dynamic-view').disabled, true);
+  assert.equal(viewport.dataset.dynamicView, 'false');
+  assert.equal(viewport.style.height, '');
+});
 
 test('preview plays from its current position at exact real-time multiples without changing the level', () => {
   for (const speed of [.25, 1, 4]) {
@@ -236,9 +281,10 @@ test('discretization does not quantize playback and keyboard scrubbing advances 
   assert.equal(f.$('#timeline').value, 0, 'an interval longer than the level permits only zero');
 });
 
-test('discretization selector offers exactly the requested settings and defaults to None', () => {
+test('discretization selector offers exactly the requested settings and defaults to 1 second', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   const select = html.match(/<select id="timeline-discretization">([\s\S]*?)<\/select>/)[1];
-  assert.deepEqual([...select.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)].map(match => match.slice(1)),
+  assert.deepEqual([...select.matchAll(/<option value="([^"]+)"(?: selected)?>([^<]+)<\/option>/g)].map(match => match.slice(1)),
     [['0', 'None'], ['0.5', '0.5s'], ['1', '1s'], ['5', '5s'], ['10', '10s'], ['30', '30s']]);
+  assert.match(select, /<option value="1" selected>1s<\/option>/);
 });

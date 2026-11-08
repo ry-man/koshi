@@ -535,7 +535,8 @@ test('two-tier map selects worlds separately, moves Koshi, and reveals only that
   const styles = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert.match(styles, /\.map-objectives \{[^}]*flex-wrap: nowrap;/);
   assert.match(styles, /\.map-details dt, \.map-details dd \{ white-space: nowrap; \}/);
-  assert.match(styles, /\.map-features \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(styles, /\.map-features \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(64px, 1fr\)\);/);
+  assert.match(styles, /\.map-feature \{[^}]*width: min\(72px, 100%\);/);
   const featureSection = map.details.children.at(-1);
   assert.equal(featureSection.className, 'map-feature-section');
   assert.ok(pictures.some(picture => picture.picture.startsWith('brick:') && picture.fillBrick));

@@ -8,6 +8,259 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('enemy palette separates bosses without changing category, selection, or read-only controls', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const node = () => ({
+    children: [], dataset: {}, attributes: {},
+    append(...children) {
+      for (const child of children) {
+        if (child.parent) child.parent.children = child.parent.children.filter(item => item !== child);
+        child.parent = this;
+        this.children.push(child);
+      }
+    },
+    replaceChildren(...children) { this.children = []; this.append(...children); },
+    setAttribute(name, value) { this.attributes[name] = value; },
+  });
+  const palette = node();
+  const select = { value: 'boss', disabled: false, parentElement: {},
+    options: [{ value: 'mouse', textContent: 'Robo Mouse' }, { value: 'boss', textContent: 'Tom the Toaster' }] };
+  const entry = { select, palette, signature: null, buttons: [] };
+  const context = vm.createContext({
+    palettes: new Map([['event-type', entry]]), MIXED: '',
+    $: () => ({ value: 'enemy', parentElement: {} }),
+    document: { createElement: node, querySelectorAll: () => [] },
+    choiceButton: (value, name, control, action) => Object.assign(node(), { action }),
+  });
+  vm.runInContext(source.slice(source.indexOf('function syncPalettes('), source.indexOf('function message(')), context);
+  context.syncPalettes();
+  assert.equal(palette.children[0].dataset.value, 'mouse');
+  const section = palette.children[1];
+  assert.equal(section.attributes['aria-label'], 'Bosses');
+  assert.equal(section.children[0].textContent, 'Bosses');
+  assert.equal(section.children[1].children[0], entry.buttons[1]);
+  assert.equal(entry.buttons[1].attributes['aria-pressed'], 'true');
+  assert.equal(select.value, 'boss');
+  select.disabled = true;
+  context.syncPalettes();
+  assert.ok(entry.buttons.every(button => button.disabled));
+});
+
+test('event inspector applies edits automatically while preserving validation and selection', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const listeners = {};
+  let valid = true, applied = 0, error;
+  const context = vm.createContext({
+    selectedEvents: new Set([0]), touched: new Set(['#event-x']), readOnly: () => false,
+    form: { checkValidity: () => valid, reportValidity() {}, addEventListener: (type, handler) => { listeners[type] = handler; } },
+    attempt: action => { try { action(); } catch (failure) { error = failure.message; } },
+    applyToSelected: () => { applied++; },
+  });
+  vm.runInContext(source.slice(source.indexOf('function applyEventChanges('), source.indexOf("$('#new-event').addEventListener")), context);
+  listeners.change();
+  assert.equal(applied, 1);
+  valid = false;
+  listeners.change();
+  assert.equal(applied, 1);
+  assert.match(error, /invalid value/);
+  valid = true;
+  context.selectedEvents.clear();
+  listeners.change();
+  assert.equal(applied, 1, 'placement settings never create an event until board placement');
+  context.selectedEvents.add(0);
+  context.readOnly = () => true;
+  listeners.change();
+  assert.equal(applied, 1);
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  assert.doesNotMatch(html, /id="apply-event"/);
+});
+
+test('Discretize X, Y snaps placements and moves to rendered dot centers without changing existing data', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const checkbox = { checked: false };
+  const area = { clientLeft: 1, clientTop: 1, getBoundingClientRect: () => ({ width: 503.5, height: 301.25 }) };
+  const level = blank();
+  level.events = [event(), event('enemy', 'wheel')];
+  const context = vm.createContext({
+    $: selector => selector === '#discretize-xy' ? checkbox : area,
+    getComputedStyle: () => ({ backgroundSize: '18px 18px' }),
+    level, readOnly: () => false, snapWheel,
+  });
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function pointerPosition(')), context);
+  assert.equal(context.placementPosition(.237, .641).x, .237);
+  assert.equal(context.placementPosition(.237, .641).y, .641);
+  const before = JSON.stringify(level);
+  checkbox.checked = true;
+  assert.equal(JSON.stringify(level), before);
+  for (const dimensions of [{ width: 503.5, height: 301.25 }, { width: 185.75, height: 487.5 }]) {
+    area.getBoundingClientRect = () => dimensions;
+    for (const [x, y] of [[.237, .641], [0, 0], [1, 1], [-2, 3]]) {
+      const point = context.placementPosition(x, y);
+      for (const [axis, length] of [['x', dimensions.width], ['y', dimensions.height]]) {
+        const dotIndex = (point[axis] * length - 10) / 18;
+        assert.ok(Math.abs(dotIndex - Math.round(dotIndex)) < 1e-10);
+        assert.ok(point[axis] > 0 && point[axis] < 1);
+      }
+    }
+    const start = context.placementPosition(.237, .641);
+    const next = context.placementPosition(start.x + 18 / dimensions.width, start.y);
+    assert.ok(Math.abs((next.x - start.x) * dimensions.width - 18) < 1e-10, 'arrow step advances exactly one dot');
+    context.moveEvent(0, .237, .641);
+    assert.equal(level.events[0].x, start.x);
+    assert.equal(level.events[0].y, start.y);
+  }
+  context.moveEvent(1, .237, .641);
+  assert.ok([level.events[1].x, level.events[1].y].some(value => value === 0 || value === 1), 'perimeter enemies keep edge snapping');
+  checkbox.checked = false;
+  context.moveEvent(0, .237, .641);
+  assert.equal(level.events[0].x, .237);
+  assert.equal(level.events[0].y, .641);
+  const placed = [];
+  Object.assign(context, {
+    activeCategory: 'food', form: { reportValidity: () => true },
+    pointerPosition: () => ({ x: .237, y: .641 }),
+    readEvent: () => event(), attempt: action => action(),
+    discretePreviewTime: value => Math.round(value),
+    validateDraft: candidate => { placed.push(candidate.events.at(-1)); return candidate; },
+    markChanged() {}, render() {}, message() {}, description: () => 'food',
+  });
+  vm.runInContext(source.slice(source.indexOf('function placeAt('), source.indexOf("board.addEventListener('pointerdown'")), context);
+  context.$ = selector => selector === '#timeline' ? { value: 7.3 } : selector === '#discretize-xy' ? checkbox : area;
+  context.placeAt({});
+  assert.equal(placed[0].x, .237);
+  assert.equal(placed[0].time, 7);
+  checkbox.checked = true;
+  context.placeAt({});
+  assert.equal(placed[1].x, context.placementPosition(.237, .641).x);
+  assert.equal(placed[1].y, context.placementPosition(.237, .641).y);
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  assert.match(html, /<input id="discretize-xy" type="checkbox" checked> Discretize X, Y/);
+  assert.match(html, /<option value="1" selected>1s<\/option>/);
+});
+
+test('Print JSON and Load JSON share one text box without file or draft controls', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, {
+      value: '',
+      listeners: {}, addEventListener(type, action) { this.listeners[type] = action; },
+    });
+    return nodes.get(selector);
+  };
+  const messages = [], errors = [];
+  const context = vm.createContext({
+    $, level: blank(), validateCustomLevel, cutsceneError: null, selectedEvents: new Set(), touched: new Set(),
+    message: (text, error = false) => messages.push({ text, error }),
+    console: { error: (...args) => errors.push(args) },
+  });
+  vm.runInContext(source.slice(source.indexOf('function attempt('), source.indexOf('function markChanged(')), context);
+  context.replaceLevel = candidate => { context.level = validateCustomLevel(candidate); };
+  vm.runInContext(source.slice(source.indexOf('function validateSavedLevel('), source.indexOf("$('#new-level').addEventListener")), context);
+  $('#generate-json').listeners.click();
+  assert.equal($('#level-json').value, JSON.stringify(validateCustomLevel(blank()), null, 2));
+  const loaded = { ...blank(), id: 'Pasted level', events: [event()] };
+  $('#level-json').value = JSON.stringify(loaded);
+  $('#import-json').listeners.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(context.level)), validateCustomLevel(loaded));
+  const before = context.level;
+  for (const invalid of ['{', JSON.stringify({ ...loaded, duration: -1 })]) {
+    $('#level-json').value = invalid;
+    $('#import-json').listeners.click();
+    assert.equal(context.level, before, 'invalid JSON leaves the level unchanged');
+    assert.equal(messages.at(-1).error, true);
+  }
+  assert.equal(errors.length, 2);
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const panel = html.slice(html.indexOf('<fieldset id="files-access"'), html.indexOf('</fieldset>', html.indexOf('<fieldset id="files-access"')));
+  assert.equal((panel.match(/<button /g) ?? []).length, 2);
+  assert.equal((panel.match(/<textarea /g) ?? []).length, 1);
+  for (const label of ['Print JSON', 'Load JSON']) assert.ok(panel.includes(`>${label}</button>`));
+  assert.doesNotMatch(panel, /type="file"|json-filename|json-directory|save-draft|load-draft|download-json/);
+  assert.doesNotMatch(source, /showDirectoryPicker|createWritable|#save-draft|#load-draft|#import-file|#download-json/);
+});
+
+test('cutscene edits apply automatically and new lines inherit the previous speaker and cast', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  class Node {
+    constructor() { this.children = []; this.listeners = {}; this.value = ''; this.checked = false; this.disabled = false; }
+    append(...children) { for (const child of children) if (typeof child !== 'string') { child.parent = this; this.children.push(child); } }
+    replaceChildren(...children) { this.children = []; this.append(...children); }
+    addEventListener(type, handler) { this.listeners[type] = handler; }
+    remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
+    get lastElementChild() { return this.children.at(-1); }
+    querySelector(selector) { return this.querySelectorAll(selector)[0]; }
+    querySelectorAll(selector) {
+      if (selector.startsWith('.scene-cast ')) return this.querySelector('.scene-cast').querySelectorAll(selector.split(' ')[1]);
+      return this.children.flatMap(child => [
+        ...(selector.startsWith('.') ? child.className === selector.slice(1) ? [child] : []
+          : child.type === 'checkbox' && (selector !== 'input:checked' || child.checked) ? [child] : []),
+        ...child.querySelectorAll(selector),
+      ]);
+    }
+  }
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, new Node());
+    return nodes.get(selector);
+  };
+  let changes = 0;
+  const context = vm.createContext({
+    $, level: blank(), CHARACTERS: { koshi: 'Koshi', mouse: 'Mouse', wheel: 'Wheel' },
+    document: { createElement: () => new Node() },
+    validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
+    validateCustomLevel, readOnly: () => false, markChanged: () => changes++, selectedEvents: new Set(), touched: new Set(),
+    message: (text, error) => { $('#editor-message').textContent = text; $('#editor-message').error = Boolean(error); },
+    console: { error() {} }, dirty: false,
+  });
+  vm.runInContext(source.slice(source.indexOf('function attempt('), source.indexOf('function markChanged(')), context);
+  vm.runInContext(source.slice(source.indexOf('let cutsceneError = null;'), source.indexOf('function addInfoPage(')), context);
+  vm.runInContext(source.slice(source.indexOf('function validateSavedLevel('), source.indexOf("$('#generate-json').addEventListener")), context);
+  const actors = [{ character: 'mouse', x: .42, y: .7 }, { character: 'mouse', x: .6, y: .8 }, { character: 'koshi', x: .2, y: .5 }];
+  context.level = validateCustomLevel({ ...blank(), cutscene: {
+    theme: 'garden', lines: [{ speaker: 'mouse', text: 'First line', actors }],
+  } });
+  context.populateCutscene();
+  $('#scene-add-line').listeners.click();
+  const row = $('#scene-lines').lastElementChild;
+  assert.equal(row.querySelector('.scene-speaker').value, 'mouse');
+  assert.equal(row.querySelector('.scene-text').value, '');
+  assert.deepEqual(row.querySelectorAll('.scene-cast input:checked').map(input => input.value), ['koshi', 'mouse']);
+  assert.equal(row.querySelectorAll('.scene-cast input').find(input => input.value === 'mouse').disabled, true);
+  assert.throws(() => context.validateSavedLevel(), /dialogue/);
+  row.querySelector('.scene-text').value = 'Next line';
+  $('#cutscene-form').listeners.input();
+  assert.equal(context.level.cutscene.lines.length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.level.cutscene.lines[1].actors)), [
+    actors[2], actors[0], actors[1],
+  ]);
+  assert.doesNotThrow(() => context.validateSavedLevel());
+  assert.equal($('#scene-lines').lastElementChild, row, 'typing does not rebuild the focused row');
+  $('#scene-theme').value = 'workshop';
+  $('#cutscene-form').listeners.change();
+  assert.equal(context.level.cutscene.theme, 'workshop');
+  row.querySelector('.scene-speaker').value = 'wheel';
+  row.querySelector('.scene-speaker').listeners.change();
+  $('#cutscene-form').listeners.change();
+  assert.equal(context.level.cutscene.lines[1].speaker, 'wheel');
+  assert.ok(context.level.cutscene.lines[1].actors.some(actor => actor.character === 'wheel'));
+  row.children.at(-1).listeners.click();
+  assert.equal(context.level.cutscene.lines.length, 1);
+  context.readOnly = () => true;
+  const before = changes;
+  $('#scene-add-line').listeners.click();
+  $('#cutscene-form').listeners.input();
+  assert.equal(changes, before);
+  context.readOnly = () => false;
+  $('#scene-enabled').checked = false;
+  $('#scene-enabled').listeners.change();
+  $('#cutscene-form').listeners.change();
+  assert.equal(context.level.cutscene, undefined);
+  assert.equal($('#scene-fields').disabled, true);
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  assert.doesNotMatch(html, /Apply cutscene/);
+});
+
 test('palette image artwork fits its icon slot in menus, markers, and information previews', () => {
   const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
   assert.match(css, /\.palette-picture > img\s*\{[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*contain;/);
@@ -153,7 +406,7 @@ test('the event category pane contains its complete form and actions', () => {
   const pane = html.match(/<section id="event-panel"[\s\S]*?<\/section>/)?.[0];
   assert.ok(pane);
   assert.match(pane, /<\/form>/);
-  for (const id of ['apply-event', 'new-event', 'duplicate-event', 'delete-event']) {
+  for (const id of ['new-event', 'duplicate-event', 'delete-event']) {
     assert.ok(pane.includes(`id="${id}"`), `${id} must hide with the event category pane`);
   }
   assert.equal((pane.match(/<details\b/g) ?? []).length, (pane.match(/<\/details>/g) ?? []).length);
@@ -242,11 +495,9 @@ test('event palette changes start new placements without modifying selected even
     assert.equal(JSON.stringify(draft), before);
   }
   context.placing = false;
+  context.selectedEvents = new Set([0]);
   nodes.get('#inspector-access').change();
-  assert.equal(context.placing, true, 'other inspector changes also activate Place');
-  assert.equal(context.board.dataset.tool, 'place');
-  assert.equal(nodes.get('#place-mode')['aria-pressed'], 'true');
-  assert.equal(nodes.get('#select-mode')['aria-pressed'], 'false');
+  assert.equal(context.placing, false, 'editing selected events does not activate Place');
 });
 
 test('the Bricks menu never places the previously selected event on the playable area', () => {
@@ -961,7 +1212,7 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
   });
   vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function description(')), context);
   vm.runInContext(source.slice(source.indexOf('function readEvent('), source.indexOf('function setSelection(')), context);
-  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf("form.addEventListener('submit'")), context);
+  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf('function applyEventChanges(')), context);
   $('#event-location').value = 'fixed'; $('#event-formation').value = 'single';
   $('#event-time').value = '2'; $('#event-x').value = '20'; $('#event-y').value = '70';
   for (const [kind, type] of [['item', 'battery'], ['weapon', 'gold']]) {

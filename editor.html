@@ -75,7 +75,6 @@
             <div id="scene-lines"></div>
             <button id="scene-add-line" type="button">Add dialogue line</button>
           </fieldset>
-          <button type="submit">Apply cutscene</button>
         </form>
         </fieldset>
       </details>
@@ -95,7 +94,7 @@
       </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
-          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
+          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><label class="inline-label"><input id="discretize-xy" type="checkbox" checked> Discretize X, Y</label><label class="inline-label"><input id="dynamic-view" type="checkbox" disabled> Dynamic View</label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
           <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
           <section class="point-reference" aria-labelledby="point-reference-heading">
             <h2 id="point-reference-heading">Available points reference</h2>
@@ -128,7 +127,7 @@
                 <select id="timeline-discretization">
                   <option value="0">None</option>
                   <option value="0.5">0.5s</option>
-                  <option value="1">1s</option>
+                  <option value="1" selected>1s</option>
                   <option value="5">5s</option>
                   <option value="10">10s</option>
                   <option value="30">30s</option>
@@ -237,7 +236,6 @@
               <label>Y (%) <input id="event-y" type="number" min="0" max="100" step="any" value="50" required></label>
             </div>
             </details>
-            <button type="submit" class="primary" id="apply-event">Add event</button>
           </form>
           <div class="inspector-actions"><button id="new-event">New event</button><button id="duplicate-event" disabled>Duplicate</button><button id="delete-event" disabled>Delete</button></div>
           </section>
@@ -250,10 +248,13 @@
       </section>
       <section class="editor-panel" aria-label="Import and export">
         <fieldset id="files-access" class="access-fields">
-        <div class="section-heading"><h2>Take your level with you</h2><div class="file-actions"><button id="save-draft">Save draft</button><button id="load-draft">Load draft</button></div></div>
+        <div class="section-heading"><h2>Level JSON</h2></div>
+        <div class="file-actions">
+          <button id="generate-json">Print JSON</button>
+          <button id="import-json">Load JSON</button>
+        </div>
         <label for="level-json">Level JSON</label>
-        <textarea id="level-json" rows="9" spellcheck="false" placeholder="Generate JSON, or paste an exported level here to import."></textarea>
-        <div class="file-actions"><button id="generate-json">Generate JSON</button><button id="import-json">Import JSON</button><button id="download-json">Download JSON</button><label class="file-label">Import file <input id="import-file" type="file" accept=".json,application/json"></label></div>
+        <textarea id="level-json" rows="9" spellcheck="false" placeholder="Print JSON to copy and save manually, or paste level JSON here and choose Load JSON."></textarea>
         </fieldset>
       </section>
       <noscript><p class="error">Please enable JavaScript to use the level editor.</p></noscript>

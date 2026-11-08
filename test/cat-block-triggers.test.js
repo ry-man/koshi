@@ -402,7 +402,7 @@ test('Cat Brick messages are built-in even when imported data supplies overrides
   assert.deepEqual(saved.catBlock.messages, CAT_BLOCK_MESSAGES);
 });
 
-test('all persistence and playtest actions reject inconsistent Cat Brick data before writing or navigating', () => {
+test('printing JSON and playtesting reject inconsistent Cat Brick data before output or navigation', () => {
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { listeners: {}, value: '',
@@ -410,23 +410,24 @@ test('all persistence and playtest actions reject inconsistent Cat Brick data be
     return nodes.get(selector);
   };
   let writes = 0;
-  const context = vm.createContext({ $, level: level({ type: 'spawn' }), validateCustomLevel,
+  const context = vm.createContext({ $, level: level({ type: 'spawn' }), validateCustomLevel, cutsceneError: null, selectedEvents: new Set(), touched: new Set(),
     localStorage: { setItem() { writes++; } }, storageKey: 'test-draft', readOnly: () => false,
     attempt: action => action(), window: { addEventListener() {} }, message() {} });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf('function validateSavedLevel('), source.indexOf('window.addEventListener(\'beforeunload\'')), context);
-  for (const selector of ['#save-draft', '#generate-json', '#download-json', '#playtest']) {
+  for (const selector of ['#generate-json', '#playtest']) {
     assert.throws(() => $(selector).listeners.click({ preventDefault() {} }), /requires a matching/, selector);
   }
   context.level = { ...level({ type: 'spawn' }), events: [item('cat-block'), item('cat-block')] };
-  for (const selector of ['#save-draft', '#generate-json', '#download-json', '#playtest']) {
+  for (const selector of ['#generate-json', '#playtest']) {
     assert.throws(() => $(selector).listeners.click({ preventDefault() {} }), /only one Cat Brick source/, selector);
   }
   assert.equal(writes, 0);
   assert.equal($('#level-json').value, '');
   context.level = { ...level({ type: 'spawn' }), events: [item('cat-block')] };
-  $('#save-draft').listeners.click();
-  assert.equal(writes, 1);
+  $('#generate-json').listeners.click();
+  assert.equal(writes, 0);
+  assert.equal(JSON.parse($('#level-json').value).events[0].type, 'cat-block');
 });
 
 test('editor markup has no boundary preset, editable reward messages or helper paragraphs', () => {

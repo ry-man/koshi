@@ -498,8 +498,8 @@ body:has(.world-picker[open]) { overflow: hidden; }
 .map-feature-enemies { border-color: #df8c8170; background: #df8c811a; }
 .map-feature-food { border-color: #e6c65470; background: #e6c6541a; }
 .map-feature-items { border-color: #9c9bdf70; background: #9c9bdf1a; }
-.map-features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.map-feature { display: grid; justify-items: center; width: 72px; font-size: 10px; text-align: center; }
+.map-features { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+.map-feature { display: grid; justify-items: center; width: min(72px, 100%); font-size: 10px; text-align: center; }
 .map-feature-empty { margin: 0; color: var(--muted); font-size: 11px; }
 .map-feature .guide-picture, .map-feature .guide-special-brick { width: 64px; height: 36px; margin: 0 0 4px; overflow: hidden; }
 @media (max-width: 480px) {

@@ -1104,7 +1104,7 @@ function showLevelBriefing() {
 }
 
 function showLevelIntroduction() {
-  if (game.level.cutscene && !skipCutscene.checked) {
+  if (game.level.cutscene && (game.customLevel || !skipCutscene.checked)) {
     overlay.hidden = true;
     cutscene.open(game.level.cutscene, game.level.number ?? game.level.id);
   } else showLevelInformation();
@@ -4371,7 +4371,8 @@ if (game) {
   syncUI();
 }
 if (!game || !location.hash.startsWith('#level=') && !location.hash.startsWith('#campaign=') && location.hash !== '#install') titleScreen.showModal();
-if (game?.level.levelInfo && (location.hash.startsWith('#level=') || location.hash.startsWith('#campaign='))) showLevelIntroduction();
+if (game && (game.level.cutscene || game.level.levelInfo)
+  && (location.hash.startsWith('#level=') || location.hash.startsWith('#campaign='))) showLevelIntroduction();
 document.body.classList.remove('game-loading');
 installBackNavigation();
 new ResizeObserver(resize).observe(board);

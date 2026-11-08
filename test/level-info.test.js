@@ -215,7 +215,7 @@ test('opening order is cutscene, information, objectives and direct links share 
   assert.deepEqual(calls, ['cutscene', 'information', 'information']);
   assert.match(source, /KoshiCutscenePlayer[\s\S]*?showLevelInformation\(\)/);
   assert.match(source.slice(source.indexOf('function begin('), source.indexOf('function startLevel(')), /showLevelIntroduction\(\)/);
-  assert.match(source, /if \(game\?\.level\.levelInfo && [^\n]+showLevelIntroduction\(\);/);
+  assert.match(source, /if \(game && \(game\.level\.cutscene \|\| game\.level\.levelInfo\)[\s\S]*?location\.hash\.startsWith\('#level='\)[\s\S]*?showLevelIntroduction\(\);/);
 });
 
 const editorSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');

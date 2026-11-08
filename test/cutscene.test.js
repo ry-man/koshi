@@ -15,6 +15,39 @@ const scene = () => ({
 });
 const level = () => ({ version: 1, id: 'Story test', duration: 30, goal: 20, heartCost: null, brickSet: 1, events: [], cutscene: scene() });
 
+test('editor playtests show cutscenes before briefing and replay them even when skip is checked', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const introduction = source.slice(source.indexOf('function showLevelIntroduction('), source.indexOf('function showLevelInformation('));
+  const startup = source.slice(source.indexOf('if (game && (game.level.cutscene || game.level.levelInfo)'), source.indexOf("document.body.classList.remove('game-loading')"));
+  assert.ok(startup.length, 'direct editor links initialize cutscenes without requiring level information');
+  const calls = [];
+  const context = vm.createContext({
+    game: { customLevel: true, level: level() },
+    skipCutscene: { checked: true }, overlay: { hidden: false },
+    cutscene: { open: (value, id) => calls.push({ kind: 'scene', value, id }) },
+    showLevelInformation: () => calls.push({ kind: 'information' }),
+    location: { hash: '#level=custom' },
+  });
+  vm.runInContext(introduction, context);
+  vm.runInContext(startup, context);
+  assert.equal(calls[0].kind, 'scene');
+  assert.equal(calls[0].value, context.game.level.cutscene);
+  assert.equal(context.overlay.hidden, true);
+  context.showLevelIntroduction();
+  assert.equal(calls[1].kind, 'scene', 'custom restart replays its cutscene');
+  context.game.customLevel = false;
+  context.showLevelIntroduction();
+  assert.equal(calls[2].kind, 'information', 'campaign skip preference is preserved');
+  context.skipCutscene.checked = false;
+  context.location.hash = '#campaign=1-1';
+  vm.runInContext(startup, context);
+  assert.equal(calls[3].kind, 'scene', 'campaign editor preview plays its cutscene');
+  delete context.game.level.cutscene;
+  context.game.customLevel = true;
+  context.showLevelIntroduction();
+  assert.equal(calls[4].kind, 'information', 'levels without cutscenes retain their introduction flow');
+});
+
 test('dialogue portraits use the shared bounded square sizing instead of full-screen canvas sizing', () => {
   const html = readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const css = readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');

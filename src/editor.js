@@ -9,7 +9,6 @@ const $ = selector => document.querySelector(selector);
 const board = $('#editor-board');
 const form = $('#event-form');
 const campaignMode = globalThis.KoshiCampaignMode;
-const storageKey = campaignMode.storageKey('draft', campaignMode.active.id);
 const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true });
 const immutableBrick = kind => ['cinder', 'goal'].includes(kind);
@@ -328,7 +327,22 @@ function syncPalettes() {
         button.dataset.value = option.value;
         return button;
       });
-      palette.replaceChildren(...entry.buttons); entry.signature = signature;
+      palette.replaceChildren(...entry.buttons);
+      if (id === 'event-type' && $('#event-kind').value === 'enemy') {
+        const bosses = entry.buttons.filter(button => button.dataset.value === 'boss');
+        if (bosses.length) {
+          const section = document.createElement('section'), heading = document.createElement('h3');
+          section.className = 'boss-palette-section';
+          section.setAttribute('aria-label', 'Bosses');
+          heading.textContent = 'Bosses';
+          const choices = document.createElement('div');
+          choices.className = 'visual-palette';
+          choices.append(...bosses);
+          section.append(heading, choices);
+          palette.append(section);
+        }
+      }
+      entry.signature = signature;
     }
     const inactive = id.startsWith('brick-') && id !== 'brick-kind' && select.disabled;
     select.parentElement.hidden = inactive; palette.hidden = inactive;
@@ -633,7 +647,6 @@ function populateEventForm() {
   $('#inspector-heading').textContent = readOnly() ? !items.length ? 'READ-ONLY GAME LEVEL'
     : multi ? `VIEWING ${items.length} EVENTS` : `VIEWING EVENT ${indices[0] + 1}`
     : !items.length ? 'NEW PLACEMENT' : multi ? `EDITING ${items.length} EVENTS` : `EDITING EVENT ${indices[0] + 1}`;
-  $('#apply-event').textContent = !items.length ? 'Add event' : multi ? `Apply to ${items.length} events` : 'Apply event changes';
   $('#duplicate-event').disabled = !items.length;
   $('#delete-event').disabled = !items.length;
   $('#duplicate-event').textContent = multi ? `Duplicate ${items.length}` : 'Duplicate';
@@ -810,7 +823,7 @@ function renderBoard() {
   board.style.aspectRatio = 'auto';
   const issues = portalPairIssues(previewGame.bricks);
   $('#portal-warning').hidden = !issues.length;
-  $('#portal-warning').textContent = issues.length ? `Unfinished portals: ${issues.join(' ')} You can keep editing and save a draft; fix these before export or playtest.` : '';
+  $('#portal-warning').textContent = issues.length ? `Unfinished portals: ${issues.join(' ')} You can keep editing; fix these before printing JSON or playtesting.` : '';
   $('#playtest').setAttribute('aria-disabled', String(Boolean(issues.length)));
   const bricks = $('#editor-bricks');
   const regions = brickEditRegions(previewGame.bricks);
@@ -1026,14 +1039,16 @@ function renderBoard() {
       const direction = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] }[key.key];
       if (!direction) return;
       key.preventDefault();
+      const grid = placementGrid();
+      const stepX = grid ? grid.spacing / grid.width : .01;
+      const stepY = grid ? grid.spacing / grid.height : .01;
       if (spawnKey) {
-        attempt(() => saveSpawnTemplate(spawnKey, { ...event,
-          x: Math.max(0, Math.min(1, event.x + direction[0] * .01)),
-          y: Math.max(0, Math.min(1, event.y + direction[1] * .01)) }));
+        attempt(() => saveSpawnTemplate(spawnKey, { ...event, ...placementPosition(
+          event.x + direction[0] * stepX, event.y + direction[1] * stepY) }));
         setSelection([], [spawnKey]); focusSpawnTemplate(spawnKey); return;
       }
       if (!selectedEvents.has(index)) { selectedEvents = new Set([index]); selectedBricks = new Set(); }
-      for (const item of selectedList()) moveEvent(item, (level.events[item].x ?? .5) + direction[0] * .01, (level.events[item].y ?? .5) + direction[1] * .01);
+      for (const item of selectedList()) moveEvent(item, (level.events[item].x ?? .5) + direction[0] * stepX, (level.events[item].y ?? .5) + direction[1] * stepY);
       markChanged(); setSelection();
       focusMarker(index);
     });
@@ -1052,6 +1067,7 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
   const camera = previewGame.camera(time), outline = $('#camera-outline');
   outline.hidden = !level.autoscroll;
   outline.style.cssText = `left:${camera.x / previewGame.width * 100}%;top:${camera.y / previewGame.height * 100}%;width:${camera.width / previewGame.width * 100}%;height:${camera.height / previewGame.height * 100}%`;
+  updateCameraView(camera);
   for (const marker of $('#markers').querySelectorAll('.marker[data-index]')) {
     marker.hidden = connectingSpawn === null && !$('#show-all').checked
       && (Number(marker.dataset.previewStart) > time
@@ -1059,6 +1075,20 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
   }
   if (time >= level.duration) pausePreview();
   $('#preview-play').disabled = time >= level.duration;
+}
+
+function updateCameraView(camera) {
+  const toggle = $('#dynamic-view'), viewport = $('#editor-board-scroll');
+  toggle.disabled = !level.autoscroll;
+  const dynamic = Boolean(level.autoscroll && toggle.checked);
+  viewport.dataset.dynamicView = String(dynamic);
+  viewport.style.height = dynamic ? `${camera.height / previewGame.height * board.clientHeight}px` : '';
+  if (!dynamic) return;
+  const boardRect = board.getBoundingClientRect(), viewportRect = viewport.getBoundingClientRect();
+  const left = boardRect.left - viewportRect.left - viewport.clientLeft + viewport.scrollLeft + board.clientLeft;
+  const top = boardRect.top - viewportRect.top - viewport.clientTop + viewport.scrollTop + board.clientTop;
+  viewport.scrollLeft = left + camera.x / previewGame.width * board.clientWidth;
+  viewport.scrollTop = top + camera.y / previewGame.height * board.clientHeight;
 }
 
 function pointReference(events, bricks) {
@@ -1154,10 +1184,29 @@ function connectSpawn(index) {
   message('Object connected as a spawn-only template. It no longer appears on its old schedule.');
 }
 
+function placementGrid() {
+  if (!$('#discretize-xy').checked) return null;
+  const area = $('#playable-area'), rect = area.getBoundingClientRect();
+  const spacing = parseFloat(getComputedStyle(area).backgroundSize);
+  return { width: rect.width, height: rect.height, left: area.clientLeft, top: area.clientTop, spacing };
+}
+
+function placementPosition(x, y) {
+  const grid = placementGrid();
+  const snap = (value, length, border) => {
+    const first = border + grid.spacing / 2;
+    const last = Math.max(0, Math.floor((length - border - first) / grid.spacing));
+    const index = Math.max(0, Math.min(last, Math.round((value * length - first) / grid.spacing)));
+    return (first + index * grid.spacing) / length;
+  };
+  return grid ? { x: snap(x, grid.width, grid.left), y: snap(y, grid.height, grid.top) }
+    : { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+}
+
 function moveEvent(index, x, y) {
   if (readOnly()) return;
   const event = level.events[index];
-  let point = { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+  let point = placementPosition(x, y);
   if (!event.group && event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) point = snapWheel(point.x, point.y);
   delete event.random;
   Object.assign(event, point);
@@ -1264,7 +1313,8 @@ function placeAt(event) {
   }
   if (!form.reportValidity()) return;
   attempt(() => {
-    const item = { ...readEvent(), x: point.x, y: point.y };
+    const item = { ...readEvent(), time: discretePreviewTime(Number($('#timeline').value)),
+      ...placementPosition(point.x, point.y) };
     if (!item.random && !item.group && item.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(item.type)) Object.assign(item, snapWheel(item.x, item.y));
     level = validateDraft({ ...level, events: [...level.events, item] });
     markChanged(); render();
@@ -1293,9 +1343,8 @@ board.addEventListener('pointermove', event => {
     renderBoard();
   } else if (gesture.type === 'spawn-template') {
     const point = pointerPosition(event);
-    const spawn = { ...gesture.origin,
-      x: Math.max(0, Math.min(1, gesture.origin.x + point.x - gesture.start.x)),
-      y: Math.max(0, Math.min(1, gesture.origin.y + point.y - gesture.start.y)) };
+    const spawn = { ...gesture.origin, ...placementPosition(
+      gesture.origin.x + point.x - gesture.start.x, gesture.origin.y + point.y - gesture.start.y) };
     if (spawn.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(spawn.type)) Object.assign(spawn, snapWheel(spawn.x, spawn.y));
     gesture.draft = spawn;
     updateSpawnTemplateDraft(gesture.spawnKey, spawn);
@@ -1375,6 +1424,7 @@ function syncTool() {
 }
 $('#inspector-access').addEventListener('change', () => {
   if (readOnly()) return;
+  if (selectedEvents.size) return;
   placing = true;
   syncTool();
 }, true);
@@ -1666,17 +1716,20 @@ function applyToSelected() {
   markChanged(); setSelection(); message(`Updated ${plural(selectedEvents.size, 'event')}.`);
 }
 
+function applyEventChanges() {
+  if (readOnly() || !selectedEvents.size || !touched.size) return;
+  attempt(() => {
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      throw new Error('Event settings contain an invalid value. Correct the highlighted field to apply your changes.');
+    }
+    applyToSelected();
+  });
+}
+form.addEventListener('change', applyEventChanges);
 form.addEventListener('submit', event => {
   event.preventDefault();
-  attempt(() => {
-    const indices = selectedList();
-    if (indices.length > 1) { applyToSelected(); return; }
-    const events = [...level.events], item = readEvent();
-    const index = indices.length ? indices[0] : events.length;
-    events[index] = item;
-    level = validateDraft({ ...level, events });
-    markChanged(); setSelection([index]); message('Event saved. Select “New event” to place another object.');
-  });
+  applyEventChanges();
 });
 $('#new-event').addEventListener('click', () => {
   startPlacement();
@@ -1870,6 +1923,17 @@ function updateCatBlockTrigger() {
 for (const selector of ['#cat-block-trigger', '#cat-block-amount', '#cat-block-enemy-type', '#cat-block-brick-type']) {
   $(selector).addEventListener(selector === '#cat-block-amount' ? 'input' : 'change', updateCatBlockTrigger);
 }
+let cutsceneError = null;
+function readSceneLine(row) {
+  return {
+    speaker: row.querySelector('.scene-speaker').value,
+    text: row.querySelector('.scene-text').value,
+    actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
+      const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
+      return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56, goalie: .5 }[checkbox.value], y: .65 }];
+    }),
+  };
+}
 function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character: 'koshi', x: .28, y: .65 }, { character: 'mouse', x: .67, y: .65 }, { character: 'wheel', x: .82, y: .7 }] }) {
   const row = document.createElement('div');
   row.className = 'scene-line';
@@ -1903,12 +1967,17 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
   speaker.addEventListener('change', updateSpeaker); updateSpeaker();
   const remove = document.createElement('button');
   remove.type = 'button'; remove.textContent = 'Remove line';
-  remove.addEventListener('click', () => row.remove());
+  remove.addEventListener('click', () => {
+    if (readOnly()) return;
+    row.remove();
+    applyCutscene();
+  });
   row.sceneActors = line.actors.map(actor => ({ ...actor }));
   row.append(speakerLabel, textLabel, cast, remove);
   $('#scene-lines').append(row);
 }
 function populateCutscene() {
+  cutsceneError = null;
   $('#scene-enabled').checked = Boolean(level.cutscene);
   $('#scene-fields').disabled = !level.cutscene;
   $('#scene-theme').value = level.cutscene?.theme ?? 'garden';
@@ -1918,29 +1987,34 @@ function populateCutscene() {
 }
 $('#scene-enabled').addEventListener('change', () => { $('#scene-fields').disabled = !$('#scene-enabled').checked; });
 $('#scene-add-line').addEventListener('click', () => {
+  if (readOnly()) return;
   if ($('#scene-lines').children.length >= 100) { message('Cutscenes support at most 100 dialogue lines.', true); return; }
-  addSceneLine();
+  const previous = $('#scene-lines').lastElementChild;
+  addSceneLine(previous ? { ...readSceneLine(previous), text: '' } : undefined);
+  applyCutscene();
 });
-$('#cutscene-form').addEventListener('submit', event => {
-  event.preventDefault();
+function applyCutscene() {
+  if (readOnly()) return;
   attempt(() => {
     const candidate = { ...level };
     if ($('#scene-enabled').checked) {
       candidate.cutscene = {
         theme: $('#scene-theme').value,
-        lines: [...$('#scene-lines').children].map(row => ({
-          speaker: row.querySelector('.scene-speaker').value,
-          text: row.querySelector('.scene-text').value,
-          actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
-            const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-            return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56, goalie: .5 }[checkbox.value], y: .65 }];
-          }),
-        })),
+        lines: [...$('#scene-lines').children].map(readSceneLine),
       };
     } else delete candidate.cutscene;
     level = validateDraft(candidate);
-    markChanged(); populateCutscene(); message('Cutscene applied. Playtest to watch it before the level starts.');
+    cutsceneError = null;
+    markChanged(); message('Cutscene updated. Playtest to watch it before the level starts.');
+  }, () => {
+    cutsceneError = new Error($('#editor-message').textContent);
+    dirty = true;
   });
+}
+for (const type of ['input', 'change']) $('#cutscene-form').addEventListener(type, applyCutscene);
+$('#cutscene-form').addEventListener('submit', event => {
+  event.preventDefault();
+  applyCutscene();
 });
 function addInfoPage(page = { title: 'New concept', text: '', graphics: [] }) {
   const row = document.createElement('fieldset');
@@ -2083,52 +2157,20 @@ for (const type of ['pointerdown', 'keydown']) document.addEventListener(type, e
 }, true);
 $('#show-all').addEventListener('change', renderBoard);
 $('#show-random').addEventListener('change', renderBoard);
+$('#dynamic-view').addEventListener('change', () => renderPreviewTime());
 $('#orientation').addEventListener('change', renderBoard);
 new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
-function validateSavedLevel({ draft = false } = {}) {
-  return validateCustomLevel(level, { allowUnpairedPortals: draft, requireCatBlockConsistency: true });
+function validateSavedLevel() {
+  if (cutsceneError) throw cutsceneError;
+  if (selectedEvents.size && touched.size) throw new Error('Finish or correct the selected event changes before printing JSON or playtesting.');
+  return validateCustomLevel(level, { requireCatBlockConsistency: true });
 }
 $('#generate-json').addEventListener('click', () => attempt(() => {
   const valid = validateSavedLevel();
-  $('#level-json').value = JSON.stringify(valid, null, 2); message('JSON generated from the saved level settings and events.');
+  $('#level-json').value = JSON.stringify(valid, null, 2); message('Full JSON printed from the current level settings and events.');
 }));
 $('#import-json').addEventListener('click', () => attempt(() => {
-  replaceLevel(JSON.parse($('#level-json').value)); message('JSON imported. Review the placements or playtest the level.');
-}));
-$('#download-json').addEventListener('click', () => attempt(() => {
-  const valid = validateSavedLevel();
-  const url = URL.createObjectURL(new Blob([JSON.stringify(valid, null, 2)], { type: 'application/json' }));
-  const anchor = document.createElement('a');
-  anchor.href = url; anchor.download = `${level.id.replace(/[^a-z0-9_-]/gi, '-').slice(0, 60)}.json`;
-  document.body.append(anchor); anchor.click(); anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  message('JSON download requested. If your browser blocks downloads, use Generate JSON and save the text instead.');
-}));
-$('#import-file').addEventListener('change', async event => {
-  const file = event.target.files[0];
-  if (!file) return;
-  try {
-    if (file.size > 1000000) throw new Error('Level file is too large. Maximum size is 1 MB.');
-    const text = await file.text();
-    replaceLevel(JSON.parse(text));
-    $('#level-json').value = JSON.stringify(level, null, 2);
-    message(`Imported ${file.name}.`);
-  } catch (error) { console.error('Level import:', error); message(error.message, true); }
-  event.target.value = '';
-});
-$('#save-draft').addEventListener('click', () => attempt(() => {
-  const valid = validateSavedLevel({ draft: true });
-  localStorage.setItem(storageKey, JSON.stringify(valid));
-  committed = JSON.stringify(level); dirty = false;
-  message('Draft saved.');
-}));
-$('#load-draft').addEventListener('click', () => attempt(() => {
-  const saved = localStorage.getItem(storageKey);
-  if (!saved) throw new Error('No draft has been saved in this browser.');
-  const candidate = validateDraft(JSON.parse(saved));
-  if (dirty && !confirm('Replace your unsaved level with the saved draft?')) return;
-  replaceLevel(candidate);
-  committed = JSON.stringify(level); dirty = false; message('Saved draft loaded.');
+  replaceLevel(JSON.parse($('#level-json').value)); message('JSON loaded. Review the placements or playtest the level.');
 }));
 $('#new-level').addEventListener('click', () => {
   if (dirty && !confirm('Discard this unsaved level and start a new one?')) return;
@@ -2162,7 +2204,7 @@ populateSettings(); populateCutscene(); populateLevelInfo(); updatePlaytest(); p
 campaignMode.setup({
   reportError: error => message(`Game selection could not be saved or restored: ${error.message}`, true),
   beforeSwitch: () => !(readOnly() ? customWorkspace?.dirty : dirty)
-    || confirm('Discard this unsaved editor draft and switch games? Save the draft first to keep it.'),
+    || confirm('Discard this unsaved editor level and switch games? Print JSON and save the text first to keep it.'),
   onSwitch: () => {
     dirty = false;
     if (customWorkspace) customWorkspace.dirty = false;

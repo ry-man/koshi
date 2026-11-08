@@ -135,13 +135,13 @@ the same notice space in both modes so its controls do not jump when switching.
 Startup hides the gameplay surface until the menu is ready;
 supporting browsers use a brief cross-document transition (disabled for reduced motion).
 Each game remembers its
-own save slots, statistics, collectibles, cutscene preferences, editor draft,
+own save slots, statistics, collectibles, cutscene preferences,
 and map selection when switching. Guest progress remains session-only.
 Existing saves, draft storage, and stable level IDs continue to belong to Beta;
 Official uses separate browser storage, even if future levels use matching IDs.
 Unsaved campaign results block switching until saved or explicitly discarded.
 An active run requires confirmation before it is ended by a switch. Editor
-switching warns about unsaved drafts; save the draft before switching to keep it.
+switching warns about unsaved levels; print JSON and save it manually before switching to keep it.
 
 Use `index.html?game=beta` or `index.html?game=official` for explicit game links;
 the same query works on `editor.html`. Without a query, the game always opens
@@ -221,7 +221,7 @@ Version 1 level JSON optionally includes:
 Use 1-20 pages, nonblank titles up to 80 characters and explanations up to
 2,000 characters. Graphic identifiers come from the editor's component list
 (`KoshiGame.INFO_GRAPHICS`); graphics may be omitted for text-only pages.
-Information survives JSON import/export, saved drafts, and playtest links.
+Information survives JSON printing/loading and playtest links.
 
 ### Worlds and the map
 
@@ -251,7 +251,10 @@ Boss levels have skull-shaped stops. Objectives use food, enemy and soccer-goal 
 with their numerical targets, or just a clock for survival. Select an objective icon
 to see its explanation. Small labeled illustrations
 show the enemies, blocks, foods, weapons and items actually included, including
-spawner contents. Each level detail shows a gold star at the top right when any
+spawner contents. These features are grouped into Bricks, Enemies, Food and
+Items / Objects; each group's rows fit as many illustrations as the available
+panel width allows, with two per row on typical phones and more on wider screens.
+Each level detail shows a gold star at the top right when any
 win was completed without taking damage; otherwise it shows the empty outline.
 The star remains earned when the level is replayed, and earned stars also appear
 at the bottom-left of their level stops on the zoomed-in map. **Play Level**
@@ -894,9 +897,9 @@ The **Level** library lists every built-in game level for read-only inspection.
 Select bricks and scheduled events, scrub the timeline, switch layouts, or read
 the cutscene. Spawn locations are deterministic examples of the game's randomized
 placements, not fixed campaign coordinates. **Play game level** opens the original
-campaign level, not an editable snapshot. Editing, imports, exports, and draft
-saving are disabled while viewing game levels. Select **Your custom level** to
-restore your custom workspace and unsaved work; browsing never overwrites a draft.
+campaign level, not an editable snapshot. Editing and JSON printing/loading
+are disabled while viewing game levels. Select **Your custom level** to
+restore your custom workspace and unsaved work; browsing never overwrites it.
 It is a separate page, works by double-clicking the file, and is included in
 the GitHub Pages deployment at `/koshi/editor.html`. No server-side storage
 or build tools are needed.
@@ -911,8 +914,11 @@ Cat Block artwork fits its palette icon without covering neighboring menu choice
 Enable **Autoscrolling level** in level settings; changes apply automatically. Length
 is the number of bricks along each long edge: 8 is a traditional single screen,
 with up to 1000 supported. The board extends horizontally on desktop and
-vertically in portrait without shrinking bricks or objects. Scroll the editor
-board to reach the rest of the level; scrubbing **Preview time** moves a yellow
+vertically in portrait without shrinking bricks or objects. With Dynamic View
+off, the placement area fits the board's full height, including space for the
+horizontal scrollbar, so it never needs its own vertical scrollbar. Scroll
+horizontally on desktop, or scroll the page for a tall portrait board, to reach
+the rest of the level; scrubbing **Preview time** moves a yellow
 outline showing the gameplay camera.
 
 Set an initial speed in **bricks / second**, then use **Add speed change at
@@ -984,8 +990,10 @@ Screen readers receive complete dialogue lines rather than individual letters.
 
 In the editor, enable **Optional pre-level cutscene**, choose the world
 background, and add dialogue lines with a speaker and on-stage cast.
-Use **Apply cutscene** before saving, exporting, or playtesting.
-Unchecking the option and applying removes the scene. The full JSON format
+Changes apply automatically, and each new dialogue line inherits the previous
+line's speaker and checked on-stage characters. Enter dialogue for the new line;
+invalid or unfinished edits report an error and block JSON printing and playtesting
+until corrected. Unchecking the option removes the scene. The full JSON format
 supports precise actor positions and repeated actors:
 
 ```json
@@ -1017,7 +1025,7 @@ Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
 axis. Official backgrounds keep their ground line at the same relative stage
 height in portrait and landscape; `y: 0.8` places Koshi on the foreground path.
 Per-line positions animate between dialogue beats. Old level JSON without
-`cutscene` remains compatible. Scenes are included in drafts, imports, exports,
+`cutscene` remains compatible. Scenes are included in printed/loaded JSON,
 playtest links, direct-file play, and the offline app.
 
 ### Level settings and placements
@@ -1059,10 +1067,12 @@ tracks his health; his death animation finishes before Koshi celebrates.
    Compact visual palettes select cooldowns, surfaces, colors, and modifiers.
    The wider desktop sidebar has one category picker for **Bricks**, **Food**,
    **Enemies**, **Items**, **Objects**, and **Weapons**. Click a category to
-   open its menu. Only settings for enabled brick attributes are shown.
+   open its menu. The **Enemies** menu separates bosses into a labeled **Bosses**
+   subsection while keeping them in the enemy category.
+   Only settings for enabled brick attributes are shown.
    Selecting a boundary brick opens its menu; selecting an event opens its category.
    Set Portal colors on individual bricks or any selected group. Incomplete
-   or overfilled pairs show a warning but allow editing and draft saves;
+   or overfilled pairs show a warning but allow editing;
    each used color must have exactly two bricks before export or playtest.
    **Toggle** adds an independent 1-, 2-, or 4-activation cycle.
    Set the selection limit (default 5) or warp duration
@@ -1080,11 +1090,21 @@ tracks his health; his death animation finishes before Koshi celebrates.
    playable area to add objects. Each click creates one timed placement;
    repeating clicks creates a group with the same timing.
 3. Select a marker or event in the chronological list to edit it. Drag a marker,
-   or expand **Exact position**, enter X/Y percentages, and choose **Apply event changes**. Markers also
+   or expand **Exact position** and enter X/Y percentages. Changes to selected
+   events apply automatically when a control changes (numeric fields commit when
+   you leave the field). Invalid values report an error without changing the level.
+   With no selection, the inspector configures the next board placement. Markers also
    support arrow keys (1% steps). **Duplicate** copies an event at the same
    time and position; move it to create lines/circles. **Delete** removes it.
    **New event** returns to placement mode. Overlapping markers can always
    be selected separately from the event list.
+   **Discretize X, Y** snaps board placements and marker moves to the visible
+   dots, including spawn templates and arrow-key moves. It defaults to checked;
+   uncheck it for free placement. New board placements use the current preview
+   time, snapped to the selected time spacing (1 second by default).
+   Toggling it does not move existing elements; numeric inspector
+   coordinates and obstruction resizing remain exact. Perimeter enemies still
+   snap to their required board edge.
 4. **Multiselection** works for any mix of bricks and food/enemy/weapon markers:
    - Drag a selection box on the board (with either tool, or from a brick) to
      select every brick it touches and every marker whose center it contains.
@@ -1101,12 +1121,16 @@ tracks his health; his death animation finishes before Koshi celebrates.
      the group. Drag any selected marker or use arrow keys to move the whole
      group; **Duplicate**/**Delete** (or the Delete key) act on all selected
      events.
-5. Scrub **Preview time**. Disable **Show all spawn locations** to see which
+5. Scrub **Preview time**. For autoscrolling levels, **Dynamic View** locks the
+   board viewport to the game camera at that time, including during playback.
+   Uncheck it to scroll the board independently of the time dial. It is disabled
+   for non-autoscrolling levels.
+   Disable **Show all spawn locations** to see which
    objects have appeared and when food expires. **Play** advances from the current
    preview time to the end of the level; **Pause** stops it at the current position.
    The speed dial runs from **0.25x** (quarter speed) to **4x** (quadruple speed),
    with **1x** matching real time. Speed changes take effect during playback.
-   **Discretization** defaults to **None** for continuous slider movement. Choose
+   **Discretization** defaults to **1s**. Choose **None** for continuous slider movement, or
    **0.5s**, **1s**, **5s**, **10s**, or **30s** to round manual slider movement to
    the nearest multiple of that interval within the level duration. Arrow keys
    move one interval at a time. Playback remains continuous and can still reach
@@ -1120,18 +1144,20 @@ tracks his health; his death animation finishes before Koshi celebrates.
    does not remove events or change available-point totals.
    **Playtest** runs the real
    game. Switch **Preview** to check phone portrait placement.
-6. **Save draft / Load draft** stores one level in this browser. Storage errors
-   are reported; browser storage is not a portable backup, especially on
-   `file://`. **Generate JSON** fills the text area; **Download JSON** saves a
-   portable file. Paste JSON and choose **Import JSON**, or use **Import file**.
-   Invalid imports leave the existing level unchanged.
+6. **Print JSON** displays the complete level JSON in the text box below the
+   buttons. Copy this text and manually save it in a `.json` file for backup.
+   To load a level, paste its JSON into the same text box and choose **Load JSON**.
+   Invalid JSON or level data reports an error and leaves the existing level unchanged.
+   There are no file pickers, directory settings, downloads, or browser draft controls.
 7. **Playtest** opens a snapshot in the game, including its settings, exact spawn
-   times, and placements. **Back to editor** in the game toolbar returns the
+   times, and placements. Any cutscene plays first, before level information and
+   objectives; custom playtests replay it on every restart even if already viewed.
+   **Back to editor** in the game toolbar returns the
    snapshot for more edits. Browser/Android Back also returns to the editor;
    the editor URL retains the playtest snapshot even if the page reloads.
    Restart replays that custom level; built-in levels remain selectable.
    The snapshot is encoded in the URL fragment (not sent to a server), so an
-   HTTP/Pages playtest URL can be shared. Download JSON for long-term storage.
+   HTTP/Pages playtest URL can be shared. Print JSON and save it manually for long-term storage.
 
 Apply form edits before exporting or playtesting. Neither export nor playtest
 changes the built-in levels. Closing the editor with unsaved level changes
@@ -1263,7 +1289,7 @@ Enemy-specific triggers also require `enemyType`; brick-specific triggers requir
 except `time`, which accepts positive fractional seconds and uses a strict
 less-than comparison. Descriptions are regenerated from validated triggers.
 Legacy levels without a trigger keep their existing hints and pickup behavior.
-Saving a draft, generating/downloading JSON, and playtesting check that Cat Brick
+Printing JSON and playtesting check that Cat Brick
 sources agree with the selected trigger. Pickup, carrier, and chest triggers
 require a matching source and reject conflicting source types; achievement
 triggers reject physical Cat Block sources. Chests require enough potential keys
