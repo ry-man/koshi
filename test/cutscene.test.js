@@ -28,7 +28,7 @@ test('dialogue portraits use the shared bounded square sizing instead of full-sc
   assert.match(rule, /flex-shrink: 0/);
 });
 
-test('Official scene cropping covers the stage and preserves authored actor positions in both orientations', () => {
+test('Official scene cropping covers the stage and preserves authored actor heights in both orientations', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
   const { OFFICIAL_LEVEL_DATA } = require('../src/campaign.js');
   const classSource = source.slice(source.indexOf('class CutscenePlayer'), source.indexOf('CutscenePlayer.drawPortrait ='));
@@ -108,6 +108,75 @@ test('Official backgrounds render distinctly and round-trip through custom level
     return JSON.stringify(operations);
   });
   assert.equal(new Set(drawings).size, themes.length);
+});
+
+test('phone cutscenes space the cast evenly with a wider gap beside Koshi without editing actors', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
+  const scales = [];
+  const ctx = new Proxy({}, {
+    get: (_, name) => (...args) => { if (name === 'scale') scales.push(args); },
+  });
+  const context = vm.createContext({ ctx, time: 0, drawTom() {} });
+  vm.runInContext(`function stage(line) { ${loop} }`, context);
+  const { OFFICIAL_LEVEL_DATA } = require('../src/campaign.js');
+  const lines = [...LEVELS, ...Object.values(OFFICIAL_LEVEL_DATA)]
+    .flatMap(level => level.cutscene?.lines ?? []);
+  for (let count = 1; count <= 6; count++) {
+    for (const koshiIndex of [0, Math.floor(count / 2), count - 1]) {
+      const actors = Array.from({ length: count }, (_, i) => ({
+        character: i === koshiIndex ? 'koshi' : 'mouse', x: .25 + i * .02, y: .65,
+      })).reverse();
+      lines.push({ speaker: 'koshi', actors });
+    }
+  }
+  for (const [width, height, mobile] of [
+    [320, 380, true], [390, 560, true], [760, 600, true],
+    [844, 260, true], [1000, 400, true], [1024, 400, false], [1440, 600, false],
+  ]) {
+    Object.assign(context, { width, height });
+    for (const line of lines) {
+      const before = JSON.stringify(line);
+      for (const [reducedMotion, paused] of [[true, false], [false, false], [false, true]]) {
+        if (!mobile && (!reducedMotion || paused)) continue;
+        context.reducedMotion = reducedMotion;
+        scales.length = 0;
+        const player = {
+          positions: new Map(line.actors.map((actor, i) =>
+            [`${actor.character}:${i}`, { x: 480, y: actor.y * 540 }])),
+          paused, drawCharacter() {},
+        };
+        context.stage.call(player, line);
+        const ordered = line.actors.map((actor, i) => ({
+          actor, position: player.positions.get(`${actor.character}:${i}`),
+        })).sort((a, b) => a.actor.x - b.actor.x);
+        for (const { actor, position } of ordered) {
+          assert.equal(position.y, actor.y * 540, 'authored height stays unchanged');
+          if (!mobile || ordered.length === 1) assert.equal(position.x, actor.x * 960);
+        }
+        if (mobile && ordered.length > 1) {
+          assert.ok(Math.abs(ordered[0].position.x / 960 - .16) < 1e-9);
+          assert.ok(Math.abs(ordered.at(-1).position.x / 960 - .84) < 1e-9);
+          const weightedGaps = ordered.slice(1).map((entry, i) => {
+            const gap = entry.position.x - ordered[i].position.x;
+            assert.ok(gap > 0, 'authored left-to-right order is preserved');
+            const besideKoshi = entry.actor.character === 'koshi' || ordered[i].actor.character === 'koshi';
+            return gap / (besideKoshi ? 1.2 : 1);
+          });
+          assert.ok(weightedGaps.every(gap => Math.abs(gap - weightedGaps[0]) < 1e-9),
+            'enemy gaps are equal; gaps beside Koshi are exactly 20% wider');
+          if (ordered.length === 2) {
+            assert.ok((ordered[1].position.x - ordered[0].position.x) / 960 > .6,
+              'a lone enemy stays well separated from Koshi');
+          }
+        }
+        const expectedScale = Math.min(2.4, width / height * 1.6)
+          * (mobile ? Math.min(1, 4 / line.actors.length) : 1);
+        assert.ok(Math.abs(scales[0][1] - expectedScale) < 1e-9);
+        assert.equal(JSON.stringify(line), before, 'rendering does not modify level content');
+      }
+    }
+  }
 });
 
 test('all campaign scenes validate and every story character speaks', () => {
@@ -252,7 +321,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
 
 test('stage shadows align with each character base and stay grounded while speakers bob', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
-  const loop = source.slice(source.indexOf('    const actorScale ='), source.indexOf('    drawPortrait(this.portrait'));
+  const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
   const operations = [];
   const ctx = new Proxy({}, { get: (_, name) => (...args) => operations.push([name, ...args]) });
   const context = vm.createContext({

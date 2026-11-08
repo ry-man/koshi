@@ -538,14 +538,29 @@ class CutscenePlayer {
       }
     }
     ctx.setTransform(w / 960, 0, 0, h / 540, 0, 0);
-    const actorScale = Math.min(2.4, width / height * 1.6);
+    const mobile = width <= 760 || (width <= 1000 && height <= 500 && width > height);
+    const actorScale = Math.min(2.4, width / height * 1.6) * (mobile ? Math.min(1, 4 / line.actors.length) : 1);
+    const horizontalPositions = new Map();
+    if (mobile && line.actors.length > 1) {
+      const ordered = [...line.actors].sort((a, b) => a.x - b.x);
+      const gaps = ordered.slice(1).map((actor, i) =>
+        actor.character === 'koshi' || ordered[i].character === 'koshi' ? 1.2 : 1);
+      const step = .68 * 960 / gaps.reduce((sum, gap) => sum + gap, 0);
+      let x = .16 * 960;
+      ordered.forEach((actor, i) => {
+        if (i) x += gaps[i - 1] * step;
+        horizontalPositions.set(actor, x);
+      });
+    }
     line.actors.forEach((actor, i) => {
       const key = `${actor.character}:${i}`;
-      const target = { x: actor.x * 960, y: actor.y * 540 };
+      const target = { x: horizontalPositions.get(actor) ?? actor.x * 960, y: actor.y * 540 };
       const previous = this.positions.get(key) ?? target;
       const position = reducedMotion ? target : this.paused ? previous : {
         x: previous.x + (target.x - previous.x) * .12, y: previous.y + (target.y - previous.y) * .12,
       };
+      // Apply phone spacing immediately, including when the cast or orientation changes.
+      if (mobile) position.x = target.x;
       this.positions.set(key, position);
       const speaking = actor.character === line.speaker;
       const snake = actor.character === 'snake';

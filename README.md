@@ -900,7 +900,10 @@ Scenes replay when restarting or directly selecting a level. Levels
 without a scene start immediately as before.
 
 The upper two-thirds of the viewport show a garden, workshop or foundry stage, with
-characters using the same drawings as gameplay. Speakers step forward and
+characters using the same drawings as gameplay. On phone-sized stages, the cast
+is roughly evenly spaced in its authored left-to-right order, with 20% more
+space beside Koshi. Larger casts scale down to fit; authored heights, desktop
+positions, and saved level data remain unchanged. Speakers step forward and
 animate while talking. The lower third holds an animated, 32-by-32 pixel
 portrait on the left and readable Space Grotesk dialogue on the right. The same
 font styles speaker names, scene headings, and controls. Koshi, Robo
