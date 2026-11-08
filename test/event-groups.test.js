@@ -221,8 +221,8 @@ function editorContext() {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function description(')), context);
   vm.runInContext(source.slice(source.indexOf('function readEvent('), source.indexOf('function setSelection(')), context);
-  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf("form.addEventListener('submit'")), context);
-  vm.runInContext(source.slice(source.indexOf('function moveEvent('), source.indexOf('function pointerPosition(')), context);
+  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf('function applyEventChanges(')), context);
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function pointerPosition(')), context);
   return { context, $ };
 }
 

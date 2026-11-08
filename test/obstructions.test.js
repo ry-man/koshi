@@ -746,7 +746,7 @@ function editorFixture() {
   });
   vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function description(')), context);
   vm.runInContext(source.slice(source.indexOf('function readEvent('), source.indexOf('function setSelection(')), context);
-  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf("form.addEventListener('submit'")), context);
+  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf('function applyEventChanges(')), context);
   return { $, context, source };
 }
 
