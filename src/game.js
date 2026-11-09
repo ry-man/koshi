@@ -1487,6 +1487,84 @@ function portalPairIssues(bricks) {
   });
 }
 
+function catTrackPath(track, map = point => point) {
+  const nodes = track.nodes.map(map), segments = [];
+  let length = 0;
+  for (let i = 0; i < nodes.length - (track.closed ? 0 : 1); i++) {
+    const a = nodes[i], b = nodes[(i + 1) % nodes.length];
+    const size = Math.hypot(b.x - a.x, b.y - a.y);
+    segments.push({ a, b, start: length, length: size });
+    length += size;
+  }
+  return { nodes, segments, length, closed: track.closed };
+}
+
+function catTrackPoint(path, distance) {
+  const period = path.length * (path.closed ? 1 : 2);
+  let along = ((distance % period) + period) % period;
+  if (!path.closed && along > path.length) along = period - along;
+  const segment = path.segments.find(segment => along <= segment.start + segment.length) ?? path.segments.at(-1);
+  const t = (along - segment.start) / segment.length;
+  return { x: segment.a.x + (segment.b.x - segment.a.x) * t,
+    y: segment.a.y + (segment.b.y - segment.a.y) * t };
+}
+
+function catTrackProjection(path, point) {
+  let closest, gap = Infinity;
+  for (const segment of path.segments) {
+    const dx = segment.b.x - segment.a.x, dy = segment.b.y - segment.a.y;
+    const t = Math.max(0, Math.min(1, ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / segment.length ** 2));
+    const x = segment.a.x + dx * t, y = segment.a.y + dy * t;
+    const nextGap = Math.hypot(point.x - x, point.y - y);
+    if (nextGap < gap) {
+      closest = { x, y, distance: segment.start + segment.length * t };
+      gap = nextGap;
+    }
+  }
+  return closest;
+}
+
+function validateCatTracks(tracks) {
+  const fail = message => { throw new TypeError(`Cat Tracks: ${message}`); };
+  if (!Array.isArray(tracks) || tracks.length > 100) fail('expected at most 100 tracks.');
+  const ids = new Set();
+  const cross = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const on = (a, b, c) => Math.abs(cross(a, b, c)) <= 1e-12
+    && c.x >= Math.min(a.x, b.x) - 1e-12 && c.x <= Math.max(a.x, b.x) + 1e-12
+    && c.y >= Math.min(a.y, b.y) - 1e-12 && c.y <= Math.max(a.y, b.y) + 1e-12;
+  return tracks.map(track => {
+    if (!track || typeof track !== 'object' || Array.isArray(track)) fail('each track must be an object.');
+    if (typeof track.id !== 'string' || !track.id.trim() || track.id.length > 60 || ids.has(track.id)) fail('track IDs must be unique, nonempty strings of at most 60 characters.');
+    ids.add(track.id);
+    if (typeof track.closed !== 'boolean') fail(`${track.id}: closed must be a boolean.`);
+    if (!Number.isFinite(track.speed) || track.speed < 0 || track.speed > 1000) fail(`${track.id}: speed must be from 0 to 1000 pixels per second.`);
+    if (track.power !== undefined && !['yellow', 'black'].includes(track.power)) fail(`${track.id}: power must be yellow or black.`);
+    if (!Array.isArray(track.nodes) || track.nodes.length < (track.closed ? 3 : 2) || track.nodes.length > 100) fail(`${track.id}: use 2–100 nodes (at least 3 for a loop).`);
+    const nodes = track.nodes.map(node => {
+      if (!node || typeof node !== 'object' || Array.isArray(node)
+        || !['x', 'y'].every(axis => typeof node[axis] === 'number' && Number.isFinite(node[axis]) && node[axis] >= 0 && node[axis] <= 1)) fail(`${track.id}: node coordinates must be from 0 to 1.`);
+      return { x: node.x, y: node.y };
+    });
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      if (Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y) < 1e-6) fail(`${track.id}: nodes must be distinct; loops close automatically.`);
+    }
+    const { segments } = catTrackPath({ ...track, nodes });
+    for (let i = 0; i < segments.length; i++) for (let j = i + 1; j < segments.length; j++) {
+      const { a, b } = segments[i], { a: c, b: d } = segments[j];
+      const adjacent = j === i + 1 || (track.closed && i === 0 && j === segments.length - 1);
+      if (adjacent) {
+        const shared = j === i + 1 ? b : a, first = j === i + 1 ? a : b, last = j === i + 1 ? d : c;
+        if (on(shared, first, last) || on(shared, last, first)) fail(`${track.id}: segments cannot overlap.`);
+      } else if (on(a, b, c) || on(a, b, d) || on(c, d, a) || on(c, d, b)
+        || (cross(a, b, c) * cross(a, b, d) < 0 && cross(c, d, a) * cross(c, d, b) < 0)) {
+        fail(`${track.id}: a track cannot intersect itself.`);
+      }
+    }
+    return { id: track.id, nodes, closed: track.closed, speed: track.speed,
+      ...(track.power === undefined ? {} : { power: track.power }) };
+  });
+}
+
 function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompleteBoss = false, requireCatBlockConsistency = false } = {}) {
   const fail = message => { throw new TypeError(message); };
   const number = (v, min, max, name) => {
@@ -1546,6 +1624,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   const heartCost = value.heartCost === null ? null : number(value.heartCost, 1, 100000, 'Heart cost');
   if (heartCost !== null && !Number.isInteger(heartCost)) fail('Heart cost must be a whole number or null.');
   if (![1, 3].includes(value.brickSet)) fail('Brick set must be 1 or 3 (slow and fast bricks each).');
+  const tracks = validateCatTracks(value.tracks === undefined ? [] : value.tracks);
   if (!Array.isArray(value.events) || value.events.length > 2000) fail('Events must be an array of at most 2000 placements.');
   const events = value.events.map((event, i) => {
     const name = `Event ${i + 1}`;
@@ -1585,6 +1664,12 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     shield(event, result, name);
     if (event.type === 'boss' && (group || event.shield)) fail(`${name}: a boss must be a single, unshielded enemy.`);
     obstructionAppearance(event, result, name);
+    if (event.track !== undefined) {
+      if (event.kind !== 'object' || !(OBJECTS[event.type].bumper || OBJECTS[event.type].obstruction)
+        || random || group) fail(`${name}: Cat Tracks require a single fixed obstruction or bumper.`);
+      if (!tracks.some(track => track.id === event.track)) fail(`${name}: unknown Cat Track.`);
+      result.track = event.track;
+    }
     if (event.carriesCatBlock !== undefined) {
       if (event.kind !== 'enemy' || typeof event.carriesCatBlock !== 'boolean') fail(`${name} has an invalid Cat Block carrier setting.`);
       if (event.carriesCatBlock) result.carriesCatBlock = true;
@@ -1618,6 +1703,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   });
   if (events.reduce((sum, event) => sum + (event.group?.count ?? 1), 0) > 2000) fail('Events must spawn at most 2000 game elements in total.');
   const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
+  if (value.tracks !== undefined) result.tracks = tracks;
   if (value.bossLevel !== undefined) result.bossLevel = value.bossLevel;
   const bosses = events.filter(event => event.kind === 'enemy' && event.type === 'boss');
   if (bosses.length && !value.bossLevel) fail('Enable Boss level before placing a boss.');
@@ -2600,7 +2686,7 @@ function obstructionGeometry(obstruction) {
 
 function obstructionSurface(x, y, obstruction) {
   let dx = x - obstruction.x, dy = y - obstruction.y;
-  if (OBJECTS[obstruction.type].obstruction === 'circle') {
+  if (OBJECTS[obstruction.type].bumper || OBJECTS[obstruction.type].obstruction === 'circle') {
     const distance = Math.hypot(dx, dy);
     return { gap: distance - obstruction.radius, nx: distance ? dx / distance : -1, ny: distance ? dy / distance : 0 };
   }
@@ -2772,6 +2858,7 @@ class Game {
     this.dittoSource = null;
     this.brickStamps = [];
     this.paintBrush = null;
+    this.paintEffects = [];
     this.paintTouching = new Set();
     this.barriers = [];
     this.spawnerTouching = new Set();
@@ -2841,6 +2928,9 @@ class Game {
     }
     applyBrickGroups(this.bricks, this.level.brickGroups);
     this.perimeter = brickPerimeter(this.bricks, this.width, this.height);
+    this.catTracks = (this.level.tracks ?? []).map(track => ({ ...track,
+      path: catTrackPath(track, node => this.campaignEventPoint(node.x, node.y)) }));
+    this.catTracksById = new Map(this.catTracks.map(track => [track.id, track]));
   }
 
   start() {
@@ -3419,12 +3509,20 @@ class Game {
   }
 
   hazardObjectContact(object, dx, dy, dt) {
+    if (object.track) {
+      const x = object.previousX ?? object.x, y = object.previousY ?? object.y;
+      if (!OBJECTS[object.type]?.bumper
+        && Math.hypot(this.cat.x - x, this.cat.y - y) <= this.cat.radius + object.radius) return 0;
+      return circleContact(this.cat.x - x, this.cat.y - y,
+        dx - (object.x - x), dy - (object.y - y), this.cat.radius + object.radius);
+    }
     if (!object.hazardShot) return dx || dy
       ? circleContact(this.cat.x - object.x, this.cat.y - object.y, dx, dy, this.cat.radius + object.radius)
       : Math.hypot(this.cat.x - object.x, this.cat.y - object.y) <= this.cat.radius + object.radius ? 0 : Infinity;
     const x = object.hazardShot ? object.previousX : object.x;
     const y = object.hazardShot ? object.previousY : object.y;
-    if (Math.hypot(this.cat.x - x, this.cat.y - y) <= this.cat.radius + object.radius) return 0;
+    if (!OBJECTS[object.type]?.bumper
+      && Math.hypot(this.cat.x - x, this.cat.y - y) <= this.cat.radius + object.radius) return 0;
     return circleContact(this.cat.x - x, this.cat.y - y,
       dx - (object.hazardShot ? object.vx * dt : 0), dy - (object.hazardShot ? object.vy * dt : 0), this.cat.radius + object.radius);
   }
@@ -3435,15 +3533,16 @@ class Game {
       cat.y - Math.max(part.y, Math.min(part.y + part.h, cat.y))) < cat.radius - tolerance);
   }
 
-  // Obstructor shots shove Koshi like a moving wall; pinned against a brick, he is crushed.
-  pushCatWithShots(parts) {
-    const shots = this.obstructions.filter(shot => shot.hazardShot);
+  // Resolve a moving solid's shove against every solid; an unresolved pinch crushes Koshi.
+  resolveCatSolidOverlaps(parts, afterMovement = false) {
+    const shots = this.obstructions.filter(shot => shot.hazardShot || shot.track);
+    const solids = [...this.obstructions, ...this.bumpers];
     const cat = this.cat, depth = shot => cat.radius - obstructionSurface(cat.x, cat.y, shot).gap;
-    if (!shots.some(shot => depth(shot) > 1e-7)) return;
+    if (!(afterMovement ? solids : shots).some(solid => depth(solid) > 1e-7)) return;
     const startX = cat.x, startY = cat.y;
     for (let pass = 0; pass < 12; pass++) {
       let moved = false;
-      for (const shot of shots) {
+      for (const shot of solids) {
         const overlap = depth(shot);
         if (overlap <= 1e-7) continue;
         const { nx, ny } = obstructionSurface(cat.x, cat.y, shot);
@@ -3468,7 +3567,7 @@ class Game {
       this.catCircleTrap = null;
     }
     this.conveyorRide = null;
-    if (shots.some(shot => depth(shot) > .25) || this.catInsideBrick(parts, .25)) {
+    if (solids.some(solid => depth(solid) > .25) || this.catInsideBrick(parts, .25)) {
       this.hearts = 0;
       this.tookDamage = true;
       cat.vx = 0; cat.vy = 0;
@@ -3969,6 +4068,32 @@ class Game {
     return this.pointFromRelative(position.x, position.y);
   }
 
+  catTrackEnabled(track) {
+    return !track.power || (track.power === 'black') === this.powerOn;
+  }
+
+  trackEventPoint(event, time = event.time) {
+    const track = this.catTracksById.get(event.track);
+    const start = catTrackProjection(track.path, this.campaignEventPoint(event.x, event.y));
+    return catTrackPoint(track.path, start.distance
+      + (this.catTrackEnabled(track) ? Math.max(0, time - event.time) * track.speed : 0));
+  }
+
+  updateCatTracks(dt) {
+    if (!this.catTracks.length) return;
+    for (const object of [...this.obstructions, ...this.bumpers]) {
+      if (!object.track) continue;
+      const track = this.catTracksById.get(object.track);
+      object.previousX = object.x; object.previousY = object.y;
+      if (this.catTrackEnabled(track)) {
+        object.trackDistance += track.speed * Math.max(0, Math.min(dt, this.elapsed - object.trackBorn));
+        Object.assign(object, catTrackPoint(track.path, object.trackDistance));
+      }
+      object.vx = (object.x - object.previousX) / dt;
+      object.vy = (object.y - object.previousY) / dt;
+    }
+  }
+
   spawnCustomEvents() {
     const appearing = [];
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
@@ -3990,6 +4115,7 @@ class Game {
   }
 
   customEventPoints(event, { preview = false } = {}) {
+    if (event.track) return [this.trackEventPoint(event)];
     const b = this.bounds(), width = b.right - b.left, height = b.bottom - b.top;
     const edge = event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type);
     const snap = point => {
@@ -4059,11 +4185,18 @@ class Game {
       if (event.type === 'treasure-chest') collectible.keysRequired = event.keysRequired ?? 1;
       return [collectible];
     }
-    if (event.kind === 'object') return [OBJECTS[event.type].bumper
-      ? this.createBumper(point, event.type) : OBJECTS[event.type].bubble
-        ? this.createBubble(point, event.type) : OBJECTS[event.type].catCircle
-          ? this.createCatCircle(point, event.type) : OBJECTS[event.type].obstruction
-            ? this.createObstruction(point, event) : this.createSoccerBall(point)];
+    if (event.kind === 'object') {
+      const object = OBJECTS[event.type].bumper
+        ? this.createBumper(point, event.type) : OBJECTS[event.type].bubble
+          ? this.createBubble(point, event.type) : OBJECTS[event.type].catCircle
+            ? this.createCatCircle(point, event.type) : OBJECTS[event.type].obstruction
+              ? this.createObstruction(point, event) : this.createSoccerBall(point);
+      if (event.track) {
+        Object.assign(object, { track: event.track, trackBorn: event.time,
+          trackDistance: catTrackProjection(this.catTracksById.get(event.track).path, point).distance });
+      }
+      return [object];
+    }
     const carriedItems = carriedItemTypes(event).filter(type => !this.catBlockCollected || type !== 'cat-block');
     const carriedItem = event.carriesItem && carriedItems.includes(event.carriesItem)
       ? event.carriesItem : carriedItems.length === 1 ? carriedItems[0] : null;
@@ -6336,6 +6469,23 @@ class Game {
         member.readyAt = 0;
       }
       this.brickRevision++;
+      const members = this.brickParts().filter(part => part.id === id).map(part => ({ ...part }));
+      const contact = members.reduce((closest, part) => {
+        const x = Math.max(part.x, Math.min(part.x + part.w, this.cat.x));
+        const y = Math.max(part.y, Math.min(part.y + part.h, this.cat.y));
+        const distance = Math.hypot(x - this.cat.x, y - this.cat.y);
+        if (closest && distance >= closest.distance) return closest;
+        if (distance > 0) return { x, y, distance, nx: (this.cat.x - x) / distance, ny: (this.cat.y - y) / distance };
+        const face = [
+          { x: part.x, y, nx: -1, ny: 0, depth: x - part.x },
+          { x: part.x + part.w, y, nx: 1, ny: 0, depth: part.x + part.w - x },
+          { x, y: part.y, nx: 0, ny: -1, depth: y - part.y },
+          { x, y: part.y + part.h, nx: 0, ny: 1, depth: part.y + part.h - y },
+        ].reduce((nearest, face) => face.depth < nearest.depth ? face : nearest);
+        return { ...face, distance };
+      }, null);
+      this.paintEffects.push({ type: this.paintBrush.type, age: 0, duration: 1.4,
+        x: contact.x, y: contact.y, nx: contact.nx, ny: contact.ny, members });
       if (--this.paintBrush.uses === 0) this.paintBrush = null;
     }
   }
@@ -6494,11 +6644,19 @@ class Game {
     });
   }
 
+  updatePaintEffects(seconds) {
+    this.paintEffects = this.paintEffects.filter(effect => {
+      effect.age += seconds;
+      return effect.age < effect.duration - 1e-9;
+    });
+  }
+
   update(seconds) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     if (this.state === 'playing' && this.bossDefeated) {
       this.updateEnemyDeaths(seconds);
       this.updateWeaponAttacks(seconds);
+      this.updatePaintEffects(seconds);
       this.updateBrickDestructions(seconds);
       if (!this.enemyDeaths.some(enemy => enemy.type === 'boss')) {
         this.state = 'won';
@@ -6510,6 +6668,7 @@ class Game {
       this.updateEnemyDeaths(seconds);
       this.updateGoalEffects(seconds);
       this.updateWeaponAttacks(seconds);
+      this.updatePaintEffects(seconds);
       this.updatePickups(seconds);
       this.updateBrickDestructions(seconds);
       this.updateObstructionDestructions(seconds);
@@ -6537,6 +6696,7 @@ class Game {
     this.updateEnemyDeaths(dt);
     this.updateGoalEffects(dt);
     this.updateWeaponAttacks(dt);
+    this.updatePaintEffects(dt);
     this.updatePickups(dt);
     this.updateBrickDestructions(dt);
     this.updateObstructionDestructions(dt);
@@ -6587,12 +6747,13 @@ class Game {
       }
     }
     if (this.state !== 'playing') { this.tickStart = null; return; }
+    this.updateCatTracks(dt);
     this.clearBlockedPickups();
     this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();
     this.updateHazardEmitters(dt, parts);
-    this.pushCatWithShots(parts);
+    this.resolveCatSolidOverlaps(parts);
     if (this.state !== 'playing') { this.tickStart = null; return; }
     for (const part of parts) {
       if (this.touchingPart(part)) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
@@ -6721,11 +6882,11 @@ class Game {
       }
     }
     if (!dx && !dy && !this.bubbleTrap && !this.catCircleTrap) {
-      bumperTime = Math.min(Infinity, ...this.bumpers.filter(bumper => bumper.hazardShot)
+      bumperTime = Math.min(Infinity, ...this.bumpers.filter(bumper => bumper.hazardShot || bumper.track)
         .map(bumper => this.hazardObjectContact(bumper, 0, 0, dt)));
       if (bumperTime <= 1) {
         contact = bumperTime;
-        bumperContacts = this.bumpers.filter(bumper => bumper.hazardShot
+        bumperContacts = this.bumpers.filter(bumper => (bumper.hazardShot || bumper.track)
           && Math.abs(this.hazardObjectContact(bumper, 0, 0, dt) - bumperTime) <= 1e-9);
       }
     }
@@ -6849,6 +7010,7 @@ class Game {
     }
     if (bumperContacts.length && !teleported) {
       for (const bumper of bumperContacts) {
+        const moving = bumper.hazardShot || bumper.track;
         let nx = cat.x - bumper.x, ny = cat.y - bumper.y;
         let distance = Math.hypot(nx, ny);
         if (distance < 1e-9) {
@@ -6857,10 +7019,10 @@ class Game {
           distance = 1;
         }
         nx /= distance; ny /= distance;
-        const incoming = (cat.vx - (bumper.hazardShot ? bumper.vx : 0)) * nx
-          + (cat.vy - (bumper.hazardShot ? bumper.vy : 0)) * ny;
+        const incoming = (cat.vx - (moving ? bumper.vx : 0)) * nx
+          + (cat.vy - (moving ? bumper.vy : 0)) * ny;
         if (incoming >= -1e-9) continue;
-        if (bumper.hazardShot) {
+        if (moving) {
           const speed = Math.hypot(cat.vx, cat.vy) || SPEED;
           const reflected = reflectVelocity(cat.vx - bumper.vx, cat.vy - bumper.vy, { x: nx, y: ny });
           const length = Math.hypot(reflected.vx, reflected.vy);
@@ -6884,6 +7046,7 @@ class Game {
         this.conveyorRide = null;
       }
     }
+    this.resolveCatSolidOverlaps(parts, true);
     if (rideEnd && !this.conveyorEdge(ride.id, parts)) {
       this.conveyorRide = null;
       cat.vx = 0; cat.vy = 0;
@@ -6918,6 +7081,7 @@ class Game {
 const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.hazardEnabled = hazardEnabled;
+Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks });
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

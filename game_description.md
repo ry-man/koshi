@@ -601,10 +601,11 @@ food (`goal`) and enemy (`killGoal`) targets. All positive targets must be met
 before time runs out. Survival remains exclusive. The editor supports Goals
 and scheduled soccer balls (`kind: "object", type: "soccer-ball"`), including
 ball spawners. Balls have no lifetime or shield. The editor also supports
-stationary red, green and blue bumpers as objects and brick spawners. Bumpers
-bounce Koshi and enemies without moving; red increases Koshi's speed by 25%,
+stationary red, green and blue bumpers as objects and brick spawners. Unless
+attached to Cat Tracks, bumpers bounce Koshi and enemies without moving; red increases Koshi's speed by 25%,
 green preserves it, and blue reduces it by 25%. Their concentric white rings
-compress and shake briefly when hit. Bumpers intercept Jackolantern fire in their
+compress and shake briefly when hit. Their shaded faces and rings are fully
+opaque. Bumpers intercept Jackolantern fire in their
 circular shadow. Food, weapons, items and healing hearts cannot appear or remain
 under bumpers or obstructions: random placement avoids them, and covered live or
 queued pickups are removed. Bumpers use the same two-second warning and arrival
@@ -614,6 +615,30 @@ Pause freezes rolling/scoring effects;
 restart clears scores and restores placements. The guide and tutorial include
 soccer. Level 2-19 requires three goals and supplies five balls; the original
 19 levels remain unchanged.
+
+### Cat Tracks
+
+Custom levels can define fixed, semi-transparent dotted Cat Tracks as connected
+straight segments with editor-authored nodes. Dark green tracks match barrier
+fences and always run; yellow and dark grey tracks run only while
+the shared Power Brick color is yellow or black,
+respectively. Inactive tracks pause in place and resume without resetting.
+Open tracks reverse at endpoints; closed loops circulate continuously. Tracks
+cannot intersect or overlap themselves, but separate tracks may cross.
+Tracks themselves do not block movement.
+The editor's Tracks category contains the Cat Tracks controls. Place nodes
+visually on the board, then select and drag individual numbered nodes to move
+them (arrow keys also work). Invalid moves are reverted; no coordinate-entry
+text box is needed.
+
+Single, fixed obstruction and bumper placements can attach to a track at their
+nearest path point. Their centers move at the track's editor-defined speed
+without changing shape, appearance, destructibility, spawn time, or bumper
+color effects. Moving obstructions push Koshi and can crush him against bricks;
+moving bumpers can bounce stationary Koshi. Pause freezes movement and restart
+restores initial positions. Tracks and attachments round-trip through level JSON;
+the editor timeline previews movement using the starting power color. Existing
+campaign content is unchanged.
 
 ## Enemies
 

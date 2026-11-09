@@ -111,6 +111,7 @@
           <div id="editor-board" data-orientation="landscape" tabindex="-1">
             <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
             <div id="playable-area" aria-hidden="true"></div>
+            <svg id="cat-tracks" aria-label="Cat Tracks"></svg>
             <div id="markers"></div>
             <svg id="spawn-links" aria-hidden="true"></svg>
             <div id="camera-outline" aria-hidden="true" hidden></div>
@@ -152,6 +153,29 @@
           <fieldset id="inspector-access" class="access-fields">
           <p class="eyebrow">CATEGORY</p>
           <div id="category-palette" class="visual-palette" role="group" aria-label="Category"></div>
+          <section id="track-panel" class="cat-tracks-panel" aria-label="Cat Tracks" hidden>
+            <h2>Cat Tracks</h2>
+            <label>Track <select id="track-choice"><option value="">New track</option></select></label>
+            <fieldset id="tracks-access" class="access-fields">
+              <form id="track-form">
+                <label>Speed (pixels / second)<input id="track-speed" type="number" min="0" max="1000" step="any" value="60" required></label>
+                <label>Power / color<select id="track-power"><option value="none">Dark green - always moving</option><option value="yellow">Yellow - moves when Power Bricks are yellow</option>                <option value="black">Dark grey - moves when Power Bricks are black</option></select></label>
+                <label class="inline-label"><input id="track-closed" type="checkbox"> Closed loop</label>
+                <div class="tool-group">
+                  <button id="track-draw" type="button" aria-pressed="false">Draw replacement nodes</button>
+                  <button type="submit">Apply track</button>
+                  <button id="track-reset" type="button">Cancel edits</button>
+                  <button id="track-delete" type="button">Delete track</button>
+                </div>
+                <div class="tool-group">
+                  <button id="track-attach" type="button">Attach selected objects</button>
+                  <button id="track-detach" type="button">Detach selected objects</button>
+                </div>
+              </form>
+            </fieldset>
+            <p>Click Draw, then click the board to add nodes in order. Apply to save. Select a track, then drag its numbered nodes to move them, or focus a node and use the arrow keys. Invalid moves are reverted. Open tracks reverse at endpoints; loops close automatically. Different tracks may cross. Select fixed, single obstructions or bumpers to attach them. Timeline previews use the starting power color.</p>
+            <output id="track-attachments" aria-live="polite"></output>
+          </section>
           <section id="brick-panel" class="brick-inspector" aria-label="Brick inspector" hidden>
             <h2>Bricks &amp; surfaces</h2>
             <p id="brick-selection"></p>

@@ -1332,7 +1332,7 @@ consistent. Existing campaign data is unchanged.
 `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
 Enemy events can carry keys with `"carriesItem": "key"`. A carried item is
-displayed beside the enemy and drops at its position on defeat, remaining
+displayed beside the enemy in front of boundary bricks and drops at its position on defeat, remaining
 collectible until the level ends. Omit a chest event's `lifetime` to
 keep it available until opened or the level ends.
 Random pickups keep 80 game units between their centers and live or queued
@@ -1344,9 +1344,10 @@ Explicitly placed items retain their authored coordinates.
 Objects use `kind: "object"` and have no lifetime or shield. Soccer balls
 persist until scored or the level ends. Custom levels can also place red,
 green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
-have a 96-unit diameter, stay fixed and bounce Koshi and enemies away. Red increases Koshi's speed by
+have a 96-unit diameter, stay fixed unless attached to a Cat Track, and bounce Koshi and enemies away. Red increases Koshi's speed by
 25%, green preserves it, and blue reduces it by 25%.
 Bumpers block Robo Jackolantern fire in their circular shadow, like obstructions.
+Their shaded colored faces and concentric white rings are fully opaque.
 Their two-second appearance warnings and overlap clearing use the obstruction
 rules, including lethal overlap with Koshi and unscored environmental enemy deaths.
 A bounce off any bumper, fixed or fired by a bumper gun, that forces Koshi into a
@@ -1428,6 +1429,69 @@ spawners; appearance has no effect on collision geometry. Optional JSON fields
 
 Obstructions persist until the level ends and are available only for custom
 placements and spawners; no campaign placements are added.
+
+### Cat Tracks
+
+Cat Tracks are fixed, translucent dotted paths, dark green like barrier fences by default. They are
+not collision barriers. In the editor, choose **Tracks** in the right-hand
+category menu to find **Cat Tracks**.
+Choose **Draw replacement nodes**, then click the board to add connected straight
+segments in order (respecting **Discretize X, Y**). Set its speed,
+power color, and optional **Closed loop**, then choose **Apply track**.
+Select an existing track from the menu or click its dotted path to show numbered
+nodes. Drag individual nodes to reposition them, or focus a node and use the
+arrow keys. Saved tracks update when a drag ends; invalid moves are reported and
+reverted, and cancelled drags leave the track unchanged. Nodes are placed and
+edited visually, without a coordinate-entry text box.
+Open paths reverse at each endpoint; loops close automatically, so do not repeat
+the first node. A track cannot intersect, touch, or overlap itself except at
+adjacent segment endpoints. Different tracks may cross without joining.
+
+Select one or more single, fixed obstructions or bumpers, choose an existing
+track, then **Attach selected objects**. Each object's center starts at the
+nearest track point and moves continuously at the track's speed, independent of
+other attached objects. Its scheduled appearance time and existing attributes
+remain intact. Random placements and formations must be changed to single fixed
+placements before attachment. Detach objects before converting them to spawning
+brick templates. **Detach selected objects** removes their track assignment;
+deleting a track detaches all its objects. Neither action deletes the objects.
+
+Yellow and dark grey tracks use the shared Power Brick switch: yellow moves while
+Power Bricks show yellow (`powerOn: false`), dark grey moves while they show black
+(`powerOn: true`). Inactive tracks pause objects in place, preserving direction
+and progress until reactivated. Dark green tracks always move. Game pause freezes all
+track motion; restarting restores initial positions. Moving bumpers retain their
+usual bounce colors. Moving solids resolve Koshi's position against bumpers,
+obstructions, and bricks together; an inescapable pinch crushes him rather than
+leaving him wedged. Steering away from a bumper remains possible during contact,
+including on stopped or power-paused tracks.
+Timeline playback/scrubbing previews movement using the starting power
+color, not simulated player switch activations.
+
+Version 1 JSON optionally contains `tracks` (up to 100), each with a unique
+`id`, `nodes` (2–100, at least 3 for loops), boolean `closed`, and `speed` from
+0–1000 board pixels per second. Optional `power` is `"yellow"` or `"black"`;
+omit it for dark green. An obstruction or bumper event's `track` references its ID:
+
+```json
+{
+  "tracks": [{
+    "id": "track-1",
+    "nodes": [{"x": 0.2, "y": 0.2}, {"x": 0.8, "y": 0.2}, {"x": 0.8, "y": 0.8}],
+    "closed": false,
+    "speed": 60,
+    "power": "yellow"
+  }],
+  "events": [{
+    "time": 0, "kind": "object", "type": "bumper-red",
+    "x": 0.2, "y": 0.2, "track": "track-1"
+  }]
+}
+```
+
+These are fields within a complete level, not a standalone level file. Tracks,
+attachments, and nodes survive JSON printing/loading and playtest links in both
+orientations, including scrolling levels. Existing campaign levels are unchanged.
 
 Duration is 1–3600 seconds, food/enemy/soccer goals are whole numbers from 0 to 100000,
 heart costs are positive integers up to
@@ -1554,6 +1618,12 @@ do not spend paint. Spring bounces and Portal contacts count; staying against
 a brick does not spend repeated uses. Another brush replaces the held brush
 and remaining uses. A Saw Blade takes priority without using paint; Ditto Stamp
 acts before paint. The held brush and remaining count appear beside Koshi.
+Each successful recoloring swings the brush and bursts matching red, green,
+or blue paint outward from the exact brick face Koshi touches. A large outlined
+splat and highlighted droplets spread over 100 board units into the arena,
+staying bold before fading over 1.4 seconds. The paint stain on the brick
+is clipped to its actual members; the airborne spray is not clipped. The final
+use still finishes its brush swing; pause freezes both animations.
 Random placements, reserved spawns, and item spawners use the same brick
 clearance as Ditto Stamp; explicit editor markers retain their positions.
 Saw Blades use this same clearance for random spawns and spawners, including

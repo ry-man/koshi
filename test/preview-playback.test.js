@@ -29,7 +29,8 @@ function fixture({ duration = 20, time = 2, speed = 1 } = {}) {
     { dataset: { previewStart: '3.05', previewEnd: '3.1' } },
   ];
   $('#markers').children = markers;
-  const cameras = [], level = { duration, autoscroll: { length: 16, speed: .25 } };
+  markers.forEach((marker, index) => { marker.dataset.index = String(index); marker.style = {}; });
+  const cameras = [], level = { duration, events: markers.map(() => ({})), autoscroll: { length: 16, speed: .25 } };
   const context = {
     $, level, connectingSpawn: null,
     board: { clientHeight: 600 },

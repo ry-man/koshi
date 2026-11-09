@@ -77,8 +77,8 @@ test('scrolling render skips distant artwork but draws visible attacks from dist
     version: 1, id: 'Rendering', duration: 60, goal: 0, survive: true,
     heartCost: null, brickSet: 1, events: [], autoscroll: { length: 56, speed: 0, events: [] },
   } });
-  const near = { x: 300, y: 300, radius: 20, type: 'mouse' };
-  const far = { ...near, x: 3000, waves: [
+  const near = { x: 300, y: 300, radius: 20, type: 'mouse', carriesItem: 'treasure-chest' };
+  const far = { ...near, carriesItem: null, carriesKey: true, carriesCatBlock: true, x: 3000, waves: [
     { x: 300, y: 300, radius: 100, blocked: [[], [], [], []] },
     { x: 3000, y: 300, radius: 100, blocked: [[], [], [], []] },
   ], bombs: [{ x: 300, y: 300 }, { x: 3000, y: 300 }] };
@@ -90,23 +90,32 @@ test('scrolling render skips distant artwork but draws visible attacks from dist
   game.food = [{ x: 300, y: 300, expires: 10, lifetime: 10 }, { x: 3000, y: 300, expires: 10, lifetime: 10 }];
   const render = source.slice(source.indexOf('function render('), source.indexOf('function drawFoodBadge('));
   const calls = new Map();
+  const layers = new Map();
   const context = {
     game, SWORDS, SLIMES, buttons: [], trail: [], ending: null, colors: {},
     canvas: { width: 960, height: 600 }, board: { clientWidth: 960, clientHeight: 600 },
     document: { querySelector: () => ({ style: {} }) },
     powerupStreamRows: () => ({}), robotDrawOrder: robots => robots, line() {},
   };
-  const canvasContext = new Proxy({}, { get: (_, key) => key === 'globalAlpha' ? 1 : () => {} });
-  context.ctx = context.boardCtx = context.actorCtx = canvasContext;
+  const canvasContext = () => new Proxy({}, { get: (_, key) => key === 'globalAlpha' ? 1 : () => {} });
+  context.ctx = context.boardCtx = canvasContext();
+  context.actorCtx = canvasContext();
   for (const [name] of render.matchAll(/\b(draw[A-Z]\w*)(?=\()/g)) {
     context[name] = (...args) => {
       if (!calls.has(name)) calls.set(name, []);
       calls.get(name).push(args);
+      if (!layers.has(name)) layers.set(name, []);
+      layers.get(name).push(context.ctx);
     };
   }
   vm.runInNewContext(`${helper}\n${render}\nrender(0);`, context);
   assert.equal(calls.get('drawRobot').length, 1);
   assert.equal(calls.get('drawRobot')[0][0], near);
+  assert.deepEqual(calls.get('drawGameItem').map(([item]) => item.type), ['treasure-chest']);
+  assert.ok(layers.get('drawGameItem').every(layer => layer === context.actorCtx),
+    'held items render above bricks on the actor canvas');
+  assert.ok(layers.get('drawRobot').every(layer => layer === context.boardCtx),
+    'enemy bodies retain their existing board layer');
   assert.equal(calls.get('drawFoodBadge').length, 1);
   assert.equal(calls.get('drawFireWave').length, 1);
   assert.equal(calls.get('drawBomb').length, 1);
@@ -114,10 +123,14 @@ test('scrolling render skips distant artwork but draws visible attacks from dist
   assert.equal(game.robots.length, 2, 'drawing must not discard simulation state');
   delete game.level.autoscroll;
   calls.clear();
+  layers.clear();
   vm.runInNewContext(`${helper}\n${render}\nrender(0);`, context);
   for (const name of ['drawRobot', 'drawFoodBadge', 'drawFireWave', 'drawBomb', 'drawBarrier']) {
     assert.equal(calls.get(name).length, 2, `${name} retains non-scrolling rendering`);
   }
+  assert.deepEqual(calls.get('drawGameItem').map(([item]) => item.type), ['treasure-chest', 'cat-block', 'key']);
+  assert.ok(layers.get('drawGameItem').every(layer => layer === context.actorCtx),
+    'legacy Cat Block and key carriers also render held items above bricks');
 });
 
 test('turret drawing keeps crossing beams and overlapping blasts but skips distant effects', () => {

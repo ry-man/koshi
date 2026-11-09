@@ -575,6 +575,19 @@ function drawBoost(ctx, x, y, time) {
   ctx.stroke(new Path2D(FLAME));
   ctx.restore();
 }
+function drawCatTrack(ctx, track) {
+  ctx.save();
+  ctx.strokeStyle = track.power === 'yellow' ? '#d5b83f' : track.power === 'black' ? '#41464b' : '#174f36';
+  ctx.globalAlpha *= .65;
+  ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.setLineDash([1, 8]);
+  ctx.beginPath();
+  track.path.nodes.forEach((node, i) => i ? ctx.lineTo(node.x, node.y) : ctx.moveTo(node.x, node.y));
+  if (track.closed) ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawBarrier(ctx, fence) {
   ctx.save(); ctx.translate(fence.x, fence.y); ctx.rotate(Math.atan2(fence.ny, fence.nx));
   ctx.strokeStyle = '#174f36'; ctx.fillStyle = '#174f36'; ctx.globalAlpha *= .65;
@@ -768,6 +781,48 @@ function drawObstructionDestruction(ctx, effect) {
   }
 }
 
+function drawPaintSplash(ctx, effect) {
+  const progress = Math.max(0, Math.min(1, effect.age / effect.duration));
+  const expansion = 1 - (1 - progress) ** 3;
+  const spread = 24 + 90 * expansion;
+  ctx.save();
+  ctx.globalAlpha *= Math.min(1, (1 - progress) / .45);
+  ctx.fillStyle = ITEMS[effect.type].color;
+  ctx.strokeStyle = '#26323c'; ctx.lineWidth = 2.5;
+  ctx.save();
+  ctx.beginPath();
+  for (const part of effect.members) ctx.rect(part.x, part.y, part.w, part.h);
+  ctx.clip();
+  ctx.beginPath();
+  ctx.arc(effect.x, effect.y, 20 + 30 * expansion, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // The spray escapes the brick face so it remains visible against freshly matching paint.
+  ctx.translate(effect.x + effect.nx * 8, effect.y + effect.ny * 8);
+  ctx.rotate(Math.atan2(effect.ny, effect.nx));
+  ctx.beginPath();
+  for (let i = 0; i < 24; i++) {
+    const angle = i * Math.PI * 2 / 24;
+    const radius = (i % 2 ? 14 : 32 + i % 3 * 5) * (.7 + .3 * expansion);
+    const x = Math.cos(angle) * radius, y = Math.sin(angle) * radius;
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (let i = 0; i < 11; i++) {
+    const angle = (i / 10 - .5) * Math.PI * .9;
+    const reach = spread * (i % 2 ? .7 : 1);
+    const x = Math.cos(angle) * reach, y = Math.sin(angle) * reach;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 7 + 7 * (1 - progress), 4 + 4 * (1 - progress), angle, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.fillStyle = '#fff8e6';
+    ctx.beginPath(); ctx.arc(x - 2, y - 2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function drawBumper(ctx, bumper, time = 0) {
   const radius = bumper.radius ?? 48;
   const color = OBJECTS[bumper.type]?.color ?? '#399d4a';
@@ -775,11 +830,12 @@ function drawBumper(ctx, bumper, time = 0) {
   const compression = Math.sin(pulse * Math.PI) * .06;
   const shake = Math.sin(pulse * Math.PI * 6) * pulse * 1.2;
   ctx.save();
+  ctx.globalAlpha = 1;
   ctx.translate(bumper.x + (bumper.hitNormal?.x ?? 0) * shake,
     bumper.y + (bumper.hitNormal?.y ?? 0) * shake);
   ctx.scale(1 + compression, 1 - compression);
   const face = ctx.createRadialGradient(-radius * .35, -radius * .4, 1, 0, 0, radius);
-  face.addColorStop(0, '#ffffff38'); face.addColorStop(.7, color); face.addColorStop(1, '#17232c');
+  face.addColorStop(0, '#ffffff'); face.addColorStop(.7, color); face.addColorStop(1, '#17232c');
   ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2);
   ctx.fillStyle = face; ctx.fill(); ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2; ctx.stroke();
   ctx.strokeStyle = '#f6f7ef'; ctx.lineWidth = 2.2;
@@ -789,7 +845,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawPaintbrush, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, drawCatTrack, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

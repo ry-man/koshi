@@ -415,10 +415,11 @@ test('campaign inspection preserves unapplied custom information and every multi
     $, document: { querySelectorAll: () => [$('#info-enabled'), graphics] },
     level: blank(), campaignIndex: null, committed: null, dirty: false, placing: true, activeCategory: 'bricks',
     selectedEvents: new Set(), selectedBricks: new Set(), customWorkspace: null, gesture: null,
+    selectedTrackId: 'track-1', trackDrawing: true, trackDrawNodes: [{ x: .2, y: .3 }],
     readOnly: () => context.campaignIndex !== null, campaignPreview: () => ({ id: 'campaign' }),
     populateLevelInfo() { $('#info-pages').replaceChildren(); $('#info-enabled').checked = false; },
   };
-  for (const name of ['populateSettings', 'populateCutscene', 'populateEventForm', 'updatePlaytest',
+  for (const name of ['populateSettings', 'populateCutscene', 'populateEventForm', 'populateTrackForm', 'updatePlaytest',
     'render', 'updateWinCondition', 'syncPalettes', 'showCategory', 'syncAccess', 'message']) context[name] = () => {};
   vm.createContext(context);
   vm.runInContext(editorSource.slice(editorSource.indexOf('function selectEditorLevel('), editorSource.indexOf("$('#editor-level').addEventListener(")), context);
@@ -428,6 +429,9 @@ test('campaign inspection preserves unapplied custom information and every multi
   $('#editor-level').value = 'custom';
   context.selectEditorLevel();
   assert.equal(context.level.id, blank().id);
+  assert.equal(context.selectedTrackId, 'track-1');
+  assert.equal(context.trackDrawing, true);
+  assert.deepEqual(context.trackDrawNodes, [{ x: .2, y: .3 }]);
   assert.equal($('#info-enabled').checked, true);
   assert.equal($('#info-fields').disabled, false);
   assert.equal($('#info-pages').childNodes[0], originalPages[0]);

@@ -79,6 +79,11 @@
 .brick-inspector input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
 #playable-area { position: absolute; border: 1px dashed #d3ef8b55; background: radial-gradient(#8da39d35 1px, transparent 1px); background-size: 18px 18px; pointer-events: none; }
 #markers { position: absolute; inset: 0; pointer-events: none; }
+#cat-tracks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
+.cat-tracks-panel { margin-top: 16px; }
+#cat-tracks[data-editable="true"] .track-path { pointer-events: stroke; cursor: pointer; }
+#cat-tracks[data-editable="true"] .track-node { pointer-events: all; cursor: grab; touch-action: none; }
+#cat-tracks .track-node[aria-pressed="true"], #cat-tracks .track-node:focus-visible { stroke: white; stroke-width: 3; outline: none; }
 #spawn-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 #spawn-links line { stroke: #f4d885; stroke-width: 1; stroke-dasharray: 2 4; vector-effect: non-scaling-stroke; }
 .editor-main .spawn-template { border-style: dashed; }
@@ -154,6 +159,7 @@
 .visual-palette button:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 .palette-picture { position: relative; display: block; width: 44px; height: 28px; color: #c8d4cc; font-size: 25px; line-height: 28px; }
 .palette-picture > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.palette-picture > canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
 .palette-picture > svg:not(.brick-info):not(.brick-portal-cloud):not(.brick-cinder):not(.brick-goal) { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .palette-swatch { border-radius: 4px; border: 2px solid #17232c; }
 .palette-caption { font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; }

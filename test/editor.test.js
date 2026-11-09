@@ -150,7 +150,7 @@ test('Print JSON and Load JSON share one text box without file or draft controls
   };
   const messages = [], errors = [];
   const context = vm.createContext({
-    $, level: blank(), validateCustomLevel, cutsceneError: null, selectedEvents: new Set(), touched: new Set(),
+    $, level: blank(), validateCustomLevel, cutsceneError: null, trackDrawing: false, selectedEvents: new Set(), touched: new Set(),
     message: (text, error = false) => messages.push({ text, error }),
     console: { error: (...args) => errors.push(args) },
   });
@@ -211,7 +211,7 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
     validateCustomLevel, readOnly: () => false, markChanged: () => changes++, selectedEvents: new Set(), touched: new Set(),
     message: (text, error) => { $('#editor-message').textContent = text; $('#editor-message').error = Boolean(error); },
-    console: { error() {} }, dirty: false,
+    console: { error() {} }, dirty: false, trackDrawing: false,
   });
   vm.runInContext(source.slice(source.indexOf('function attempt('), source.indexOf('function markChanged(')), context);
   vm.runInContext(source.slice(source.indexOf('let cutsceneError = null;'), source.indexOf('function addInfoPage(')), context);
@@ -417,18 +417,20 @@ test('the event category pane contains its complete form and actions', () => {
 
 test('editor category navigation opens bricks or the chosen event menu exclusively', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
-  const categories = ['brick', 'food', 'enemy', 'item', 'object', 'weapon'];
+  const categories = ['brick', 'food', 'enemy', 'item', 'object', 'tracks', 'weapon'];
   const buttons = categories.map(category => ({
     dataset: { category }, setAttribute(name, value) { this[name] = value; },
   }));
-  const nodes = { '#brick-panel': {}, '#event-panel': {}, '#category-palette': { children: buttons } };
-  const context = vm.createContext({ $: selector => nodes[selector], activeCategory: 'food' });
+  const nodes = { '#brick-panel': {}, '#event-panel': {}, '#track-panel': {},
+    '#cat-tracks': { dataset: {} }, '#category-palette': { children: buttons } };
+  const context = vm.createContext({ $: selector => nodes[selector], activeCategory: 'food', readOnly: () => false });
   vm.runInContext(source.slice(source.indexOf('function showCategory('), source.indexOf('function syncPalettes(')), context);
   for (const category of categories) {
     context.showCategory(category);
     assert.equal(context.activeCategory, category);
     assert.equal(nodes['#brick-panel'].hidden, category !== 'brick');
-    assert.equal(nodes['#event-panel'].hidden, category === 'brick');
+    assert.equal(nodes['#event-panel'].hidden, category === 'brick' || category === 'tracks');
+    assert.equal(nodes['#track-panel'].hidden, category !== 'tracks');
     assert.deepEqual(buttons.filter(button => button['aria-pressed'] === 'true').map(button => button.dataset.category), [category]);
   }
 });

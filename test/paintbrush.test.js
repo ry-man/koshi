@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { Game, ITEMS, LEVELS, COOLDOWNS, validateCustomLevel, brickRegions } = require('../src/game.js');
-const { spawnSymbol, spawnColor, drawPaintbrush } = require('../src/brick-visuals.js');
+const { spawnSymbol, spawnColor, drawPaintbrush, drawPaintSplash } = require('../src/brick-visuals.js');
 const { GUIDE } = require('../src/learning.js');
 const paints = Object.entries(ITEMS).filter(([, item]) => item.paintUses);
 const level = events => ({ version: 1, id: 'Paint tests', duration: 60, goal: 1000, heartCost: null, brickSet: 1, events });
@@ -119,6 +119,7 @@ test('matching-color contacts never activate any brush, refresh cooldowns or spe
     const before = { ...brick }, revision = game.brickRevision;
     game.collectItem({ type });
     game.paintBricks([brick], false);
+    assert.equal(game.paintEffects.length, 0);
     assert.deepEqual(brick, before);
     assert.equal(game.brickRevision, revision);
     assert.deepEqual(game.paintBrush, { type, uses: item.paintUses });
@@ -131,6 +132,108 @@ test('matching-color contacts never activate any brush, refresh cooldowns or spe
     land(game, other);
     assert.equal(other.kind, item.paintKind);
     assert.equal(game.paintBrush?.uses ?? 0, item.paintUses - 1);
+  }
+});
+
+test('all brushes emit matching splashes only on recoloring, including the final use', () => {
+  for (const [type, item] of paints) for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = arena(options), brick = middle(game, 'top');
+    brick.kind = item.paintKind === 'slow' ? 'fast' : 'slow';
+    game.collectItem({ type });
+    game.paintBrush.uses = 1;
+    game.paintBricks([brick, brick], false);
+    assert.equal(game.paintBrush, null);
+    assert.equal(game.paintEffects.length, 1, 'a contact seam produces one splash and one swing');
+    const effect = game.paintEffects[0];
+    assert.equal(effect.type, type);
+    assert.equal(effect.age, 0);
+    assert.ok(effect.members.length);
+    assert.ok(effect.members.every(part => part.id === brick.id));
+    assert.ok(effect.members.some(part => effect.x >= part.x && effect.x <= part.x + part.w
+      && effect.y >= part.y && effect.y <= part.y + part.h), 'splash is anchored on the painted brick');
+    game.pause(); game.update(.1);
+    assert.equal(effect.age, 0, 'pause freezes the animation');
+    game.resume(); game.update(.1);
+    assert.ok(effect.age > .09);
+    game.state = 'won'; game.update(.7);
+    assert.equal(game.paintEffects.length, 1, 'the splash remains visible well beyond the old half-second duration');
+    game.update(.7);
+    assert.equal(game.paintEffects.length, 0, 'animations expire even after winning');
+    game.reset();
+    assert.equal(game.paintEffects.length, 0);
+  }
+});
+
+test('paint splashes use matching paint, large outward droplets and a slower fade', () => {
+  for (const [type, item] of paints) {
+    const fills = [], clips = [], ellipses = [];
+    const stack = [];
+    const context = {
+      globalAlpha: 1,
+      save() { stack.push({ globalAlpha: this.globalAlpha, fillStyle: this.fillStyle }); },
+      restore() { Object.assign(this, stack.pop()); },
+      beginPath() {}, arc() {}, stroke() {}, translate() {}, rotate() {}, moveTo() {}, lineTo() {}, closePath() {},
+      rect(...args) { clips.push(args); }, clip() {},
+      ellipse(...args) { ellipses.push(args); },
+      fill() { fills.push({ color: this.fillStyle, alpha: this.globalAlpha }); },
+    };
+    const members = [{ x: 10, y: 20, w: 40, h: 30 }, { x: 50, y: 20, w: 20, h: 30 }];
+    const effect = { type, x: 30, y: 40, nx: 0, ny: 1, duration: 1.4, members };
+    drawPaintSplash(context, { ...effect, age: .1 });
+    assert.deepEqual(clips, [[10, 20, 40, 30], [50, 20, 20, 30]]);
+    assert.ok(fills.some(fill => fill.color === item.color && fill.alpha === 1));
+    assert.ok(fills.some(fill => fill.color === '#fff8e6'), 'droplets have contrasting highlights');
+    const firstX = ellipses[0][0];
+    fills.length = 0; ellipses.length = 0; context.globalAlpha = 1;
+    drawPaintSplash(context, { ...effect, age: .8 });
+    assert.ok(ellipses[0][0] > firstX, 'droplets expand outward');
+    assert.ok(ellipses.some(([x, y]) => Math.hypot(x, y) > 100), 'spray extends over 100 board units');
+    assert.ok(fills.every(fill => fill.alpha > .9), 'paint stays bold for more than half a second');
+    assert.ok(ellipses.every(([x, y, rx, ry]) => x > 0 && rx >= 7 && ry >= 4), 'large droplets spray outward from the contact face');
+    fills.length = 0;
+    drawPaintSplash(context, { ...effect, age: 1.25 });
+    assert.ok(fills.every(fill => fill.alpha < .5));
+    assert.equal(stack.length, 0);
+  }
+});
+
+test('paint splash origins and normals match the actual contacted face in both orientations', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+      const game = arena(options), brick = middle(game, edge);
+      brick.kind = 'normal';
+      game.collectItem({ type: 'paint-pencil-red' });
+      land(game, brick);
+      const effect = game.paintEffects[0];
+      assert.ok(effect, `${edge} landing must splash`);
+      const normal = { top: [0, 1], bottom: [0, -1], left: [1, 0], right: [-1, 0] }[edge];
+      assert.ok(Math.abs(effect.nx - normal[0]) < 1e-8);
+      assert.ok(Math.abs(effect.ny - normal[1]) < 1e-8);
+      assert.ok(effect.members.some(part => effect.x >= part.x && effect.x <= part.x + part.w
+        && effect.y >= part.y && effect.y <= part.y + part.h));
+      assert.ok(Math.abs(Math.hypot(game.cat.x - effect.x, game.cat.y - effect.y) - game.cat.radius) < .1);
+      assert.equal(effect.duration, 1.4);
+    }
+  }
+});
+
+test('held brushes rotate on use and finish the swing after the last use', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const render = app.slice(app.indexOf('  const paintSwing ='), app.indexOf('  if (game.batteries > 0)'));
+  for (const [type] of paints) for (const depleted of [false, true]) {
+    const rotations = [], drawn = [];
+    const ctx = new Proxy({}, { get: (_, key) => (...args) => {
+      if (key === 'rotate') rotations.push(args[0]);
+    } });
+    const game = { paintBrush: depleted ? null : { type, uses: 2 },
+      paintEffects: [{ type, age: .09 }], cat: { x: 100, y: 100 }, elapsed: 1 };
+    vm.runInNewContext(render, { game, ctx, ITEMS, drawPaintbrush: (ctx, item) => drawn.push(item) });
+    assert.equal(drawn[0], ITEMS[type]);
+    assert.ok(Math.abs(rotations[0] - (-.3 - Math.PI / 4)) < 1e-9);
+    game.paintEffects[0].age = .2;
+    drawn.length = 0;
+    vm.runInNewContext(render, { game, ctx, ITEMS, drawPaintbrush: (ctx, item) => drawn.push(item) });
+    assert.equal(drawn.length, depleted ? 0 : 1);
   }
 });
 

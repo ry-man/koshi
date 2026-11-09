@@ -3,6 +3,26 @@ const assert = require('node:assert/strict');
 const { Game, OBJECTS, validateCustomLevel } = require('../src/game.js');
 const { drawBumper, spawnColor, spawnSymbol } = require('../src/brick-visuals.js');
 
+test('all bumper colors render opaque faces and rings even on a translucent context', () => {
+  for (const type of ['bumper-red', 'bumper-green', 'bumper-blue']) {
+    const stops = [], alphas = [], stack = [];
+    const context = {
+      globalAlpha: .2,
+      save() { stack.push(this.globalAlpha); },
+      restore() { this.globalAlpha = stack.pop(); },
+      translate() {}, scale() {}, beginPath() {}, arc() {},
+      fill() { alphas.push(this.globalAlpha); }, stroke() { alphas.push(this.globalAlpha); },
+      createRadialGradient() { return { addColorStop: (offset, color) => stops.push(color) }; },
+    };
+    drawBumper(context, { type, x: 0, y: 0 });
+    assert.ok(stops.every(color => /^#[0-9a-f]{6}$/i.test(color)));
+    assert.equal(stops[1], OBJECTS[type].color);
+    assert.equal(alphas.length, 5);
+    assert.ok(alphas.every(alpha => alpha === 1));
+    assert.equal(context.globalAlpha, .2, 'drawing restores its caller context');
+  }
+});
+
 const blank = () => ({
   version: 1, id: 'Bumper test', duration: 60, goal: 1000,
   heartCost: null, brickSet: 1, events: [],

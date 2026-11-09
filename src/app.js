@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = globalThis.KoshiCollectibles;
@@ -2193,6 +2193,7 @@ function render(now) {
   for (const { brick, button, members } of buttons) button.inert = !game.brickVisible(brick, members);
   ctx = boardCtx;
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
+  for (const track of game.catTracks) globalThis.KoshiBrickVisuals.drawCatTrack(ctx, track);
   for (const fence of game.barrierSegments()) {
     const endX = fence.x + fence.nx * fence.length, endY = fence.y + fence.ny * fence.length;
     if (!game.level.autoscroll || cameraBoundsVisible(camera, Math.min(fence.x, endX), Math.min(fence.y, endY),
@@ -2274,18 +2275,6 @@ function render(now) {
   }
   for (const enemy of robotDrawOrder(visibleRobots)) {
     drawRobot(enemy, null, game.enemyDamageProgress(enemy));
-    const carriedItems = enemy.carriesItem ? [enemy.carriesItem] : [
-      ...(enemy.carriesCatBlock ? ['cat-block'] : []),
-      ...(enemy.carriesKey ? ['key'] : []),
-    ];
-    for (const [index, type] of carriedItems.entries()) {
-      ctx.save();
-      const side = carriedItems.length > 1 && index === 0 ? -1 : 1;
-      ctx.translate(enemy.x + side * enemy.radius, enemy.y - enemy.radius - 10);
-      ctx.scale(.72, .72);
-      drawGameItem({ x: 0, y: 0, type, keysRequired: 1 });
-      ctx.restore();
-    }
     if (enemy.asleep) {
       ctx.save(); ctx.fillStyle = '#d7c3ff'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('Z z', enemy.x + 19, enemy.y - enemy.radius - 6); ctx.restore();
@@ -2304,6 +2293,20 @@ function render(now) {
   }
   ctx = actorCtx;
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
+  for (const enemy of robotDrawOrder(visibleRobots)) {
+    const carriedItems = enemy.carriesItem ? [enemy.carriesItem] : [
+      ...(enemy.carriesCatBlock ? ['cat-block'] : []),
+      ...(enemy.carriesKey ? ['key'] : []),
+    ];
+    for (const [index, type] of carriedItems.entries()) {
+      ctx.save();
+      const side = carriedItems.length > 1 && index === 0 ? -1 : 1;
+      ctx.translate(enemy.x + side * enemy.radius, enemy.y - enemy.radius - 10);
+      ctx.scale(.72, .72);
+      drawGameItem({ x: 0, y: 0, type, keysRequired: 1 });
+      ctx.restore();
+    }
+  }
   for (const enemy of visibleRobots) if (enemy.type === 'robo-cow') drawCowGrass(enemy);
   const goalBricks = game.bricks.filter(brick => brick.kind === 'goal' && brick.absorbedBy === null);
   if (goalBricks.length) {
@@ -2316,6 +2319,7 @@ function render(now) {
     }
   }
   for (const ball of game.soccerBalls ?? []) if (visible(ball)) drawSoccerBall(ctx, ball);
+  for (const effect of game.paintEffects) if (visible(effect, 150)) drawPaintSplash(ctx, effect);
   for (const bumper of game.bumpers ?? []) if (visible(bumper)) {
     drawEmergingShot(bumper, OBJECTS[bumper.type]?.color ?? '#ffffff', shot => drawBumper(ctx, shot, game.elapsed));
   }
@@ -2375,15 +2379,21 @@ function render(now) {
     drawDittoStamp(colors[game.dittoSource?.kind] ?? '#696879');
     ctx.restore();
   }
-  if (game.paintBrush) {
+  const paintSwing = [...game.paintEffects].reverse().find(effect => effect.age < .18);
+  if (game.paintBrush || paintSwing) {
+    const type = game.paintBrush?.type ?? paintSwing.type;
+    const age = paintSwing?.type === type ? paintSwing.age : null;
+    const swingAngle = age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4;
     ctx.save();
     ctx.translate(game.cat.x - 34, game.cat.y - 18 + Math.sin(game.elapsed * 3) * 3);
-    ctx.save(); ctx.scale(.7, .7); ctx.rotate(-.3);
-    drawPaintbrush(ctx, ITEMS[game.paintBrush.type]); ctx.restore();
+    ctx.save(); ctx.scale(.7, .7); ctx.rotate(-.3 - swingAngle);
+    drawPaintbrush(ctx, ITEMS[type]); ctx.restore();
     ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 3;
     ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
-    ctx.strokeText(String(game.paintBrush.uses), 0, 29);
-    ctx.fillText(String(game.paintBrush.uses), 0, 29);
+    if (game.paintBrush) {
+      ctx.strokeText(String(game.paintBrush.uses), 0, 29);
+      ctx.fillText(String(game.paintBrush.uses), 0, 29);
+    }
     ctx.restore();
   }
   if (game.batteries > 0) {

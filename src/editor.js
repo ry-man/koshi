@@ -4,7 +4,7 @@
 const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
-const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : '');
 const board = $('#editor-board');
@@ -63,6 +63,11 @@ let dirty = false;
 let committed = JSON.stringify(level);
 let campaignIndex = null;
 let customWorkspace = null;
+let selectedTrackId = '';
+let trackDrawing = false;
+let trackDrawNodes = [];
+let selectedTrackNode = -1;
+let trackNodeGesture = null;
 const readOnly = () => campaignIndex !== null;
 const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access', '#camera-access'];
 const writeButtons = ['#place-mode', '#new-level'];
@@ -117,6 +122,7 @@ function selectEditorLevel() {
   const value = $('#editor-level').value;
   if (value !== 'custom' && !readOnly()) {
     customWorkspace = { level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks,
+      selectedTrackId, trackDrawing, trackDrawNodes,
       sceneLines: [...$('#scene-lines').childNodes],
       sceneFieldsDisabled: $('#scene-fields').disabled,
       infoPages: [...$('#info-pages').childNodes], infoFieldsDisabled: $('#info-fields').disabled,
@@ -127,11 +133,13 @@ function selectEditorLevel() {
   if (value === 'custom') {
     if (!customWorkspace) return;
     campaignIndex = null;
-    ({ level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks } = customWorkspace);
+    ({ level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks,
+      selectedTrackId, trackDrawing, trackDrawNodes } = customWorkspace);
   } else {
     campaignIndex = Number(value);
     level = campaignPreview(campaignIndex);
     placing = false; selectedEvents = new Set(); selectedBricks = new Set();
+    selectedTrackId = ''; populateTrackForm();
     $('#timeline').value = 0;
   }
   gesture = null; $('#selection-box').hidden = true;
@@ -182,7 +190,17 @@ function picture(value, control) {
   const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie', object: 'soccer-ball' }[value] }
     : control === 'event-type' ? { kind: $('#event-kind').value, type: value }
     : control === 'brick-spawn-item' ? { kind: value.split(':')[0], type: value.split(':')[1] } : null;
-  if (control === 'info-slime' || control === 'info-steering') {
+  if (value === 'tracks') {
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
+    svg.setAttribute('viewBox', '-28 -18 56 36'); svg.setAttribute('aria-hidden', 'true');
+    path.setAttribute('d', 'M-22 10 L-8 -10 L8 8 L22 -8');
+    path.setAttribute('stroke-dasharray', '1 5'); svg.append(path); image.append(svg);
+  } else if (item?.kind === 'object' && OBJECTS[item.type]?.bumper) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 56; canvas.height = 56; canvas.setAttribute('aria-hidden', 'true');
+    drawBumper(canvas.getContext('2d'), { x: 28, y: 28, radius: 25, type: item.type });
+    image.append(canvas);
+  } else if (control === 'info-slime' || control === 'info-steering') {
     const brick = { x: 0, y: 0, w: 88, h: 52,
       kind: control === 'info-steering' ? value : 'normal',
       region: { edge: 'top', start: 0, end: 1 } };
@@ -272,19 +290,21 @@ function choiceButton(value, name, control, action) {
 }
 
 function setupPalettes() {
-  for (const [category, name] of [['brick', 'Bricks'], ['food', 'Food'], ['enemy', 'Enemies'], ['item', 'Items'], ['object', 'Objects'], ['weapon', 'Weapons']]) {
+  for (const [category, name] of [['brick', 'Bricks'], ['food', 'Food'], ['enemy', 'Enemies'], ['item', 'Items'], ['object', 'Objects'], ['tracks', 'Tracks'], ['weapon', 'Weapons']]) {
     const button = choiceButton(category === 'brick' ? 'normal' : category, name, category === 'brick' ? 'brick-kind' : 'event-kind', () => {
       if (category === 'brick') {
         selectedEvents = new Set();
         showCategory(category);
         populateEventForm(); render();
+      } else if (category === 'tracks') {
+        showCategory(category); render();
       } else {
         $('#event-kind').value = category;
         $('#event-kind').dispatchEvent(new Event('change'));
       }
     });
     button.dataset.category = category;
-    button.setAttribute('aria-controls', category === 'brick' ? 'brick-panel' : 'event-panel');
+    button.setAttribute('aria-controls', category === 'brick' ? 'brick-panel' : category === 'tracks' ? 'track-panel' : 'event-panel');
     $('#category-palette').append(button);
   }
   showCategory(activeCategory);
@@ -316,7 +336,9 @@ function setupPalettes() {
 function showCategory(category) {
   activeCategory = category;
   $('#brick-panel').hidden = category !== 'brick';
-  $('#event-panel').hidden = category === 'brick';
+  $('#event-panel').hidden = category === 'brick' || category === 'tracks';
+  $('#track-panel').hidden = category !== 'tracks';
+  $('#cat-tracks').dataset.editable = String(category === 'tracks' && !readOnly());
   for (const button of $('#category-palette').children) {
     button.setAttribute('aria-pressed', String(button.dataset.category === category));
   }
@@ -1004,6 +1026,7 @@ function renderBoard() {
   $('#selection-summary').textContent = summary.length ? `${summary.join(' + ')} selected` : 'Nothing selected';
   $('#clear-selection').disabled = !summary.length;
   const markers = $('#markers'); markers.replaceChildren();
+  renderCatTracks();
   const templates = spawnTemplates();
   renderSpawnLinks(templates);
   [...level.events.map((event, index) => ({ event, index })), ...templates]
@@ -1124,6 +1147,12 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
     marker.hidden = connectingSpawn === null && !$('#show-all').checked
       && (Number(marker.dataset.previewStart) > time
         || (marker.dataset.previewEnd !== undefined && Number(marker.dataset.previewEnd) <= time));
+    const event = level.events[Number(marker.dataset.index)];
+    if (event.track) {
+      const point = previewGame.trackEventPoint(event, time);
+      marker.style.left = `${point.x / previewGame.width * 100}%`;
+      marker.style.top = `${point.y / previewGame.height * 100}%`;
+    }
   }
   if (time >= level.duration) pausePreview();
   $('#preview-play').disabled = time >= level.duration;
@@ -1171,6 +1200,211 @@ function renderPointReference(events, bricks) {
 function render() {
   renderBoard(); renderList();
 }
+
+function populateTrackForm() {
+  trackDrawing = false;
+  selectedTrackNode = -1;
+  trackNodeGesture = null;
+  const track = (level.tracks ?? []).find(track => track.id === selectedTrackId);
+  $('#track-speed').value = track?.speed ?? 60;
+  $('#track-power').value = track?.power ?? 'none';
+  $('#track-closed').checked = track?.closed ?? false;
+  trackDrawNodes = (track?.nodes ?? []).map(node => ({ ...node }));
+}
+
+function renderCatTracks() {
+  const tracks = level.tracks ?? [], choice = $('#track-choice');
+  if (selectedTrackId && !tracks.some(track => track.id === selectedTrackId)) {
+    selectedTrackId = ''; populateTrackForm();
+  }
+  choice.replaceChildren(...[['', 'New track'], ...tracks.map(track => [track.id, track.id])].map(([value, name]) => {
+    const option = document.createElement('option');
+    option.value = value; option.textContent = name;
+    return option;
+  }));
+  choice.value = selectedTrackId;
+  $('#tracks-access').disabled = readOnly();
+  $('#track-delete').disabled = !selectedTrackId;
+  $('#track-attach').disabled = !selectedTrackId || !selectedEvents.size;
+  $('#track-detach').disabled = !selectedList().some(index => level.events[index].track);
+  $('#track-draw').setAttribute('aria-pressed', String(trackDrawing));
+  $('#track-draw').textContent = trackDrawing ? 'Done drawing nodes' : 'Draw replacement nodes';
+  const attached = selectedList().filter(index => level.events[index].track)
+    .map(index => `Event ${index + 1}: ${level.events[index].track}`);
+  $('#track-attachments').textContent = attached.join('; ');
+  const svg = $('#cat-tracks'), ns = 'http://www.w3.org/2000/svg';
+  svg.dataset.editable = String(activeCategory === 'tracks' && !readOnly());
+  svg.replaceChildren();
+  svg.setAttribute('viewBox', `0 0 ${previewGame.width} ${previewGame.height}`);
+  const draw = (track, nodes) => {
+    const path = document.createElementNS(ns, 'polyline');
+    const points = track.closed && nodes.length > 2 ? [...nodes, nodes[0]] : nodes;
+    path.setAttribute('points', points.map(node => `${node.x},${node.y}`).join(' '));
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', track.power === 'yellow' ? '#d5b83f' : track.power === 'black' ? '#41464b' : '#174f36');
+    path.setAttribute('stroke-width', '3'); path.setAttribute('stroke-dasharray', '1 8');
+    path.setAttribute('stroke-linecap', 'round'); path.setAttribute('opacity', '.65');
+    path.setAttribute('class', 'track-path');
+    path.addEventListener('pointerdown', event => {
+      if (readOnly() || activeCategory !== 'tracks' || trackDrawing || !track.id || event.button !== 0) return;
+      event.preventDefault(); event.stopPropagation();
+      selectedTrackId = track.id; populateTrackForm(); renderBoard();
+    });
+    svg.append(path);
+    if (track.id === selectedTrackId || trackDrawing && track.id === '') nodes.forEach((node, i) => {
+      const circle = document.createElementNS(ns, 'circle');
+      circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y); circle.setAttribute('r', '5');
+      circle.setAttribute('fill', i ? '#d5b99c' : '#f4d885');
+      circle.setAttribute('class', 'track-node');
+      circle.setAttribute('data-node', String(i));
+      circle.setAttribute('role', 'button');
+      circle.setAttribute('aria-label', `${track.id || 'New track'} node ${i + 1}`);
+      circle.setAttribute('aria-pressed', String(selectedTrackNode === i));
+      if (!readOnly() && activeCategory === 'tracks') circle.setAttribute('tabindex', '0');
+      circle.addEventListener('pointerdown', event => startTrackNodeDrag(event, i));
+      circle.addEventListener('keydown', event => moveTrackNodeWithKeyboard(event, i));
+      svg.append(circle);
+      const label = document.createElementNS(ns, 'text');
+      label.setAttribute('x', node.x + 8); label.setAttribute('y', node.y - 8);
+      label.setAttribute('fill', '#f4d885'); label.setAttribute('font-size', '12');
+      label.textContent = String(i + 1); svg.append(label);
+    });
+  };
+  for (const track of previewGame.catTracks) {
+    const nodes = track.id === selectedTrackId ? trackNodeGesture?.nodes ?? trackDrawNodes : null;
+    draw(track, nodes ? nodes.map(node => previewGame.pointFromRelative(node.x, node.y)) : track.path.nodes);
+  }
+  if (!selectedTrackId && trackDrawNodes.length) draw({ id: '', closed: $('#track-closed').checked, power: $('#track-power').value },
+    (trackNodeGesture?.nodes ?? trackDrawNodes).map(node => previewGame.pointFromRelative(node.x, node.y)));
+}
+
+function saveTrackNodeMove(index, point) {
+  const nodes = trackDrawNodes.map((node, i) => i === index ? point : node);
+  if (selectedTrackId && !trackDrawing) {
+    const tracks = level.tracks.map(track => track.id === selectedTrackId ? { ...track, nodes } : track);
+    level = validateDraft({ ...level, tracks });
+    markChanged();
+  }
+  trackDrawNodes = nodes;
+}
+
+function focusTrackNode(index) {
+  $('#cat-tracks').querySelector(`[data-node="${index}"]`)?.focus({ preventScroll: true });
+}
+
+function startTrackNodeDrag(event, index) {
+  if (readOnly() || activeCategory !== 'tracks' || event.button !== 0 || gesture || trackNodeGesture) return;
+  event.preventDefault(); event.stopPropagation();
+  pausePreview();
+  selectedTrackNode = index;
+  trackNodeGesture = { index, pointerId: event.pointerId, nodes: trackDrawNodes.map(node => ({ ...node })) };
+  board.setPointerCapture(event.pointerId);
+  renderCatTracks();
+}
+
+function moveTrackNodeWithKeyboard(event, index) {
+  if (readOnly() || activeCategory !== 'tracks') return;
+  const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+  if (!direction) return;
+  event.preventDefault(); event.stopPropagation();
+  pausePreview();
+  selectedTrackNode = index;
+  attempt(() => {
+    const node = trackDrawNodes[index], grid = placementGrid();
+    saveTrackNodeMove(index, placementPosition(node.x + direction[0] * (grid ? grid.spacing / grid.width : .01),
+      node.y + direction[1] * (grid ? grid.spacing / grid.height : .01)));
+  });
+  renderBoard(); focusTrackNode(index);
+}
+
+function dragTrackNode(event) {
+  if (!trackNodeGesture || trackNodeGesture.pointerId !== event.pointerId) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  const point = pointerPosition(event);
+  trackNodeGesture.nodes[trackNodeGesture.index] = placementPosition(point.x, point.y);
+  renderCatTracks();
+}
+
+function finishTrackNodeDrag(event) {
+  if (!trackNodeGesture || trackNodeGesture.pointerId !== event.pointerId) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  const current = trackNodeGesture;
+  trackNodeGesture = null;
+  if (board.hasPointerCapture(event.pointerId)) board.releasePointerCapture(event.pointerId);
+  if (event.type !== 'pointercancel') attempt(() => {
+    saveTrackNodeMove(current.index, current.nodes[current.index]);
+  });
+  renderBoard(); focusTrackNode(current.index);
+}
+
+$('#track-choice').addEventListener('change', () => {
+  selectedTrackId = $('#track-choice').value;
+  populateTrackForm(); renderBoard();
+});
+$('#track-reset').addEventListener('click', () => { populateTrackForm(); renderBoard(); });
+$('#track-draw').addEventListener('click', () => {
+  if (readOnly()) return;
+  if (!trackDrawing) { trackDrawNodes = []; selectedTrackNode = -1; }
+  trackDrawing = !trackDrawing;
+  renderBoard();
+  message(trackDrawing ? 'Click the board to add Cat Track nodes, then Apply track to save.' : 'Drawing stopped. Apply track to save, or Cancel edits.');
+});
+function addTrackNode(event) {
+  if (!trackDrawing || activeCategory !== 'tracks' || readOnly() || event.button !== 0 || event.target.closest('.track-node')) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  attempt(() => {
+    const point = pointerPosition(event);
+    if (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) throw new Error('Place Cat Track nodes inside the playable area.');
+    trackDrawNodes = [...trackDrawNodes, placementPosition(point.x, point.y)];
+    renderBoard();
+  });
+}
+$('#track-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (readOnly()) return;
+  attempt(() => {
+    let id = selectedTrackId;
+    if (!id) {
+      let next = 1;
+      while ((level.tracks ?? []).some(track => track.id === `track-${next}`)) next++;
+      id = `track-${next}`;
+    }
+    const power = $('#track-power').value;
+    const track = { id, nodes: trackDrawNodes, closed: $('#track-closed').checked,
+      speed: Number($('#track-speed').value), ...(power === 'none' ? {} : { power }) };
+    const tracks = [...(level.tracks ?? []).filter(track => track.id !== id), track];
+    level = validateDraft({ ...level, tracks });
+    selectedTrackId = id; populateTrackForm(); markChanged(); render();
+    message(`Applied ${id}. Select obstructions or bumpers, then Attach selected objects.`);
+  });
+});
+$('#track-delete').addEventListener('click', () => {
+  if (readOnly() || !selectedTrackId) return;
+  attempt(() => {
+    const events = level.events.map(event => {
+      if (event.track !== selectedTrackId) return event;
+      const { track, ...detached } = event;
+      return detached;
+    });
+    level = validateDraft({ ...level, events, tracks: level.tracks.filter(track => track.id !== selectedTrackId) });
+    selectedTrackId = ''; populateTrackForm(); markChanged(); render();
+    message('Cat Track deleted; its objects are now stationary.');
+  });
+});
+for (const attach of [true, false]) $(`#track-${attach ? 'attach' : 'detach'}`).addEventListener('click', () => {
+  if (readOnly()) return;
+  attempt(() => {
+    if (attach && !selectedTrackId) throw new Error('Apply or select a Cat Track first.');
+    const events = level.events.map((event, index) => {
+      if (!selectedEvents.has(index)) return event;
+      const { track, ...detached } = event;
+      return attach ? { ...detached, track: selectedTrackId } : detached;
+    });
+    level = validateDraft({ ...level, events });
+    markChanged(); populateEventForm(); render();
+    message(attach ? 'Selected objects attached at their nearest track points.' : 'Selected objects detached.');
+  });
+});
 
 function focusMarker(index) { board.querySelector(`.marker[data-index="${index}"]`)?.focus({ preventScroll: true }); }
 function focusBrick(key) { board.querySelector(`.editor-brick[data-region="${key}"]`)?.focus({ preventScroll: true }); }
@@ -1228,6 +1462,7 @@ function updateSpawnTemplateDraft(key, spawn) {
 function connectSpawn(index) {
   const event = level.events[index];
   if (!event || connectingSpawn === null) throw new Error('Choose a placed object to connect.');
+  if (event.track) throw new Error('Detach the object from its Cat Track before connecting it to a spawning brick.');
   if (event.random || event.group) throw new Error('Connect requires a single object at a fixed location.');
   const key = connectingSpawn, { time, ...spawn } = event;
   saveSpawnTemplate(key, spawn, index);
@@ -1355,6 +1590,10 @@ function boxSelect(event) {
 
 function placeAt(event) {
   if (readOnly()) return;
+  if (activeCategory === 'tracks') {
+    message('Choose Draw replacement nodes to place a track, or drag an existing track node.');
+    return;
+  }
   if (activeCategory === 'brick') {
     message('Select a boundary brick to edit it, or choose another category to place objects.');
     return;
@@ -2163,7 +2402,8 @@ $('#level-info-form').addEventListener('submit', event => {
 function replaceLevel(value) {
   const candidate = validateDraft(value);
   pausePreview();
-  level = candidate; placing = true; markChanged(); populateSettings(); populateCutscene(); populateLevelInfo(); setSelection([], []);
+  level = candidate; selectedTrackId = ''; populateTrackForm();
+  placing = true; markChanged(); populateSettings(); populateCutscene(); populateLevelInfo(); setSelection([], []);
 }
 let previewPlayback = null;
 
@@ -2231,6 +2471,7 @@ $('#dynamic-view').addEventListener('change', () => renderPreviewTime());
 $('#orientation').addEventListener('change', renderBoard);
 new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
 function validateSavedLevel() {
+  if (trackDrawing) throw new Error('Apply the Cat Track or Cancel edits before printing JSON or playtesting.');
   if (cutsceneError) throw cutsceneError;
   if (selectedEvents.size && touched.size) throw new Error('Finish or correct the selected event changes before printing JSON or playtesting.');
   return validateCustomLevel(level, { requireCatBlockConsistency: true });
@@ -2261,6 +2502,10 @@ window.addEventListener('beforeunload', event => {
   if (readOnly() ? customWorkspace?.dirty : dirty) { event.preventDefault(); event.returnValue = ''; }
 });
 
+board.addEventListener('pointerdown', addTrackNode, true);
+board.addEventListener('pointermove', dragTrackNode, true);
+board.addEventListener('pointerup', finishTrackNodeDrag, true);
+board.addEventListener('pointercancel', finishTrackNodeDrag, true);
 setupPalettes();
 setupObstructionColors();
 typeOptions();
