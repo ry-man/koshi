@@ -1405,6 +1405,9 @@ Their two-second appearance warnings and overlap clearing use the obstruction
 rules, including lethal overlap with Koshi and unscored environmental enemy deaths.
 A bounce off any bumper, fixed or fired by a bumper gun, that forces Koshi into a
 brick kills him immediately, even while protected.
+Standing at a bumper gun's muzzle is safe: if its new shot overlaps Koshi, it
+launches him outward without damage, preserving his sideways offset. The launch
+cannot pass through a blocking brick; an actual pinch still kills him.
 Food, weapons, items and healing hearts cannot overlap bumpers or obstructions:
 random pickups avoid them, and covered live or queued pickups are removed.
 Custom levels can also place blue, green and red bubbles (`bubble-blue`,

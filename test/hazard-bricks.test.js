@@ -172,6 +172,86 @@ test('moving bubble captures a stationary Koshi and moving bumper launches him w
   }
 });
 
+test('bumper guns launch Koshi away from the muzzle even when the new shot overlaps him', () => {
+  for (const options of [{}, { portrait: true }]) for (const edge of ['top', 'bottom', 'left', 'right']) {
+    for (const [color, multiplier] of [['red', 1.25], ['green', 1], ['blue', .75]]) {
+      for (const depth of [21, 30, 48, 70, 130]) for (const offset of [-35, 0, 35]) {
+        const base = arena('missile', {}, options), regions = brickRegions(base.bricks, base.width, base.height);
+        const source = base.bricks.filter(brick => regions.get(brick.id).edge === edge)
+          .sort((a, b) => Math.hypot(a.x + a.w / 2 - base.width / 2, a.y + a.h / 2 - base.height / 2)
+            - Math.hypot(b.x + b.w / 2 - base.width / 2, b.y + b.h / 2 - base.height / 2))[0];
+        const game = new Game(() => .5, { ...options, customLevel: {
+          ...blank(), brickTypes: [{ ...brickEditRegions(base.bricks).get(source.id),
+            kind: 'normal', hazard: { type: `bumper-${color}`, interval: 1 } }],
+        } });
+        game.start();
+        const { anchor, direction } = turretGeometry(emitter(game), game.width, game.height);
+        game.cat.x = anchor.x + direction.x * depth - direction.y * offset;
+        game.cat.y = anchor.y + direction.y * depth + direction.x * offset;
+        const label = `${JSON.stringify(options)} ${edge} ${color} depth ${depth} offset ${offset}`;
+        assert.equal(game.catInsideBrick(game.brickParts()), false, label);
+        game.update(.98);
+        assert.equal(game.hearts, 3, label);
+        assert.equal(game.bumpers.length, 0, label);
+        for (let step = 0; step < 60 && !game.bumpers.some(shot => Number.isFinite(shot.hitAt)); step++) {
+          game.update(1 / 120);
+        }
+        assert.equal(game.state, 'playing', label);
+        assert.equal(game.hearts, 3, label);
+        assert.equal(game.tookDamage, false, label);
+        assert.equal(game.catInsideBrick(game.brickParts()), false, label);
+        assert.ok(game.cat.vx * direction.x + game.cat.vy * direction.y > 0, label);
+        assert.ok(Math.abs(Math.hypot(game.cat.vx, game.cat.vy) - 420 * multiplier) < 1e-6, label);
+        const shot = game.bumpers[0];
+        assert.ok(Number.isFinite(shot.hitAt), label);
+        assert.ok(Math.hypot(game.cat.x - shot.x, game.cat.y - shot.y) >= game.cat.radius + shot.radius, label);
+        if (depth <= 70) {
+          const across = -(game.cat.x - anchor.x) * direction.y + (game.cat.y - anchor.y) * direction.x;
+          assert.ok(Math.abs(across - offset) < 1e-6, label);
+        }
+        game.update(1 / 120);
+        assert.equal(game.state, 'playing', label);
+        assert.equal(game.hearts, 3, label);
+        assert.ok(Math.abs(Math.hypot(game.cat.vx, game.cat.vy) - 420 * multiplier) < 1e-6, label);
+        assert.equal(shot.launchNormal, null, label);
+      }
+    }
+  }
+});
+
+test('muzzle overlaps launch moving Koshi outward without reversing an escaping Koshi', () => {
+  for (const [color, multiplier] of [['red', 1.25], ['green', 1], ['blue', .75]]) {
+    for (const speed of [-100, 0, 120, 420]) {
+      const game = arena(`bumper-${color}`, { interval: 1 });
+      const { anchor } = turretGeometry(emitter(game), game.width, game.height);
+      game.cat.x = anchor.x + 20; game.cat.y = anchor.y + 48;
+      game.update(.98);
+      game.cat.vy = speed;
+      for (let step = 0; step < 6 && !game.bumpers.some(shot => Number.isFinite(shot.hitAt)); step++) {
+        game.update(1 / 120);
+      }
+      assert.equal(game.state, 'playing');
+      assert.equal(game.hearts, 3);
+      assert.ok(Math.abs(game.cat.vy - (Math.abs(speed) || 420) * multiplier) < 1e-6);
+      assert.equal(game.cat.x, anchor.x + 20);
+    }
+  }
+});
+
+test('a muzzle launch cannot teleport Koshi through a thin blocking brick', () => {
+  const game = arena('bumper-green', { interval: 1 }), brick = emitter(game);
+  const { anchor } = turretGeometry(brick, game.width, game.height);
+  game.bricks.push({ ...brick, id: game.bricks.length, hazard: null, region: null,
+    x: anchor.x - 100, y: anchor.y + 60, w: 200, h: 2 });
+  game.cat.x = anchor.x; game.cat.y = anchor.y + 30;
+  assert.equal(game.catInsideBrick(game.brickParts()), false);
+  game.update(.98);
+  assert.equal(game.state, 'playing');
+  game.update(.04);
+  assert.equal(game.state, 'lost');
+  assert.equal(game.hearts, 0);
+});
+
 test('a bumper shot that forces Koshi into a brick kills him at once', () => {
   for (const options of [{}, { portrait: true }]) for (const offset of [0, 30, -45]) {
     const game = arena('bumper-blue', { interval: 1 }, options), brick = emitter(game);

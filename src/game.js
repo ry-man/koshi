@@ -3763,6 +3763,12 @@ class Game {
     for (const field of ['bubbles', 'bumpers', 'obstructions']) {
       this[field] = this[field].filter(shot => {
         if (!shot.hazardShot) return true;
+        if (field === 'bumpers') {
+          // A new shot can surround Koshi behind its center; launch him outward, not into the gun.
+          shot.launchNormal = shot.emerge?.age === 0
+            && Math.hypot(this.cat.x - shot.x, this.cat.y - shot.y) <= this.cat.radius + shot.radius
+            ? { x: shot.emerge.dx, y: shot.emerge.dy } : null;
+        }
         if (shot.emerge) shot.emerge.age += dt;
         shot.previousX = shot.x; shot.previousY = shot.y;
         const dx = shot.vx * dt, dy = shot.vy * dt;
@@ -3788,6 +3794,7 @@ class Game {
   }
 
   hazardObjectContact(object, dx, dy, dt) {
+    if (object.launchNormal) return 0;
     if (object.track) {
       const x = object.previousX ?? object.x, y = object.previousY ?? object.y;
       if (!OBJECTS[object.type]?.bumper
@@ -7428,9 +7435,11 @@ class Game {
       this.target = null;
     }
     if (bumperContacts.length && !teleported) {
+      let launchBlocked = false;
       for (const bumper of bumperContacts) {
         const moving = bumper.hazardShot || bumper.track;
-        let nx = cat.x - bumper.x, ny = cat.y - bumper.y;
+        let nx = bumper.launchNormal?.x ?? cat.x - bumper.x;
+        let ny = bumper.launchNormal?.y ?? cat.y - bumper.y;
         let distance = Math.hypot(nx, ny);
         if (distance < 1e-9) {
           const speed = Math.hypot(cat.vx, cat.vy) || 1;
@@ -7440,24 +7449,39 @@ class Game {
         nx /= distance; ny /= distance;
         const incoming = (cat.vx - (moving ? bumper.vx : 0)) * nx
           + (cat.vy - (moving ? bumper.vy : 0)) * ny;
-        if (incoming >= -1e-9) continue;
+        if (incoming >= -1e-9 && !bumper.launchNormal) continue;
         if (moving) {
-          const speed = Math.hypot(cat.vx, cat.vy) || SPEED;
-          const reflected = reflectVelocity(cat.vx - bumper.vx, cat.vy - bumper.vy, { x: nx, y: ny });
-          const length = Math.hypot(reflected.vx, reflected.vy);
-          cat.vx = reflected.vx / length * speed; cat.vy = reflected.vy / length * speed;
+          if (incoming < -1e-9) {
+            const speed = Math.hypot(cat.vx, cat.vy) || SPEED;
+            const reflected = reflectVelocity(cat.vx - bumper.vx, cat.vy - bumper.vy, { x: nx, y: ny });
+            const length = Math.hypot(reflected.vx, reflected.vy);
+            cat.vx = reflected.vx / length * speed; cat.vy = reflected.vy / length * speed;
+          }
           this.conveyorRide = null;
         } else Object.assign(cat, reflectVelocity(cat.vx, cat.vy, { x: nx, y: ny }));
         const multiplier = OBJECTS[bumper.type].speedMultiplier;
         cat.vx *= multiplier; cat.vy *= multiplier;
-        cat.x = bumper.x + nx * (cat.radius + bumper.radius + .01);
-        cat.y = bumper.y + ny * (cat.radius + bumper.radius + .01);
+        if (bumper.launchNormal) {
+          const along = (cat.x - bumper.x) * nx + (cat.y - bumper.y) * ny;
+          const across = (cat.x - bumper.x) * ny - (cat.y - bumper.y) * nx;
+          const radius = cat.radius + bumper.radius + .01;
+          const shove = Math.max(0, Math.sqrt(Math.max(0, radius * radius - across * across)) - along);
+          let time = 1;
+          for (const part of this.collisionCandidates(parts, cat.x, cat.y, nx * shove, ny * shove, cat.radius)) {
+            time = Math.min(time, brickContact(cat.x, cat.y, nx * shove, ny * shove, cat.radius, part));
+          }
+          cat.x += nx * shove * time; cat.y += ny * shove * time;
+          launchBlocked ||= time < 1;
+        } else {
+          cat.x = bumper.x + nx * (cat.radius + bumper.radius + .01);
+          cat.y = bumper.y + ny * (cat.radius + bumper.radius + .01);
+        }
         if (this.catCircleTrap) this.catCircleTrap = null;
         bumper.hitAt = this.elapsed;
         bumper.hitNormal = { x: nx, y: ny };
         this.target = null;
       }
-      if (this.catInsideBrick(parts)) {
+      if (launchBlocked || this.catInsideBrick(parts)) {
         this.hearts = 0;
         this.tookDamage = true;
         cat.vx = 0; cat.vy = 0;
