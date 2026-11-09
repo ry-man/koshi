@@ -305,7 +305,7 @@ const save = value => validateCustomLevel(value, { requireCatBlockConsistency: t
 test('save consistency rejects missing and conflicting reward sources, but permits incomplete editing', () => {
   const methods = {
     spawn: item('cat-block'),
-    carrier: carrier({ carriesCatBlock: true }),
+    carrier: carrier({ carriesItem: 'cat-block' }),
     chest: item('treasure-chest'),
   };
   for (const [type, source] of Object.entries(methods)) {
@@ -328,7 +328,7 @@ test('save consistency rejects missing and conflicting reward sources, but permi
 test('save checks count keys, key carriers and battery-recharged key spawners for chests', () => {
   const draft = { ...level({ type: 'chest' }), events: [item('treasure-chest', { keysRequired: 3 }), item('key')] };
   assert.throws(() => save(draft), /more keys/);
-  const withCarriers = { ...draft, events: [...draft.events, carrier({ carriesKey: true }), carrier({ carriesKey: true })] };
+  const withCarriers = { ...draft, events: [...draft.events, carrier({ carriesItem: 'key' }), carrier({ carriesItem: 'key' })] };
   assert.doesNotThrow(() => save(withCarriers));
   const keySpawner = { edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'item', type: 'key' } };
   const withSpawner = { ...draft, brickTypes: [keySpawner] };
@@ -348,7 +348,7 @@ test('save checks count keys, key carriers and battery-recharged key spawners fo
 test('save consistency permits only one Cat Brick source, including legacy hints and effective spawners', () => {
   const methods = [
     ['spawn', item('cat-block')],
-    ['carrier', carrier({ carriesCatBlock: true })],
+    ['carrier', carrier({ carriesItem: 'cat-block' })],
     ['chest', item('treasure-chest')],
   ];
   for (const [type, source] of methods) {

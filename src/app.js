@@ -2274,10 +2274,17 @@ function render(now) {
   }
   for (const enemy of robotDrawOrder(visibleRobots)) {
     drawRobot(enemy, null, game.enemyDamageProgress(enemy));
-    if (enemy.carriesCatBlock) drawCatBlockBadge(enemy.x + enemy.radius, enemy.y - enemy.radius - 10, 20);
-    if (enemy.carriesKey) {
-      ctx.save(); ctx.translate(enemy.x - enemy.radius, enemy.y - enemy.radius - 10);
-      ctx.scale(.6, .6); drawKey(); ctx.restore();
+    const carriedItems = enemy.carriesItem ? [enemy.carriesItem] : [
+      ...(enemy.carriesCatBlock ? ['cat-block'] : []),
+      ...(enemy.carriesKey ? ['key'] : []),
+    ];
+    for (const [index, type] of carriedItems.entries()) {
+      ctx.save();
+      const side = carriedItems.length > 1 && index === 0 ? -1 : 1;
+      ctx.translate(enemy.x + side * enemy.radius, enemy.y - enemy.radius - 10);
+      ctx.scale(.72, .72);
+      drawGameItem({ x: 0, y: 0, type, keysRequired: 1 });
+      ctx.restore();
     }
     if (enemy.asleep) {
       ctx.save(); ctx.fillStyle = '#d7c3ff'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';

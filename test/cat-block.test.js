@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, LEVELS, CAT_BLOCK_MESSAGES, validateCustomLevel } = require('../src/game.js');
+const { Game, LEVELS, CAT_BLOCK_MESSAGES, ITEMS, validateCustomLevel } = require('../src/game.js');
 
 const catBlock = { description: 'Find the Cat Block.', messages: CAT_BLOCK_MESSAGES };
 const level = events => ({
@@ -164,6 +164,41 @@ test('Cat Block, keys, chests and enemy carriers validate as custom-level events
   ]) assert.throws(() => validateCustomLevel(level([event])), /key carrier/);
 });
 
+test('enemy events accept and drop any catalog item while validating legacy carrier settings', () => {
+  for (const type of Object.keys(ITEMS)) {
+    const event = { time: 0, kind: 'enemy', type: 'mouse', x: .6, y: .5, carriesItem: type };
+    const validated = validateCustomLevel(level([event]));
+    assert.equal(validated.events[0].carriesItem, type);
+    const game = new Game(() => .5, { customLevel: level([event]) });
+    const [enemy] = game.createCustomSpawn(event);
+    const position = { x: enemy.x, y: enemy.y };
+    game.defeatEnemy(enemy);
+    assert.equal(game.items.length, 1, `${type} drops exactly once`);
+    assert.equal(game.items[0].type, type);
+    assert.deepEqual({ x: game.items[0].x, y: game.items[0].y }, position);
+    if (type === 'treasure-chest') assert.equal(game.items[0].keysRequired, 1);
+    if (type === 'cat-block') assert.equal(game.items[0].source, 'enemy');
+    assert.equal(enemy.carriesItem, null);
+  }
+  assert.throws(() => validateCustomLevel(level([
+    { time: 0, kind: 'enemy', type: 'mouse', x: .5, y: .5, carriesItem: 'not-an-item' },
+  ])), /invalid carried item/);
+  assert.throws(() => validateCustomLevel(level([
+    { time: 0, kind: 'item', type: 'key', x: .5, y: .5, carriesItem: 'battery' },
+  ])), /invalid carried item/);
+  assert.throws(() => validateCustomLevel(level([
+    { time: 0, kind: 'enemy', type: 'mouse', x: .5, y: .5, carriesItem: 'battery', carriesKey: true },
+  ])), /conflicting carried items/);
+  assert.equal(validateCustomLevel(level([
+    { time: 0, kind: 'enemy', type: 'mouse', x: .5, y: .5, carriesItem: 'key' },
+  ])).events[0].carriesItem, 'key');
+  const legacy = { time: 0, kind: 'enemy', type: 'mouse', x: .6, y: .5, carriesCatBlock: true, carriesKey: true };
+  const game = new Game(() => .5, { customLevel: level([legacy]) });
+  const [enemy] = game.createCustomSpawn(legacy);
+  game.defeatEnemy(enemy);
+  assert.deepEqual(game.items.map(item => item.type), ['cat-block', 'key'], 'legacy carriers may retain both items');
+});
+
 test('1-4 generates exactly three keys before its permanent three-key chest', () => {
   const index = LEVELS.findIndex(level => level.number === '1-4');
   for (const options of [{}, { portrait: true, scale: .4 }]) {
@@ -228,7 +263,7 @@ test('1-4 generates exactly three keys before its permanent three-key chest', ()
 });
 
 test('custom key carriers drop persistent keys even when the Cat Block is already acquired', () => {
-  const event = { time: 0, kind: 'enemy', type: 'mouse', x: .6, y: .5, carriesKey: true };
+  const event = { time: 0, kind: 'enemy', type: 'mouse', x: .6, y: .5, carriesItem: 'key' };
   const game = new Game(() => .5, { customLevel: { ...level([event]), catBlock: undefined }, catBlockCollected: true });
   const [enemy] = game.createCustomSpawn(event);
   assert.equal(enemy.carriesKey, true);
@@ -314,7 +349,8 @@ test('key artwork uses solid bright yellow paths without emoji or transparency',
   assert.ok(strokes.includes('#fff59a'));
   assert.equal(ctx.globalAlpha, 1);
   assert.doesNotMatch(code, /globalAlpha|fillText/);
-  assert.match(source, /ctx\.scale\(\.6, \.6\); drawKey\(\)/, 'carrier uses the same opaque artwork');
+  assert.match(source, /ctx\.scale\(\.72, \.72\);\s*drawGameItem\(\{ x: 0, y: 0, type, keysRequired: 1 \}\)/,
+    'carrier uses the generic item artwork at a larger readable size');
 });
 
 test('regular Cat Block pickups and defeated carriers report their acquisition methods', () => {

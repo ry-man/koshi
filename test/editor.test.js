@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, SHIELDS, SWORDS, WEAPONS, OBJECTS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, ITEMS, SHIELDS, SWORDS, WEAPONS, OBJECTS, CHARACTERS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -621,7 +621,9 @@ test('campaign editor previews use every real schedule and preserve the original
   const { LEVELS } = require('../src/game.js');
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const before = JSON.stringify(LEVELS);
-  const context = vm.createContext({ Game });
+  const context = vm.createContext({
+    Game, carriedItem: event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : ''),
+  });
   vm.runInContext(source.slice(source.indexOf('function campaignPreview('), source.indexOf('function syncAccess(')), context);
   for (const [index, campaign] of LEVELS.entries()) {
     const preview = context.campaignPreview(index);
@@ -643,9 +645,9 @@ test('campaign editor previews use every real schedule and preserve the original
     for (const event of preview.events.filter(event => !campaign.events?.includes(event))) {
       assert.equal(event.previewRandom, event.kind !== 'enemy' || event.type !== 'boss');
     }
-    assert.equal(preview.events.filter(event => event.carriesKey).length,
+    assert.equal(preview.events.filter(event => event.carriesItem === 'key').length,
       campaign.enemies.filter(entry => entry[4]?.carriesKey).length);
-    assert.equal(preview.events.filter(event => event.carriesCatBlock).length,
+    assert.equal(preview.events.filter(event => event.carriesItem === 'cat-block').length,
       campaign.enemies.filter(entry => entry[4]?.carriesCatBlock).length);
     validateCustomLevel({ ...preview, version: 1 });
     assert.equal(JSON.stringify(context.campaignPreview(index)), JSON.stringify(preview), 'representative positions stay stable');
@@ -661,6 +663,28 @@ test('campaign editor previews use every real schedule and preserve the original
     assert.ok(preview.events.every(event => Number.isFinite(event.x) && Number.isFinite(event.y)));
   }
   assert.equal(JSON.stringify(LEVELS), before);
+});
+
+test('enemy editor exposes one carried-item selector and resolves legacy carrier fields', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  assert.match(html, /id="event-carries-item"/);
+  assert.doesNotMatch(html, /event-carries-cat-block|event-carries-key/);
+  const options = [];
+  const setup = source.slice(source.indexOf("$('#event-carries-item').append"), source.indexOf('let level = blank();'));
+  const optionContext = vm.createContext({
+    ITEMS, document: { createElement: () => ({}) },
+    $: () => ({ append: (...items) => options.push(...items) }),
+  });
+  vm.runInContext(setup, optionContext);
+  assert.deepEqual(options.map(option => option.value), Object.keys(ITEMS));
+  assert.match(html, /<option value="">None<\/option>/);
+  const context = vm.createContext({});
+  vm.runInContext(`${source.slice(source.indexOf('const carriedItem ='), source.indexOf('const board ='))}\nglobalThis.testCarriedItem = carriedItem;`, context);
+  assert.equal(context.testCarriedItem({ carriesItem: 'battery', carriesKey: true }), 'battery');
+  assert.equal(context.testCarriedItem({ carriesCatBlock: true }), 'cat-block');
+  assert.equal(context.testCarriedItem({ carriesKey: true }), 'key');
+  assert.equal(context.testCarriedItem({}), '');
 });
 
 test('read-only campaign controls lock all write surfaces but leave inspection available', () => {
@@ -1203,7 +1227,9 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
     return inputs.get(selector);
   };
   const context = vm.createContext({
-    $, FOODS, SWORDS, WEAPONS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, SHIELDS: {},
+    $, FOODS, SWORDS, WEAPONS, ITEMS: require('../src/game.js').ITEMS, OBJECTS: require('../src/game.js').OBJECTS, CHARACTERS, SHIELDS: {},
+    carriedItem: event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : ''),
+    CARRIED_ITEM_MIXED: '__mixed-carried-item__',
     snapWheel,
     document: { createElement: () => ({}) }, MIXED: '',
     level: blank(), selectedEvents: new Set(), touched: new Set(),
@@ -1273,6 +1299,17 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
   context.populateEventForm();
   assert.equal($('#event-lifetime').disabled, true);
   assert.equal($('#event-shield').disabled, true);
+  context.level = { ...blank(), events: [
+    { ...event('enemy', 'mouse'), carriesItem: 'key' },
+    { ...event('enemy', 'mouse'), carriesItem: 'cat-block' },
+  ] };
+  context.selectedEvents = new Set([0, 1]);
+  context.populateEventForm();
+  assert.equal($('#event-carries-item').value, '__mixed-carried-item__');
+  context.level = { ...blank(), events: [event('enemy', 'mouse')] };
+  context.selectedEvents = new Set([0]);
+  context.populateEventForm();
+  assert.equal($('#event-carries-item').value, '', 'None remains distinct from Mixed');
 });
 
 test('snake event selectors and editor placements use Wheel edge snapping', () => {

@@ -6,6 +6,7 @@ const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
+const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : '');
 const board = $('#editor-board');
 const form = $('#event-form');
 const campaignMode = globalThis.KoshiCampaignMode;
@@ -43,6 +44,11 @@ for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy
   }
   $('#brick-spawn-item').append(group);
 }
+$('#event-carries-item').append(...Object.entries(ITEMS).map(([value, item]) => {
+  const option = document.createElement('option');
+  option.value = value; option.textContent = item.name;
+  return option;
+}));
 let level = blank();
 let selectedEvents = new Set();
 let selectedBricks = new Set();
@@ -87,8 +93,8 @@ function campaignPreview(index) {
   for (const entry of game.level.enemies) {
     for (const enemy of game.createEnemies(entry)) {
       add('enemy', entry[0], entry[1], enemy, null, entry[3]);
-      if (enemy.carriesCatBlock) events.at(-1).carriesCatBlock = true;
-      if (enemy.carriesKey) events.at(-1).carriesKey = true;
+      const item = enemy.carriesItem ?? (enemy.carriesCatBlock ? 'cat-block' : enemy.carriesKey ? 'key' : '');
+      if (item) events.at(-1).carriesItem = item;
     }
   }
   for (const [kind, entries] of [['weapon', game.level.weapons], ['item', game.level.items]]) {
@@ -423,9 +429,7 @@ function typeOptions(type, showLifetime) {
   $('#shield-label').hidden = kind !== 'enemy' && kind !== MIXED;
   $('#event-shield').disabled = kind !== 'enemy' && kind !== MIXED;
   $('#event-carrier-label').hidden = kind !== 'enemy' && kind !== MIXED;
-  $('#event-carries-cat-block').disabled = kind !== 'enemy' && kind !== MIXED;
-  $('#event-key-carrier-label').hidden = kind !== 'enemy' && kind !== MIXED;
-  $('#event-carries-key').disabled = kind !== 'enemy' && kind !== MIXED;
+  $('#event-carries-item').disabled = kind !== 'enemy' && kind !== MIXED;
   const chest = kind === 'item' && $('#event-type').value === 'treasure-chest';
   $('#chest-keys-label').hidden = !chest;
   $('#event-keys-required').disabled = !chest;
@@ -515,7 +519,7 @@ function description(event) {
     : event.kind === 'weapon' ? WEAPONS[event.type].name
       : event.kind === 'item' ? ITEMS[event.type].name
         : event.kind === 'object' ? OBJECTS[event.type].name
-        : `${CHARACTERS[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}${event.carriesCatBlock ? ' · carries Cat Block' : ''}${event.carriesKey ? ' · carries key' : ''}`;
+        : `${CHARACTERS[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}${carriedItem(event) ? ` · carries ${ITEMS[carriedItem(event)]?.name ?? carriedItem(event)}` : ''}`;
 }
 
 function icon(event) {
@@ -538,8 +542,7 @@ function readEvent() {
     event.lifetime = Number($('#event-lifetime').value);
   }
   if (event.kind === 'enemy') event.shield = $('#event-shield').value === 'none' ? null : $('#event-shield').value;
-  if (event.kind === 'enemy' && $('#event-carries-cat-block').checked) event.carriesCatBlock = true;
-  if (event.kind === 'enemy' && $('#event-carries-key').checked) event.carriesKey = true;
+  if (event.kind === 'enemy' && $('#event-carries-item').value) event.carriesItem = $('#event-carries-item').value;
   if (event.kind === 'item' && event.type === 'treasure-chest') {
     event.keysRequired = Number($('#event-keys-required').value || $('#event-keys-required').placeholder || 1);
   }
@@ -584,12 +587,17 @@ function populateEventForm() {
   const shields = items.filter(event => event.kind === 'enemy').map(event => event.shield ?? 'none');
   if (shields.length && common(shields) === MIXED) mixedOption($('#event-shield'));
   else $('#event-shield').value = shields[0] ?? 'none';
-  const carriers = items.filter(event => event.kind === 'enemy').map(event => Boolean(event.carriesCatBlock));
-  $('#event-carries-cat-block').checked = carriers.length > 0 && carriers.every(Boolean);
-  $('#event-carries-cat-block').indeterminate = carriers.some(Boolean) && !carriers.every(Boolean);
-  const keyCarriers = items.filter(event => event.kind === 'enemy').map(event => Boolean(event.carriesKey));
-  $('#event-carries-key').checked = keyCarriers.length > 0 && keyCarriers.every(Boolean);
-  $('#event-carries-key').indeterminate = keyCarriers.some(Boolean) && !keyCarriers.every(Boolean);
+  const carriers = items.filter(event => event.kind === 'enemy')
+    .map(event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : ''));
+  const carrierMixed = carriers.some(item => item !== carriers[0]);
+  $('#event-carries-item').querySelector('option[value="__mixed-carried-item__"]')?.remove();
+  if (carrierMixed) {
+    const option = document.createElement('option');
+    option.value = '__mixed-carried-item__'; option.textContent = 'Mixed';
+    $('#event-carries-item').prepend(option);
+    $('#event-carries-item').value = '__mixed-carried-item__';
+  }
+  else $('#event-carries-item').value = carriers[0] ?? '';
   const chestRequirements = items.filter(event => event.kind === 'item' && event.type === 'treasure-chest')
     .map(event => event.keysRequired ?? 1);
   $('#event-keys-required').value = chestRequirements.length && common(chestRequirements) !== MIXED
@@ -1676,8 +1684,7 @@ for (const field of ['width', 'height', 'destructible']) {
 }
 $('#brick-spawn-shield').addEventListener('change', event => attempt(() => saveBrick(event)));
 $('#event-shield').addEventListener('change', () => touched.add('#event-shield'));
-$('#event-carries-cat-block').addEventListener('change', () => touched.add('#event-carries-cat-block'));
-$('#event-carries-key').addEventListener('change', () => touched.add('#event-carries-key'));
+$('#event-carries-item').addEventListener('change', () => touched.add('#event-carries-item'));
 for (const selector of ['#event-time', '#event-lifetime', '#event-x', '#event-y', '#event-keys-required']) {
   $(selector).addEventListener('input', () => touched.add(selector));
 }
@@ -1696,14 +1703,13 @@ function applyToSelected() {
   const time = number('#event-time'), x = number('#event-x'), y = number('#event-y'), lifetime = number('#event-lifetime');
   const lifetimeChanged = touched.has('#event-lifetime') && !$('#event-lifetime').disabled;
   const shieldChanged = touched.has('#event-shield') && value('#event-shield') !== MIXED;
-  const carrierChanged = touched.has('#event-carries-cat-block');
-  const keyCarrierChanged = touched.has('#event-carries-key');
+  const carrierChanged = touched.has('#event-carries-item') && value('#event-carries-item') !== '__mixed-carried-item__';
   const keysChanged = touched.has('#event-keys-required') && !$('#event-keys-required').disabled;
   const textureFields = ['color', 'pattern', 'patternColor'].filter(field => touched.has(`#event-${field}`) && value(`#event-${field}`) !== MIXED);
   const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
   const destructibleChanged = touched.has('#event-destructible');
   const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle'].some(selector => touched.has(selector));
-  if (!kind && !type && !shieldChanged && !carrierChanged && !keyCarrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !shieldChanged && !carrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -1740,15 +1746,12 @@ function applyToSelected() {
     } else delete next.lifetime;
     if (next.kind !== 'enemy') delete next.shield;
     else if (shieldChanged) next.shield = value('#event-shield') === 'none' ? null : value('#event-shield');
-    if (next.kind !== 'enemy') delete next.carriesCatBlock;
-    else if (carrierChanged) {
-      if ($('#event-carries-cat-block').checked) next.carriesCatBlock = true;
-      else delete next.carriesCatBlock;
-    }
-    if (next.kind !== 'enemy') delete next.carriesKey;
-    else if (keyCarrierChanged) {
-      if ($('#event-carries-key').checked) next.carriesKey = true;
-      else delete next.carriesKey;
+    if (next.kind !== 'enemy') {
+      delete next.carriesItem; delete next.carriesCatBlock; delete next.carriesKey;
+    } else if (carrierChanged) {
+      delete next.carriesCatBlock; delete next.carriesKey;
+      if (value('#event-carries-item')) next.carriesItem = value('#event-carries-item');
+      else delete next.carriesItem;
     }
     if (next.kind !== 'item' || next.type !== 'treasure-chest') delete next.keysRequired;
     else if (keysChanged) next.keysRequired = Number(value('#event-keys-required'));

@@ -93,7 +93,7 @@ function catBlockObjective(level) {
   if (level.catBlock.trigger) return catBlockDescription(level.catBlock.trigger);
   const events = level.events ?? [];
   if ((level.enemies ?? []).some(event => event[4]?.carriesCatBlock)
-    || events.some(event => event.kind === 'enemy' && event.carriesCatBlock)) {
+    || events.some(event => event.kind === 'enemy' && carriedItemType(event) === 'cat-block')) {
     return catBlockDescription({ type: 'carrier' });
   }
   if (events.some(event => event.kind === 'item' && event.type === 'treasure-chest')) {
@@ -107,6 +107,16 @@ function catBlockObjective(level) {
 }
 function matchesCatBrickType(brick, type) {
   return brick.kind === type || Boolean(brick[type]);
+}
+function carriedItemType(carrier) {
+  return carriedItemTypes(carrier)[0] ?? null;
+}
+function carriedItemTypes(carrier) {
+  if (carrier.carriesItem) return [carrier.carriesItem];
+  return [
+    ...(carrier.carriesCatBlock ? ['cat-block'] : []),
+    ...(carrier.carriesKey ? ['key'] : []),
+  ];
 }
 for (const [brush, name, paintUses] of [['pencil', 'Thin Paintbrush', 1], ['wide', 'Wide Paintbrush', 3], ['roller', 'Paint Roller', 5]]) {
   for (const [paintColor, paintKind, color] of [['red', 'fast', '#df8c81'], ['green', 'normal', '#83bca1'], ['blue', 'slow', '#7eacdb']]) {
@@ -1583,6 +1593,14 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (event.kind !== 'enemy' || typeof event.carriesKey !== 'boolean') fail(`${name} has an invalid key carrier setting.`);
       if (event.carriesKey) result.carriesKey = true;
     }
+    if (event.carriesItem !== undefined) {
+      if (event.kind !== 'enemy' || typeof event.carriesItem !== 'string' || !Object.hasOwn(ITEMS, event.carriesItem)) {
+        fail(`${name} has an invalid carried item.`);
+      }
+      if ((event.carriesCatBlock === true && event.carriesItem !== 'cat-block')
+        || (event.carriesKey === true && event.carriesItem !== 'key')) fail(`${name} specifies conflicting carried items.`);
+      result.carriesItem = event.carriesItem;
+    }
     if (event.keysRequired !== undefined && (event.kind !== 'item' || event.type !== 'treasure-chest')) {
       fail(`${name}: keysRequired is only supported for treasure chests.`);
     }
@@ -1783,7 +1801,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   applyBrickGroups(bricks, result.brickGroups);
   const spawners = bricks.filter(brick => brick.absorbedBy == null && brick.spawner).map(brick => brick.spawner);
   const sources = [...result.events, ...spawners];
-  const sourceType = source => source.kind === 'enemy' && source.carriesCatBlock ? 'carrier'
+  const sourceType = source => source.kind === 'enemy' && carriedItemType(source) === 'cat-block' ? 'carrier'
     : source.kind === 'item' && source.type === 'cat-block' ? 'spawn'
       : source.kind === 'item' && source.type === 'treasure-chest' ? 'chest' : null;
   const catSources = sources.filter(source => sourceType(source));
@@ -1808,8 +1826,8 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     }
     const chests = catSources.filter(source => sourceType(source) === 'chest');
     if (chests.length) {
-      const isKey = source => source.kind === 'item' && source.type === 'key'
-        || source.kind === 'enemy' && source.carriesKey;
+        const isKey = source => source.kind === 'item' && source.type === 'key'
+          || source.kind === 'enemy' && carriedItemTypes(source).includes('key');
       const isBattery = source => source.kind === 'item' && source.type === 'battery';
       const keySpawners = spawners.filter(isKey).length;
       const count = entries => entries.reduce((sum, source) => sum + (source.group?.count ?? 1), 0);
@@ -4046,9 +4064,13 @@ class Game {
         ? this.createBubble(point, event.type) : OBJECTS[event.type].catCircle
           ? this.createCatCircle(point, event.type) : OBJECTS[event.type].obstruction
             ? this.createObstruction(point, event) : this.createSoccerBall(point)];
+    const carriedItems = carriedItemTypes(event).filter(type => !this.catBlockCollected || type !== 'cat-block');
+    const carriedItem = event.carriesItem && carriedItems.includes(event.carriesItem)
+      ? event.carriesItem : carriedItems.length === 1 ? carriedItems[0] : null;
     const enemy = { ...point, type: event.type, radius: event.type === 'robo-cow' ? 26 : 19,
-      carriesCatBlock: !this.catBlockCollected && event.carriesCatBlock === true,
-      ...(event.carriesKey ? { carriesKey: true } : {}),
+      ...(carriedItem ? { carriesItem: carriedItem } : {}),
+      carriesCatBlock: carriedItems.includes('cat-block'),
+      ...(carriedItems.includes('key') ? { carriesKey: true } : {}),
       phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: 0 };
     this.initializeShield(enemy, event.shield);
     this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
@@ -4483,9 +4505,14 @@ class Game {
     const items = [];
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
     for (let i = 0; i < count; i++) {
+      const carriedItems = i === 0 && options ? carriedItemTypes(options)
+        .filter(item => !this.catBlockCollected || item !== 'cat-block') : [];
+      const carriedItem = options?.carriesItem && carriedItems.includes(options.carriesItem)
+        ? options.carriesItem : carriedItems.length === 1 ? carriedItems[0] : null;
       const enemy = { ...this.randomPoint(), type, radius: type === 'robo-cow' ? 26 : 19,
-        ...(!this.catBlockCollected && options?.carriesCatBlock && i === 0 ? { carriesCatBlock: true } : {}),
-        ...(options?.carriesKey && i === 0 ? { carriesKey: true } : {}),
+        ...(carriedItem ? { carriesItem: carriedItem } : {}),
+        carriesCatBlock: carriedItems.includes('cat-block'),
+        ...(carriedItems.includes('key') ? { carriesKey: true } : {}),
         phase: this.random() * Math.PI * 2, age: 0, touching: false, distance: this.random() * 2 * (w + h) };
       this.initializeShield(enemy, shield);
       if (type === 'ram') this.initializeRam(enemy);
@@ -4803,16 +4830,16 @@ class Game {
       this.enemies += enemy.defeatPoints ?? 1;
       this.catBlockProgress.defeated[enemy.type] = (this.catBlockProgress.defeated[enemy.type] ?? 0) + 1;
     }
-    if (enemy.carriesKey) {
-      const key = this.createCollectible(this.elapsed, 'key', null, { x: enemy.x, y: enemy.y });
-      if (this.pickupClear(key)) this.items.push(key);
-      enemy.carriesKey = false;
+    for (const type of carriedItemTypes(enemy)) {
+      if (type === 'cat-block' && this.catBlockCollected) continue;
+      const item = this.createCollectible(this.elapsed, type, null, { x: enemy.x, y: enemy.y });
+      if (type === 'cat-block') item.source = 'enemy';
+      if (type === 'treasure-chest') item.keysRequired = 1;
+      if (this.pickupClear(item)) this.items.push(item);
     }
-    if (enemy.carriesCatBlock && !this.catBlockCollected) {
-      const block = { ...this.createCollectible(this.elapsed, 'cat-block', null, { x: enemy.x, y: enemy.y }), source: 'enemy' };
-      if (this.pickupClear(block)) this.items.push(block);
-      enemy.carriesCatBlock = false;
-    }
+    enemy.carriesItem = null;
+    enemy.carriesKey = false;
+    enemy.carriesCatBlock = false;
     this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
       bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
     if (enemy.type === 'robo-snail') this.freezeBrickCooldowns();
@@ -5952,7 +5979,10 @@ class Game {
       const survivors = new Set([...this.robots, ...dormant]);
       const original = new Set(all);
       this.robots = [...all.filter(enemy => survivors.has(enemy)), ...this.robots.filter(enemy => !original.has(enemy))];
-      if (this.catBlockCollected) for (const enemy of dormant) enemy.carriesCatBlock = false;
+      if (this.catBlockCollected) for (const enemy of dormant) {
+        if (carriedItemTypes(enemy).includes('cat-block')) enemy.carriesItem = null;
+        enemy.carriesCatBlock = false;
+      }
     }
   }
 
@@ -6147,7 +6177,10 @@ class Game {
   availableSpawns(items) {
     if (!this.catBlockCollected) return items;
     return items.filter(item => {
-      if (item.carriesCatBlock) item.carriesCatBlock = false;
+      if (carriedItemTypes(item).includes('cat-block')) {
+        item.carriesItem = null;
+        item.carriesCatBlock = false;
+      }
       return !this.isCatBlockSource(item);
     });
   }
@@ -6160,7 +6193,10 @@ class Game {
     this.catBlockCollected = true;
     this.catBlockEvents.push(source);
     this.items = this.availableSpawns(this.items);
-    for (const enemy of this.robots) enemy.carriesCatBlock = false;
+    for (const enemy of this.robots) {
+      if (carriedItemTypes(enemy).includes('cat-block')) enemy.carriesItem = null;
+      enemy.carriesCatBlock = false;
+    }
     for (const pending of this.pendingSpawns.values()) pending.items = this.availableSpawns(pending.items);
     return true;
   }

@@ -226,8 +226,7 @@
               <label>Pattern color<input id="event-patternColor" type="color" value="#dbe6ed"></label>
             </fieldset>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
-            <label id="event-carrier-label" class="inline-label" hidden><input id="event-carries-cat-block" type="checkbox" disabled> Carries a Cat Block</label>
-            <label id="event-key-carrier-label" class="inline-label" hidden><input id="event-carries-key" type="checkbox" disabled> Carries a key</label>
+            <label id="event-carrier-label" hidden>Carried item <select id="event-carries-item" disabled><option value="">None</option></select></label>
             <label id="chest-keys-label" hidden>Keys needed to open chest <input id="event-keys-required" type="number" min="1" max="100000" step="1" value="1" disabled></label>
             <div class="input-pair">
               <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>

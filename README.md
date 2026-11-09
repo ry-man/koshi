@@ -1268,8 +1268,13 @@ Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
 `robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`; weapon types are `wood`,
 `bronze`, `silver`, `gold`, `hammer-bronze`, `hammer-silver`, and `hammer-gold`.
 Item types (`kind: "item"`) include `cat-block`, `key`, and `treasure-chest` as
-well as the power-ups. A Cat Block can be placed directly, carried by a custom
-enemy (`"carriesCatBlock": true`, dropped when defeated), or put in a chest.
+well as the power-ups. Enemy events can carry any item by setting
+`"carriesItem": "item-id"`; the editor's **Carried item** menu lists all item
+types. Carried items drop at the enemy's position when it is defeated, and a
+carried treasure chest requires one key. Cat Blocks can be placed directly,
+carried by an enemy (`"carriesItem": "cat-block"`), or put in a chest.
+Legacy `"carriesCatBlock": true` and `"carriesKey": true` enemy settings remain
+supported.
 Chest events accept `"keysRequired"` (a positive whole number, default 1);
 collecting keys adds to the HUD counter, and opening a chest spends the required
 keys. In the editor, enable Cat Block in level settings and choose its **Trigger
@@ -1326,9 +1331,9 @@ consistent. Existing campaign data is unchanged.
 
 `brickSet` is 1
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
-Enemy events also accept `"carriesKey": true` (the editor's **Carries a key**
-checkbox). A key floats beside the carrier and drops at its position on defeat,
-remaining collectible until the level ends. Omit a chest event's `lifetime` to
+Enemy events can carry keys with `"carriesItem": "key"`. A carried item is
+displayed beside the enemy and drops at its position on defeat, remaining
+collectible until the level ends. Omit a chest event's `lifetime` to
 keep it available until opened or the level ends.
 Random pickups keep 80 game units between their centers and live or queued
 pickups when space permits. Failed random retries trigger a whole-board search
