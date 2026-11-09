@@ -1593,10 +1593,10 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       }
       result[field] = item[field];
     }
-    for (const field of ['width', 'height', 'destructible']) {
+    for (const field of ['width', 'height', 'destructible', 'spiked']) {
       if (item[field] === undefined) continue;
       if (!obstruction) fail(`${name}: ${field} is only supported for obstructions.`);
-      if (field === 'destructible' ? typeof item[field] !== 'boolean'
+      if (['destructible', 'spiked'].includes(field) ? typeof item[field] !== 'boolean'
         : !Number.isFinite(item[field]) || item[field] < 1 || item[field] > 10000) {
         fail(`${name} has an invalid obstruction ${field}.`);
       }
@@ -1710,6 +1710,11 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   });
   if (events.reduce((sum, event) => sum + (event.group?.count ?? 1), 0) > 2000) fail('Events must spawn at most 2000 game elements in total.');
   const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
+  if (value.koshiStart !== undefined) {
+    const start = value.koshiStart;
+    if (!start || typeof start !== 'object' || Array.isArray(start)) fail('Koshi starting point must be an object.');
+    result.koshiStart = { x: number(start.x, 0, 1, 'Koshi starting X'), y: number(start.y, 0, 1, 'Koshi starting Y') };
+  }
   if (value.tracks !== undefined) result.tracks = tracks;
   if (value.bossLevel !== undefined) result.bossLevel = value.bossLevel;
   const bosses = events.filter(event => event.kind === 'enemy' && event.type === 'boss');
@@ -2711,6 +2716,40 @@ function obstructionSurface(x, y, obstruction) {
   return diamond ? { gap, nx: (nx - ny) / Math.SQRT2, ny: (nx + ny) / Math.SQRT2 } : { gap, nx, ny };
 }
 
+function obstructionSpikes(obstruction) {
+  if (!obstruction.spiked) return [];
+  const { radius, width, height } = obstructionGeometry(obstruction);
+  const shape = OBJECTS[obstruction.type].obstruction;
+  const depth = Math.min(14, Math.min(width, height) * .6);
+  const triangles = [];
+  const point = (x, y) => [obstruction.x + x, obstruction.y + y];
+  if (shape === 'circle') {
+    const count = Math.max(3, Math.round(Math.PI * 2 * radius / 16));
+    for (let i = 0; i < count; i++) {
+      const a = i / count * Math.PI * 2, b = (i + 1) / count * Math.PI * 2, mid = (a + b) / 2;
+      triangles.push([point(Math.cos(a) * radius, Math.sin(a) * radius),
+        point(Math.cos(mid) * (radius + depth), Math.sin(mid) * (radius + depth)),
+        point(Math.cos(b) * radius, Math.sin(b) * radius)]);
+    }
+  } else {
+    const vertices = shape === 'diamond'
+      ? [[0, -radius], [radius, 0], [0, radius], [-radius, 0]]
+      : [[-width / 2, -height / 2], [width / 2, -height / 2], [width / 2, height / 2], [-width / 2, height / 2]];
+    for (const [i, [ax, ay]] of vertices.entries()) {
+      const [bx, by] = vertices[(i + 1) % vertices.length];
+      const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
+      const count = Math.max(1, Math.round(length / 16));
+      for (let j = 0; j < count; j++) {
+        triangles.push([point(ax + dx * j / count, ay + dy * j / count),
+          point(ax + dx * (j + .5) / count + dy / length * depth,
+            ay + dy * (j + .5) / count - dx / length * depth),
+          point(ax + dx * (j + 1) / count, ay + dy * (j + 1) / count)]);
+      }
+    }
+  }
+  return triangles;
+}
+
 function obstructionContact(x, y, dx, dy, radius, obstruction) {
   if (OBJECTS[obstruction.type].obstruction === 'circle') {
     return circleContact(x - obstruction.x, y - obstruction.y, dx, dy, radius + obstruction.radius);
@@ -2841,6 +2880,7 @@ class Game {
     this.brickPartsCache = null;
     this.cat = { x: this.viewportWidth / 2, y: this.viewportHeight / 2, radius: 21, vx: 0, vy: 0 };
     if (this.level.bossLevel) this.cat.y += 110;
+    if (this.level.koshiStart) Object.assign(this.cat, this.campaignEventPoint(this.level.koshiStart.x, this.level.koshiStart.y));
     this.catHistory = [{ time: 0, x: this.cat.x, y: this.cat.y }];
     this.tickStart = null;
     this.target = null;
@@ -2900,6 +2940,7 @@ class Game {
     this.maskPickup = null;
     this.healing = [];
     this.spikeTouching = new Set();
+    this.obstructionSpikeTouching = new Set();
     this.conveyorRide = null;
     this.boosted = false;
     this.portalUntil = 0;
@@ -4260,7 +4301,29 @@ class Game {
     return { ...point, type: appearance.type, ...obstructionGeometry(appearance),
       color: appearance.color ?? OBJECTS[appearance.type].color,
       pattern: appearance.pattern ?? 'solid', patternColor: appearance.patternColor ?? '#dbe6ed',
-      destructible: appearance.destructible ?? false };
+      destructible: appearance.destructible ?? false, spiked: appearance.spiked ?? false };
+  }
+
+  updateObstructionSpikeDamage(startX, startY) {
+    const cat = this.cat, touching = new Set();
+    for (const obstruction of this.obstructions) {
+      if (!obstruction.spiked) continue;
+      const moveX = obstruction.track ? obstruction.x - (obstruction.previousX ?? obstruction.x) : 0;
+      const moveY = obstruction.track ? obstruction.y - (obstruction.previousY ?? obstruction.y) : 0;
+      const x = startX + moveX, y = startY + moveY;
+      const dx = cat.x - x, dy = cat.y - y;
+      if (distanceToSegment(obstruction.x, obstruction.y, x, y, cat.x, cat.y)
+        > Math.hypot(obstruction.width, obstruction.height) / 2 + cat.radius + 14) continue;
+      const contact = obstructionSurface(cat.x, cat.y, obstruction).gap <= cat.radius + 1e-5
+        || obstructionSpikes(obstruction).some(triangle =>
+          spikeContact(x, y, dx, dy, cat.radius, triangle) <= 1
+          || triangle.some(([ax, ay], i) =>
+            distanceToSegment(cat.x, cat.y, ax, ay, ...triangle[(i + 1) % 3]) <= cat.radius + 1e-5));
+      if (!contact) continue;
+      touching.add(obstruction);
+      if (!this.obstructionSpikeTouching.has(obstruction)) this.takeDamage();
+    }
+    this.obstructionSpikeTouching = touching;
   }
 
   clearAppearingObstruction(obstruction) {
@@ -7072,6 +7135,7 @@ class Game {
     const spikeIds = new Set(contacts.filter(part => this.bricks[part.id].spikes).map(part => part.id));
     const sawing = this.sawStartedAt !== null || collectingSaw;
     const stamping = stampAvailable && contacts.some(part => !this.bricks[part.id].portal);
+    this.updateObstructionSpikeDamage(this.tickStart?.x ?? startX, this.tickStart?.y ?? startY);
     if (!sawing && !stamping) {
       if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
       for (const id of spikeIds) this.spikeTouching.add(id);
@@ -7203,7 +7267,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.hazardEnabled = hazardEnabled;
 Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks });

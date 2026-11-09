@@ -84,7 +84,7 @@ const GUIDE = [
       ]),
       ...Object.entries(OBJECTS).filter(([, object]) => object.obstruction).map(([type]) => [
         OBJECTS[type].name,
-        'A fixed obstruction blocks Koshi, enemies, soccer balls and Robo Jackolantern fire waves. Koshi slides along its edge when moving into it. Some campaign obstructions appear during play; custom levels can also set an obstruction to destructible, in which case a Fireball Turret can destroy it.',
+        'A fixed obstruction blocks Koshi, enemies, soccer balls and Robo Jackolantern fire waves. Koshi slides along its edge when moving into it. Some campaign obstructions appear during play; custom levels can also set an obstruction to destructible, in which case a Fireball Turret can destroy it. The Spiked option covers its exterior with white spikes that damage Koshi once per contact, like Spikes Bricks.',
         `object:${type}`,
       ]),
     ],

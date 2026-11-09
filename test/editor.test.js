@@ -417,11 +417,11 @@ test('the event category pane contains its complete form and actions', () => {
 
 test('editor category navigation opens bricks or the chosen event menu exclusively', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
-  const categories = ['brick', 'food', 'enemy', 'item', 'object', 'tracks', 'weapon'];
+  const categories = ['koshi', 'brick', 'food', 'enemy', 'item', 'object', 'tracks', 'weapon'];
   const buttons = categories.map(category => ({
     dataset: { category }, setAttribute(name, value) { this[name] = value; },
   }));
-  const nodes = { '#brick-panel': {}, '#event-panel': {}, '#track-panel': {},
+  const nodes = { '#brick-panel': {}, '#event-panel': {}, '#track-panel': {}, '#koshi-panel': {},
     '#cat-tracks': { dataset: {} }, '#category-palette': { children: buttons } };
   const context = vm.createContext({ $: selector => nodes[selector], activeCategory: 'food', readOnly: () => false });
   vm.runInContext(source.slice(source.indexOf('function showCategory('), source.indexOf('function syncPalettes(')), context);
@@ -429,8 +429,9 @@ test('editor category navigation opens bricks or the chosen event menu exclusive
     context.showCategory(category);
     assert.equal(context.activeCategory, category);
     assert.equal(nodes['#brick-panel'].hidden, category !== 'brick');
-    assert.equal(nodes['#event-panel'].hidden, category === 'brick' || category === 'tracks');
+    assert.equal(nodes['#event-panel'].hidden, ['brick', 'tracks', 'koshi'].includes(category));
     assert.equal(nodes['#track-panel'].hidden, category !== 'tracks');
+    assert.equal(nodes['#koshi-panel'].hidden, category !== 'koshi');
     assert.deepEqual(buttons.filter(button => button['aria-pressed'] === 'true').map(button => button.dataset.category), [category]);
   }
 });

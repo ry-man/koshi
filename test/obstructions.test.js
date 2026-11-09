@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, LEVELS, OBJECTS, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, LEVELS, OBJECTS, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, obstructionSpikes, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { drawObstruction, spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
 
 const blank = () => ({ version: 1, id: 'Obstruction tests', duration: 60, goal: 1000, heartCost: null, brickSet: 1, events: [] });
@@ -73,7 +73,7 @@ test('large obstructions double both dimensions and rectangles retain their four
 test('custom obstruction dimensions and destructibility round-trip in events and spawners without changing defaults', () => {
   for (const shape of shapes) {
     const rectangle = shape.includes('rectangle');
-    const attributes = { width: 150.5, height: rectangle ? 47.25 : 150.5, destructible: true };
+    const attributes = { width: 150.5, height: rectangle ? 47.25 : 150.5, destructible: true, spiked: true };
     const source = { ...blank(), events: [placement(shape, attributes)],
       brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'object', type: `obstruction-${shape}`, ...attributes } }] };
     const validated = validateCustomLevel(JSON.parse(JSON.stringify(source)));
@@ -87,6 +87,7 @@ test('custom obstruction dimensions and destructibility round-trip in events and
       assert.equal(obstruction.width, 150.5);
       assert.equal(obstruction.height, attributes.height);
       assert.equal(obstruction.destructible, true);
+      assert.equal(obstruction.spiked, true);
     }
   }
   assert.equal(obstructionGeometry(placement('diamond', { height: 70 })).radius, 35);
@@ -97,6 +98,93 @@ test('custom obstruction dimensions and destructibility round-trip in events and
   assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { destructible: 'true' })] }), /invalid obstruction/);
   assert.throws(() => validateCustomLevel({ ...blank(), events: [{ ...placement(), type: 'soccer-ball', width: 50 }] }), /only supported/);
   assert.equal(arena().createObstruction({ x: 300, y: 300 }, placement()).destructible, false);
+});
+
+test('spiked flags validate strictly for obstruction placements and spawners and default off', () => {
+  for (const spiked of [true, false]) {
+    const source = { ...blank(), events: [placement('circle', { spiked })],
+      brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal',
+        spawner: { kind: 'object', type: 'obstruction-diamond', spiked } }] };
+    assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(source))), source);
+  }
+  for (const spiked of ['true', 1, null, {}]) {
+    assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { spiked })] }), /invalid obstruction spiked/);
+    assert.throws(() => validateCustomLevel({ ...blank(), brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal',
+      spawner: { kind: 'object', type: 'obstruction-circle', spiked } }] }), /invalid obstruction spiked/);
+  }
+  assert.throws(() => validateCustomLevel({ ...blank(), events: [{ ...placement(), type: 'soccer-ball', spiked: true }] }), /only supported for obstructions/);
+  assert.equal(arena().createObstruction({ x: 300, y: 300 }, placement()).spiked, false);
+  assert.deepEqual(obstructionSpikes(placement()), []);
+});
+
+test('spikes cover every obstruction exterior and damage only on new contact, including resized shapes', () => {
+  for (const shape of shapes) for (const size of [undefined, 80]) {
+    const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 },
+      placement(shape, { spiked: true, ...(size ? { width: size, height: size } : {}) }));
+    game.obstructions.push(obstruction);
+    const triangles = obstructionSpikes(obstruction);
+    assert.ok(triangles.length >= 3);
+    for (const triangle of triangles) {
+      const [[ax, ay], [tx, ty], [bx, by]] = triangle;
+      const mx = (ax + bx) / 2, my = (ay + by) / 2, length = Math.hypot(tx - mx, ty - my);
+      assert.ok(length > 0 && length < 16);
+      const nx = (tx - mx) / length, ny = (ty - my) / length;
+      const far = { x: tx + nx * (game.cat.radius + 40), y: ty + ny * (game.cat.radius + 40) };
+      Object.assign(game.cat, far);
+      game.updateObstructionSpikeDamage(far.x, far.y);
+      const before = game.hearts;
+      Object.assign(game.cat, { x: tx + nx * (game.cat.radius - 1), y: ty + ny * (game.cat.radius - 1) });
+      game.invulnerableUntil = -Infinity;
+      game.updateObstructionSpikeDamage(far.x, far.y);
+      assert.equal(game.hearts, before - 1, `${shape} exterior tip hurts Koshi`);
+      game.hearts = before;
+      game.invulnerableUntil = -Infinity;
+      game.updateObstructionSpikeDamage(game.cat.x, game.cat.y);
+      assert.equal(game.hearts, before, 'resting contact never drains extra hearts');
+    }
+    game.reset();
+    assert.equal(game.obstructionSpikeTouching.size, 0);
+  }
+});
+
+test('spiked obstructions deal contact damage during gameplay without changing solid movement', () => {
+  for (const shape of shapes) for (const spiked of [false, true]) {
+    const game = arena();
+    const obstruction = game.createObstruction({ x: 480, y: 300 }, placement(shape, { spiked }));
+    game.obstructions.push(obstruction);
+    Object.assign(game.cat, { x: 100, y: 300, vx: 900, vy: 0 });
+    const before = game.hearts;
+    for (let frame = 0; frame < 60; frame++) game.update(1 / 120);
+    assert.equal(game.hearts, before - Number(spiked), shape);
+    assert.equal(game.cat.vx, 900, 'solid contact preserves intended velocity');
+    assert.ok(gap(game.cat, obstruction) >= -1e-5);
+    game.invulnerableUntil = -Infinity;
+    game.update(1 / 120);
+    assert.equal(game.hearts, before - Number(spiked));
+  }
+});
+
+test('spike damage respects shields, invulnerability, pauses and moving obstruction contact', () => {
+  const game = arena();
+  const obstruction = game.createObstruction({ x: 480, y: 300 }, placement('circle', { spiked: true }));
+  game.obstructions.push(obstruction);
+  Object.assign(game.cat, { x: 480 - obstruction.radius - game.cat.radius, y: 300 });
+  const before = game.hearts;
+  game.catShield = 'red';
+  game.updateObstructionSpikeDamage(game.cat.x, game.cat.y);
+  assert.equal(game.hearts, before); assert.equal(game.catShield, null);
+  game.obstructionSpikeTouching.clear();
+  game.updateObstructionSpikeDamage(game.cat.x, game.cat.y);
+  assert.equal(game.hearts, before, 'invulnerability protects');
+  game.invulnerableUntil = -Infinity;
+  game.obstructionSpikeTouching.clear();
+  game.pause(); game.update(2);
+  assert.equal(game.hearts, before, 'pause does not damage');
+  game.resume();
+  Object.assign(game.cat, { x: 480, y: 200 });
+  Object.assign(obstruction, { x: 700, y: 200, previousX: 250, previousY: 200, track: 'moving' });
+  game.updateObstructionSpikeDamage(game.cat.x, game.cat.y);
+  assert.equal(game.hearts, before - 1, 'a moving spiked solid cannot sweep through Koshi harmlessly');
 });
 
 test('resized circle, diamond and rectangle collisions use their exact new dimensions', () => {
@@ -634,6 +722,26 @@ test('obstruction graphics clip every pattern to its shape and use both chosen c
   }
 });
 
+test('spiked obstruction rendering draws shared collision triangles in the Spikes Brick colors', () => {
+  for (const shape of shapes) {
+    const calls = [], gradient = { addColorStop() {} };
+    const ctx = new Proxy({}, {
+      get(target, name) {
+        if (name in target) return target[name];
+        if (name === 'createLinearGradient') return () => gradient;
+        return (...args) => calls.push({ name, args, fill: target.fillStyle, stroke: target.strokeStyle });
+      },
+    });
+    const obstruction = { ...placement(shape), x: 100, y: 100, spiked: true };
+    drawObstruction(ctx, obstruction);
+    const firstFill = calls.findIndex(call => call.name === 'fill');
+    const vertices = calls.slice(0, firstFill).filter(call => ['moveTo', 'lineTo'].includes(call.name));
+    assert.deepEqual(vertices.map(call => call.args), obstructionSpikes({ ...obstruction, x: 0, y: 0 }).flat());
+    assert.equal(calls[firstFill].fill, '#fff');
+    assert.equal(calls.find(call => call.name === 'stroke').stroke, '#aab9c5');
+  }
+});
+
 test('the editor provides the same 100 unique color presets for both colors in placements, spawners, and obstructor guns', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const makeNode = () => ({
@@ -836,23 +944,34 @@ test('editor placement and multiselection preserve independent obstruction textu
   $('#event-time').value = '0'; $('#event-x').value = '50'; $('#event-y').value = '50';
   $('#event-location').value = 'fixed'; $('#event-formation').value = 'single';
   $('#event-color').value = '#123456'; $('#event-patternColor').value = '#abcdef'; $('#event-pattern').value = 'stripes';
+  $('#event-spiked').checked = true;
   context.typeOptions('obstruction-diamond');
   assert.equal($('#event-obstruction').hidden, false);
   const event = context.readEvent();
   assert.equal(event.color, '#123456'); assert.equal(event.pattern, 'stripes');
+  assert.equal(event.spiked, true);
   context.level.events = [event, placement('circle', { color: '#fedcba', pattern: 'polka-dots' })];
   context.selectedEvents = new Set([0, 1]);
   context.populateEventForm();
   assert.match($('#event-color').title, /Mixed/);
   assert.equal($('#event-obstruction').disabled, false);
+  assert.equal($('#event-spiked').indeterminate, true);
   $('#event-pattern').value = 'checkered'; context.touched.add('#event-pattern');
   context.applyToSelected();
   assert.ok(context.level.events.every(event => event.pattern === 'checkered'));
   assert.deepEqual(Array.from(context.level.events, event => event.color), ['#123456', '#fedcba']);
+  assert.deepEqual(Array.from(context.level.events, event => event.spiked), [true, undefined]);
+  context.touched.clear(); context.touched.add('#event-spiked'); $('#event-spiked').checked = true;
+  context.applyToSelected();
+  assert.ok(context.level.events.every(event => event.spiked === true));
+  $('#event-spiked').checked = false;
+  context.applyToSelected();
+  assert.ok(context.level.events.every(event => event.spiked === false));
   context.touched.clear();
   context.touched.add('#event-type'); $('#event-type').value = 'bumper-green';
   context.applyToSelected();
   assert.ok(context.level.events.every(event => !Object.hasOwn(event, 'color') && !Object.hasOwn(event, 'pattern')));
+  assert.ok(context.level.events.every(event => !Object.hasOwn(event, 'spiked')));
 });
 
 test('editor obstruction spawners retain appearance when other brick attributes change', () => {
@@ -867,13 +986,19 @@ test('editor obstruction spawners retain appearance when other brick attributes 
   $('#brick-spawn-item').value = 'object:obstruction-circle';
   $('#brick-spawn-color').value = '#654321'; $('#brick-spawn-pattern').value = 'checkered';
   $('#brick-spawn-patternColor').value = '#badfed';
+  $('#brick-spawn-spiked').checked = true;
   context.saveBrick({ target: { id: 'brick-spawn-item' } });
   const spawn = context.level.brickTypes[0].spawner;
   assert.equal(spawn.color, '#654321'); assert.equal(spawn.pattern, 'checkered');
+  assert.equal(spawn.spiked, true);
   context.previewGame = new Game(() => .5, { customLevel: context.level, editorPreview: true });
   $('#brick-kind').value = 'slow';
   context.saveBrick({ target: { id: 'brick-kind' } });
   assert.equal(context.level.brickTypes[0].spawner.patternColor, '#badfed');
+  assert.equal(context.level.brickTypes[0].spawner.spiked, true);
+  $('#brick-spawn-spiked').checked = false;
+  context.saveBrick({ target: { id: 'brick-spawn-spiked' } });
+  assert.equal(context.level.brickTypes[0].spawner.spiked, false);
   $('#brick-spawn-width').value = '123.5';
   context.saveBrick({ target: { id: 'brick-spawn-width' } });
   assert.equal(context.level.brickTypes[0].spawner.width, 123.5);

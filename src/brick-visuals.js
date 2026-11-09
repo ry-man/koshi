@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
+const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, obstructionSpikes, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
 const HAZARD_FLAME = 'M-24 18 Q-12 12 -20 -2 L-10 -18 Q-13 -2 -4 -8 L3 -17 Q12 -4 9 2 Q18 -10 24 -20 Q16 3 24 18 Z';
 const MISSILE_BODY = 'M-14 -7 H9 Q24 -7 24 0 Q24 7 9 7 H-14 Z';
 const MISSILE_FINS = 'M-15 -6 L-25 -16 L-5 -10 V-6 M-15 6 L-25 16 L-5 10 V6 M-22 0 H-4';
@@ -691,6 +691,15 @@ function drawObstruction(ctx, obstruction) {
     }
   };
   ctx.save(); ctx.translate(obstruction.x, obstruction.y);
+  if (obstruction.spiked) {
+    ctx.beginPath();
+    for (const [a, b, c] of obstructionSpikes({ ...obstruction, x: 0, y: 0 })) {
+      ctx.moveTo(...a); ctx.lineTo(...b); ctx.lineTo(...c); ctx.closePath();
+    }
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#aab9c5'; ctx.lineWidth = 1;
+    ctx.lineJoin = 'round';
+    ctx.fill(); ctx.stroke();
+  }
   trace();
   ctx.fillStyle = obstruction.color ?? OBJECTS[obstruction.type].color;
   ctx.fill();
@@ -825,6 +834,41 @@ function drawPaintSplash(ctx, effect) {
   ctx.restore();
 }
 
+function drawFlameHazard(ctx, parts, time = 0) {
+  const shape = brickShape(parts);
+  const loops = shape.path.split('M').slice(1).map(loop =>
+    loop.replace('Z', '').split('L').map(pair => {
+      const [x, y] = pair.split(' ').map(Number);
+      return [shape.x + x * shape.w, shape.y + y * shape.h];
+    }));
+  ctx.save();
+  ctx.beginPath();
+  for (const [first, ...points] of loops) {
+    ctx.moveTo(...first);
+    for (const point of points) ctx.lineTo(...point);
+    ctx.closePath();
+  }
+  ctx.strokeStyle = '#ff7928'; ctx.lineWidth = 10;
+  ctx.shadowColor = '#ff7928'; ctx.shadowBlur = 12;
+  ctx.stroke();
+  ctx.shadowBlur = 0; ctx.strokeStyle = '#ffe15a'; ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = '#ffb52e';
+  for (const points of loops) for (let i = 1; i < points.length; i++) {
+    const [ax, ay] = points[i - 1], [bx, by] = points[i];
+    const length = Math.hypot(bx - ax, by - ay);
+    const tx = (bx - ax) / length, ty = (by - ay) / length;
+    for (let along = 6; along < length; along += 13) {
+      const x = ax + tx * along, y = ay + ty * along;
+      const reach = 7 + Math.sin(time * 12 + along) * 2;
+      ctx.beginPath(); ctx.moveTo(x - tx * 5, y - ty * 5);
+      ctx.lineTo(x + ty * reach, y - tx * reach);
+      ctx.lineTo(x + tx * 5, y + ty * 5); ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 function drawBumper(ctx, bumper, time = 0) {
   const radius = bumper.radius ?? 48;
   const color = OBJECTS[bumper.type]?.color ?? '#399d4a';
@@ -847,7 +891,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, drawCatTrack, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, drawCatTrack, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

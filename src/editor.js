@@ -191,7 +191,11 @@ function picture(value, control) {
   const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie', object: 'soccer-ball' }[value] }
     : control === 'event-type' ? { kind: $('#event-kind').value, type: value }
     : control === 'brick-spawn-item' ? { kind: value.split(':')[0], type: value.split(':')[1] } : null;
-  if (value === 'tracks') {
+  if (value === 'koshi') {
+    const artwork = document.createElement('img');
+    artwork.src = './icons/koshi.svg'; artwork.alt = '';
+    image.append(artwork);
+  } else if (value === 'tracks') {
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
     svg.setAttribute('viewBox', '-28 -18 56 36'); svg.setAttribute('aria-hidden', 'true');
     path.setAttribute('d', 'M-22 10 L-8 -10 L8 8 L22 -8');
@@ -311,12 +315,14 @@ function choiceButton(value, name, control, action) {
 }
 
 function setupPalettes() {
-  for (const [category, name] of [['brick', 'Bricks'], ['food', 'Food'], ['enemy', 'Enemies'], ['item', 'Items'], ['object', 'Objects'], ['tracks', 'Tracks'], ['weapon', 'Weapons']]) {
+  for (const [category, name] of [['koshi', 'Koshi'], ['brick', 'Bricks'], ['food', 'Food'], ['enemy', 'Enemies'], ['item', 'Items'], ['object', 'Objects'], ['tracks', 'Tracks'], ['weapon', 'Weapons']]) {
     const button = choiceButton(category === 'brick' ? 'normal' : category, name, category === 'brick' ? 'brick-kind' : 'event-kind', () => {
       if (category === 'brick') {
         selectedEvents = new Set();
         showCategory(category);
         populateEventForm(); render();
+      } else if (category === 'koshi') {
+        showCategory(category); setSelection([], []);
       } else if (category === 'tracks') {
         showCategory(category); render();
       } else {
@@ -325,7 +331,7 @@ function setupPalettes() {
       }
     });
     button.dataset.category = category;
-    button.setAttribute('aria-controls', category === 'brick' ? 'brick-panel' : category === 'tracks' ? 'track-panel' : 'event-panel');
+    button.setAttribute('aria-controls', category === 'brick' ? 'brick-panel' : category === 'tracks' ? 'track-panel' : category === 'koshi' ? 'koshi-panel' : 'event-panel');
     $('#category-palette').append(button);
   }
   showCategory(activeCategory);
@@ -357,7 +363,8 @@ function setupPalettes() {
 function showCategory(category) {
   activeCategory = category;
   $('#brick-panel').hidden = category !== 'brick';
-  $('#event-panel').hidden = category === 'brick' || category === 'tracks';
+  $('#event-panel').hidden = category === 'brick' || category === 'tracks' || category === 'koshi';
+  $('#koshi-panel').hidden = category !== 'koshi';
   $('#track-panel').hidden = category !== 'tracks';
   $('#cat-tracks').dataset.editable = String(category === 'tracks' && !readOnly());
   for (const button of $('#category-palette').children) {
@@ -514,9 +521,11 @@ function populateObstructionFields(prefix, items) {
     const value = common(items.map(item => item[field] ?? (field === 'width' && OBJECTS[item.type].obstruction !== 'rectangle' ? item.height : undefined) ?? ''));
     input.value = value === MIXED ? '' : value;
   }
-  const destructible = $(`#${prefix}-destructible`);
-  destructible.checked = items.every(item => item.destructible);
-  destructible.indeterminate = items.some(item => item.destructible) && !destructible.checked;
+  for (const field of ['destructible', 'spiked']) {
+    const input = $(`#${prefix}-${field}`);
+    input.checked = items.every(item => item[field]);
+    input.indeterminate = items.some(item => item[field]) && !input.checked;
+  }
   syncObstructionSize(prefix, items[0]);
 }
 
@@ -531,7 +540,9 @@ function readObstructionFields(prefix) {
     if (fields.width !== undefined) fields.height = fields.width;
     else delete fields.height;
   }
-  if ($(`#${prefix}-destructible`).checked) fields.destructible = true;
+  for (const field of ['destructible', 'spiked']) {
+    if ($(`#${prefix}-${field}`).checked) fields[field] = true;
+  }
   return fields;
 }
 
@@ -1058,6 +1069,7 @@ function renderBoard() {
   renderBrickInspector(previewGame.bricks);
   syncPalettes();
   const b = previewGame.bounds();
+  renderKoshiStart();
   $('#playable-area').style.cssText = `left:${b.left / previewGame.width * 100}%;top:${b.top / previewGame.height * 100}%;width:${(b.right - b.left) / previewGame.width * 100}%;height:${(b.bottom - b.top) / previewGame.height * 100}%`;
   const summary = [selectedBricks.size && plural(selectedBricks.size, 'brick'), selectedEvents.size && plural(selectedEvents.size, 'event')].filter(Boolean);
   $('#selection-summary').textContent = summary.length ? `${summary.join(' + ')} selected` : 'Nothing selected';
@@ -1086,7 +1098,18 @@ function renderBoard() {
     marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);
     marker.setAttribute('aria-pressed', String(selected));
     const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s${event.random || event.previewRandom ? ' · random' : ''}`;
-    if (event.kind === 'object' && OBJECTS[event.type].catCircle) {
+    if (event.kind === 'object' && OBJECTS[event.type].bumper) {
+      const bumper = previewGame.createBumper(point, event.type);
+      const frameSize = bumper.radius * 2 + 4;
+      marker.classList.add('bumper-marker');
+      marker.style.width = `${frameSize / previewGame.width * 100}%`;
+      marker.style.height = `${frameSize / previewGame.height * 100}%`;
+      const image = document.createElement('canvas');
+      image.width = frameSize; image.height = frameSize;
+      image.setAttribute('aria-hidden', 'true');
+      drawBumper(image.getContext('2d'), { ...bumper, x: frameSize / 2, y: frameSize / 2 });
+      marker.append(image, label);
+    } else if (event.kind === 'object' && OBJECTS[event.type].catCircle) {
       const diameter = OBJECTS[event.type].radius * 2;
       const frameSize = diameter + 12;
       marker.classList.add('cat-circle-marker');
@@ -1099,8 +1122,9 @@ function renderBoard() {
       marker.append(image, label);
     } else if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
       const { width, height } = obstructionGeometry(event);
-      const frameWidth = Math.max(width + 4, event.destructible ? 40 : 0);
-      const frameHeight = Math.max(height + 4, event.destructible ? 30 : 0);
+      const padding = event.spiked ? 32 : 4;
+      const frameWidth = Math.max(width + padding, event.destructible ? 40 : 0);
+      const frameHeight = Math.max(height + padding, event.destructible ? 30 : 0);
       marker.classList.add('obstruction-marker');
       marker.style.width = `${frameWidth / previewGame.width * 100}%`;
       marker.style.height = `${frameHeight / previewGame.height * 100}%`;
@@ -1237,6 +1261,66 @@ function renderPointReference(events, bricks) {
 function render() {
   renderBoard(); renderList();
 }
+
+function renderKoshiStart() {
+  const cat = previewGame.cat, bounds = previewGame.bounds();
+  const marker = $('#koshi-start-marker');
+  marker.style.left = `${cat.x / previewGame.width * 100}%`;
+  marker.style.top = `${cat.y / previewGame.height * 100}%`;
+  marker.setAttribute('aria-pressed', String(activeCategory === 'koshi'));
+  marker.querySelector('small').textContent = level.koshiStart ? 'Start' : 'Start (default)';
+  $('#koshi-x').value = (cat.x - bounds.left) / (bounds.right - bounds.left) * 100;
+  $('#koshi-y').value = (cat.y - bounds.top) / (bounds.bottom - bounds.top) * 100;
+  $('#koshi-reset').disabled = !level.koshiStart;
+  $('#koshi-start-status').textContent = level.koshiStart ? 'Custom starting point placed.' : 'No custom starting point. Using the level default.';
+}
+
+function saveKoshiStart(point) {
+  if (readOnly()) return;
+  const draft = { ...level };
+  if (point === undefined) delete draft.koshiStart;
+  else draft.koshiStart = point;
+  level = validateDraft(draft);
+  markChanged(); render();
+  message(point === undefined ? 'Koshi starting point reset to the level default.' : 'Koshi starting point saved.');
+}
+
+$('#koshi-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!event.currentTarget.reportValidity()) return;
+  attempt(() => saveKoshiStart({ x: Number($('#koshi-x').value) / 100, y: Number($('#koshi-y').value) / 100 }));
+});
+$('#koshi-form').addEventListener('change', event => {
+  if (!event.currentTarget.reportValidity()) { message('Enter valid starting coordinates from 0 to 100.', true); return; }
+  attempt(() => saveKoshiStart({ x: Number($('#koshi-x').value) / 100, y: Number($('#koshi-y').value) / 100 }));
+});
+$('#koshi-reset').addEventListener('click', () => attempt(() => saveKoshiStart()));
+$('#koshi-start-marker').addEventListener('click', event => {
+  event.stopPropagation();
+  if (event.detail !== 0 && !readOnly()) return;
+  showCategory('koshi'); setSelection([], []);
+});
+$('#koshi-start-marker').addEventListener('pointerdown', event => {
+  event.stopPropagation();
+  if (readOnly() || event.button !== 0 || gesture) return;
+  event.preventDefault();
+  showCategory('koshi'); setSelection([], []);
+  startGesture(event, { type: 'koshi' });
+});
+$('#koshi-start-marker').addEventListener('keydown', event => {
+  if (readOnly()) return;
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault(); event.stopPropagation();
+    attempt(() => saveKoshiStart()); return;
+  }
+  const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+  if (!direction) return;
+  event.preventDefault(); event.stopPropagation();
+  const grid = placementGrid();
+  attempt(() => saveKoshiStart(placementPosition(
+    Number($('#koshi-x').value) / 100 + direction[0] * (grid ? grid.spacing / grid.width : .01),
+    Number($('#koshi-y').value) / 100 + direction[1] * (grid ? grid.spacing / grid.height : .01))));
+});
 
 function populateTrackForm() {
   trackDrawing = false;
@@ -1563,7 +1647,7 @@ function resizedObstruction(origin, handle, dx, dy, bounds) {
 }
 
 function startGesture(event, target) {
-  if (readOnly() && ['marker', 'resize', 'spawn-template'].includes(target.type)) return;
+  if (readOnly() && ['marker', 'resize', 'spawn-template', 'koshi'].includes(target.type)) return;
   gesture = { ...target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, additive: isAdditive(event), moved: false };
   if (target.type === 'marker') {
     // Pressing an unselected marker adds it (or replaces the selection) so the drag moves it with the group.
@@ -1574,6 +1658,11 @@ function startGesture(event, target) {
     }
     gesture.start = pointerPosition(event);
     gesture.origins = new Map(selectedList().map(index => [index, { ...level.events[index] }]));
+  }
+  if (target.type === 'koshi') {
+    gesture.start = pointerPosition(event);
+    gesture.origin = level.koshiStart;
+    gesture.point = { x: Number($('#koshi-x').value) / 100, y: Number($('#koshi-y').value) / 100 };
   }
   if (target.type === 'resize') {
     gesture.start = pointerPosition(event);
@@ -1639,6 +1728,10 @@ function placeAt(event) {
   if (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) {
     message('Place objects inside the dotted playable area, not on bricks.', true); return;
   }
+  if (activeCategory === 'koshi') {
+    attempt(() => saveKoshiStart(placementPosition(point.x, point.y)));
+    return;
+  }
   if (!form.reportValidity()) return;
   attempt(() => {
     const item = { ...readEvent(), time: discretePreviewTime(Number($('#timeline').value)),
@@ -1659,7 +1752,12 @@ board.addEventListener('pointermove', event => {
   if (!gesture || gesture.pointerId !== event.pointerId) return;
   if (!gesture.moved && Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < 5) return;
   gesture.moved = true;
-  if (gesture.type === 'resize') {
+  if (gesture.type === 'koshi') {
+    const point = pointerPosition(event);
+    level = { ...level, koshiStart: placementPosition(
+      gesture.point.x + point.x - gesture.start.x, gesture.point.y + point.y - gesture.start.y) };
+    renderBoard();
+  } else if (gesture.type === 'resize') {
     const point = pointerPosition(event), bounds = previewGame.bounds();
     const resized = resizedObstruction(gesture.origin, gesture.handle,
       (point.x - gesture.start.x) * (bounds.right - bounds.left),
@@ -1688,6 +1786,13 @@ board.addEventListener('pointerup', event => {
   if (board.hasPointerCapture(event.pointerId)) board.releasePointerCapture(event.pointerId);
   $('#selection-box').hidden = true;
   const current = gesture;
+  if (current.type === 'koshi') {
+    gesture = null;
+    if (current.moved) attempt(() => saveKoshiStart(level.koshiStart));
+    else render();
+    $('#koshi-start-marker').focus({ preventScroll: true });
+    return;
+  }
   if (current.spawnKey) {
     gesture = null;
     level = current.baseLevel;
@@ -1724,6 +1829,11 @@ board.addEventListener('pointerup', event => {
   else { if (!current.additive) setSelection([], []); board.focus({ preventScroll: true }); }
 });
 board.addEventListener('pointercancel', () => {
+  if (gesture?.type === 'koshi') {
+    if (gesture.origin === undefined) delete level.koshiStart;
+    else level.koshiStart = gesture.origin;
+    gesture = null; render(); return;
+  }
   if (gesture?.spawnKey) {
     level = gesture.baseLevel;
     gesture = null; render(); return;
@@ -1878,7 +1988,9 @@ function saveBrick(event) {
             else entry.spawner[dimension] = Number($(`#${id}`).value);
           }
         }
-        if (id === 'brick-spawn-destructible') entry.spawner.destructible = $('#brick-spawn-destructible').checked;
+        for (const field of ['destructible', 'spiked']) {
+          if (id === `brick-spawn-${field}`) entry.spawner[field] = $(`#${id}`).checked;
+        }
       }
       if (immutableBrick(entry.kind)) for (const attribute of Object.keys(entry)) if (!['edge', 'start', 'end', 'kind'].includes(attribute)) delete entry[attribute];
       return previewGame.bricks.filter(member => member.id === brick.id || member.initialOwner === brick.id)
@@ -1963,7 +2075,7 @@ for (const field of ['color', 'pattern', 'patternColor']) {
   $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
   $(`#brick-spawn-${field}`).addEventListener('change', event => attempt(() => saveBrick(event)));
 }
-for (const field of ['width', 'height', 'destructible']) {
+for (const field of ['width', 'height', 'destructible', 'spiked']) {
   $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
   $(`#brick-spawn-${field}`).addEventListener('change', saveBrick);
 }
@@ -1996,8 +2108,9 @@ function applyToSelected() {
   const textureFields = ['color', 'pattern', 'patternColor'].filter(field => touched.has(`#event-${field}`) && value(`#event-${field}`) !== MIXED);
   const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
   const destructibleChanged = touched.has('#event-destructible');
+  const spikedChanged = touched.has('#event-spiked');
   const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle'].some(selector => touched.has(selector));
-  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -2053,7 +2166,7 @@ function applyToSelected() {
       else if (textureFields.includes(field)) next[field] = value(`#event-${field}`);
     }
     if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) {
-      for (const field of ['width', 'height', 'destructible']) delete next[field];
+      for (const field of ['width', 'height', 'destructible', 'spiked']) delete next[field];
     } else {
       for (const field of sizeFields) {
         const dimensions = OBJECTS[next.type].obstruction === 'rectangle' ? [field] : ['width', 'height'];
@@ -2063,6 +2176,7 @@ function applyToSelected() {
         }
       }
       if (destructibleChanged) next.destructible = $('#event-destructible').checked;
+      if (spikedChanged) next.spiked = $('#event-spiked').checked;
       if (type && OBJECTS[next.type].obstruction !== 'rectangle') {
         const size = next.width ?? next.height;
         if (size !== undefined) next.width = next.height = size;

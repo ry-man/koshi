@@ -1103,7 +1103,19 @@ tracks his health; his death animation finishes before Koshi celebrates.
    (default 15 seconds). Changes apply immediately. Each brick
    can have its own type, independent of the preset. Applying a different boundary
    preset changes defaults but keeps individual overrides.
-2. Click a category, then a food, enemy, weapon, item, or object picture in the
+2. Choose **Koshi** to optionally place his starting point. Click the playable
+   area to place or replace the single start marker, drag it, use its arrow keys,
+   or enter exact **Starting X/Y (%)** coordinates. Board moves honor
+   **Discretize X, Y**; numeric coordinates remain exact. **Use default starting
+   point** (or Delete/Backspace on his marker) removes the placement. Ordinary
+   levels default to the board center; scrolling levels retain their first-screen
+   start and boss levels retain their existing offset. The marker is independent
+   of timed events and remains visible throughout the timeline preview.
+   JSON stores this optional placement as `"koshiStart": { "x": 0.25, "y": 0.75 }`,
+   using the same normalized playable-area coordinates as other placements.
+   Omit it to use the default. Playtests and restarts use the authored position;
+   existing campaign levels are not changed.
+   Click another category, then a food, enemy, weapon, item, or object picture in the
    inspector. Choosing a category or palette option automatically activates **Place**.
    Event category and object choices start a new placement instead of changing
    a selected event; brick options still apply immediately to selected boundary bricks.
@@ -1347,6 +1359,8 @@ green, and blue bumpers (`bumper-red`, `bumper-green`, `bumper-blue`); they
 have a 96-unit diameter, stay fixed unless attached to a Cat Track, and bounce Koshi and enemies away. Red increases Koshi's speed by
 25%, green preserves it, and blue reduces it by 25%.
 Bumpers block Robo Jackolantern fire in their circular shadow, like obstructions.
+Placed bumpers and bumper spawn templates display at their actual 96-board-unit
+diameter in the editor, including grouped placements and both preview orientations.
 Their shaded colored faces and concentric white rings are fully opaque.
 Their two-second appearance warnings and overlap clearing use the obstruction
 rules, including lethal overlap with Koshi and unscored environmental enemy deaths.
@@ -1382,6 +1396,13 @@ its tight bounding rectangle, then drag any corner or side handle to resize.
 Rectangles resize independently; circles and diamonds stay square. The opposite
 side/corner stays anchored until the center reaches the playable area's boundary.
 Numeric controls and exported dimensions reflect the resulting size.
+Optional `spiked: true` covers the entire exterior with white spikes like Spikes
+Bricks. The editor's **Spiked** checkbox toggles this for placements and
+obstruction-spawning bricks, including multi-selection. Touching a spike costs
+Koshi one heart (or one shield layer), respecting normal damage invulnerability.
+Remaining in contact does not deal repeated damage; leaving and touching again
+can hurt him again. Spikes do not damage enemies or change the solid's movement
+or destructibility. Omitted or false means no spikes. Existing levels are unchanged.
 Optional `destructible: true` marks an obstruction with a centered black-on-white
 `TNT` sign surrounded by a red rectangular border. The item-sized sign is always
 36 by 26 board units (plus its border), regardless of obstruction size.
@@ -1926,7 +1947,9 @@ Optional `hazard` is `null` (remove the surface) or an object with `type`:
 **Hazard** contact surface, then its type. Hazards operate continuously without
 being touched or selected, and never damage enemies. Lasers fire inward through
 Koshi, damaging him without blocking his movement, and stop at solid obstacles.
-Flames cover the brick surface and damage Koshi on contact. Missiles fly at
+Flames cover the brick surface and damage Koshi on contact. Merged Flame hazards
+draw fire only along the combined shape's exterior, never along internal seams.
+Missiles fly at
 150 board units/second and turn at no more than 0.65 radians/second, allowing
 Koshi to dodge them into bricks, obstructions, or bumpers; impacts explode
 without destroying obstacles or harming enemies. Bubble and bumper guns fire

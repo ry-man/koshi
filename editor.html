@@ -113,6 +113,7 @@
             <div id="playable-area" aria-hidden="true"></div>
             <svg id="cat-tracks" aria-label="Cat Tracks"></svg>
             <div id="markers"></div>
+            <button id="koshi-start-marker" class="marker koshi-start-marker" type="button" aria-label="Koshi starting point"><img src="./icons/koshi.svg" alt=""><small>Start</small></button>
             <svg id="spawn-links" aria-hidden="true"></svg>
             <div id="camera-outline" aria-hidden="true" hidden></div>
             <div id="selection-box" aria-hidden="true" hidden></div>
@@ -153,6 +154,16 @@
           <fieldset id="inspector-access" class="access-fields">
           <p class="eyebrow">CATEGORY</p>
           <div id="category-palette" class="visual-palette" role="group" aria-label="Category"></div>
+          <section id="koshi-panel" aria-label="Koshi starting point" hidden>
+            <h2>Koshi</h2>
+            <p>Click the playable area to place or replace Koshi's starting point. Drag his marker or use its arrow keys to move it. Without a placement, Koshi starts at the center; scrolling and boss levels keep their existing defaults.</p>
+            <form id="koshi-form">
+              <div class="input-pair"><label>Starting X (%)<input id="koshi-x" type="number" min="0" max="100" step="any" required></label><label>Starting Y (%)<input id="koshi-y" type="number" min="0" max="100" step="any" required></label></div>
+              <button type="submit">Apply starting point</button>
+              <button id="koshi-reset" type="button">Use default starting point</button>
+            </form>
+            <p id="koshi-start-status" aria-live="polite"></p>
+          </section>
           <section id="track-panel" class="cat-tracks-panel" aria-label="Cat Tracks" hidden>
             <h2>Cat Tracks</h2>
             <label>Track <select id="track-choice"><option value="">New track</option></select></label>
@@ -222,6 +233,7 @@
               <legend>Obstruction</legend>
               <div class="input-pair"><label>Width (board units)<input id="brick-spawn-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="brick-spawn-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
               <label><input id="brick-spawn-destructible" type="checkbox"> Destructible by fireball turrets</label>
+              <label><input id="brick-spawn-spiked" type="checkbox"> Spiked (damages Koshi on contact)</label>
               <label>Base color<input id="brick-spawn-color" type="color" value="#718596"></label>
               <label>Pattern<select id="brick-spawn-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
               <label>Pattern color<input id="brick-spawn-patternColor" type="color" value="#dbe6ed"></label>
@@ -246,6 +258,7 @@
               <legend>Obstruction</legend>
               <div class="input-pair"><label>Width (board units)<input id="event-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="event-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
               <label class="inline-label"><input id="event-destructible" type="checkbox"> Destructible by fireball turrets</label>
+              <label class="inline-label"><input id="event-spiked" type="checkbox"> Spiked (damages Koshi on contact)</label>
               <label>Base color<input id="event-color" type="color" value="#718596"></label>
               <label>Pattern<select id="event-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
               <label>Pattern color<input id="event-patternColor" type="color" value="#dbe6ed"></label>

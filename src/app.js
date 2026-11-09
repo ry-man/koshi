@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawBumper, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = globalThis.KoshiCollectibles;
@@ -2089,26 +2089,14 @@ function drawHazards(context, camera = null) {
       Math.abs(beam.end.x - beam.start.x), Math.abs(beam.end.y - beam.start.y))) continue;
     context.save(); drawLaserBeam(context, beam, true); context.restore();
   }
+  const flameGroups = new Map();
   for (const part of game.hazardFlames) {
-    if (!visible(part.x, part.y, part.w, part.h)) continue;
-    context.save();
-    context.strokeStyle = '#ff7928'; context.lineWidth = 10;
-    context.shadowColor = '#ff7928'; context.shadowBlur = 12;
-    context.strokeRect(part.x, part.y, part.w, part.h);
-    context.shadowBlur = 0; context.strokeStyle = '#ffe15a'; context.lineWidth = 3;
-    context.strokeRect(part.x, part.y, part.w, part.h);
-    const geometry = globalThis.KoshiGame.turretGeometry(part, game.width, game.height);
-    const vertical = geometry.direction.x !== 0, length = vertical ? part.h : part.w;
-    for (let along = 6; along < length; along += 13) {
-      const x = vertical ? geometry.anchor.x : part.x + along;
-      const y = vertical ? part.y + along : geometry.anchor.y;
-      const reach = 7 + Math.sin(game.elapsed * 12 + along) * 2;
-      context.beginPath(); context.moveTo(x - (vertical ? 0 : 5), y - (vertical ? 5 : 0));
-      context.lineTo(x + geometry.direction.x * reach, y + geometry.direction.y * reach);
-      context.lineTo(x + (vertical ? 0 : 5), y + (vertical ? 5 : 0)); context.closePath();
-      context.fillStyle = '#ffb52e'; context.fill();
-    }
-    context.restore();
+    if (!flameGroups.has(part.id)) flameGroups.set(part.id, []);
+    flameGroups.get(part.id).push(part);
+  }
+  for (const parts of flameGroups.values()) {
+    if (!parts.some(part => visible(part.x, part.y, part.w, part.h))) continue;
+    drawFlameHazard(context, parts, game.elapsed);
   }
   for (const missile of game.hazardMissiles) {
     if (!visible(missile.x, missile.y)) continue;
