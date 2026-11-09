@@ -118,6 +118,30 @@ function editorFixture(level = levelFor({ kind: 'food', type: 'S', lifetime: 15 
   return { context, $, key, refresh, savedSpawn, source, changed: () => changed };
 }
 
+test('crab spawner direction saves, survives unrelated edits and connections, and clears back to random', () => {
+  const { context, $, refresh, savedSpawn, key } = editorFixture(levelFor({ kind: 'enemy', type: 'robo-crab' }));
+  for (const direction of ['horizontal', 'vertical']) {
+    $('#brick-spawn-crab-direction').value = direction;
+    context.saveBrick({ target: { id: 'brick-spawn-crab-direction' } });
+    assert.equal(savedSpawn().crabDirection, direction);
+    refresh();
+    $('#brick-spawn-shield').value = 'blue';
+    context.saveBrick({ target: { id: 'brick-spawn-shield' } });
+    assert.equal(savedSpawn().crabDirection, direction);
+    refresh();
+  }
+  $('#brick-spawn-crab-direction').value = 'random';
+  context.saveBrick({ target: { id: 'brick-spawn-crab-direction' } });
+  assert.equal(Object.hasOwn(savedSpawn(), 'crabDirection'), false);
+  refresh();
+  context.level.events = [{ time: 0, kind: 'enemy', type: 'robo-crab', x: .3, y: .4, crabDirection: 'horizontal' }];
+  context.connectingSpawn = key;
+  context.connectSpawn(0);
+  assert.equal(savedSpawn().crabDirection, 'horizontal');
+  refresh();
+  assert.equal(context.spawnTemplates()[0].event.crabDirection, 'horizontal');
+});
+
 test('connecting converts a placed event into a spawn-only template with every attribute intact', () => {
   const event = { time: 12, kind: 'object', type: 'obstruction-circle', x: .7, y: .6,
     width: 140, height: 140, destructible: true, color: '#123456', pattern: 'stripes', patternColor: '#abcdef' };

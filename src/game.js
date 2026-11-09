@@ -251,7 +251,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
   'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
   'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
@@ -1576,6 +1576,12 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     if (item.kind !== 'enemy' || (item.shield !== null && !Object.hasOwn(SHIELDS, item.shield))) fail(`${name} has an invalid enemy shield.`);
     result.shield = item.shield;
   };
+  const crabDirection = (item, result, name) => {
+    if (item.crabDirection === undefined) return;
+    if (item.kind !== 'enemy' || item.type !== 'robo-crab'
+      || !['horizontal', 'vertical'].includes(item.crabDirection)) fail(`${name} has an invalid Robo Crab direction.`);
+    result.crabDirection = item.crabDirection;
+  };
   const obstructionAppearance = (item, result, name) => {
     const obstruction = item.kind === 'object' && OBJECTS[item.type]?.obstruction;
     for (const field of ['color', 'patternColor', 'pattern']) {
@@ -1653,7 +1659,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, boss: true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, boss: true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     if (!random && !group) {
       if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
@@ -1662,6 +1668,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     }
     const result = { time, kind: event.kind, type: event.type, ...(random ? { random: true } : { x, y }), ...(group ? { group } : {}) };
     shield(event, result, name);
+    crabDirection(event, result, name);
     if (event.type === 'boss' && (group || event.shield)) fail(`${name}: a boss must be a single, unshielded enemy.`);
     obstructionAppearance(event, result, name);
     if (event.track !== undefined) {
@@ -1834,7 +1841,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = entry.spawner, types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -1845,6 +1852,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
             }
           }
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
+          crabDirection(spawn, override.spawner, `Brick override ${i + 1}`);
           obstructionAppearance(spawn, override.spawner, `Brick override ${i + 1}`);
           if (spawn.kind === 'object' && spawn.lifetime != null) fail(`Brick override ${i + 1}: objects cannot have a lifetime.`);
           if (spawn.kind === 'food') override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn food lifetime`);
@@ -3267,7 +3275,7 @@ class Game {
       return;
     }
     if (spawn.kind === 'enemy') {
-      const enemies = this.createEnemies([this.elapsed, spawn.type, 1, spawn.shield]);
+      const enemies = this.createEnemies([this.elapsed, spawn.type, 1, spawn.shield, spawn]);
       for (const enemy of enemies) this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       this.robots.push(...enemies);
     }
@@ -3378,7 +3386,7 @@ class Game {
   }
 
   damageTurretEnemy(enemy) {
-    if (enemy.type === 'boss') return;
+    if (enemy.type === 'boss' || enemy.type === 'robo-love-bug') return;
     if (this.enemyDamageProgress(enemy) !== null || !this.robots.includes(enemy)) return;
     if (enemy.shield) {
       enemy.shield = SHIELDS[enemy.shield].next;
@@ -4211,6 +4219,7 @@ class Game {
     if (event.type === 'bucket') this.initializeBucket(enemy);
     if (event.type === 'jackolantern') this.initializeJackolantern(enemy);
     if (event.type === 'goalie') this.initializeGoalie(enemy);
+    if (event.type === 'robo-crab') this.initializeRoboCrab(enemy, event.crabDirection);
     if (['wheel', 'snake', 'robo-cow'].includes(event.type)) {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
       const x = (point.x - b.left) / w, y = (point.y - b.top) / h;
@@ -4271,6 +4280,12 @@ class Game {
       if (enemy.type === 'robo-koshi' || enemy.type === 'boss') return true;
       const parts = enemy.type === 'snake' ? this.snakeSegments(enemy) : [enemy];
       if (!parts.some(part => overlaps(part, part.radius + (part.index ? 5 : 0)))) return true;
+      if (enemy.type === 'robo-love-bug') {
+        const { gap, nx, ny } = obstructionSurface(enemy.x, enemy.y, obstruction);
+        enemy.x += nx * (enemy.radius - gap + .01);
+        enemy.y += ny * (enemy.radius - gap + .01);
+        return true;
+      }
       this.defeatEnemy(enemy, false);
       return false;
     });
@@ -4384,6 +4399,12 @@ class Game {
         if (enemy.type === 'robo-cow') enemy.cowDirection = -direction;
         else enemy.barrierDirection = -direction;
         enemy.fleeDirection = -direction;
+      }
+    } else if (enemy.type === 'robo-crab' && !enemy.afraid) {
+      const dx = enemy.x - old.x, dy = enemy.y - old.y;
+      this.moveAroundObstructions(enemy, old, true);
+      if (Math.hypot(enemy.x - old.x - dx, enemy.y - old.y - dy) > 1e-7) {
+        this.turnEnemyFromContact(enemy, -dx, -dy);
       }
     } else {
       this.moveAroundObstructions(enemy, old);
@@ -4652,6 +4673,7 @@ class Game {
       if (type === 'bucket') this.initializeBucket(enemy);
       if (type === 'jackolantern') this.initializeJackolantern(enemy);
       if (type === 'goalie') this.initializeGoalie(enemy);
+      if (type === 'robo-crab') this.initializeRoboCrab(enemy, options?.crabDirection);
       if (['wheel', 'snake', 'robo-cow'].includes(type)) this.placeWheel(enemy);
       this.ensureEnemySpawnClear(enemy);
       if (type === 'robo-cow') this.initializeRoboCow(enemy);
@@ -4957,7 +4979,8 @@ class Game {
     enemy.y += dy * step;
   }
 
-  defeatEnemy(enemy, awardPoints = true) {
+  defeatEnemy(enemy, awardPoints = true, cause = null) {
+    if (enemy.type === 'robo-love-bug' && cause !== 'isolation') return;
     if (enemy.type === 'boss' && enemy.health > 0) return;
     if (awardPoints) {
       this.enemies += enemy.defeatPoints ?? 1;
@@ -5499,6 +5522,91 @@ class Game {
     }
   }
 
+  isolatedLoveBugs(fences) {
+    const bugs = this.robots.filter(enemy => enemy.type === 'robo-love-bug' && this.entityVisible(enemy));
+    if (bugs.length < 2) return new Set(bugs);
+    if (!fences.length) return new Set();
+    const bounds = this.bounds();
+    const walls = fences.map(part => ({
+      left: Math.max(bounds.left, part.x), right: Math.min(bounds.right, part.x + part.w),
+      top: Math.max(bounds.top, part.y), bottom: Math.min(bounds.bottom, part.y + part.h),
+    })).filter(part => part.left < part.right && part.top < part.bottom);
+    const key = JSON.stringify([bounds, walls]);
+    let regions = this.loveBugRegions;
+    if (regions?.key !== key) {
+      // Coordinate compression preserves routes around fence ends, unlike a line-of-sight check.
+      const xs = [...new Set([bounds.left, bounds.right, ...walls.flatMap(part => [part.left, part.right])])].sort((a, b) => a - b);
+      const ys = [...new Set([bounds.top, bounds.bottom, ...walls.flatMap(part => [part.top, part.bottom])])].sort((a, b) => a - b);
+      const width = xs.length - 1, height = ys.length - 1;
+      const cells = new Int32Array(width * height);
+      for (const wall of walls) {
+        const right = xs.indexOf(wall.right), bottom = ys.indexOf(wall.bottom);
+        for (let y = ys.indexOf(wall.top); y < bottom; y++) {
+          cells.fill(-1, y * width + xs.indexOf(wall.left), y * width + right);
+        }
+      }
+      let label = 0;
+      for (let start = 0; start < cells.length; start++) {
+        if (cells[start]) continue;
+        const queue = [start];
+        cells[start] = ++label;
+        for (let index = 0; index < queue.length; index++) {
+          const cell = queue[index], x = cell % width, y = Math.floor(cell / width);
+          const neighbors = [];
+          if (x > 0) neighbors.push(cell - 1);
+          if (x + 1 < width) neighbors.push(cell + 1);
+          if (y > 0) neighbors.push(cell - width);
+          if (y + 1 < height) neighbors.push(cell + width);
+          for (const next of neighbors) if (!cells[next]) {
+            cells[next] = label;
+            queue.push(next);
+          }
+        }
+      }
+      regions = this.loveBugRegions = { key, xs, ys, width, cells };
+    }
+    const regionFor = enemy => {
+      const x = Math.max(0, regions.xs.findIndex((value, index) => index > 0 && enemy.x <= value) - 1);
+      const y = Math.max(0, regions.ys.findIndex((value, index) => index > 0 && enemy.y <= value) - 1);
+      return regions.cells[y * regions.width + x];
+    };
+    const counts = new Map(), labels = new Map();
+    for (const bug of bugs) {
+      const region = regionFor(bug);
+      labels.set(bug, region);
+      counts.set(region, (counts.get(region) ?? 0) + 1);
+    }
+    return new Set(bugs.filter(bug => labels.get(bug) > 0 && counts.get(labels.get(bug)) === 1));
+  }
+
+  initializeRoboCrab(enemy, direction) {
+    const randomAxis = this.random() < .5 ? 'x' : 'y';
+    enemy.crabAxis = direction === 'horizontal' ? 'x' : direction === 'vertical' ? 'y' : randomAxis;
+    enemy.phase = (enemy.crabAxis === 'x' ? 0 : Math.PI / 2) + (this.random() < .5 ? 0 : Math.PI);
+    enemy.crabFast = false;
+    enemy.crabSpeedTime = 3 + this.random() * 12;
+    enemy.crabStride = 0;
+  }
+
+  updateRoboCrab(enemy, seconds, fences) {
+    const direction = (enemy.crabAxis === 'x' ? Math.cos(enemy.phase) : Math.sin(enemy.phase)) < 0 ? -1 : 1;
+    enemy.phase = (enemy.crabAxis === 'x' ? 0 : Math.PI / 2) + (direction < 0 ? Math.PI : 0);
+    enemy.resting = false;
+    let remaining = seconds;
+    while (remaining > 1e-9) {
+      const step = Math.min(remaining, enemy.crabSpeedTime);
+      const speed = enemy.crabFast ? 150 : 45;
+      this.moveBall(enemy, step, fences, speed);
+      enemy.crabStride += step * speed * .12;
+      enemy.crabSpeedTime -= step;
+      remaining -= step;
+      if (enemy.crabSpeedTime <= 1e-9) {
+        enemy.crabFast = !enemy.crabFast;
+        enemy.crabSpeedTime = 3 + this.random() * 12;
+      }
+    }
+  }
+
   moveBall(enemy, seconds, parts, speed = 120) {
     let remaining = seconds;
     const bounds = this.bounds();
@@ -5661,7 +5769,8 @@ class Game {
       this.placeWheel(enemy);
       enemy.barrierDirection = -(enemy.barrierDirection ?? 1);
       enemy.fleeDirection = -(enemy.fleeDirection ?? 1);
-    } else if (enemy.type === 'ram' && !enemy.afraid) enemy.angle = reflected;
+    } else if (enemy.type === 'robo-crab' && !enemy.afraid) this.turnEnemyFromContact(enemy, normal.x, normal.y);
+    else if (enemy.type === 'ram' && !enemy.afraid) enemy.angle = reflected;
     else enemy.phase = reflected;
   }
 
@@ -5686,7 +5795,8 @@ class Game {
     enemy.y = bumper.y + normal.y * (enemy.radius + bumper.radius + .01);
     const reflected = Math.atan2(Math.sin(angle) - 2 * incoming * normal.y,
       Math.cos(angle) - 2 * incoming * normal.x);
-    if (enemy.type === 'ram' && !enemy.afraid) enemy.angle = reflected;
+    if (enemy.type === 'robo-crab' && !enemy.afraid) this.turnEnemyFromContact(enemy, normal.x, normal.y);
+    else if (enemy.type === 'ram' && !enemy.afraid) enemy.angle = reflected;
     else enemy.phase = reflected;
   }
 
@@ -5804,6 +5914,10 @@ class Game {
     const vx = Math.cos(angle), vy = Math.sin(angle);
     const incoming = vx * nx + vy * ny;
     if (incoming >= -1e-9) return;
+    if (enemy.type === 'robo-crab' && !enemy.afraid) {
+      enemy.phase += Math.PI;
+      return;
+    }
     const reflected = Math.atan2(vy - 2 * incoming * ny, vx - 2 * incoming * nx);
     if (enemy.type === 'ram' && !enemy.afraid) {
       enemy.angle = reflected;
@@ -6126,7 +6240,7 @@ class Game {
       return false;
     });
     const fences = this.barrierParts();
-    const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket', 'ball', 'jackolantern'].includes(enemy.type))
+    const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket', 'ball', 'robo-love-bug', 'jackolantern'].includes(enemy.type))
       ? [...this.brickParts(), ...fences] : [];
     const snapshot = enemy => ({ x: enemy.x, y: enemy.y, distance: enemy.distance,
       ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}) });
@@ -6155,6 +6269,8 @@ class Game {
         enemy.resting = false;
         if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) this.moveAfraidWheel(enemy, dt);
         else this.moveAfraidEnemy(enemy, dt);
+        if (enemy.type === 'robo-crab') enemy.crabStride += FEAR_SPEED * dt * .12;
+        if (enemy.type === 'robo-love-bug') enemy.loveBugStride = (enemy.loveBugStride ?? 0) + dt * 7;
         if (enemy.type === 'bucket') this.updateBucket(enemy, dt, parts);
         if (enemy.type === 'jackolantern') this.updateJackolantern(enemy, dt, parts, startX, startY);
       } else if (['wheel', 'snake'].includes(enemy.type)) {
@@ -6163,12 +6279,15 @@ class Game {
         this.updateRoboCow(enemy, dt);
       } else if (enemy.type === 'robo-unicorn') {
         this.updateRoboUnicorn(enemy, dt, bounds);
+      } else if (enemy.type === 'robo-crab') {
+        this.updateRoboCrab(enemy, dt, fences);
       } else if (enemy.type === 'ram') {
         this.updateRam(enemy, dt, parts);
       } else if (enemy.type === 'bucket') {
         this.updateBucket(enemy, dt, parts);
-      } else if (enemy.type === 'ball') {
+      } else if (enemy.type === 'ball' || enemy.type === 'robo-love-bug') {
         this.moveBall(enemy, dt, parts);
+        if (enemy.type === 'robo-love-bug') enemy.loveBugStride = (enemy.loveBugStride ?? 0) + dt * 14;
       } else if (enemy.type === 'jackolantern') {
         this.updateJackolantern(enemy, dt, parts, startX, startY);
       } else if (enemy.type === 'robo-snail') {
@@ -6249,6 +6368,12 @@ class Game {
     this.updateSoccerBalls(dt, startX, startY, previous);
     this.updateBossProjectiles(dt, startX, startY);
     for (const enemy of this.robots) if (enemy.type === 'snake') this.updateSnakeTrail(enemy);
+    const isolated = this.isolatedLoveBugs(fences);
+    this.robots = this.robots.filter(enemy => {
+      if (!isolated.has(enemy)) return true;
+      this.defeatEnemy(enemy, true, 'isolation');
+      return false;
+    });
     this.robots = this.robots.filter(enemy => {
       const old = previous.get(enemy);
       if (enemy.type === 'snake') {
@@ -6265,7 +6390,7 @@ class Game {
         if (distance <= this.cat.radius + enemy.radius && this.enemyDamageProgress(enemy) === null) this.takeDamage();
         return true;
       }
-      if (!this.activeTurret && (this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
+      if (enemy.type !== 'robo-love-bug' && !this.activeTurret && (this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
         if (this.enemyDamageProgress(enemy) === null) {
           if (!this.boosted) {
             this.weaponAttacks = this.weaponAttacks.filter(attack => attack.age < .55);
@@ -6562,7 +6687,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'boss' ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : enemy.type === 'robo-unicorn' ? 2 : enemy.type === 'goalie' ? 1.8 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'boss' ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : enemy.type === 'robo-unicorn' ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }

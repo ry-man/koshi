@@ -1032,7 +1032,7 @@ Add this optional property to a level object. The Beta themes are `garden`,
 `hairball-swamp`, `meownt-vesuvius`, and `robot-hq`. All are available in the
 editor for custom levels.
 Character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
-`robo-snail`, `robo-cow`, `robo-unicorn`, and `tom`. Each is available as both
+`robo-snail`, `robo-cow`, `robo-unicorn`, `robo-crab`, `robo-love-bug`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
@@ -1265,7 +1265,7 @@ key carriers contribute their full counts toward chest requirements.
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
 `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
-`robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`; weapon types are `wood`,
+`robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`, `robo-crab`, `robo-love-bug`; weapon types are `wood`,
 `bronze`, `silver`, `gold`, `hammer-bronze`, `hammer-silver`, and `hammer-gold`.
 Item types (`kind: "item"`) include `cat-block`, `key`, and `treasure-chest` as
 well as the power-ups. Enemy events can carry any item by setting
@@ -1697,6 +1697,48 @@ the time it took to reach that position. Its 1.1-second death animation shrinks
 and fades the head amid extra smoke puffs. Available in custom placements,
 spawn bricks and cutscenes. Level 3–14 introduces it in the campaign.
 
+Robo Love Bug (`robo-love-bug`) has square red eyes, a dark grey head, dark red
+legs and antennae, and pink wings sharing a purple heart. It shuffles its tiny
+legs and bounces like Robo Ball at 120 board units/second. Swords, hammers,
+Boost and both turret attacks cannot damage it or strip its shields, and do
+not spend weapon uses on it. It still hurts Koshi on normal contact.
+
+Love Bugs die only when alone: a single visible bug dies automatically, as
+does the only visible bug in a region closed off by Barrier fences. Any open
+route around unfinished or retracted fences keeps companions connected;
+straight-line visibility is not required. Only Barrier fences divide these
+regions, not other enemies, bumpers or obstructions. Spawn previews and
+offscreen bugs are not companions; offscreen bugs wait until they enter the
+visible scrolling screen. Isolation ignores shields, sleep and fear, awards
+normal enemy points, and drops carried items. Decisions use a simultaneous
+snapshot so groups are not removed in array order. Sleep and fear affect
+movement normally, and pause freezes everything.
+
+Its 1.5-second death first swells blue tears over its eyes, then separates its
+head and two wings, and ends with the same explosion as Robo Wheel. Available
+in custom placements, spawners, editor graphics, guide, cutscenes and a Barrier
+practice lesson. Existing campaign levels are unchanged.
+
+Robo Crab (`robo-crab`) has a grey body, red arms and opening pincers, shuffling
+mechanical legs, and blinking green pixel eyes on stalks. Each crab randomly
+chooses a horizontal or vertical back-and-forth patrol at spawn by default.
+The editor's **Crab direction** selector sets **Horizontal**, **Vertical**, or
+**Random** for placements (including formations); crab spawners have the same
+choice. Custom JSON uses `"crabDirection": "horizontal"` or `"vertical"` on
+the enemy event or spawner; omit it for the existing random behavior. It alternates
+between slow (45 board units/second) and fast (150 units/second), starting slow;
+each interval independently lasts 3 to 15 seconds. Its mouth opens wide during
+the final 0.65 seconds before either speed change, without stopping its patrol.
+Walls, fences, solid obstructions, bumpers and robots turn it back without
+changing its patrol axis. Normal collision separation may nudge its lane.
+Music Box freezes its patrol and speed timer; Spooky Mask uses normal harmless
+fleeing, suspending the speed timer until it resumes its chosen patrol axis.
+Swords and Boost defeat it normally, with standard shield support. Over its
+1.5-second death animation, its eyes and pincers fly off, its mouth opens into
+a big frown, and a smoke puff expands and fades. Available in custom placements,
+enemy spawners, the guide, tutorial practice and cutscenes; no existing campaign
+levels are changed.
+
 Robo Snail (`robo-snail`) is a green, continuously wandering enemy that moves
 slightly faster than Robo Mouse. Its blocky grey-and-brown spiral shell sits
 behind a tall green head with upright stalks, horizontal red eye grilles, and
@@ -1981,6 +2023,7 @@ straight light-blue beam with a pale-blue core. Neither turret affects pickups. 
 attempt; touching it again with a Battery recharges it. Turrets replace other
 contact surfaces and can combine with cooldown color, Crumbler, Warped and
 Toggle attributes.
+Robo Love Bugs are immune to both turret types.
 Optional `toggle` is `1` (red), `2` (green), or `4` (blue), or `null` to remove it; it combines
 with any contact surface, cooldown kind, Crumbler, and Warped.
 Omitted attributes leave earlier overlapping attribute edits unchanged. For example:

@@ -678,6 +678,36 @@ Custom placements snap to the perimeter; editor spawners, portraits, the guide
 and an interactive head-interception lesson support it. Level 2-17 introduces
 head interception; the original 19 levels stay unchanged.
 
+**Robo Love Bug** (`robo-love-bug`) bounces like Robo Ball at 120 game units/second
+while shuffling tiny dark red legs. A dark grey head carries square red eyes and
+dark red antennae; pink wings share a purple heart. Traditional attacks (swords,
+hammers, Boost and turret fire) cannot damage it or its shields. Weapon uses are
+not spent, but ordinary contact still hurts Koshi. It dies only when it is the
+sole visible Love Bug, or Barrier fences close off its region from all other
+visible Love Bugs. Open routes around fence ends still connect companions.
+Only Barrier fences partition regions; previews and offscreen bugs do not
+count. Offscreen bugs wait until visible. Isolation ignores sleep, fear and
+shields, awards normal points and drops carried items. Death swells blue tears
+over its eyes, separates the head and two wings, then uses Robo Wheel's explosion
+over 1.5 seconds. Custom placements, spawners, editor, cutscenes, guide and a
+Barrier practice lesson support it without changing campaign content.
+
+**Robo Crab** (`robo-crab`) has a grey body, red arms and moving pincers, shuffling
+legs, and blinking green pixel eyes on stalks. At spawn it randomly chooses a
+horizontal or vertical back-and-forth patrol by default. The editor can choose
+Horizontal, Vertical or Random for placed crabs and crab spawners. JSON uses
+`crabDirection: "horizontal"` or `"vertical"`; omission keeps random selection.
+Starting slow, it alternates
+between 45 and 150 game units/second, independently choosing a 3-to-15-second
+duration for each interval. Its mouth opens wide for the last 0.65 seconds
+before either speed change. Collisions reverse its patrol without selecting
+a new axis, although separation can nudge its lane. Sleep freezes movement
+and its speed timer; fear suspends the timer and uses normal harmless fleeing.
+On defeat, its pincers and eyes fly off, its mouth opens into a big frown,
+and an expanding puff of smoke fades over 1.5 seconds. Custom placements,
+enemy spawners, editor graphics, guide, tutorial practice and cutscenes support
+it; existing campaign content remains unchanged.
+
 **Robo Snail** (`robo-snail`) wanders continuously at 85 game units/second,
 slightly faster than Robo Mouse, without the Mouse's resting pauses. Its green
 body has two robotic antennae ending in red square eyes and a rigid frown, with
@@ -777,6 +807,8 @@ Swords randomly appear and do not ever disappear unless Koshi picks them up. Kos
 | Silver Sword          | Has 5 attacks then is broken                                                |
 | Gold Sword            | Destroys all enemies touches for 15 seconds, then is broken                 |
 
+Robo Love Bugs are immune to every sword and hammer, as well as Boost and turret
+attacks; use Barrier fences to isolate them instead.
 
 ## Death
 Koshi dies if he either runs out of hearts or if he runs off of the edge of the screen.

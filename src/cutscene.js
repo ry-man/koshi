@@ -276,6 +276,42 @@ function drawPortrait(ctx, character, speaking, time) {
       if (!blink) box('#15232d', 25, y, 1, 4);
     }
     box('#a4afb3', 27, 16, 2, 7);
+  } else if (character === 'robo-love-bug') {
+    for (const x of [3, 26]) for (let i = 0; i < 3; i++) {
+      const shuffle = Math.round(Math.sin(time * 14 + i * Math.PI) * 2);
+      box('#522631', x - 1 + shuffle, 14 + i * 6, 4, 2);
+    }
+    box('#743d68', 5, 11, 23, 19); box('#f29ac2', 6, 12, 21, 17);
+    box('#743d68', 16, 13, 1, 16);
+    for (const [x, y, w, h] of [[9,16,6,5],[18,16,6,5],[11,19,11,4],[13,22,7,3],[15,25,3,2]]) {
+      box('#9346b2', x, y, w, h);
+    }
+    box('#522631', 8, 2, 2, 8); box('#522631', 23, 2, 2, 8);
+    box('#722d40', 6, 1, 4, 3); box('#722d40', 24, 1, 4, 3);
+    box('#252d33', 6, 8, 21, 7); box('#485158', 7, 7, 19, 7);
+    for (const x of [10, 20]) {
+      box('#a0a9af', x - 1, 8, 5, 5); box('#ef3646', x, 9, 3, blink ? 1 : 3);
+    }
+    if (talking) box('#252d33', 14, 12, 5, 2);
+  } else if (character === 'robo-crab') {
+    for (const side of [-1, 1]) {
+      const x = side < 0 ? 2 : 27;
+      const step = Math.round(Math.sin(time * 10 + side) * 2);
+      box('#737d83', x + step, 24, 3, 5);
+      box('#737d83', x + 1 - step, 26, 3, 5);
+      box('#d33c43', x, 9, 2, 12); box('#d33c43', x, 19, 6, 2);
+      box('#d33c43', x - 1, 4, 6, 5); box('#d33c43', x - 1, 2, 3, 3);
+      box('#d33c43', x + 3, time % 1 > .5 ? 2 : 4, 3, 3);
+    }
+    box('#343e44', 5, 15, 23, 12); box('#929ba1', 6, 14, 21, 12);
+    for (const x of [10, 20]) {
+      box('#737d83', x, 10, 2, 5); box('#343e44', x - 3, 6, 8, 5);
+      for (let column = 0; column < 3; column++) {
+        box('#79f58a', x - 2 + column * 2, 7, 1, blink ? 1 : 3);
+      }
+    }
+    box('#202a30', 10, 20, 13, talking ? 5 : 1);
+    box('#202a30', 10, 21, 1, 3); box('#202a30', 22, 21, 1, 3);
   } else if (character === 'robo-snail') {
     box('#314443', 13, 9, 17, 18); box('#777f80', 15, 8, 14, 17);
     box('#826345', 16, 10, 5, 5); box('#a17a4c', 21, 15, 7, 5);
@@ -568,7 +604,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, boss: 40 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, boss: 40 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);

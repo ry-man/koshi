@@ -144,16 +144,18 @@ const GUIDE = [
       ['Robo Snake', 'A long grey robot follows the inner perimeter at the same pace as a Wheel. It has four segments: a yellow-eyed head with black slit pupils and a flicking forked tongue emerging beneath its shell, then spiked panels with a grey plus sign, thin oval buttons and unlettered red circular buttons. Large symmetric grey shapes and red stripes decorate the segments. Only its head can be attacked with a sword or Boost; body contacts hurt Koshi even while the snake is asleep or afraid, respecting normal damage invulnerability. Fear makes it flee slowly along the border; sleep stops it. On defeat its segments fall apart and fade, and its tongue spins away. Available for custom levels.', 'enemy:snake'],
       ['Robo Goalie', 'An egg-shaped robot with three antenna hairs, a long metal nose, and a colorful striped soccer jersey with badges. He spawns at a normal enemy location or custom marker, then moves slowly toward the nearest Goal brick to guard it. If his goal is removed, he travels to the nearest remaining one. Once there, he moves across its mouth to intercept incoming soccer balls. He gently sways around his defensive target, proactively tracking nearby balls and anticipating their rolling motion; incoming scoring threats take priority. Overlapping goalies draw with the lowest on screen in front. He cannot hurt Koshi, but swords and Boost can destroy him; shields work normally. Music Box freezes him, and Spooky Mask makes him retreat along the goal mouth rather than leaving it. On defeat his jersey falls, revealing a plain mechanical shell; he blushes pink, then explodes. Without any Goal brick he immediately plays that defeat animation without awarding points. Available in custom levels and enemy spawners; Level 3-1 introduces him.', 'enemy:goalie'],
       ['Robo Snail', 'The green, spiral-shelled Snail wanders continuously and does not pause like a Mouse. Defeating it freezes all brick cooldowns for 20 seconds; cooldowns already running resume afterward, and new ones wait until the freeze ends. Available in the campaign and custom levels.', 'enemy:robo-snail'],
+      ['Robo Crab', 'A grey robot with red arms and pincers and blinking green pixel eyes. Each crab shuffles back and forth horizontally or vertically, alternating between 45 and 150 board units per second. Each speed lasts a random 3 to 15 seconds; a wide-open mouth warns during the final 0.65 seconds before either change. Defeat it with a sword or Boost: its eyes and pincers fly off, it opens a big frown, and a smoke puff fades away. Sleep and fear work normally. Available in custom levels and enemy spawners.', 'enemy:robo-crab'],
+      ['Robo Love Bug', 'Pink wings form a purple heart beneath a dark grey head with square red eyes, dark red legs and antennae. Love Bugs shuffle and bounce like Robo Balls at 120 board units per second. Swords, hammers, Boost and turret attacks cannot damage them or their shields. Instead, isolate them with Barrier fences: a lone visible Love Bug, or the only bug in a closed barrier region, dies automatically. An open route around a fence still connects companions; other enemy types and spawn previews do not count. Its eyes swell with blue tears, then its head and two wings split apart before a Wheel-style explosion. Sleep and fear affect movement but do not prevent isolation. Available in custom levels, spawners and barrier practice.', 'enemy:robo-love-bug'],
       ['Robo Cow', 'The Cow walks only along the board perimeter. After walking past several brick lengths, it stops to eat a boundary brick; after five seconds, that brick and its merged group become Cinder. Cinder and Goal bricks cannot be eaten. A Spooky Mask cancels eating and makes it flee. It can be defeated with a sword or Boost.', 'enemy:robo-cow'],
       ['Robo Unicorn', 'The Unicorn pauses to aim, then charges toward the nearest food and eats it. With no food left, it turns red and moves faster. Protect your food and use a sword or Boost to defeat it.', 'enemy:robo-unicorn'],
       ['Robo Koshi', 'This robotic copy waits one second, rushes to the place Koshi stood when it spawned, then follows Koshi’s recorded path a short time behind. Keep moving or change direction to avoid meeting your own trail; a sword or Boost can defeat it.', 'enemy:robo-koshi'],
       ['Tom the Toaster', 'Boss levels have one boss and no time limit. Dodge Tom’s spinning toast and rapid straight-line ricochets with no warning path. His charged attack fires blue toast that turns a non-Cinder brick blue, then black toast that destroys a non-Boost brick. After one to four attacks, his eyes scroll ERROR! and he rocks gently. Launch from a Boost brick to hit him then. Six hits empty his health bar; his death animation finishes before Koshi celebrates.', 'enemy:boss'],
-      ['Damage & defeats', 'Unarmed contact with hostile robots costs one heart; Robo Goalie is harmless. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach a robot to strike automatically.'],
+      ['Damage & defeats', 'Unarmed contact with hostile robots costs one heart; Robo Goalie is harmless. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach an attackable robot to strike automatically. Love Bugs require Barrier isolation instead and can hurt Koshi even while he holds a weapon.'],
       ...Object.entries(WEAPONS).map(([type, weapon]) => [
         weapon.name,
         weapon.hammer
-          ? `${weapon.uses} hammer hits. Each contact spends as many hits as possible to damage an enemy shield or defeat an unshielded enemy, using no more hits than needed.`
-          : `${weapon.uses} sword hit${weapon.uses === 1 ? '' : 's'} before breaking. Shield hits also spend a hit. Works on every enemy type.`,
+          ? `${weapon.uses} hammer hits. Each contact spends as many hits as possible to damage an enemy shield or defeat an unshielded enemy, using no more hits than needed. Cannot damage Love Bugs or Tom the Toaster.`
+          : `${weapon.uses} sword hit${weapon.uses === 1 ? '' : 's'} before breaking. Shield hits also spend a hit. Cannot damage Love Bugs or Tom the Toaster.`,
         `weapon:${type}`,
       ]),
       ['One weapon at a time', 'Every collected sword or hammer replaces your current weapon and resets its hit count. A weaker weapon can reduce your remaining hits. Uncollected weapons remain until their optional on-screen lifetime expires, or until the level ends.'],
@@ -205,6 +207,8 @@ const LESSONS = [
   { id: 'wheel', title: 'Robo Wheel', instruction: 'Aim at the outlined brick to collect a sword and intercept a wheel at the inner perimeter. Unlike a mouse, it keeps rolling along the wall.' },
   { id: 'goalie', title: 'Robo Goalie', instruction: 'Collect a sword and intercept the Goalie. It guards a Goal and cannot hurt Koshi, but it can block soccer shots.' },
   { id: 'robo-snail', title: 'Robo Snail', instruction: 'Collect a sword and defeat the continuously wandering Snail. Watch every brick cooldown freeze for 20 seconds after the defeat.' },
+  { id: 'robo-crab', title: 'Robo Crab', instruction: 'Collect a sword and intercept the shuffling Crab. Its wide-open mouth warns before switching between slow and fast patrols.' },
+  { id: 'robo-love-bug', title: 'Robo Love Bug', instruction: 'Select the outlined Barrier brick and let its fence cross the arena. Separate the two Love Bugs: attacks cannot defeat them, but each dies when isolated.' },
   { id: 'robo-cow', title: 'Robo Cow', instruction: 'Collect a sword and intercept the Cow on the perimeter. If left alone, it eats a boundary brick and turns it into Cinder after five seconds.' },
   { id: 'robo-unicorn', title: 'Robo Unicorn', instruction: 'Collect a sword and intercept the Unicorn. It aims at and eats food; with no food left it turns red and speeds up.' },
   { id: 'robo-koshi', title: 'Robo Koshi', instruction: 'Collect a sword, keep moving, and watch the robotic copy return to the place you stood before following your path.' },
@@ -313,6 +317,17 @@ class Tutorial {
     };
     const addSword = () => game.weapons.push({ ...along(.22), type: this.sword });
     const id = this.lesson.id;
+    if (id === 'robo-love-bug') {
+      this.target.barrier = true;
+      const bounds = game.bounds(), y = this.target.y + this.target.h / 2;
+      const offset = Math.min(80, (y - bounds.top) / 2, (bounds.bottom - y) / 2);
+      for (const side of [-1, 1]) {
+        const enemy = game.createCustomSpawn({ kind: 'enemy', type: id, x: .7,
+          y: (y + side * offset - bounds.top) / (bounds.bottom - bounds.top) })[0];
+        enemy.phase = Math.PI;
+        game.robots.push(enemy);
+      }
+    }
     if (id === 'soccer') {
       const goal = game.bricks.filter(brick => regions.get(brick.id).edge === 'right' && brick.id !== this.target.id)
         .sort((a, b) => Math.abs(a.y + a.h / 2 - start.y) - Math.abs(b.y + b.h / 2 - start.y))[0];
@@ -381,7 +396,7 @@ class Tutorial {
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
       'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(id)) {
       addSword();
       if (['wheel', 'snake', 'robo-cow'].includes(id)) {
@@ -428,6 +443,10 @@ class Tutorial {
         const enemy = game.createCustomSpawn({ kind: 'enemy', type: id,
           x: (point.x - bounds.left) / (bounds.right - bounds.left),
           y: (point.y - bounds.top) / (bounds.bottom - bounds.top) })[0];
+        if (id === 'robo-crab') {
+          enemy.crabAxis = 'x';
+          enemy.phase = Math.PI;
+        }
         game.robots.push(enemy);
       }
     }
@@ -518,6 +537,8 @@ class Tutorial {
       wheel: game.enemies >= 1,
       goalie: game.enemies >= 1,
       'robo-snail': game.enemies >= 1 && game.snailStreamUntil > game.elapsed,
+      'robo-crab': game.enemies >= 1,
+      'robo-love-bug': game.enemies >= 2,
       'robo-cow': game.enemies >= 1,
       'robo-unicorn': game.enemies >= 1,
       'robo-koshi': game.enemies >= 1,

@@ -217,6 +217,7 @@
             </fieldset>
             <label>Spawned object lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" placeholder="Until level ends" disabled></label>
             <label>Spawned enemy shield<select id="brick-spawn-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
+            <label hidden>Spawned crab direction<select id="brick-spawn-crab-direction" disabled><option value="random">Random</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label>
             <fieldset id="brick-spawn-obstruction" hidden disabled>
               <legend>Obstruction</legend>
               <div class="input-pair"><label>Width (board units)<input id="brick-spawn-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="brick-spawn-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
@@ -250,6 +251,7 @@
               <label>Pattern color<input id="event-patternColor" type="color" value="#dbe6ed"></label>
             </fieldset>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
+            <label id="crab-direction-label" hidden>Crab direction <select id="event-crab-direction" disabled><option value="random">Random</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label>
             <label id="event-carrier-label" hidden>Carried item <select id="event-carries-item" disabled><option value="">None</option></select></label>
             <label id="chest-keys-label" hidden>Keys needed to open chest <input id="event-keys-required" type="number" min="1" max="100000" step="1" value="1" disabled></label>
             <div class="input-pair">

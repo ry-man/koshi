@@ -1382,7 +1382,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
-    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
     'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives',
   ].includes(tutorial.lesson.id);
   makeBrickButtons();
@@ -3591,6 +3591,139 @@ function drawSnailShell() {
   ctx.lineTo(-3, 1); ctx.lineTo(0, 4); ctx.stroke();
 }
 
+function drawRoboLoveBug(enemy, deathProgress = null, damageColor = null) {
+  const dying = deathProgress !== null, progress = deathProgress ?? 0;
+  const split = Math.max(0, (progress - .35) / .65);
+  const tears = dying ? Math.min(1, progress / .3) : 0;
+  const stride = enemy.loveBugStride ?? 0;
+  ctx.save();
+  ctx.rotate((enemy.phase ?? -Math.PI / 2) + Math.PI / 2);
+  ctx.globalAlpha *= dying ? Math.max(0, 1 - split) : 1;
+  ctx.strokeStyle = '#522631'; ctx.lineWidth = 2;
+  if (!dying || progress < .35) {
+    for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+      const shuffle = dying || enemy.asleep ? 0 : Math.sin(stride + i * Math.PI + side) * 2.5;
+      ctx.beginPath(); ctx.moveTo(side * 18, -5 + i * 10);
+      ctx.lineTo(side * (27 + shuffle), -10 + i * 12 + shuffle); ctx.stroke();
+    }
+  }
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(side * split * 35, split * 20);
+    ctx.rotate(side * split * .9);
+    ctx.fillStyle = damageColor ?? '#f29ac2'; ctx.strokeStyle = '#743d68'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(0, -9);
+    ctx.bezierCurveTo(side * 30, -13, side * 30, 25, 0, 25);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = '#9346b2';
+    ctx.beginPath(); ctx.moveTo(0, 19);
+    ctx.bezierCurveTo(-31, 2, -13, -9, 0, 2);
+    ctx.bezierCurveTo(13, -9, 31, 2, 0, 19); ctx.closePath(); ctx.fill();
+    ctx.restore(); ctx.restore();
+  }
+  ctx.save(); ctx.translate(0, -split * 40); ctx.rotate(split * .4);
+  ctx.strokeStyle = '#522631'; ctx.lineWidth = 2.5;
+  for (const side of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(side * 10, -20); ctx.lineTo(side * 18, -33); ctx.stroke();
+    ctx.fillStyle = '#722d40';
+    ctx.beginPath(); ctx.arc(side * 19, -35, 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = damageColor ?? '#485158'; ctx.strokeStyle = '#252d33'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(-22, -7);
+  ctx.bezierCurveTo(-22, -31, 22, -31, 22, -7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (const side of [-1, 1]) {
+    const x = side * 8;
+    ctx.fillStyle = '#a0a9af'; ctx.fillRect(x - 5, -20, 10, 10);
+    ctx.fillStyle = '#ef3646'; ctx.fillRect(x - 3, -18, 6, 6);
+    if (tears > 0) {
+      ctx.fillStyle = '#55bafa';
+      ctx.beginPath(); ctx.ellipse(x, -12, 3 + tears * 3, 1 + tears * 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c9efff';
+      ctx.beginPath(); ctx.ellipse(x - 1, -14, 1, tears * 2, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore(); ctx.restore();
+}
+
+function drawRoboCrab(enemy, deathProgress = null, damageColor = null) {
+  const dying = deathProgress !== null, progress = deathProgress ?? 0;
+  const age = enemy.age ?? 0;
+  const stride = enemy.crabStride ?? 0;
+  const warning = !dying && !enemy.asleep && !enemy.afraid && enemy.crabSpeedTime <= .65;
+  ctx.save();
+  ctx.globalAlpha *= dying ? Math.max(0, 1 - Math.max(0, progress - .4) / .6) : 1;
+  ctx.strokeStyle = '#343e44'; ctx.lineWidth = 2;
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.scale(side, 1);
+    for (let i = 0; i < 3; i++) {
+      const step = dying ? 0 : Math.sin(stride + i * Math.PI * .7) * 3;
+      ctx.fillStyle = '#737d83';
+      ctx.beginPath(); ctx.moveTo(15, 8 + i * 2); ctx.lineTo(31 + step, 13 + i * 3);
+      ctx.lineTo(23 + step, 25 + i); ctx.lineTo(24 + step, 17 + i * 2);
+      ctx.lineTo(13, 14); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.strokeStyle = damageColor ?? '#d33c43'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(21, 2); ctx.lineTo(35, 2);
+    ctx.lineTo(35, -24); ctx.lineTo(29, -24); ctx.stroke();
+    ctx.strokeStyle = '#343e44'; ctx.lineWidth = 2;
+    ctx.restore();
+  }
+  ctx.fillStyle = damageColor ?? '#929ba1';
+  ctx.beginPath(); ctx.roundRect(-23, -7, 46, 26, 12); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#c9ced1'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-14, -3); ctx.lineTo(14, -3); ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = '#737d83'; ctx.fillRect(side * 10 - 1.5, -17, 3, 10);
+  }
+  ctx.fillStyle = '#202a30'; ctx.strokeStyle = '#202a30'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-13, 12);
+  if (dying || warning) {
+    ctx.quadraticCurveTo(0, dying ? -7 : -4, 13, 12);
+    ctx.lineTo(11, 17); ctx.quadraticCurveTo(0, 9, -11, 17); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c26c74';
+    ctx.beginPath(); ctx.ellipse(0, 12, 6, 2, 0, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.lineTo(-13, 7); ctx.lineTo(13, 7); ctx.lineTo(13, 12); ctx.stroke();
+  }
+  const blink = !dying && !enemy.asleep && age % 4 > 3.78;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(side * (10 + progress * 35), -19 - progress * 55 + progress * progress * 45);
+    if (dying) ctx.rotate(side * progress * 5);
+    ctx.fillStyle = '#343e44'; ctx.fillRect(-8, -4, 16, 8);
+    for (let column = 0; column < 5; column++) for (let row = 0; row < (blink ? 1 : 2); row++) {
+      ctx.fillStyle = column === 2 ? '#36b956' : '#79f58a';
+      ctx.fillRect(-6 + column * 2.5, blink ? 0 : -2 + row * 3, 1.7, 2);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.translate(side * (30 + progress * 45), -27 - progress * 35 + progress * progress * 60);
+    ctx.scale(side, 1);
+    if (dying) ctx.rotate(progress * 6);
+    const opening = dying ? .5 : .12 + (Math.sin(age * 5) + 1) * .2;
+    ctx.fillStyle = damageColor ?? '#d33c43'; ctx.strokeStyle = '#6e282e'; ctx.lineWidth = 1.5;
+    ctx.save(); ctx.rotate(-opening);
+    ctx.beginPath(); ctx.moveTo(-6, 3); ctx.lineTo(-7, -11);
+    ctx.lineTo(8, -11); ctx.lineTo(0, -1); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.rotate(opening);
+    ctx.beginPath(); ctx.moveTo(-6, 3); ctx.lineTo(7, 3);
+    ctx.lineTo(7, -4); ctx.lineTo(0, -2); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.restore();
+  }
+  ctx.restore();
+  if (dying && progress > .15) {
+    const smoke = (progress - .15) / .85;
+    ctx.save(); ctx.globalAlpha *= Math.sin(Math.PI * smoke) * .8;
+    for (let i = 0; i < 7; i++) {
+      const angle = i * Math.PI * 2 / 7;
+      ctx.fillStyle = i % 2 ? '#7f898e' : '#c1c9cc';
+      ctx.beginPath(); ctx.arc(Math.cos(angle) * smoke * 25,
+        Math.sin(angle) * smoke * 15 - smoke * 18, 4 + smoke * 10, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
 function drawRoboSnail(enemy, deathProgress = null, damageColor = null) {
   const progress = deathProgress ?? 0;
   const age = enemy.age ?? 0;
@@ -3945,6 +4078,14 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   }
   if (enemy.type === 'robo-snail') {
     drawRoboSnail(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
+  if (enemy.type === 'robo-crab') {
+    drawRoboCrab(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
+  if (enemy.type === 'robo-love-bug') {
+    drawRoboLoveBug(enemy, deathProgress, damageColor);
     ctx.restore(); return;
   }
   if (enemy.type === 'robo-cow') {
@@ -4418,11 +4559,39 @@ function drawRoboBall(enemy, deathProgress = null, damageColor = null) {
   }
 }
 
+function drawRobotExplosion(blast) {
+  const radius = 3 + Math.sin(Math.PI * blast) * 29;
+  ctx.save(); ctx.globalAlpha *= 1 - blast;
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 1.8);
+  glow.addColorStop(0, '#ffb62dcc'); glow.addColorStop(1, '#ff4b1600');
+  ctx.fillStyle = glow;
+  ctx.fillRect(-radius * 1.8, -radius * 1.8, radius * 3.6, radius * 3.6);
+  for (const [color, size] of [['#e94b25', 1], ['#ffac32', .72], ['#fff2ab', .4]]) {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(0, -blast * 10, radius * size, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#ffd46a';
+  for (let i = 0; i < 8; i++) {
+    const angle = i * Math.PI / 4;
+    ctx.beginPath();
+    ctx.arc(Math.cos(angle) * blast * 42, Math.sin(angle) * blast * 42,
+      2 * (1 - blast), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawEnemyDeath(enemy) {
   const progress = enemy.deathProgress;
   ctx.save();
   if (enemy.type === 'boss') {
     drawRobot(enemy, progress);
+  } else if (enemy.type === 'robo-love-bug') {
+    drawRobot(enemy, progress);
+    if (progress >= .55) {
+      ctx.translate(enemy.x, enemy.y);
+      drawRobotExplosion((progress - .55) / .45);
+    }
   } else if (enemy.type === 'robo-koshi') {
     drawRobot(enemy, progress);
     if (progress > .12) {
@@ -4440,6 +4609,8 @@ function drawEnemyDeath(enemy) {
       }
       ctx.restore();
     }
+  } else if (enemy.type === 'robo-crab') {
+    drawRobot(enemy, progress);
   } else if (enemy.type === 'robo-snail') {
     drawRobot(enemy, progress);
   } else if (enemy.type === 'robo-unicorn') {
@@ -4505,25 +4676,7 @@ function drawEnemyDeath(enemy) {
     }
     const blastStart = enemy.type === 'robo-cow' ? .65 : .25;
     if (progress >= blastStart) {
-      const blast = (progress - blastStart) / (1 - blastStart);
-      const radius = 3 + Math.sin(Math.PI * blast) * 29;
-      ctx.globalAlpha = 1 - blast;
-      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 1.8);
-      glow.addColorStop(0, '#ffb62dcc'); glow.addColorStop(1, '#ff4b1600');
-      ctx.fillStyle = glow;
-      ctx.fillRect(-radius * 1.8, -radius * 1.8, radius * 3.6, radius * 3.6);
-      for (const [color, size] of [['#e94b25', 1], ['#ffac32', .72], ['#fff2ab', .4]]) {
-        ctx.fillStyle = color;
-        ctx.beginPath(); ctx.arc(0, -blast * 10, radius * size, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.fillStyle = '#ffd46a';
-      for (let i = 0; i < 8; i++) {
-        const angle = i * Math.PI / 4;
-        ctx.beginPath();
-        ctx.arc(Math.cos(angle) * blast * 42, Math.sin(angle) * blast * 42,
-          2 * (1 - blast), 0, Math.PI * 2);
-        ctx.fill();
-      }
+      drawRobotExplosion((progress - blastStart) / (1 - blastStart));
     }
   }
   ctx.restore();

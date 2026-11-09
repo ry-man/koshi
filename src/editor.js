@@ -34,7 +34,7 @@ const OBSTRUCTION_COLORS = [
   '#fecdd3', '#b7707d', '#f43f5e', '#be123c', '#4c0519',
   '#ead8c5', '#a58b73', '#a66b36', '#704522', '#29190d',
 ];
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' }, 'robo-crab': { name: 'Robo Crab' }, 'robo-love-bug': { name: 'Robo Love Bug' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -98,6 +98,7 @@ function campaignPreview(index) {
   for (const entry of game.level.enemies) {
     for (const enemy of game.createEnemies(entry)) {
       add('enemy', entry[0], entry[1], enemy, null, entry[3]);
+      if (entry[1] === 'robo-crab' && entry[4]?.crabDirection) events.at(-1).crabDirection = entry[4].crabDirection;
       const item = enemy.carriesItem ?? (enemy.carriesCatBlock ? 'cat-block' : enemy.carriesKey ? 'key' : '');
       if (item) events.at(-1).carriesItem = item;
     }
@@ -222,11 +223,31 @@ function picture(value, control) {
   } else if (item && item.kind && item.type) {
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
     svg.setAttribute('viewBox', item.type === 'robo-snail' ? '-32 -32 64 64'
-      : item.type === 'robo-unicorn' ? '-38 -44 76 76'
+      : item.type === 'robo-love-bug' ? '-32 -40 64 72' : item.type === 'robo-crab' ? '-42 -44 84 76' : item.type === 'robo-unicorn' ? '-38 -44 76 76'
         : item.type === 'robo-cow' ? '-35 -30 70 60' : '-28 -28 56 56'); svg.setAttribute('aria-hidden', 'true');
     path.setAttribute('d', spawnSymbol(item));
     svg.append(path); image.append(svg);
     image.style.color = spawnColor(item);
+    if (item.type === 'robo-love-bug') {
+      path.setAttribute('stroke', '#522631');
+      const detail = (d, color) => {
+        const layer = document.createElementNS(ns, 'path');
+        layer.setAttribute('d', d); layer.setAttribute('fill', color); layer.setAttribute('stroke', 'none'); svg.append(layer);
+      };
+      detail('M0 -9 C-30 -13 -30 25 0 25 C30 25 30 -13 0 -9 Z', '#f29ac2');
+      detail('M0 19 C-31 2 -13 -9 0 2 C13 -9 31 2 0 19 Z', '#9346b2');
+      detail('M-22 -7 C-22 -31 22 -31 22 -7 Z', '#485158');
+      detail('M-12 -19 H-5 V-12 H-12 Z M5 -19 H12 V-12 H5 Z', '#ef3646');
+    }
+    if (item.type === 'robo-crab') {
+      const detail = (d, color, fill = 'none') => {
+        const layer = document.createElementNS(ns, 'path');
+        layer.setAttribute('d', d); layer.setAttribute('stroke', color); layer.setAttribute('fill', fill); svg.append(layer);
+      };
+      detail('M-23 2 H-35 V-24 H-29 M23 2 H35 V-24 H29 M-36 -24 L-37 -38 L-22 -38 L-30 -28 L-23 -31 V-24 Z M36 -24 L37 -38 L22 -38 L30 -28 L23 -31 V-24 Z', '#d33c43');
+      detail('M-17 -22 H-3 V-16 H-17 Z M3 -22 H17 V-16 H3 Z', '#343e44', '#343e44');
+      detail('M-16 -20 H-4 M-16 -17 H-4 M4 -20 H16 M4 -17 H16', '#79f58a');
+    }
     if (item.type === 'robo-unicorn') {
       path.setAttribute('fill', '#f5b5d3');
       const detail = (d, color) => {
@@ -387,7 +408,7 @@ function syncPalettes() {
     const plain = CONTACT_SURFACES.every(surface => !$(`#brick-${surface}`).checked && !$(`#brick-${surface}`).indeterminate);
     button.setAttribute('aria-pressed', attribute === 'plain' ? String(plain) : box.indeterminate ? 'mixed' : String(box.checked));
   }
-  for (const id of ['brick-uses', 'brick-warp-seconds', 'brick-spawn-lifetime', 'brick-spawn-shield']) $(`#${id}`).parentElement.hidden = $(`#${id}`).disabled;
+  for (const id of ['brick-uses', 'brick-warp-seconds', 'brick-spawn-lifetime', 'brick-spawn-shield', 'brick-spawn-crab-direction']) $(`#${id}`).parentElement.hidden = $(`#${id}`).disabled;
 }
 
 function message(text, error = false) {
@@ -450,6 +471,10 @@ function typeOptions(type, showLifetime) {
   $('#event-lifetime').dataset.kind = kind;
   $('#shield-label').hidden = kind !== 'enemy' && kind !== MIXED;
   $('#event-shield').disabled = kind !== 'enemy' && kind !== MIXED;
+  const crab = kind === 'enemy' && ($('#event-type').value === 'robo-crab'
+    || (type === MIXED && [...selectedEvents].some(index => level.events[index].kind === 'enemy' && level.events[index].type === 'robo-crab')));
+  $('#crab-direction-label').hidden = !crab;
+  $('#event-crab-direction').disabled = !crab;
   $('#event-carrier-label').hidden = kind !== 'enemy' && kind !== MIXED;
   $('#event-carries-item').disabled = kind !== 'enemy' && kind !== MIXED;
   const chest = kind === 'item' && $('#event-type').value === 'treasure-chest';
@@ -545,7 +570,7 @@ function description(event) {
 }
 
 function icon(event) {
-  if (event.kind === 'enemy' && ['robo-snail', 'robo-cow', 'robo-unicorn', 'boss'].includes(event.type)) return picture(`enemy:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'enemy' && ['robo-snail', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'boss'].includes(event.type)) return picture(`enemy:${event.type}`, 'brick-spawn-item');
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
@@ -564,6 +589,8 @@ function readEvent() {
     event.lifetime = Number($('#event-lifetime').value);
   }
   if (event.kind === 'enemy') event.shield = $('#event-shield').value === 'none' ? null : $('#event-shield').value;
+  if (event.kind === 'enemy' && event.type === 'robo-crab'
+    && ['horizontal', 'vertical'].includes($('#event-crab-direction').value)) event.crabDirection = $('#event-crab-direction').value;
   if (event.kind === 'enemy' && $('#event-carries-item').value) event.carriesItem = $('#event-carries-item').value;
   if (event.kind === 'item' && event.type === 'treasure-chest') {
     event.keysRequired = Number($('#event-keys-required').value || $('#event-keys-required').placeholder || 1);
@@ -609,6 +636,10 @@ function populateEventForm() {
   const shields = items.filter(event => event.kind === 'enemy').map(event => event.shield ?? 'none');
   if (shields.length && common(shields) === MIXED) mixedOption($('#event-shield'));
   else $('#event-shield').value = shields[0] ?? 'none';
+  const directions = items.filter(event => event.kind === 'enemy' && event.type === 'robo-crab').map(event => event.crabDirection ?? 'random');
+  $('#event-crab-direction').querySelector('option[value=""]')?.remove();
+  if (directions.length && common(directions) === MIXED) mixedOption($('#event-crab-direction'));
+  else $('#event-crab-direction').value = directions[0] ?? 'random';
   const carriers = items.filter(event => event.kind === 'enemy')
     .map(event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : ''));
   const carrierMixed = carriers.some(item => item !== carriers[0]);
@@ -783,6 +814,12 @@ function renderBrickInspector(bricks) {
   $('#brick-spawn-shield').disabled = inert || !shields.length;
   if (shields.length && common(shields) === MIXED) mixedOption($('#brick-spawn-shield'));
   else $('#brick-spawn-shield').value = shields[0] ?? 'none';
+  const directions = chosen.filter(brick => brick.spawner?.kind === 'enemy' && brick.spawner.type === 'robo-crab')
+    .map(brick => brick.spawner.crabDirection ?? 'random');
+  $('#brick-spawn-crab-direction').querySelector('option[value=""]')?.remove();
+  $('#brick-spawn-crab-direction').disabled = inert || !directions.length;
+  if (directions.length && common(directions) === MIXED) mixedOption($('#brick-spawn-crab-direction'));
+  else $('#brick-spawn-crab-direction').value = directions[0] ?? 'random';
   const obstructions = chosen.map(brick => brick.spawner).filter(spawn => spawn?.kind === 'object' && OBJECTS[spawn.type]?.obstruction);
   $('#brick-spawn-obstruction').hidden = inert || !obstructions.length;
   $('#brick-spawn-obstruction').disabled = inert || !obstructions.length;
@@ -1781,6 +1818,11 @@ function saveBrick(event) {
         if (kind === 'enemy') entry.spawner.shield = $('#brick-spawn-shield').value === 'none' || !$('#brick-spawn-shield').value ? null : $('#brick-spawn-shield').value;
       }
       if (id === 'brick-spawn-shield' && entry.spawner?.kind === 'enemy' && $('#brick-spawn-shield').value !== MIXED) entry.spawner.shield = $('#brick-spawn-shield').value === 'none' ? null : $('#brick-spawn-shield').value;
+      if (id === 'brick-spawn-crab-direction' && entry.spawner?.kind === 'enemy' && entry.spawner.type === 'robo-crab'
+        && $('#brick-spawn-crab-direction').value !== MIXED) {
+        if ($('#brick-spawn-crab-direction').value === 'random') delete entry.spawner.crabDirection;
+        else entry.spawner.crabDirection = $('#brick-spawn-crab-direction').value;
+      }
       if (id === 'brick-spawn-lifetime' && ['food', 'item', 'weapon'].includes(entry.spawner?.kind)) {
         const lifetime = number('#brick-spawn-lifetime');
         if (lifetime !== null) entry.spawner.lifetime = lifetime;
@@ -1819,6 +1861,10 @@ function saveBrick(event) {
         if (entry[attribute]) {
           for (const other of CONTACT_SURFACES) if (other !== attribute) entry[other] = ['portal', 'spawner', 'turret', 'hazard'].includes(other) ? null : false;
         }
+      }
+      if (['brick-spawn-item', 'brick-spawner'].includes(id) && entry.spawner?.kind === 'enemy' && entry.spawner.type === 'robo-crab'
+        && ['horizontal', 'vertical'].includes($('#brick-spawn-crab-direction').value)) {
+        entry.spawner.crabDirection = $('#brick-spawn-crab-direction').value;
       }
       if (entry.spawner?.kind === 'object' && OBJECTS[entry.spawner.type]?.obstruction) {
         if (id === 'brick-spawn-item' || id === 'brick-spawner') Object.assign(entry.spawner, readObstructionFields('brick-spawn'));
@@ -1922,7 +1968,9 @@ for (const field of ['width', 'height', 'destructible']) {
   $(`#brick-spawn-${field}`).addEventListener('change', saveBrick);
 }
 $('#brick-spawn-shield').addEventListener('change', event => attempt(() => saveBrick(event)));
+$('#brick-spawn-crab-direction').addEventListener('change', event => attempt(() => saveBrick(event)));
 $('#event-shield').addEventListener('change', () => touched.add('#event-shield'));
+$('#event-crab-direction').addEventListener('change', () => touched.add('#event-crab-direction'));
 $('#event-carries-item').addEventListener('change', () => touched.add('#event-carries-item'));
 for (const selector of ['#event-time', '#event-lifetime', '#event-x', '#event-y', '#event-keys-required']) {
   $(selector).addEventListener('input', () => touched.add(selector));
@@ -1942,13 +1990,14 @@ function applyToSelected() {
   const time = number('#event-time'), x = number('#event-x'), y = number('#event-y'), lifetime = number('#event-lifetime');
   const lifetimeChanged = touched.has('#event-lifetime') && !$('#event-lifetime').disabled;
   const shieldChanged = touched.has('#event-shield') && value('#event-shield') !== MIXED;
+  const directionChanged = touched.has('#event-crab-direction') && value('#event-crab-direction') !== MIXED;
   const carrierChanged = touched.has('#event-carries-item') && value('#event-carries-item') !== '__mixed-carried-item__';
   const keysChanged = touched.has('#event-keys-required') && !$('#event-keys-required').disabled;
   const textureFields = ['color', 'pattern', 'patternColor'].filter(field => touched.has(`#event-${field}`) && value(`#event-${field}`) !== MIXED);
   const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
   const destructibleChanged = touched.has('#event-destructible');
   const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle'].some(selector => touched.has(selector));
-  if (!kind && !type && !shieldChanged && !carrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -1985,6 +2034,11 @@ function applyToSelected() {
     } else delete next.lifetime;
     if (next.kind !== 'enemy') delete next.shield;
     else if (shieldChanged) next.shield = value('#event-shield') === 'none' ? null : value('#event-shield');
+    if (next.kind !== 'enemy' || next.type !== 'robo-crab') delete next.crabDirection;
+    else if (directionChanged) {
+      if (value('#event-crab-direction') === 'random') delete next.crabDirection;
+      else next.crabDirection = value('#event-crab-direction');
+    }
     if (next.kind !== 'enemy') {
       delete next.carriesItem; delete next.carriesCatBlock; delete next.carriesKey;
     } else if (carrierChanged) {

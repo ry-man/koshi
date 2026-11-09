@@ -217,13 +217,15 @@ test('phone cutscenes space the cast evenly with a wider gap beside Koshi withou
   }
 });
 
-test('all campaign scenes validate and every story character speaks', () => {
+test('all campaign scenes validate and every campaign story character speaks', () => {
   const speakers = new Set();
   for (const level of LEVELS) {
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).sort());
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(type => !['robo-crab', 'robo-love-bug'].includes(type)).sort());
+  assert.ok(!speakers.has('robo-crab'), 'custom-only enemies do not change campaign scenes');
+  assert.ok(!speakers.has('robo-love-bug'), 'Love Bugs do not change campaign scenes');
   const earlierSpeakers = new Set(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).flatMap(level => level.cutscene.lines.map(line => line.speaker)));
   for (const character of ['goalie', 'robo-koshi', 'robo-snail', 'robo-cow', 'robo-unicorn']) {
     assert.ok(!earlierSpeakers.has(character), 'World 3 enemies do not change earlier campaign scenes');

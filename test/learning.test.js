@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 58);
+  assert.equal(LESSONS.length, 60);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -142,14 +142,28 @@ test('tutorial weapon choices match the game catalog', () => {
   }
 });
 
-test('enemy lessons require defeating every robot type', () => {
-  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom', 'boss'].includes(type))) {
+test('attackable enemy lessons require defeating every robot type with a sword', () => {
+  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom', 'boss', 'robo-love-bug'].includes(type))) {
     const tutorial = practice(id);
     assert.equal(tutorial.observe(), false, `${id} is not complete at start`);
     aim(tutorial); wait(tutorial, 2);
     assert.equal(tutorial.game.enemies, 1, `${id} is defeated`);
     assert.equal(tutorial.observe(), true, `${id} completes after defeat`);
     assert.equal(tutorial.game.hearts, 3, `${id} can be defeated without damage`);
+  }
+});
+
+test('Love Bug practice teaches barrier isolation instead of sword attacks', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const tutorial = practice('robo-love-bug', options);
+    assert.equal(tutorial.game.robots.length, 2);
+    assert.equal(tutorial.game.weapons.length, 0);
+    assert.equal(tutorial.observe(), false);
+    aim(tutorial);
+    wait(tutorial, 10);
+    assert.equal(tutorial.game.enemies, 2);
+    assert.equal(tutorial.observe(), true);
+    assert.equal(tutorial.game.hearts, 3);
   }
 });
 
