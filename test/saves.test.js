@@ -519,7 +519,7 @@ test('UI autosaves only campaign profiles and exposes failed wins for retry', ()
   assert.equal(levelStats(saves.load()[0].results, levelIds[0]).fewestMoves, 4);
   assert.equal(context.pendingSaves.length, 0);
   assert.equal(elements.get('#save-error').hidden, true);
-  assert.match(elements.get('#save-profile').textContent, /Player.*1 \/ 62.*1-2/);
+  assert.match(elements.get('#save-profile').textContent, /Player.*1 \/ 75.*1-2/);
   context.game = { level: LEVELS[1], customLevel: {} };
   context.saveResult();
   context.game.customLevel = null; context.tutorial = {};
@@ -608,7 +608,7 @@ test('slot UI renders owner names as text, resumes saved levels, and confirms de
   const totals = sections[0].children[0].children[0];
   assert.equal(totals.className, 'collectible-totals');
   assert.deepEqual(Array.from(totals.children, badge => badge['aria-label']),
-    ['Flags: 1 of 62', 'Gold stars: 0 of 62', 'Cat Blocks: 0 of 10']);
+    ['Flags: 1 of 75', 'Gold stars: 0 of 75', 'Cat Blocks: 0 of 10']);
   assert.equal(sections[1].children[0].children[0].children[2].children[1].textContent, '0/10');
   assert.equal(sections[0].children.length, 3, 'only heading, actions and owner form; no progress paragraph');
   let started = 0, mapOptions;
@@ -646,7 +646,7 @@ test('save-slot collectible totals reflect each profile independently', () => {
   const slots = elements.get('#save-slot-list').children;
   assert.deepEqual(Array.from(slots, slot => Array.from(
     slot.children[0].children[0].children, badge => badge.children[1].textContent)),
-  [['1/62', '1/62', '1/10'], ['0/62', '0/62', '2/10'], ['0/62', '0/62', '0/10']]);
+  [['1/75', '1/75', '1/10'], ['0/75', '0/75', '2/10'], ['0/75', '0/75', '0/10']]);
 });
 
 test('loading opens the last-played level map while a newly created slot opens world selection', () => {

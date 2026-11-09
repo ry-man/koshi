@@ -1455,8 +1455,238 @@ const SCROLLER_LEVEL_DATA = (() => {
     ], ['mouse', 'wheel']),
   }];
 })();
+const ROLLING_ROAD_LEVEL_DATA = [
+  {
+    name: 'Flame-grilled freedom', concept: 'fire hazard brick', goal: 35,
+    bricks: [{ hazard: { type: 'flame' } }],
+    dialogue: [
+      ['tom', 'Quack! I am Tom the Duck, commander of the robots. I will conquer the world by stealing every meal! My Flame hazard bricks burn without being selected.'],
+      ['koshi', 'Not while I am hungry! I will steer clear of the burning brick faces, rescue the food, and free the world. Strawberries, fish, burgers... I love them all!'],
+    ],
+  },
+  {
+    name: 'Missiles at the market', concept: 'missile hazard brick', survive: true,
+    bricks: [{ hazard: { type: 'missile', interval: 8 } }],
+    dialogue: [
+      ['tom', 'My Missile hazard bricks launch homing missiles every 8 seconds. Your next course is an explosion!'],
+      ['koshi', 'Those missiles turn slowly. I can dodge them into bricks or bumpers, but they will not hurt your robots. I will save the world, starting with this market full of snacks!'],
+    ],
+  },
+  {
+    name: 'Switch off the soup', concept: 'power brick', goal: 30, killGoal: 4,
+    bricks: [{ power: true }, { hazard: { type: 'flame', power: 'yellow' } },
+      { hazard: { type: 'missile', power: 'black', interval: 8 } }],
+    dialogue: [
+      ['tom', 'My Power bricks share one switch! Yellow-bordered fire burns while the switch is yellow; black-bordered missiles run while it is dark grey.'],
+      ['koshi', 'Selecting any Power brick flips them all. I can trade fire for missiles and choose my route to the soup. Your world-stealing kitchen is closing, Tom!'],
+    ],
+  },
+  {
+    name: 'Shielded snack run', concept: 'cat shield', killGoal: 6,
+    item: 'cat-shield-red',
+    dialogue: [
+      ['tom', 'You found a Red Cat Shield? That blocks just 1 hit. Green blocks 2 and blue blocks 3. My robots will wear it down!'],
+      ['koshi', 'A shield absorbs damage, not hunger! I will collect another when mine runs out and fight my way to the pantry. Every rescued meal brings the world closer to freedom.'],
+    ],
+  },
+  {
+    name: 'Crab cake crossfire', concept: 'robo crab', goal: 30, killGoal: 4,
+    enemy: 'robo-crab',
+    dialogue: [
+      ['tom', 'Robo Crabs, defend my seafood depot! Koshi must never reach the crab cakes.'],
+      ['robo-crab', 'I scuttle horizontally or vertically, then turn at obstacles. My claws hurt, but a sword can still stop me!'],
+      ['koshi', 'I will watch those straight paths and cross behind you. Nobody keeps me from saving the world, especially when seafood is on the menu!'],
+    ],
+  },
+  {
+    name: 'Laser lunch lines', concept: 'laser hazard', survive: true,
+    bricks: [{ power: true }, { hazard: { type: 'laser', power: 'yellow' } }],
+    dialogue: [
+      ['tom', 'My yellow-bordered Laser hazards fire inward continuously. Crossing a beam hurts, but it does not stop you moving!'],
+      ['koshi', 'Solid obstacles block the beam, and a Power brick switches it off. I will make a safe lunch line while the world waits for its meals.'],
+    ],
+  },
+  {
+    name: 'Circle of supper', concept: 'cat circles', goal: 20, goalsGoal: 3,
+    object: 'cat-circle',
+    dialogue: [
+      ['tom', 'A Cat Circle in my stadium? Those little dark-green rest spots cannot save the world for you!'],
+      ['koshi', 'Touching a Cat Circle stops me so I can plan my next launch, just like resting at a brick. A soccer feast needs a little thinking time between bites!'],
+    ],
+  },
+  {
+    name: 'Love bugs at the banquet', concept: 'robo love bugs', killGoal: 3,
+    enemy: 'robo-love-bug', bricks: [{ barrier: true }],
+    dialogue: [
+      ['tom', 'Robo Love Bugs, stick together and guard my banquet! This dining room will stay still while you bounce around.'],
+      ['robo-love-bug', 'Swords, hammers and Boost cannot defeat us. We only break down when a completed Barrier fence leaves us alone, away from every other Love Bug!'],
+      ['koshi', 'There are at least 3 Barrier bricks here. I will split your group into separate rooms, then share this banquet with the world. No robot gets between me and dinner!'],
+    ],
+  },
+  {
+    name: 'Bubble gun bistro', concept: 'bubble gun hazard', goal: 35,
+    bricks: [{ power: true }, { hazard: { type: 'bubble-blue', power: 'yellow', interval: 6 } }],
+    dialogue: [
+      ['tom', 'My Bubble Gun hazards shoot bubbles straight inward every 6 seconds. A bubble can trap you on the way to the bistro!'],
+      ['koshi', 'Blue bubbles trap me for 5 seconds! I will dodge them and select a Power brick to stop the yellow-bordered gun before I get caught. The world needs saving, and my noodles are getting cold!'],
+    ],
+  },
+  {
+    name: 'Hammer time hibachi', concept: 'hammer weapon', killGoal: 20,
+    dialogue: [
+      ['tom', 'My hibachi guards have extra shields today! Red is commonest, green is tougher, and blue is toughest and rarest.'],
+      ['koshi', 'A Hammer spends the hits needed to smash a shield and defeat its robot in one contact, if enough hits remain. I will collect spare hammers, save the world, and try every grilled snack!'],
+    ],
+  },
+  {
+    name: 'The bumper buffet loop', concept: 'cat tracks', survive: true,
+    track: 'bumpers',
+    dialogue: [
+      ['tom', 'My bumpers follow one large, closed Cat Track around the buffet. This dark-green loop moves all the time, without a Power brick!'],
+      ['koshi', 'I will watch the moving bumpers and time my crossings. One lap for pretzels, one for bananas, then I will take this feast back to the world!'],
+    ],
+  },
+  {
+    name: 'Bumper gun brunch', concept: 'bumper gun hazard', killGoal: 4, goalsGoal: 3,
+    bricks: [{ power: true }, { hazard: { type: 'bumper-red', power: 'yellow', interval: 6 } }],
+    dialogue: [
+      ['tom', 'My Bumper Gun hazards fire bumpers straight inward every 6 seconds. Red bumpers speed you up when they bounce you!'],
+      ['koshi', 'A Power brick stops those yellow-bordered guns, though shots already fired keep moving. I will line up my soccer shots and rescue brunch for the whole world!'],
+    ],
+  },
+  {
+    name: 'The last rolling roast', concept: 'powered cat tracks', goal: 35, goalsGoal: 2,
+    bricks: [{ power: true }], track: 'obstructions',
+    dialogue: [
+      ['tom', 'My final convoy carries spiked obstructions on a yellow Cat Track! It moves while power is yellow and pauses when it turns dark grey.'],
+      ['koshi', 'The Power bricks now control the track too! I can pause those spikes, slip through, and switch again. The robots will not rule this world, Tom. Everyone deserves a feast!'],
+      ['tom', 'You may have saved this roast, but my robots are not finished yet. Quack!'],
+    ],
+  },
+].map((entry, index) => {
+  // Seed each authored lesson independently; reloads never reroll campaign content.
+  let seed = (0x524f4144 ^ Math.imul(index + 1, 0x9e3779b9)) >>> 0;
+  const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const sample = (pool, count) => {
+    const remaining = [...pool], result = [];
+    while (result.length < count) result.push(remaining.splice(Math.floor(random() * remaining.length), 1)[0]);
+    return result;
+  };
+  const scroll = random() < .25 && entry.enemy !== 'robo-love-bug';
+  const duration = 110;
+  const autoscroll = scroll ? { length: 16, speed: 8 / duration, events: [] } : null;
+  const bricks = makeBricks(true, 1, autoscroll?.length);
+  const groups = scroll ? [[2, 4], [3, 5], [12, 14], [13, 15], [24, 26, 28], [31, 33, 35]]
+    : FOUNDRY_LAYOUTS[['x', 'y', 'z'][index % 3]];
+  const brickGroups = groups.map(members => ({ owner: members[0], members }));
+  const owners = new Map(groups.flatMap(members => members.map(id => [id, members[0]])));
+  const active = bricks.filter(brick => !owners.has(brick.id) || owners.get(brick.id) === brick.id);
+  const attributes = new Map(active.map((brick, i) => [brick.id, { kind: ['normal', 'slow', 'fast'][i % 3] }]));
+  const palette = [
+    { crumbler: 8 }, { warped: 6 }, { slimed: true, slimeColor: 'blue' }, { springs: true },
+    { spikes: true }, { conveyor: true }, { boost: true }, { toggle: 2 }, { barrier: true },
+    ...(index > 0 ? [{ hazard: { type: 'flame', ...(index >= 2 ? { power: 'yellow' } : {}) } }] : []),
+    ...(index > 1 ? [{ hazard: { type: 'missile', interval: 8, power: 'yellow' } }] : []),
+    ...(index > 2 ? [{ power: true }] : []),
+    ...(index > 5 ? [{ hazard: { type: 'laser', power: 'yellow' } }] : []),
+    ...(index > 8 ? [{ hazard: { type: 'bubble-blue', power: 'yellow', interval: 6 } }] : []),
+    ...(index > 11 ? [{ hazard: { type: 'bumper-red', power: 'yellow', interval: 6 } }] : []),
+  ];
+  const featured = entry.bricks ?? [];
+  const signature = brick => brick.hazard ? brick.hazard.type : Object.keys(brick)[0];
+  const returning = sample(palette.filter(brick => !featured.some(feature => signature(feature) === signature(brick))),
+    1 + Math.floor(random() * (entry.goalsGoal ? 3 : 4)));
+  if (entry.goalsGoal) returning.push({ kind: 'goal' });
+  // Powered returning hazards always come with a usable switch.
+  if ([...returning, ...featured].some(brick => brick.hazard?.power)
+    && ![...returning, ...featured].some(brick => brick.power)) {
+    returning[0] = { power: true };
+  }
+  const candidates = active.filter(brick => brick.region.start > 0 && brick.region.end < 1)
+    .sort((a, b) => a.region.start - b.region.start || a.id - b.id);
+  const zones = scroll ? Array.from({ length: 3 }, (_, i) =>
+    candidates.slice(Math.floor(i * candidates.length / 3), Math.floor((i + 1) * candidates.length / 3))) : [candidates];
+  for (const zone of zones) {
+    const available = sample(zone, zone.length);
+    for (const feature of [...featured, ...returning]) {
+      const copies = scroll ? 1 : featured.includes(feature) ? 3 : 1;
+      for (let i = 0; i < copies; i++) Object.assign(attributes.get(available.shift().id), feature);
+    }
+  }
+  const brickTypes = bricks.map(brick => ({
+    ...brick.region, ...attributes.get(owners.get(brick.id) ?? brick.id),
+  }));
+  const events = [];
+  const height = boardDimensions(true, 1, autoscroll?.length).height;
+  const inset = 8 + 45 + 25;
+  const place = (kind, type, time, x = .5, y = .5, extra = {}) => {
+    if (autoscroll) {
+      const camera = cameraAt(autoscroll, time, true);
+      y = (camera.y + inset + y * (camera.height - inset * 2) - inset) / (height - inset * 2);
+    }
+    events.push({ time, kind, type, x, y,
+      ...(['food', 'item', 'weapon'].includes(kind) ? { lifetime: Math.min(28, duration - time) } : {}), ...extra });
+  };
+  Object.keys(FOODS).forEach((type, wave) => {
+    for (let i = 0; i < 4; i++) place('food', type, 3 + wave * 12, .2 + i * .2, .35 + (wave % 2) * .3);
+  });
+  const enemyTypes = ['mouse', 'ram', 'ball', ...(index >= 4 ? ['robo-crab'] : [])];
+  const hammer = entry.concept === 'hammer weapon';
+  const count = hammer ? 18 : 12;
+  for (let i = 0; i < count; i++) {
+    const type = entry.enemy ?? enemyTypes[i % enemyTypes.length];
+    const shield = hammer ? i < 6 ? 'red' : i < 9 ? 'green' : i === 9 ? 'blue' : null
+      : i === 9 ? 'red' : index % 3 === 0 && i === 10 ? 'green'
+        : index % 6 === 0 && i === 11 ? 'blue' : null;
+    place('enemy', type, entry.enemy === 'robo-love-bug' ? 2 + Math.floor(i / 4) * 32 : 4 + i * 5,
+      .2 + (i % 4) * .2, entry.enemy === 'robo-love-bug' ? [.1, .35, .65, .9][i % 4] : .25 + (i % 2) * .5,
+      { ...(shield ? { shield } : {}), ...(type === 'robo-crab' ? { crabDirection: i % 2 ? 'vertical' : 'horizontal' } : {}) });
+  }
+  for (const time of [0, 20, 40, 60, 80]) {
+    place('weapon', hammer ? 'hammer-gold' : index > 9 ? 'hammer-silver' : 'silver', time, .5, .65);
+  }
+  const pickups = [
+    ['item', 'smiley-cookie'], ['item', 'music-box'], ['item', 'magic-sunglasses'],
+    ['item', 'kitty-cape'], ['item', 'paint-pencil-red'], ['object', 'bumper-green'],
+    ['object', 'bubble-blue'], ['object', 'obstruction-circle'],
+    ...(index > 3 ? [['item', 'cat-shield-red']] : []),
+    ...(index > 6 ? [['object', 'cat-circle']] : []),
+  ];
+  for (const [i, [kind, type]] of sample(pickups, 1 + Math.floor(random() * 2)).entries()) {
+    place(kind, type, 10 + i * 35, i ? .7 : .3, .5);
+  }
+  if (entry.item) for (const time of [0, 35, 70]) place('item', entry.item, time, .4, .4);
+  if (entry.object) for (const x of [.3, .7]) place('object', entry.object, 0, x, .5);
+  if (entry.goalsGoal) for (const time of [0, 16, 32, 48, 64, 80]) place('object', 'soccer-ball', time, .5, .35);
+  const tracks = [];
+  if (entry.track) {
+    const nodes = [{ x: .2, y: .2 }, { x: .8, y: .2 }, { x: .8, y: .8 }, { x: .2, y: .8 }];
+    tracks.push({ id: 'buffet-loop', nodes, closed: true, speed: 70,
+      ...(entry.track === 'obstructions' ? { power: 'yellow' } : {}) });
+    for (const [i, point] of nodes.entries()) {
+      events.push({ time: 0, kind: 'object',
+        type: entry.track === 'obstructions' ? 'obstruction-circle' : ['bumper-red', 'bumper-green', 'bumper-blue'][i % 3],
+        ...point, track: 'buffet-loop', ...(entry.track === 'obstructions' ? { spiked: true, width: 65, height: 65 } : {}) });
+    }
+  }
+  events.sort((a, b) => a.time - b.time);
+  const foodPoints = events.reduce((sum, event) => sum + (event.kind === 'food' ? FOODS[event.type].value : 0), 0);
+  const objective = entry.survive ? `survive for ${duration} seconds`
+    : [entry.goal && `collect ${entry.goal} food points`, entry.killGoal && `earn ${entry.killGoal} enemy points`,
+      entry.goalsGoal && `score ${entry.goalsGoal} soccer goals`].filter(Boolean).join(' and ');
+  return {
+    id: `1-${62 + index}`, name: entry.name, concept: entry.concept, duration,
+    goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, goalsGoal: entry.goalsGoal ?? 0,
+    survive: entry.survive ?? false, heartCost: Math.ceil(foodPoints / 5), brickSet: 3,
+    brickTypes, brickGroups, food: [], enemies: [], items: [], weapons: [], events,
+    ...(autoscroll ? { autoscroll } : {}), ...(tracks.length ? { tracks } : {}),
+    cutscene: story('workshop', [...entry.dialogue,
+      ['koshi', `I must ${objective}${entry.survive ? '.' : ` within ${duration} seconds.`} Then it is time for another helping!`]],
+    [entry.enemy ?? 'mouse']),
+  };
+});
 const LEVEL_DATA = {};
-for (const level of [...BASE_LEVEL_DATA, ...FOUNDRY_LEVEL_DATA, ...CHALLENGE_LEVEL_DATA, ...SCROLLER_LEVEL_DATA]) {
+for (const level of [...BASE_LEVEL_DATA, ...FOUNDRY_LEVEL_DATA, ...CHALLENGE_LEVEL_DATA, ...SCROLLER_LEVEL_DATA, ...ROLLING_ROAD_LEVEL_DATA]) {
   if (Object.hasOwn(LEVEL_DATA, level.name)) throw new Error(`Duplicate level name: ${level.name}`);
   LEVEL_DATA[level.name] = level;
 }

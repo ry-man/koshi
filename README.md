@@ -4,7 +4,7 @@ A browser arcade game starring Koshi, a grey tabby with a big appetite.
 Built with vanilla JavaScript, HTML, and Canvas. No runtime dependencies are
 required; Official JSON levels are bundled using Node.js. The initial implementation follows
 [the game description](./game_description.md), with 49 main campaign levels across three worlds,
-12 optional challenge levels in World 3S, and an autoscroll showcase in World 4.
+12 optional challenge levels in World 3S, and 14 levels in World 4.
 
 ## Play locally
 
@@ -241,7 +241,8 @@ and all existing level content are unchanged. World 3S, **Tom's Gauntlet**, is
 an optional challenge world for advanced players. It branches from World 2 on a
 dashed route below the main path and contains 12 levels (3S–1 through 3S–12).
 World 4, **Rolling Road**, connects directly from World 3 and starts with
-**4-1, The rolling buffet**, a three-minute autoscrolling survival level.
+**4-1, The rolling buffet**, a three-minute autoscrolling survival level,
+followed by 13 new mechanic lessons through **4-14**.
 
 Only the world overview offers **Back to menu**. Escape from level selection
 returns to the world overview first.
@@ -881,6 +882,44 @@ World 3's **3-14** advances directly to **4-1**; World 3S remains optional and
 still ends at **3S-12**. The demo can also be inspected read-only in the editor.
 Timed scrolling campaign placements preserve forward progress in both desktop
 and portrait layouts, rather than reversing the route when the board rotates.
+
+### Rolling Road lessons
+
+The Beta-only expansion preserves **4-1** and all earlier level content and save
+identities. Complete 4-1 to continue through these lessons in order:
+
+| Level | Name | New concept |
+|-------|------|-------------|
+| 4-2 | Flame-grilled freedom | Flame hazard bricks, without power |
+| 4-3 | Missiles at the market | Missile hazard bricks, without power |
+| 4-4 | Switch off the soup | Power bricks controlling flames and missiles |
+| 4-5 | Shielded snack run | Cat Shields |
+| 4-6 | Crab cake crossfire | Robo Crabs |
+| 4-7 | Laser lunch lines | Powered Laser hazards |
+| 4-8 | Circle of supper | Cat Circles |
+| 4-9 | Love bugs at the banquet | Robo Love Bugs; at least three Barrier bricks, never scrolling |
+| 4-10 | Bubble gun bistro | Powered Bubble Gun hazards |
+| 4-11 | Hammer time hibachi | Hammers against many shielded robots |
+| 4-12 | The bumper buffet loop | Moving bumpers on one large, unpowered Cat Track loop |
+| 4-13 | Bumper gun brunch | Powered Bumper Gun hazards |
+| 4-14 | The last rolling roast | Power-controlled Cat Tracks carrying spiked obstructions |
+
+Each opening scene follows Koshi's battle against Tom the Duck's world-conquering
+robots and his quest to taste every rescued meal. Scenes explain the lesson and
+its objective, and only feature robots present in that level.
+Lessons alternate food, enemy and soccer targets (including combinations) with
+timed survival. They each last up to 110 seconds. Each uses a seeded selection of
+1–4 returning brick mechanics and 1–2 returning pickup/object types alongside the
+featured concept and objective equipment. Later concepts never appear early.
+Every eligible lesson rolls a 25% autoscroll chance once in the seeded builder;
+the checked-in seed selects **4-2, 4-5 and 4-10**. Reloading does not reroll levels.
+The Love Bug lesson is always stationary.
+
+Most bricks are standard-sized: approximately 12–14% are double-sized and 5–6%
+are triple-sized. Shielded enemies are normally uncommon, with red more common
+than green and blue rarest; the hammer lesson deliberately fields many shields
+and supplies spare hammers. Food budgets set the heart cost so collecting every
+scheduled food still generates no more than five healing hearts.
 
 ### Scrolling performance
 

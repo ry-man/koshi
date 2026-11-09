@@ -9,8 +9,9 @@ const level = LEVELS.find(level => level.number === '4-1');
 const index = LEVELS.indexOf(level);
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
 
-test('Rolling Road appends 4-1 with a stable new identity and connects only from World 3', () => {
-  assert.deepEqual(worldLevels(world), [level]);
+test('Rolling Road preserves 4-1 and connects its lessons only from World 3', () => {
+  assert.equal(worldLevels(world)[0], level);
+  assert.equal(worldLevels(world).length, 14);
   assert.equal(world.name, 'Rolling Road');
   assert.equal(world.special, false);
   assert.deepEqual(WORLDS.find(entry => entry.id === '3').next, ['4']);
@@ -21,7 +22,8 @@ test('Rolling Road appends 4-1 with a stable new identity and connects only from
   assert.equal(level.name, 'The rolling buffet');
   assert.equal(nextLevelIndex(48), index);
   assert.equal(nextLevelIndex(60), -1);
-  assert.equal(nextLevelIndex(index), -1);
+  assert.equal(nextLevelIndex(index), index + 1);
+  assert.equal(nextLevelIndex(LEVELS.length - 1), -1);
   assert.deepEqual(LEVELS.filter(entry => !entry.bossLevel).slice(0, 60).map(entry => entry.id),
     Array.from({ length: 60 }, (_, i) => `1-${i + 1}`));
   const storage = new Map();
