@@ -1293,9 +1293,19 @@ Optional `group` holds `shape` (`"line"` or `"circle"`), `count`, optional
   "group": { "shape": "circle", "count": 8, "size": 0.6 } }
 ```
 
-Cat Brick consistency checks count every member of grouped pickups, carriers
-and chests, so grouping cannot bypass the one-Cat-Brick limit. Grouped keys and
-key carriers contribute their full counts toward chest requirements.
+Random enemy and item events can use `randomCount` (2–100) to spawn that many
+independent copies at the same time and with the same attributes. Each copy is
+given a separate random position; it cannot be combined with a formation:
+
+```json
+{ "time": 5, "kind": "enemy", "type": "mouse", "random": true,
+  "randomCount": 4, "shield": "green" }
+```
+
+Cat Brick consistency checks count every member of grouped or independently
+randomized pickups, carriers and chests, so repeated placements cannot bypass
+the one-Cat-Brick limit. Grouped keys and key carriers contribute their full
+counts toward chest requirements.
 
 ```json
 {

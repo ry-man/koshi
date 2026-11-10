@@ -453,64 +453,64 @@ const levels = [
           "time": 20,
           "kind": "food",
           "type": "P",
-          "x": 0.8577175849149316,
-          "y": 0.2026670939714418,
+          "x": 0.8589153000429949,
+          "y": 0.1781340458695168,
           "lifetime": 5
         },
         {
           "time": 20,
           "kind": "food",
           "type": "P",
-          "x": 0.8665622504760147,
-          "y": 0.7759676672720154,
+          "x": 0.8589153000429949,
+          "y": 0.7873524827432643,
           "lifetime": 5
         },
         {
           "time": 20,
           "kind": "food",
           "type": "P",
-          "x": 0.15604078373564254,
-          "y": 0.7706263575828795,
+          "x": 0.15134205515631718,
+          "y": 0.7873524827432643,
           "lifetime": 5
         },
         {
           "time": 20,
           "kind": "food",
           "type": "P",
-          "x": 0.1521098212640499,
-          "y": 0.17774098208880842,
+          "x": 0.15134205515631718,
+          "y": 0.1781340458695168,
           "lifetime": 5
         },
         {
           "time": 30,
           "kind": "enemy",
           "type": "mouse",
-          "x": 0.6528161660831643,
-          "y": 0.7537122102339494,
+          "x": 0.6466433265769916,
+          "y": 0.7873524827432643,
           "shield": null
         },
         {
           "time": 30,
           "kind": "enemy",
           "type": "mouse",
-          "x": 0.34914931515263187,
-          "y": 0.1732898906811951,
+          "x": 0.3636140286223205,
+          "y": 0.1781340458695168,
           "shield": null
         },
         {
           "time": 45,
           "kind": "enemy",
           "type": "mouse",
-          "x": 0.6420060192862846,
-          "y": 0.17863120037033087,
+          "x": 0.6466433265769916,
+          "y": 0.1781340458695168,
           "shield": null
         },
         {
           "time": 45,
           "kind": "enemy",
           "type": "mouse",
-          "x": 0.35701124009581725,
-          "y": 0.7572730833600398,
+          "x": 0.3636140286223205,
+          "y": 0.7873524827432643,
           "shield": null
         },
         {
@@ -969,6 +969,251 @@ const levels = [
           "spawner": null
         }
       ]
+    }
+  },
+  {
+    "worldId": "1",
+    "number": "3",
+    "id": "official-1-3",
+    "level": {
+      "version": 1,
+      "id": "Mouse Melee",
+      "duration": 75,
+      "goal": 0,
+      "heartCost": 12,
+      "brickSet": 1,
+      "events": [
+        {
+          "time": 3,
+          "kind": "enemy",
+          "type": "mouse",
+          "random": true,
+          "randomCount": 3,
+          "shield": null
+        },
+        {
+          "time": 6,
+          "kind": "food",
+          "type": "S",
+          "random": true,
+          "group": {
+            "shape": "line",
+            "count": 4,
+            "size": 1,
+            "angle": 26
+          },
+          "lifetime": 8
+        },
+        {
+          "time": 10,
+          "kind": "weapon",
+          "type": "wood",
+          "random": true
+        },
+        {
+          "time": 15,
+          "kind": "enemy",
+          "type": "mouse",
+          "random": true,
+          "group": {
+            "shape": "line",
+            "count": 2,
+            "size": 0.4,
+            "angle": 0
+          },
+          "shield": null
+        },
+        {
+          "time": 20,
+          "kind": "weapon",
+          "type": "bronze",
+          "random": true
+        },
+        {
+          "time": 23,
+          "kind": "food",
+          "type": "P",
+          "random": true,
+          "group": {
+            "shape": "circle",
+            "count": 4
+          },
+          "lifetime": 8
+        },
+        {
+          "time": 30,
+          "kind": "enemy",
+          "type": "mouse",
+          "random": true,
+          "group": {
+            "shape": "circle",
+            "count": 3
+          },
+          "shield": null
+        },
+        {
+          "time": 35,
+          "kind": "weapon",
+          "type": "silver",
+          "random": true
+        },
+        {
+          "time": 40,
+          "kind": "food",
+          "type": "P",
+          "random": true,
+          "group": {
+            "shape": "circle",
+            "count": 4
+          },
+          "lifetime": 8
+        },
+        {
+          "time": 48,
+          "kind": "weapon",
+          "type": "bronze",
+          "random": true
+        },
+        {
+          "time": 50,
+          "kind": "enemy",
+          "type": "mouse",
+          "random": true,
+          "group": {
+            "shape": "circle",
+            "count": 3,
+            "size": 0.5
+          },
+          "shield": null
+        }
+      ],
+      "bossLevel": false,
+      "killGoal": 10,
+      "survive": false,
+      "cutscene": {
+        "theme": "happy-meadows",
+        "lines": [
+          {
+            "speaker": "tom",
+            "text": "Impressive evasion, feline foe. I have underestimated your abilities.",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "mouse",
+                "x": 0.67,
+                "y": 0.65
+              },
+              {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "koshi",
+            "text": "It was a piece of cake! Those Robo Mice are pretty useless, if you ask me.",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "mouse",
+                "x": 0.67,
+                "y": 0.65
+              },
+              {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "mouse",
+            "text": "Uh oh. Tom! Look over there. I think we may have left some weapons laying around again. Hopefully Koshi doesn't see them and start fighting back!",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "mouse",
+                "x": 0.67,
+                "y": 0.65
+              },
+              {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "koshi",
+            "text": "Hmmm thanks for pointing that out, cheese breath! I don't mind if I do...",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "mouse",
+                "x": 0.67,
+                "y": 0.65
+              },
+              {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "tom",
+            "text": "Blasted mouse! Keep your mouth shut next time! Good luck fighting this cat. You're on your own!",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "mouse",
+                "x": 0.67,
+                "y": 0.65
+              },
+              {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              }
+            ]
+          }
+        ]
+      },
+      "levelInfo": {
+        "pages": [
+          {
+            "title": "Swords",
+            "text": "Koshi can collect swords which grant him the ability to strike enemies when he collides with them. If Koshi has a weapon, he won't take damage when he collides with an enemy, only the enemy will!\n\nSwords break after certain number of strikes. The strikes remaining is written on the sword. Different swords have a different number of strikes:\n\nWood = 1, Bronze = 3, Silver = 5, Gold = 10",
+            "graphics": [
+              "weapon:wood",
+              "weapon:bronze",
+              "weapon:silver",
+              "weapon:gold"
+            ]
+          }
+        ]
+      }
     }
   }
 ];

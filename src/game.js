@@ -1891,15 +1891,24 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     }
     const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, boss: true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
+    let randomCount;
+    if (event.randomCount !== undefined) {
+      if (!random || !['enemy', 'item'].includes(event.kind) || group) {
+        fail(`${name} independent random placements require a random enemy or item without a formation.`);
+      }
+      randomCount = number(event.randomCount, 2, 100, `${name} independent random placement count`);
+      if (!Number.isInteger(randomCount)) fail(`${name} independent random placement count must be a whole number.`);
+    }
     if (!random && !group) {
       if (event.kind === 'enemy' && event.type === 'wheel' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: wheels must start on an edge of the playable area.`);
       if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
       if (event.kind === 'enemy' && event.type === 'robo-cow' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: Robo Cows must start on an edge of the playable area.`);
     }
-    const result = { time, kind: event.kind, type: event.type, ...(random ? { random: true } : { x, y }), ...(group ? { group } : {}) };
+    const result = { time, kind: event.kind, type: event.type, ...(random ? { random: true } : { x, y }),
+      ...(group ? { group } : {}), ...(randomCount === undefined ? {} : { randomCount }) };
     shield(event, result, name);
     crabDirection(event, result, name);
-    if (event.type === 'boss' && (group || event.shield)) fail(`${name}: a boss must be a single, unshielded enemy.`);
+    if (event.type === 'boss' && (group || randomCount || event.shield)) fail(`${name}: a boss must be a single, unshielded enemy.`);
     obstructionAppearance(event, result, name);
     if (event.track !== undefined) {
       if (event.kind !== 'object' || !(OBJECTS[event.type].bumper || OBJECTS[event.type].obstruction)
@@ -1938,7 +1947,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     }
     return result;
   });
-  if (events.reduce((sum, event) => sum + (event.group?.count ?? 1), 0) > 2000) fail('Events must spawn at most 2000 game elements in total.');
+  if (events.reduce((sum, event) => sum + (event.group?.count ?? event.randomCount ?? 1), 0) > 2000) fail('Events must spawn at most 2000 game elements in total.');
   const result = { version: 1, id: value.id.trim(), duration, goal, heartCost, brickSet: value.brickSet, events };
   if (value.koshiStart !== undefined) {
     const start = value.koshiStart;
@@ -2150,7 +2159,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     } else if (!type && !hasCatBlockSource) {
       fail('Cat Brick requires a collection trigger or a pickup, carrier or treasure chest.');
     }
-    if (catSources.reduce((sum, source) => sum + (source.group?.count ?? 1), 0) > 1) {
+    if (catSources.reduce((sum, source) => sum + (source.group?.count ?? source.randomCount ?? 1), 0) > 1) {
       fail('A level can include only one Cat Brick source: one pickup, enemy carrier, treasure chest or spawner.');
     }
     const chests = catSources.filter(source => sourceType(source) === 'chest');
@@ -2159,7 +2168,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
           || source.kind === 'enemy' && carriedItemTypes(source).includes('key');
       const isBattery = source => source.kind === 'item' && source.type === 'battery';
       const keySpawners = spawners.filter(isKey).length;
-      const count = entries => entries.reduce((sum, source) => sum + (source.group?.count ?? 1), 0);
+      const count = entries => entries.reduce((sum, source) => sum + (source.group?.count ?? source.randomCount ?? 1), 0);
       const batteries = count(sources.filter(isBattery));
       const keys = count(sources.filter(isKey)) + (keySpawners ? batteries : 0);
       if (!chests.some(chest => keys >= (chest.keysRequired ?? 1))) {
@@ -4409,6 +4418,31 @@ class Game {
       const relative = snapWheel((point.x - b.left) / width, (point.y - b.top) / height);
       return this.pointFromRelative(relative.x, relative.y);
     };
+    if (event.randomCount > 1) {
+      if (preview) {
+        const columns = Math.ceil(Math.sqrt(event.randomCount)), rows = Math.ceil(event.randomCount / columns);
+        return Array.from({ length: event.randomCount }, (_, index) => {
+          const column = index % columns, row = Math.floor(index / columns);
+          return snap(this.pointFromRelative((column + .5) / columns, (row + .5) / rows));
+        });
+      }
+      const points = [], existing = event.kind === 'item' ? this.collectiblePoints() : this.robots;
+      for (let index = 0; index < event.randomCount; index++) {
+        if (event.kind === 'item') {
+          const radius = needsBrickSpawnClearance(event.type) ? DITTO_STAMP_RADIUS : this.spawnRadius(event);
+          const bounds = this.randomSpawnBounds(event.time, radius);
+          points.push(this.findRandomSpawnPoint(bounds, [...existing, ...points], SPAWN_SPACING,
+            point => this.pickupClear(point) && (!needsBrickSpawnClearance(event.type) || this.stampSpawnClear(point))));
+        } else {
+          const radius = event.type === 'robo-cow' ? 26 : 19;
+          const occupied = [...existing, ...points];
+          points.push(this.findRandomSpawnPoint(b, occupied, 0,
+            point => nearestGap(snap(point), occupied) > 1
+              && this.enemySpawnClear({ type: event.type, radius, ...snap(point) })));
+        }
+      }
+      return points.map(snap);
+    }
     if (!event.group) {
       const point = event.random
         ? preview ? this.pointFromRelative(.5, .5)

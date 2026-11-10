@@ -615,6 +615,8 @@ function readEvent() {
     if ($('#event-group-size').value !== '') event.group.size = Number($('#event-group-size').value) / 100;
     if (event.group.shape === 'line') event.group.angle = Number($('#event-group-angle').value);
   }
+  if (event.random && ['enemy', 'item'].includes(event.kind) && !event.group
+    && Number($('#event-random-count').value) > 1) event.randomCount = Number($('#event-random-count').value);
   if (!event.random && !event.group && event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) Object.assign(event, snapWheel(event.x, event.y));
   return event;
 }
@@ -631,6 +633,9 @@ function updateEventPlacement() {
   $('#event-size-label').textContent = shape === 'circle' ? 'Diameter (%)' : 'Length (%)';
   const random = $('#event-location').value === 'random';
   $('#event-position').hidden = random;
+  const randomCountEnabled = random && shape === 'single' && ['enemy', 'item'].includes($('#event-kind').value);
+  $('#event-random-count-label').hidden = !randomCountEnabled;
+  $('#event-random-count').disabled = !randomCountEnabled;
   for (const id of ['#event-x', '#event-y']) {
     $(id).disabled = random;
     $(id).required = !random && selectedEvents.size <= 1;
@@ -712,6 +717,7 @@ function populateEventForm() {
     ['#event-count-input', items.map(event => event.group?.count ?? 5), 5],
     ['#event-group-size', items.map(event => event.group?.size === undefined ? '' : event.group.size * 100), ''],
     ['#event-group-angle', items.map(event => event.group?.angle ?? 0), 0],
+    ['#event-random-count', items.map(event => event.randomCount ?? 1), 1],
   ]) {
     const value = items.length ? common(values) : $(id).value || fallback;
     $(id).value = value === MIXED ? '' : value;
@@ -765,7 +771,7 @@ function renderList() {
     button.type = 'button'; button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
     const time = document.createElement('span'); time.className = 'event-time'; time.textContent = `${event.time}s`;
     const location = document.createElement('span'); location.className = 'event-location';
-    location.textContent = `${event.random ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''} · #${index + 1}`;
+    location.textContent = `${event.random ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''} · #${index + 1}`;
     button.append(time, description(event), location);
     button.addEventListener('click', click => choose('event', index, isAdditive(click)));
     li.append(button); list.append(li);
@@ -1276,7 +1282,7 @@ function pointReference(events, bricks) {
   const spawns = bricks.filter(brick => brick.absorbedBy === null && brick.spawner).map(brick => brick.spawner);
   const totals = { food: 0, enemy: 0, soccer: 0 };
   for (const source of [...events, ...spawns]) {
-    const count = source.group?.count ?? 1;
+    const count = source.group?.count ?? source.randomCount ?? 1;
     if (source.kind === 'food') totals.food += FOODS[source.type].value * count;
     if (source.kind === 'enemy') totals.enemy += (source.shield ? SHIELDS[source.shield].hits : 1) * count;
     if (source.kind === 'object' && source.type === 'soccer-ball') totals.soccer += count;
@@ -2129,7 +2135,7 @@ for (const selector of ['#event-time', '#event-lifetime', '#event-x', '#event-y'
 for (const selector of ['#event-location', '#event-formation']) {
   $(selector).addEventListener('change', () => { touched.add(selector); updateEventPlacement(); });
 }
-for (const selector of ['#event-count-input', '#event-group-size', '#event-group-angle']) {
+for (const selector of ['#event-count-input', '#event-group-size', '#event-group-angle', '#event-random-count']) {
   $(selector).addEventListener('input', () => touched.add(selector));
 }
 
@@ -2148,7 +2154,7 @@ function applyToSelected() {
   const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
   const destructibleChanged = touched.has('#event-destructible');
   const spikedChanged = touched.has('#event-spiked');
-  const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle'].some(selector => touched.has(selector));
+  const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle', '#event-random-count'].some(selector => touched.has(selector));
   if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
@@ -2160,13 +2166,21 @@ function applyToSelected() {
     if (y !== null) next.y = y / 100;
     if (touched.has('#event-location') && value('#event-location') !== MIXED) {
       if (value('#event-location') === 'random') { next.random = true; delete next.x; delete next.y; }
-      else { delete next.random; next.x ??= .5; next.y ??= .5; }
+      else { delete next.random; delete next.randomCount; next.x ??= .5; next.y ??= .5; }
     }
     if (touched.has('#event-formation') && value('#event-formation') !== MIXED) {
       if (value('#event-formation') === 'single') delete next.group;
-      else next.group = { shape: value('#event-formation'), count: next.group?.count ?? Number(value('#event-count-input')),
-        ...(next.group?.size !== undefined ? { size: next.group.size } : {}),
-        ...(value('#event-formation') === 'line' ? { angle: Number(value('#event-group-angle')) } : {}) };
+      else {
+        delete next.randomCount;
+        next.group = { shape: value('#event-formation'), count: next.group?.count ?? Number(value('#event-count-input')),
+          ...(next.group?.size !== undefined ? { size: next.group.size } : {}),
+          ...(value('#event-formation') === 'line' ? { angle: Number(value('#event-group-angle')) } : {}) };
+      }
+    }
+    if (touched.has('#event-random-count') && next.random && ['enemy', 'item'].includes(next.kind) && !next.group) {
+      const count = Number(value('#event-random-count'));
+      if (count > 1) next.randomCount = count;
+      else delete next.randomCount;
     }
     if (next.group) {
       next.group = { ...next.group };
@@ -2200,6 +2214,7 @@ function applyToSelected() {
     }
     if (next.kind !== 'item' || next.type !== 'treasure-chest') delete next.keysRequired;
     else if (keysChanged) next.keysRequired = Number(value('#event-keys-required'));
+    if (!next.random || !['enemy', 'item'].includes(next.kind) || next.group) delete next.randomCount;
     for (const field of ['color', 'pattern', 'patternColor']) {
       if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) delete next[field];
       else if (textureFields.includes(field)) next[field] = value(`#event-${field}`);

@@ -34,6 +34,38 @@ test('random singles and line/circle groups validate and preserve optional field
   }
 });
 
+test('independent random enemy and item counts validate, preview separately, and spawn together', () => {
+  for (const [kind, type, attributes] of [
+    ['enemy', 'mouse', { shield: 'green', carriesItem: 'key' }],
+    ['item', 'battery', { lifetime: 12 }],
+  ]) {
+    const source = event(kind, type, { ...attributes, random: true, randomCount: 4 });
+    const saved = validateCustomLevel(blank([source]));
+    assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(saved))), saved);
+    const game = gameFor([source]);
+    const points = game.customEventPoints(source);
+    assert.equal(points.length, 4);
+    assert.equal(new Set(points.map(point => `${point.x},${point.y}`)).size, 4);
+    assert.equal(game.customEventPoints(source, { preview: true }).length, 4);
+    game.start(); game.elapsed = 4;
+    game.prepareSpawns();
+    const pending = game.pendingSpawns.get(game.customEvents[0]);
+    assert.equal(pending.items.length, 4);
+    game.prepareSpawns();
+    assert.equal(game.pendingSpawns.get(game.customEvents[0]), pending);
+    game.elapsed = 5; game.spawnCustomEvents();
+    const spawned = kind === 'enemy' ? game.robots : game.items;
+    assert.equal(spawned.length, 4);
+    for (const item of spawned) {
+      assert.equal(item.type, type);
+      if (kind === 'enemy') {
+        assert.equal(item.shield, 'green');
+        assert.equal(item.carriesKey, true);
+      }
+    }
+  }
+});
+
 test('invalid random flags, group shapes, counts, sizes and angles are rejected with bounded total elements', () => {
   for (const group of [null, [], {}, { shape: 'grid', count: 2 },
     { shape: 'line', count: 1 }, { shape: 'line', count: 101 }, { shape: 'circle', count: 2.5 },
@@ -44,6 +76,16 @@ test('invalid random flags, group shapes, counts, sizes and angles are rejected 
     assert.throws(() => validateCustomLevel(blank([event('food', 'S', { group })])), /group|line|angle/);
   }
   assert.throws(() => validateCustomLevel(blank([event('food', 'S', { random: 'true' })])), /random/);
+  for (const invalid of [
+    event('enemy', 'mouse', { randomCount: 4 }),
+    event('food', 'S', { random: true, randomCount: 4 }),
+    event('item', 'key', { random: true, randomCount: 1 }),
+    event('item', 'key', { random: true, randomCount: 2.5 }),
+    event('item', 'key', { random: true, randomCount: 101 }),
+    event('item', 'key', { random: true, randomCount: 4, group: { shape: 'line', count: 2 } }),
+  ]) assert.throws(() => validateCustomLevel(blank([invalid])), /random|count/);
+  assert.throws(() => validateCustomLevel(blank(Array(21).fill(
+    event('item', 'key', { random: true, randomCount: 100 })))), /2000 game elements/);
   assert.throws(() => validateCustomLevel(blank([event('food', 'S', { x: undefined })])), /X/);
   for (const [x, y, group] of [[0, .5, { shape: 'circle', count: 5 }],
     [.5, 1, { shape: 'line', count: 5, angle: 90 }],
@@ -204,6 +246,20 @@ test('group counts participate in Cat Brick source and chest key consistency che
   }
 });
 
+test('independent random counts participate in Cat Brick and key-source limits', () => {
+  const catBlock = { description: 'Cat Brick', trigger: { type: 'carrier' } };
+  const carrier = event('enemy', 'mouse', { random: true, randomCount: 2, carriesCatBlock: true });
+  assert.throws(() => validateCustomLevel({ ...blank([carrier]), catBlock },
+    { requireCatBlockConsistency: true }), /only one Cat Brick/);
+  const level = { ...blank([
+    event('item', 'treasure-chest', { keysRequired: 5 }),
+    event('enemy', 'mouse', { random: true, randomCount: 5, carriesKey: true }),
+  ]), catBlock: { ...catBlock, trigger: { type: 'chest' } } };
+  assert.doesNotThrow(() => validateCustomLevel(level, { requireCatBlockConsistency: true }));
+  level.events[1].randomCount = 4;
+  assert.throws(() => validateCustomLevel(level, { requireCatBlockConsistency: true }), /more keys/);
+});
+
 function editorContext() {
   const nodes = new Map();
   const $ = selector => {
@@ -226,7 +282,7 @@ function editorContext() {
   return { context, $ };
 }
 
-test('editor placement fields serialize and round-trip random groups and reveal only relevant options', () => {
+test('editor placement fields serialize random groups and independent random event counts', () => {
   const { context, $ } = editorContext();
   $('#event-time').value = '5'; $('#event-x').value = '50'; $('#event-y').value = '50';
   $('#event-lifetime').value = '10'; $('#event-kind').value = 'food'; $('#event-type').value = 'S';
@@ -252,6 +308,24 @@ test('editor placement fields serialize and round-trip random groups and reveal 
   assert.equal(fixed.random, undefined);
   assert.equal(fixed.x, .5); assert.equal(fixed.y, .5);
   assert.equal(fixed.group.angle, 45);
+
+  $('#event-kind').value = 'enemy'; $('#event-type').value = 'mouse';
+  $('#event-location').value = 'random'; $('#event-formation').value = 'single';
+  $('#event-random-count').value = '4';
+  context.updateEventPlacement();
+  assert.equal($('#event-random-count-label').hidden, false);
+  assert.equal($('#event-random-count').disabled, false);
+  const repeated = validateCustomLevel(blank([context.readEvent()]));
+  assert.equal(repeated.events[0].randomCount, 4);
+  context.level = repeated; context.selectedEvents = new Set([0]); context.populateEventForm();
+  assert.equal($('#event-random-count').value, 4);
+  assert.equal($('#event-random-count-label').hidden, false);
+  $('#event-random-count').value = '6'; context.touched.add('#event-random-count'); context.applyToSelected();
+  assert.equal(context.level.events[0].randomCount, 6);
+  context.touched.clear(); context.touched.add('#event-location'); $('#event-location').value = 'fixed';
+  context.applyToSelected();
+  assert.equal(context.level.events[0].randomCount, undefined);
+  assert.equal(context.level.events[0].random, undefined);
 });
 
 test('multi-event edits preserve untouched placement fields and dragging random groups fixes their center', () => {

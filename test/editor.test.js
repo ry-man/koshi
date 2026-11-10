@@ -383,13 +383,14 @@ test('settings changes automatically update the level, report invalid fields, an
   assert.equal(JSON.stringify(context.level), before);
 });
 
-test('random-spawn visibility filters random groups and campaign examples without changing fixed events or totals', () => {
+test('random-spawn visibility filters random groups, multi-count events, and campaign examples without changing totals', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const start = source.indexOf('  [...level.events.map');
   const pipeline = source.slice(start, source.indexOf('    .forEach(', start));
   const events = [
     event(), { ...event(), random: true },
     { ...event(), random: true, group: { shape: 'line', count: 3, size: .2 } },
+    { ...event(), kind: 'enemy', random: true, randomCount: 4 },
     { ...event(), previewRandom: true },
     { ...event(), group: { shape: 'circle', count: 3, size: .2 } },
   ];
@@ -398,12 +399,12 @@ test('random-spawn visibility filters random groups and campaign examples withou
   let showRandom = true;
   const context = vm.createContext({
     level: { events }, templates, $: () => ({ checked: showRandom }),
-    previewGame: { customEventPoints: item => Array(item.group?.count ?? 1).fill({ x: 100, y: 100 }) },
+    previewGame: { customEventPoints: item => Array(item.group?.count ?? item.randomCount ?? 1).fill({ x: 100, y: 100 }) },
     FOODS, SHIELDS,
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
   const totals = JSON.stringify(context.pointReference(events, []));
-  assert.equal(vm.runInContext(pipeline, context).length, 10);
+  assert.equal(vm.runInContext(pipeline, context).length, 14);
   showRandom = false;
   const visible = vm.runInContext(pipeline, context);
   assert.equal(visible.length, 5);
@@ -413,7 +414,7 @@ test('random-spawn visibility filters random groups and campaign examples withou
   assert.equal(JSON.stringify(context.pointReference(events, [])), totals);
 });
 
-test('point reference counts event groups, shield values and one spawn per active brick', () => {
+test('point reference counts event groups, independent random events, shield values and spawners', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
   const context = vm.createContext({ FOODS, SHIELDS, $: selector => {
@@ -425,6 +426,7 @@ test('point reference counts event groups, shield values and one spawn per activ
     { kind: 'food', type: 'H', group: { count: 3 } },
     { kind: 'food', type: 'S' },
     { kind: 'enemy', type: 'mouse', shield: 'blue', group: { count: 2 } },
+    { kind: 'enemy', type: 'mouse', shield: 'red', randomCount: 4 },
     { kind: 'enemy', type: 'boss' },
     { kind: 'object', type: 'soccer-ball', group: { count: 4 } },
     { kind: 'item', type: 'battery' },
@@ -438,7 +440,7 @@ test('point reference counts event groups, shield values and one spawn per activ
   ];
   context.renderPointReference(events, bricks);
   assert.equal(nodes.get('#available-food').textContent, '27');
-  assert.equal(nodes.get('#available-enemy').textContent, '12');
+  assert.equal(nodes.get('#available-enemy').textContent, '20');
   assert.equal(nodes.get('#available-soccer').textContent, '5');
   assert.equal(nodes.get('#point-reference-extra').hidden, false);
   context.renderPointReference([], []);
