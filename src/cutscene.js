@@ -12,6 +12,156 @@ const sceneNames = {
   'robot-hq': 'Robot HQ',
 };
 
+const openingScene = {
+  theme: 'garden',
+  lines: [
+    'The world was once a peaceful place. That was, before the evil AI robots took over.',
+    'Human technology advanced too fast, and eventually an evil robot duck named Tom gained sufficient power to topple nations.',
+    'The fate of the planet falls to this unassuming cat, named Koshi. Is he a bad enough dude to save the world?',
+  ].map(text => ({ speaker: 'koshi', text, actors: [{ character: 'koshi', x: .5, y: .7 }] })),
+};
+
+function drawOpeningScene(ctx, index, time) {
+  const rect = (color, x, y, w, h) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
+  const ellipse = (color, x, y, rx, ry) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  };
+  const shape = (color, points) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(...points[0]);
+    for (const point of points.slice(1)) ctx.lineTo(...point);
+    ctx.closePath(); ctx.fill();
+  };
+  if (index < 2) {
+    const ruined = index === 1;
+    const sky = ctx.createLinearGradient(0, 0, 0, 540);
+    sky.addColorStop(0, ruined ? '#30383e' : '#70cbee');
+    sky.addColorStop(1, ruined ? '#68726d' : '#e3f6d2');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
+    if (!ruined) ellipse('#fff3a0', 760, 92, 48, 48);
+    for (let i = 0; i < 6; i++) {
+      ellipse(ruined ? '#414a4d' : '#f8fcf0', i * 190 + 20, 72 + i % 2 * 40, 100, ruined ? 37 : 22);
+    }
+    if (ruined) {
+      for (const [x, top, width] of [[60, 120, 90], [240, 65, 110], [410, 145, 80], [590, 95, 120], [805, 55, 100]]) {
+        shape('#384145', [[x, 355], [x, top + 23], [x + width * .3, top],
+          [x + width * .55, top + 32], [x + width, top + 12], [x + width, 355]]);
+        for (let y = top + 50; y < 300; y += 33) {
+          for (let dx = 15; dx < width - 10; dx += 25) rect('#52605e', x + dx, y, 9, 14);
+        }
+      }
+    }
+    rect(ruined ? '#363d3b' : '#79bb64', 0, 355, 960, 185);
+    shape(ruined ? '#555b54' : '#d7bd89', [[400, 355], [550, 355], [740, 540], [200, 540]]);
+    for (let i = 0; i < 5; i++) {
+      const x = 25 + i * 190, y = 235 - i % 2 * 55;
+      rect(ruined ? '#41484a' : ['#f4d197', '#b9dbe0', '#e7afa0'][i % 3], x, y, 150, 135);
+      shape(ruined ? '#2b3237' : '#b66554', ruined
+        ? [[x - 10, y], [x + 25, y - 45], [x + 55, y - 17], [x + 92, y - 59], [x + 160, y]]
+        : [[x - 10, y], [x + 75, y - 65], [x + 160, y]]);
+      for (const dx of [22, 98]) {
+        rect(ruined ? '#192b2d' : '#fff1ab', x + dx, y + 23, 30, 36);
+        rect(ruined ? '#343c3d' : '#fbfaf0', x + dx + 13, y + 23, 4, 36);
+      }
+      rect(ruined ? '#242c30' : '#7b695a', x + 62, y + 80, 30, 55);
+      if (ruined) {
+        shape('#242c30', [[x + 40, y], [x + 59, y + 38], [x + 49, y + 65], [x + 83, y + 101], [x + 65, y + 55], [x + 72, y + 29]]);
+        for (let j = 0; j < 4; j++) {
+          shape('#70736a', [[x + j * 38, 390], [x + j * 38 + 16, 363 - j % 2 * 10], [x + j * 38 + 35, 393]]);
+        }
+      } else {
+        rect('#71573f', x + 8, 320, 9, 69);
+        ellipse('#458b55', x + 12, 309, 30, 35);
+        for (const dx of [35, 110]) {
+          ellipse('#f7d893', x + dx, 415, 8, 8);
+          rect(dx === 35 ? '#6d89c5' : '#d2717e', x + dx - 7, 423, 14, 20);
+          rect('#665c55', x + dx - 6, 443, 4, 12);
+          rect('#665c55', x + dx + 2, 443, 4, 12);
+        }
+      }
+    }
+    if (ruined) {
+      ctx.save(); ctx.translate(490, 340); ctx.scale(1.7, 1.7); drawTom(ctx, time, false); ctx.restore();
+      ctx.strokeStyle = '#9bdf7c99'; ctx.lineWidth = 2;
+      for (let i = 0; i < 85; i++) {
+        const x = (i * 137 + time * 18) % 1000;
+        const y = (i * 83 + time * 125) % 570;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 15); ctx.stroke();
+      }
+      for (const x of [115, 340, 790]) ellipse('#729c5b88', x, 480, 55, 5);
+    } else {
+      for (let i = 0; i < 24; i++) {
+        const x = i * 43 + 8, y = 480 + i % 3 * 20;
+        rect('#437b47', x, y, 2, 12);
+        ellipse(i % 2 ? '#f5d477' : '#f5b5c1', x + 1, y, 4, 4);
+      }
+    }
+  } else {
+    rect('#e3c9a5', 0, 0, 960, 540);
+    for (let x = 0; x < 960; x += 60) rect('#d9bc98', x, 0, 3, 380);
+    rect('#a87c59', 0, 380, 960, 160);
+    for (let y = 400; y < 540; y += 38) rect('#89634d', 0, y, 960, 2);
+    rect('#f6e8ca', 110, 75, 220, 220); rect('#8ecde2', 123, 88, 194, 194);
+    ellipse('#ffefa0', 268, 133, 27, 27);
+    rect('#f6e8ca', 212, 88, 12, 194); rect('#f6e8ca', 123, 180, 194, 12);
+    shape('#9bafa2', [[90, 60], [170, 60], [143, 310], [90, 310]]);
+    shape('#9bafa2', [[270, 60], [350, 60], [350, 310], [300, 310]]);
+    rect('#795e4b', 720, 210, 135, 170); rect('#96785b', 710, 200, 155, 18);
+    for (const y of [228, 300]) {
+      rect('#b59975', 735, y, 105, 54); ellipse('#e3c9a5', 787, y + 27, 5, 5);
+    }
+    ellipse('#775c49', 475, 468, 184, 33);
+    ellipse('#829d9b', 475, 420, 170, 70);
+    ellipse('#c7d7c1', 475, 407, 143, 48);
+    const breath = Math.sin(time * 1.8) * 2;
+    ellipse('#abb5bd', 477, 397, 89, 39 + breath);
+    ctx.strokeStyle = '#596571'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    for (const x of [484, 509, 534]) {
+      ctx.beginPath(); ctx.moveTo(x, 365 - breath);
+      ctx.quadraticCurveTo(x - 7, 375, x - 5, 385); ctx.stroke();
+    }
+    ctx.strokeStyle = '#abb5bd'; ctx.lineWidth = 16;
+    ctx.beginPath(); ctx.ellipse(492, 401, 59, 24, .12, -.6, Math.PI * 1.2); ctx.stroke();
+    ctx.save(); ctx.translate(424, 388); ctx.scale(1.55, 1.55);
+    shape('#abb5bd', [[-20, -8], [-22, -32], [-6, -21], [7, -21], [23, -32], [21, -7]]);
+    ellipse('#abb5bd', 0, 0, 23, 23);
+    shape('#d6a4a4', [[-18, -15], [-19, -25], [-11, -19]]);
+    shape('#d6a4a4', [[13, -19], [20, -25], [18, -14]]);
+    ctx.strokeStyle = '#596571'; ctx.lineWidth = 4;
+    for (const [x, endX, y] of [[-10, -7, -20], [0, 0, -22], [10, 7, -20]]) {
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(endX, y + 8); ctx.stroke();
+    }
+    ctx.lineWidth = 3;
+    for (const sign of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(sign * 22, -3); ctx.lineTo(sign * 16, 0); ctx.stroke();
+    }
+    ctx.fillStyle = '#eff2ed';
+    ctx.beginPath(); ctx.moveTo(0, -12);
+    ctx.quadraticCurveTo(-3, -5, -4, 7); ctx.quadraticCurveTo(0, 12, 4, 7);
+    ctx.quadraticCurveTo(3, -5, 0, -12); ctx.fill();
+    ctx.strokeStyle = '#26323a'; ctx.lineWidth = 2;
+    for (const x of [-9, 9]) {
+      ctx.beginPath(); ctx.moveTo(x - 4, -3); ctx.quadraticCurveTo(x, 2, x + 4, -3); ctx.stroke();
+    }
+    shape('#bd8d93', [[-4, 5], [4, 5], [0, 9]]);
+    ctx.strokeStyle = '#34414a'; ctx.lineWidth = 1.7;
+    ctx.beginPath(); ctx.moveTo(0, 9); ctx.quadraticCurveTo(-4, 16, -8, 11);
+    ctx.moveTo(0, 9); ctx.quadraticCurveTo(4, 16, 8, 11); ctx.stroke();
+    ctx.strokeStyle = '#d7dfdc'; ctx.lineWidth = 1.2;
+    for (const sign of [-1, 1]) {
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath(); ctx.moveTo(sign * 13, 5 + i * 2);
+        ctx.lineTo(sign * (34 - Math.abs(i - 1.5)), -2 + i * 7); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    ctx.fillStyle = '#725b49'; ctx.font = '24px monospace';
+    ctx.fillText('z', 526, 337 - time * 10 % 30);
+    ctx.font = '32px monospace'; ctx.fillText('Z', 552, 304 - time * 8 % 30);
+    ellipse('#829d9b', 475, 441, 160, 32);
+    ellipse('#9bb4ac', 475, 432, 143, 18);
+  }
+}
+
 function drawOfficialBackground(ctx, theme) {
   const palettes = {
     'happy-meadows': ['#a4e0e0', '#e7f6ca', '#76c96a', '#397b4e'],
@@ -457,12 +607,18 @@ class CutscenePlayer {
     document.addEventListener('visibilitychange', () => { this.paused = document.hidden; });
   }
   get active() { return this.playback !== null; }
-  open(scene, level) {
+  openOpening(onFinish) {
+    this.open(openingScene, null, onFinish);
+  }
+  open(scene, level, openingFinish = null) {
+    this.openingFinish = openingFinish;
+    this.portrait.hidden = Boolean(openingFinish);
     this.playback = new Cutscene(scene, this.motion.matches);
     this.paused = document.hidden;
     this.positions = new Map();
     this.displayedIndex = -1;
-    document.querySelector('#cutscene-heading').textContent = `Level ${level} / ${sceneNames[scene.theme]}`;
+    document.querySelector('#cutscene-heading').textContent = openingFinish ? "Koshi's Quest / Prologue"
+      : `Level ${level} / ${sceneNames[scene.theme]}`;
     this.dialog.showModal();
     this.update(0);
     this.next.focus({ preventScroll: true });
@@ -478,8 +634,10 @@ class CutscenePlayer {
       this.playback.skip();
       this.playback = null;
       this.dialog.close();
-      this.onFinish();
-    });
+      const onFinish = this.openingFinish ?? this.onFinish;
+      this.openingFinish = null;
+      onFinish();
+    }, { fade: Boolean(this.openingFinish) });
   }
   update(seconds) {
     if (!this.active) return;
@@ -497,14 +655,16 @@ class CutscenePlayer {
       });
       this.text.replaceChildren(...this.textCharacters);
       this.text.parentElement.scrollTop = 0;
-      document.querySelector('#cutscene-speaker').textContent = CHARACTERS[line.speaker];
-      document.querySelector('#cutscene-transcript').textContent = `${CHARACTERS[line.speaker]}: ${line.text}`;
+      const speaker = this.openingFinish ? 'Narrator' : CHARACTERS[line.speaker];
+      document.querySelector('#cutscene-speaker').textContent = speaker;
+      document.querySelector('#cutscene-transcript').textContent = `${speaker}: ${line.text}`;
     }
     const visibleCount = this.playback.visibleCount;
     this.textCharacters.forEach((span, i) => {
       span.style.visibility = i < visibleCount ? 'visible' : 'hidden';
     });
-    this.next.textContent = this.playback.typing ? 'Reveal text' : index + 1 === this.playback.scene.lines.length ? 'Begin level' : 'Continue';
+    this.next.textContent = this.playback.typing ? 'Reveal text' : index + 1 === this.playback.scene.lines.length
+      ? this.openingFinish ? 'World map' : 'Begin level' : 'Continue';
     document.querySelector('#cutscene-page').textContent = `${index + 1} / ${this.playback.scene.lines.length}`;
     this.draw();
   }
@@ -518,6 +678,15 @@ class CutscenePlayer {
     const w = Math.round(width * ratio), h = Math.round(height * ratio);
     if (this.stage.width !== w || this.stage.height !== h) { this.stage.width = w; this.stage.height = h; }
     const ctx = this.stage.getContext('2d');
+    if (this.openingFinish) {
+      // Letterbox the full illustration so the town and sleeping cat survive portrait layouts.
+      const scale = Math.min(w / 960, h / 540);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#10191f'; ctx.fillRect(0, 0, w, h);
+      ctx.setTransform(scale, 0, 0, scale, (w - 960 * scale) / 2, (h - 540 * scale) / 2);
+      drawOpeningScene(ctx, this.playback.index, time);
+      return;
+    }
     const backgroundScale = Math.max(w / 960, h / 540);
     const official = !['garden', 'workshop', 'foundry'].includes(scene.theme);
     // Keep the Official ground line at the same stage height when the background is cropped.

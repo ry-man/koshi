@@ -157,6 +157,13 @@ button reads **Continue as [owner]** when a campaign save exists and resumes the
 most recently played slot (opening its level map as **Continue** does). With no
 saves it reads **Start adventure** and opens world selection for a guest
 adventure (initially World 1). The title has no separate level-select button.
+New Official saves and the first Official guest adventure in each session play a
+three-scene narrated prologue: a sunny town, Tom's ruined city under green rain,
+and Koshi asleep in his bed. The screen fades to black, pauses, and fades into
+the prologue, then repeats the transition into world selection. Use Continue
+to reveal text or advance, or Skip scene/Escape to go to the map. Reduced-motion
+preferences remove the fades and scene animation. Continuing an existing save,
+Beta adventures, tutorials, and custom-level playtests do not play this prologue.
 Escape on the title opens the map rather
 than bypassing selection. Custom-level playtest links and the
 `#install` troubleshooting link bypass the title. The artwork is bundled for

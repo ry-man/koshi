@@ -61,6 +61,7 @@ let activeSave = null;
 let runSave = null;
 const pendingSaves = [];
 const guestProfile = { guest: true, completed: [], catBlocks: [], results: {} };
+let guestOpeningViewed = false;
 const recordedAttempts = new WeakSet();
 const viewedCutscenes = new Set();
 let attemptId = makeAttemptId();
@@ -95,7 +96,7 @@ const cutscene = new globalThis.KoshiCutscenePlayer(drawCutsceneCharacter, () =>
   markCutsceneViewed(game.level.id);
   skipCutscene.checked = true;
   showLevelInformation();
-}, action => phaseTransition.run(action));
+}, (action, options) => phaseTransition.run(action, options));
 
 if (location.hash.startsWith('#level=')) {
   try {
@@ -345,7 +346,23 @@ function continueSave(index, id, fresh = false) {
   saves.markRecent(index, id);
   activeSave = { index, slot };
   updateSaveProfile();
-  openLevelPicker({ insideWorld: !fresh, level: fresh ? 0 : saves.resumeLevel(slot) });
+  if (fresh) startAdventure({ level: 0 });
+  else openLevelPicker({ insideWorld: true, level: saves.resumeLevel(slot) });
+}
+
+function startAdventure({ level = null } = {}) {
+  if (campaignId !== 'official' || (!activeSave && guestOpeningViewed)) {
+    openLevelPicker({ level });
+    return;
+  }
+  autoPause();
+  phaseTransition.run(() => {
+    for (const dialog of [titleScreen, saveDialog]) if (dialog.open) dialog.close();
+    cutscene.openOpening(() => {
+      if (!activeSave) guestOpeningViewed = true;
+      openLevelPicker({ level: 0 });
+    });
+  }, { fade: true });
 }
 
 function renderSaveSlots() {
@@ -443,8 +460,7 @@ document.querySelector('#save-guest').addEventListener('click', () => {
   activeSave = null;
   runSave = null;
   updateSaveProfile();
-  saveDialog.close();
-  openLevelPicker({ level: 0 });
+  startAdventure({ level: 0 });
 });
 for (const id of ['#save-retry', '#save-title-retry', '#save-menu-retry']) {
   document.querySelector(id).addEventListener('click', () => {
@@ -1220,7 +1236,7 @@ restart.addEventListener('click', begin);
 document.querySelector('#title-start').addEventListener('click', () => {
   const recent = recentSave();
   if (recent) saveAttempt(() => continueSave(recent.index, recent.slot.id));
-  else openLevelPicker();
+  else startAdventure();
 });
 function openLevelPicker({ insideWorld = false, level = null, advance = false } = {}) {
   autoPause();
@@ -1294,7 +1310,8 @@ function continueFromCompletion() {
 document.querySelector('#level-results-continue').addEventListener('click', continueFromCompletion);
 function dismissTitle() {
   if (!game || !game.customLevel) {
-    openLevelPicker();
+    if (!activeSave && !recentSave()) startAdventure();
+    else openLevelPicker();
     return;
   }
   phaseTransition.run(() => {
@@ -4684,6 +4701,13 @@ function resize() {
 }
 
 function frame(timestamp) {
+  if (cutscene.active && cutscene.openingFinish) {
+    const seconds = lastTime === null ? 0 : (timestamp - lastTime) / 1000;
+    if (!phaseTransition.busy) cutscene.update(seconds);
+    lastTime = timestamp;
+    requestAnimationFrame(frame);
+    return;
+  }
   if (!game || levelPicker.open || levelInfoDialog.open) {
     lastTime = null;
     requestAnimationFrame(frame);

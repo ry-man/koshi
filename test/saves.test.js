@@ -337,7 +337,7 @@ function uiFixture() {
   };
   const context = vm.createContext({
     document, saves, LEVELS, levelStats, collectibleTotals: require('../src/collectibles.js').collectibleTotals,
-    pendingSaves: [], activeSave: null, runSave: null,
+    pendingSaves: [], activeSave: null, runSave: null, campaignId: 'beta',
     game: { level: LEVELS[0], state: 'won', elapsed: 10, score: 20, enemies: 2, moves: 4 },
     recordedAttempts: new WeakSet(), attemptId: 'attempt-1',
     guestProfile: { completed: [], catBlocks: [], results: {} },
@@ -660,7 +660,7 @@ test('loading opens the last-played level map while a newly created slot opens w
   assert.equal(openings[0].level, 20);
   const fresh = saves.create(1, 'New player');
   context.continueSave(1, fresh.id, true);
-  assert.equal(openings[1].insideWorld, false);
+  assert.notEqual(openings[1].insideWorld, true);
   assert.equal(openings[1].level, 0);
   assert.equal(saves.recent().slot.id, fresh.id, 'continuing or creating marks the slot most recent');
   context.continueSave(0, slot.id);

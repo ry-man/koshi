@@ -96,3 +96,35 @@ test('both wipe edges have alternating sawteeth and extend beyond the viewport a
   assert.match(clip, /calc\(100% - 32px\) 0%/);
   assert.match(clip, /32px 0%\)$/);
 });
+
+test('opening fade reaches full black, pauses, swaps the screen, and fades back in', async () => {
+  const { transition, animations, events } = fixture();
+  transition.run(() => events.push('scene'), { fade: true });
+  assert.equal(transition.cover.style.clipPath, 'none');
+  assert.equal(animations[0].frames[0].opacity, 0);
+  assert.equal(animations[0].frames[1].opacity, 1);
+  animations[0].resolve(); await flush();
+  assert.equal(events.includes('scene'), false, 'hold black before changing screens');
+  assert.equal(animations[1].options.duration, 650);
+  assert.ok(animations[1].frames.every(frame => frame.opacity === 1));
+  animations[1].resolve(); await flush();
+  assert.equal(events.includes('scene'), true);
+  assert.equal(animations[2].frames[0].opacity, 1);
+  assert.equal(animations[2].frames[1].opacity, 0);
+  assert.equal(animations.reduce((sum, animation) => sum + animation.options.duration, 0), 2450);
+  animations[2].resolve(); await flush();
+  assert.equal(transition.busy, false);
+  transition.run(() => {});
+  assert.match(transition.cover.style.clipPath, /^polygon/);
+  assert.equal(transition.cover.style.opacity, '1', 'subsequent wipes are opaque');
+  animations[3].resolve(); await flush();
+  animations[4].resolve(); await flush();
+});
+
+test('reduced motion skips the opening fades and black hold', () => {
+  const { transition, animations } = fixture(true);
+  let changed = false;
+  transition.run(() => { changed = true; }, { fade: true });
+  assert.equal(changed, true);
+  assert.equal(animations.length, 0);
+});

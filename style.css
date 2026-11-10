@@ -64,6 +64,7 @@ body:has(#cat-town-scene[open]) { overflow: hidden; }
 #cutscene-skip { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
 .cutscene-dialogue { display: flex; align-items: center; gap: clamp(12px, 3vw, 32px); padding: 14px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); border: 6px double #c2d0d5; background: #15212e; min-height: 0; font-family: var(--scene-font); text-shadow: 2px 2px #060e16; }
 .cutscene-portrait { width: clamp(64px, 17vw, 160px); height: auto; max-height: 100%; aspect-ratio: 1; object-fit: contain; flex-shrink: 0; image-rendering: pixelated; border: 4px solid #060e16; box-shadow: 0 0 0 2px #71818b; }
+#cutscene-portrait[hidden] { display: none; }
 .cutscene-words { display: flex; flex-direction: column; min-width: 0; height: 100%; flex: 1; gap: 8px; }
 #cutscene-speaker { color: #d3ef8b; font: 600 clamp(18px, 2vw, 24px) var(--scene-font); }
 #cat-town-speaker { color: #d3ef8b; font: 600 clamp(18px, 2vw, 24px) var(--scene-font); }
