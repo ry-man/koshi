@@ -27,7 +27,47 @@ or "do not push". Editing or reviewing this skill alone does not run the workflo
   proceeding. Never commit or push while required checks are pending or failing.
 - Never stage unrelated changes or use force-push, amend, or bypass hooks.
 
-## Procedure
+## Standard one-action path
+
+For a normal sync of all manifest-listed Official JSON, invoke the deterministic
+publisher once instead of manually repeating its commands:
+
+```powershell
+npm.cmd run publish:official
+```
+
+Use `npm run publish:official` outside Windows. The user's sync request authorizes
+the whole release. Do not request separate confirmations for each successful
+gate. The VS Code **Publish Official Levels** task runs the same publisher
+directly without agent subprocess approvals.
+
+The command runs one local `npm test` (including generation), automated Chromium
+checks on changed levels, guarded staging/commit/push, and exact-commit Pages
+verification. Require its successful exit before claiming production is updated.
+It preserves authored content, rejects removed permanent IDs, blocks unrelated
+code/index/history changes and concurrent edits, and leaves unlisted drafts
+unpublished. Report any blocker rather than bypassing a gate or retrying a push.
+
+One-time setup is `npm.cmd ci` followed by `npm.cmd run setup:publish`.
+Do not reinstall dependencies or browsers on every release. Git push credentials
+must already work. GitHub API verification supports optional environment
+`GH_TOKEN`/`GITHUB_TOKEN`; never save tokens in repository files. Repository-level
+deployment reviewers, signing prompts, and hooks are independent approval gates.
+
+For "local only", "do not commit", or "do not push", use
+`npm.cmd run publish:official:check`; it generates/tests/browser-checks but never
+fetches, commits, or pushes. It can change the generated bundle. Do not invoke
+the production command merely to test changes to the publisher or this skill.
+If a failed release created a commit or staged changes, report that state and
+resolve scope/history explicitly; do not silently reset or publish it on retry.
+
+## Exceptional/manual procedure
+
+Use the procedure below only for named-level scope, authorized tightly coupled
+code fixes, "commit but do not push", or ambiguous manifest changes that the
+standard level-only command deliberately refuses. Do not fall back to it just
+to bypass a publisher failure. A named-level request must not silently publish
+other edited levels. The browser smoke script is `npm.cmd run smoke:official`.
 
 1. Inspect `git --no-pager status --short`, the manifest, and the relevant JSON
    files. Read `package.json` and the Publishing Official levels section of

@@ -83,6 +83,61 @@ drafts unless explicitly approved for publication, and unrelated changes or
 unpushed commits are not silently included. Skills must be enabled and discovered by the
 Copilot environment; the build/test validation does not depend on skill loading.
 
+### One-action publishing
+
+One-time setup (Node.js 24+, Git, and an authenticated GitHub push are required):
+
+```sh
+npm ci
+npm run setup:publish
+```
+
+In VS Code, choose **Terminal -> Run Task -> Publish Official Levels**.
+Launching this task authorizes the whole release; it runs directly rather than
+requesting agent approval for each subprocess. The equivalent terminal command
+is `npm run publish:official` (`npm.cmd run publish:official` on Windows).
+The task is not automatic on save: export all intended JSON edits first.
+
+The publisher checks `main` against `origin/main`, regenerates through a single
+local `npm test` invocation, and runs headless Chromium smoke checks on changed
+levels (or all published levels if there are no semantic changes). The browser
+checks the JSON-backed bundle, campaign selection, cutscene/hint rendering,
+play/pause, and read-only editor previews. It then stages only release files,
+commits the level summary, pushes the exact tested commit, and waits up to
+15 minutes for that commit's Pages test and deployment jobs to succeed.
+CI still runs its independent full test suite before deploying.
+Browser JavaScript exceptions, application console errors, failed resources, and
+failed content/interaction assertions block publishing. Native browser rendering
+diagnostics are printed for review but do not block (including the existing
+non-fatal SVG path diagnostic).
+
+The publisher refuses staged changes, unrelated code changes, missing/changed
+permanent IDs, concurrent edits, unsafe branch/history states, or failed checks.
+Commit or set aside unrelated work manually before starting; nothing is
+automatically stashed, reset, rebased, force-pushed, or removed. New levels must
+already have intentional manifest entries. Unlisted JSON drafts stay unpublished.
+Do not edit files during a release. A failed stage/commit may leave reviewed
+release files staged; inspect the reported state before retrying.
+If a publisher crashes, remove `.git/official-publish.lock` only after confirming
+no publisher is running (linked worktrees store it in their own Git directory).
+
+For the same local tests/browser checks without fetching, committing, or pushing,
+use **Check Official Levels (no commit or push)** or
+`npm run publish:official:check`. This still requires `main`, a clear index, and
+no unrelated code changes, and can regenerate the checked-in bundle.
+For browser checks alone, use `npm run smoke:official`.
+The smoke check starts its own temporary server on an available loopback port,
+leaves any existing preview server alone, and closes Chromium/server afterward.
+
+Git authentication must be configured ahead of time; signing keys or Git hooks
+can impose their own interaction requirements. Public GitHub API access needs no
+CLI or token. If API rate limits/private repository access require authentication,
+set `GH_TOKEN` or `GITHUB_TOKEN` in the task's environment, never in source files.
+If GitHub's `github-pages` environment has required reviewers, its deployment
+approval remains a separate gate; remove that requirement in repository settings
+only if you intentionally want unattended deployment. A push alone is never
+reported as a verified production deployment.
+
 ## Beta and Official games
 
 Only the title screen offers a **Beta / Official** selector. The world map and

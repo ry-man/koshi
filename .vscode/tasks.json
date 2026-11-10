@@ -1,0 +1,23 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Publish Official Levels",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/publish-official-levels.js"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Check Official Levels (no commit or push)",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/publish-official-levels.js", "--check"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    }
+  ]
+}
