@@ -496,13 +496,97 @@ test('every weapon replaces the current weapon and resets its hit count', () => 
       const distant = { x: game.cat.x + 200, y: game.cat.y, type: 'gold' };
       game.weapons.push(distant);
       game.weapons.push({ x: game.cat.x, y: game.cat.y, type: replacement });
+      const drops = game.weaponDrops.length;
       game.combat(0, game.cat.x, game.cat.y);
       assert.equal(game.weapon.type, replacement);
       assert.equal(game.weapon.uses, WEAPONS[replacement].uses);
       assert.equal(game.weapon.expires, Infinity);
+      assert.equal(game.weaponDrops.length, drops + 1);
+      assert.deepEqual(game.weaponDrops.at(-1), {
+        x: game.cat.x + 30, y: game.cat.y - 20, type: current, age: 0, angle: 0,
+      });
       assert.deepEqual(game.weapons, [distant], 'uncollected weapons persist');
       game.weapons = [];
     }
+  }
+});
+
+test('weapon drops are cosmetic snapshots that pause, finish after gameplay, and clear on reset', () => {
+  for (const state of ['playing', 'won', 'lost', 'boss-defeated']) {
+    const game = arena();
+    equip(game, 'silver');
+    assert.equal(game.weaponDrops.length, 0, 'first weapon does not drop anything');
+    game.weaponAttacks.push({ type: 'silver', age: .09 });
+    equip(game, 'hammer-gold');
+    const drop = game.weaponDrops[0];
+    assert.ok(drop.angle > 0, 'drop inherits the outgoing weapon swing');
+    const { x, y } = drop;
+    game.cat.x -= 100;
+    game.update(.2);
+    assert.equal(drop.x, x); assert.equal(drop.y, y);
+    assert.equal(game.weapon.type, 'hammer-gold');
+    assert.equal(game.weapon.uses, 10, 'drop cannot attack or be collected again');
+    const age = drop.age;
+    game.pause();
+    game.update(5);
+    assert.equal(drop.age, age);
+    game.resume();
+    if (state === 'boss-defeated') game.bossDefeated = true;
+    else game.state = state;
+    game.update(.5);
+    assert.ok(drop.age > age);
+    game.update(.4);
+    assert.equal(game.weaponDrops.length, 0);
+    game.weaponDrops.push({ ...drop, age: 0 });
+    game.reset();
+    assert.equal(game.weaponDrops.length, 0);
+  }
+});
+
+test('swept weapon pickups drop outgoing weapons in encounter order', () => {
+  const game = arena();
+  game.weapon = { type: 'gold', uses: 2, expires: Infinity };
+  game.weapons = [
+    { x: game.cat.x + 80, y: game.cat.y, type: 'hammer-silver' },
+    { x: game.cat.x, y: game.cat.y, type: 'wood' },
+  ];
+  const startX = game.cat.x;
+  game.cat.x += 120;
+  game.combat(0, startX, game.cat.y);
+  assert.deepEqual(game.weaponDrops.map(drop => drop.type), ['gold', 'wood']);
+  assert.equal(game.weapon.type, 'hammer-silver');
+  game.weapon.expires = game.elapsed;
+  equip(game, 'bronze');
+  assert.equal(game.weaponDrops.length, 2, 'expired weapons do not produce replacement drops');
+});
+
+test('weapon drop artwork falls with gravity, rotates, settles, then fades without a hit label', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const operations = [], stack = [];
+  const ctx = {
+    globalAlpha: .8,
+    save() { stack.push(this.globalAlpha); },
+    restore() { this.globalAlpha = stack.pop(); },
+    translate(...args) { operations.push(['translate', ...args]); },
+    rotate(angle) { operations.push(['rotate', angle]); },
+  };
+  const context = vm.createContext({ ctx, drawWeapon: (...args) => operations.push(['weapon', ...args, ctx.globalAlpha]) });
+  vm.runInContext(source.slice(source.indexOf('function drawWeaponDrop('), source.indexOf('function drawPickupPop(')), context);
+  for (const type of Object.keys(WEAPONS)) {
+    const frames = [0, .1, .2, .4, .75, 1.1].map(age => {
+      operations.length = 0;
+      context.drawWeaponDrop({ x: 100, y: 80, angle: .2, type, age });
+      assert.equal(ctx.globalAlpha, .8, 'canvas opacity is restored');
+      return operations.map(op => [...op]);
+    });
+    assert.deepEqual(frames[0], [['translate', 100, 80], ['rotate', .2], ['weapon', 0, 0, type, .8]]);
+    assert.equal(frames[2][0][2] - 80, 4 * (frames[1][0][2] - 80), 'fall accelerates');
+    assert.ok(frames[2][1][1] > frames[1][1][1], 'weapon rotates as it falls');
+    assert.deepEqual(frames[3][0], ['translate', 118, 132]);
+    assert.deepEqual(frames[3].slice(0, 2), frames[4].slice(0, 2), 'weapon settles before fading');
+    assert.equal(frames[3][2].at(-1), .8, 'fully visible until landing');
+    assert.ok(Math.abs(frames[4][2].at(-1) - .4) < 1e-9, 'half faded halfway through fade');
+    assert.deepEqual(frames[5], [], 'expired effects draw nothing');
   }
 });
 

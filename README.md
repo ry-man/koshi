@@ -640,6 +640,8 @@ the board; phones keep compact controls above it without scrolling away from pla
   a hammer spends only as many hits as needed to break the enemy's shield and
   defeat it, or all remaining hits if its charges run out first. Each collected
   weapon replaces the current weapon and resets its hit count, even if it is weaker.
+  The replaced sword or hammer visibly drops, rotates as it falls, then fades away;
+  it is only a visual effect and cannot be collected again.
   Uncollected weapons and hearts do not expire.
 - The dotted aiming line is subtle and transparent (15% opacity). A small red circle
   with a plus sign and thin black outline marks the exact clicked location,

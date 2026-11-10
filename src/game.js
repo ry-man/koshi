@@ -3139,6 +3139,7 @@ class Game {
     this.robots = [];
     this.enemyDeaths = [];
     this.weaponAttacks = [];
+    this.weaponDrops = [];
     this.boss = null;
     this.bossDefeated = false;
     this.bossProjectiles = [];
@@ -6518,6 +6519,14 @@ class Game {
     for (const { item } of collected.sort((a, b) => a.entry - b.entry)) {
       const weapon = WEAPONS[item.type];
       this.catBlockProgress.swords++;
+      if (this.weapon) {
+        const swing = [...this.weaponAttacks].reverse().find(attack => attack.age < .18);
+        const age = swing?.type === this.weapon.type ? swing.age : null;
+        this.weaponDrops.push({
+          x: this.cat.x + 30, y: this.cat.y - 20, type: this.weapon.type, age: 0,
+          angle: age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4,
+        });
+      }
       this.weapon = { type: item.type, uses: weapon.uses, expires: Infinity };
       this.recordPickup(item, 'weapon');
     }
@@ -7110,6 +7119,13 @@ class Game {
     });
   }
 
+  updateWeaponDrops(seconds) {
+    this.weaponDrops = this.weaponDrops.filter(drop => {
+      drop.age += seconds;
+      return drop.age < 1.1 - 1e-9;
+    });
+  }
+
   updatePaintEffects(seconds) {
     this.paintEffects = this.paintEffects.filter(effect => {
       effect.age += seconds;
@@ -7122,6 +7138,7 @@ class Game {
     if (this.state === 'playing' && this.bossDefeated) {
       this.updateEnemyDeaths(seconds);
       this.updateWeaponAttacks(seconds);
+      this.updateWeaponDrops(seconds);
       this.updatePaintEffects(seconds);
       this.updateBrickDestructions(seconds);
       if (!this.enemyDeaths.some(enemy => enemy.type === 'boss')) {
@@ -7134,6 +7151,7 @@ class Game {
       this.updateEnemyDeaths(seconds);
       this.updateGoalEffects(seconds);
       this.updateWeaponAttacks(seconds);
+      this.updateWeaponDrops(seconds);
       this.updatePaintEffects(seconds);
       this.updatePickups(seconds);
       this.updateBrickDestructions(seconds);
@@ -7162,6 +7180,7 @@ class Game {
     this.updateEnemyDeaths(dt);
     this.updateGoalEffects(dt);
     this.updateWeaponAttacks(dt);
+    this.updateWeaponDrops(dt);
     this.updatePaintEffects(dt);
     this.updatePickups(dt);
     this.updateBrickDestructions(dt);

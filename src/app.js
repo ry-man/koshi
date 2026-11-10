@@ -2333,6 +2333,7 @@ function render(now) {
   for (const effect of game.brickDestructions) {
     if (!game.level.autoscroll || effect.members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 40))) drawBrickDestructionSmoke(effect);
   }
+  for (const drop of game.weaponDrops) if (visible(drop, 100)) drawWeaponDrop(drop);
   for (const pickup of game.pickups) if (visible(pickup, 160)) drawPickupPop(pickup);
   if (ending?.game === game && ending.state === game.state && !endingMotion.matches) {
     for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
@@ -2668,6 +2669,18 @@ function drawBrickDestructionSmoke(effect) {
       ctx.beginPath(); ctx.arc(x, y, 4 + progress * 10, 0, Math.PI * 2); ctx.fill();
     }
   }
+  ctx.restore();
+}
+
+function drawWeaponDrop(drop) {
+  const fall = Math.min(1, drop.age / .4);
+  const opacity = Math.max(0, 1 - Math.max(0, drop.age - .4) / .7);
+  if (opacity <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= opacity;
+  ctx.translate(drop.x + fall * 18, drop.y + fall * fall * 52);
+  ctx.rotate(drop.angle + fall * 1.25);
+  drawWeapon(0, 0, drop.type);
   ctx.restore();
 }
 
