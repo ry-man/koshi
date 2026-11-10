@@ -1783,8 +1783,8 @@ function placeAt(event) {
       ...placementPosition(point.x, point.y) };
     if (!item.random && !item.group && item.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(item.type)) Object.assign(item, snapWheel(item.x, item.y));
     level = validateDraft({ ...level, events: [...level.events, item] });
-    markChanged(); render();
-    message(`Placed ${description(item)} at ${item.time}s. Keep clicking to place more, or use Select to choose markers.`);
+    markChanged(); setSelection([level.events.length - 1], []);
+    message(`Placed ${description(item)} at ${item.time}s. Edit it in the inspector, or choose Place to add another.`);
   });
 }
 

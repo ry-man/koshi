@@ -75,6 +75,86 @@ test('event inspector applies edits automatically while preserving validation an
   assert.doesNotMatch(html, /id="apply-event"/);
 });
 
+test('board placement selects the new event and inspector changes edit it instead of a future placement', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  for (const [kind, type] of [['food', 'S'], ['enemy', 'mouse'], ['weapon', 'wood'], ['item', 'key'], ['object', 'soccer-ball']]) {
+    const nodes = new Map(), listeners = {};
+    let reject = false, failure, populated = 0, rendered = 0, changed = 0;
+    const context = vm.createContext({
+      level: { ...blank(), events: [event()] }, activeCategory: kind, placing: true,
+      selectedEvents: new Set([0]), selectedBricks: new Set(['old-brick']), touched: new Set(),
+      MIXED: '', OBJECTS, snapWheel, readOnly: () => false,
+      $: selector => {
+        if (!nodes.has(selector)) nodes.set(selector, { value: '', disabled: false });
+        return nodes.get(selector);
+      },
+      form: {
+        reportValidity: () => true, checkValidity: () => true,
+        addEventListener(type, handler) { listeners[type] = handler; },
+      },
+      pointerPosition: () => ({ x: .35, y: .65 }),
+      placementPosition: (x, y) => ({ x, y }),
+      discretePreviewTime: Math.round,
+      readEvent: () => ({ ...event(kind, type), x: .1, y: .1 }),
+      validateDraft: draft => {
+        if (reject) throw new Error('Rejected placement');
+        return validateCustomLevel(draft);
+      },
+      attempt: action => { try { action(); } catch (error) { failure = error; } },
+      selectedList: () => [...context.selectedEvents],
+      common: values => values[0],
+      showCategory(category) { context.activeCategory = category; },
+      populateEventForm() {
+        populated++;
+        const selected = context.level.events[[...context.selectedEvents][0]];
+        context.$('#event-time').value = String(selected.time);
+        context.$('#event-x').value = String(selected.x * 100);
+        context.$('#event-y').value = String(selected.y * 100);
+        context.touched.clear();
+      },
+      markChanged() { changed++; }, render() { rendered++; },
+      message() {}, description: () => type, plural: (count, noun) => `${count} ${noun}`,
+    });
+    vm.runInContext(source.slice(source.indexOf('function setSelection('), source.indexOf('function toggled(')), context);
+    vm.runInContext(source.slice(source.indexOf('function placeAt('), source.indexOf("board.addEventListener('pointerdown'")), context);
+    vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf("$('#new-event').addEventListener")), context);
+    context.$('#timeline').value = '7.3';
+    const original = { ...context.level.events[0] };
+    context.placeAt({});
+    assert.ifError(failure);
+    assert.equal(context.level.events.length, 2);
+    assert.deepEqual([...context.selectedEvents], [1]);
+    assert.equal(context.selectedBricks.size, 0);
+    assert.equal(context.placing, false);
+    assert.equal(context.activeCategory, kind);
+    assert.equal(context.$('#event-time').value, '7');
+    assert.equal(context.$('#event-x').value, '35');
+    assert.equal(context.$('#event-y').value, '65');
+    assert.equal(populated, 1);
+    assert.equal(rendered, 1);
+    assert.equal(changed, 1);
+
+    context.$('#event-x').value = '80';
+    context.touched.add('#event-x');
+    listeners.change();
+    assert.ifError(failure);
+    assert.equal(context.level.events.length, 2, 'inspector changes do not append events');
+    assert.equal(context.level.events[1].x, .8);
+    assert.deepEqual(context.level.events[0], original);
+    assert.deepEqual([...context.selectedEvents], [1]);
+
+    const before = JSON.stringify(context.level);
+    reject = true;
+    context.placeAt({});
+    assert.match(failure.message, /Rejected placement/);
+    assert.equal(JSON.stringify(context.level), before);
+    assert.deepEqual([...context.selectedEvents], [1], 'failed placements preserve selection');
+    assert.equal(populated, 2);
+    assert.equal(rendered, 2);
+    assert.equal(changed, 2);
+  }
+});
+
 test('Discretize X, Y snaps placements and moves to rendered dot centers without changing existing data', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const checkbox = { checked: false };
@@ -122,7 +202,7 @@ test('Discretize X, Y snaps placements and moves to rendered dot centers without
     readEvent: () => event(), attempt: action => action(),
     discretePreviewTime: value => Math.round(value),
     validateDraft: candidate => { placed.push(candidate.events.at(-1)); return candidate; },
-    markChanged() {}, render() {}, message() {}, description: () => 'food',
+    markChanged() {}, setSelection() {}, render() {}, message() {}, description: () => 'food',
   });
   vm.runInContext(source.slice(source.indexOf('function placeAt('), source.indexOf("board.addEventListener('pointerdown'")), context);
   context.$ = selector => selector === '#timeline' ? { value: 7.3 } : selector === '#discretize-xy' ? checkbox : area;

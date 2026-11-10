@@ -1,0 +1,554 @@
+{
+  "version": 1,
+  "id": "Unlock-a-block",
+  "duration": 75,
+  "goal": 15,
+  "heartCost": 15,
+  "brickSet": 1,
+  "events": [
+    {
+      "time": 3,
+      "kind": "food",
+      "type": "S",
+      "random": true,
+      "group": {
+        "shape": "line",
+        "count": 5,
+        "size": 0.6,
+        "angle": 255
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 10,
+      "kind": "food",
+      "type": "S",
+      "random": true,
+      "group": {
+        "shape": "line",
+        "count": 6,
+        "size": 0.75,
+        "angle": 25
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 8,
+      "kind": "enemy",
+      "type": "mouse",
+      "random": true,
+      "randomCount": 4,
+      "shield": null
+    },
+    {
+      "time": 15,
+      "kind": "weapon",
+      "type": "bronze",
+      "random": true
+    },
+    {
+      "time": 15,
+      "kind": "enemy",
+      "type": "mouse",
+      "random": true,
+      "randomCount": 2,
+      "shield": null,
+      "carriesItem": "key"
+    },
+    {
+      "time": 20,
+      "kind": "food",
+      "type": "P",
+      "x": 0.5051286775996561,
+      "y": 0.49877532843464706,
+      "group": {
+        "shape": "circle",
+        "count": 5,
+        "size": 0.5710000000000001
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 30,
+      "kind": "food",
+      "type": "S",
+      "random": true,
+      "group": {
+        "shape": "line",
+        "count": 3,
+        "size": 1,
+        "angle": 125
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 45,
+      "kind": "enemy",
+      "type": "mouse",
+      "random": true,
+      "randomCount": 2,
+      "shield": null,
+      "carriesItem": "key"
+    },
+    {
+      "time": 50,
+      "kind": "item",
+      "type": "treasure-chest",
+      "random": true,
+      "keysRequired": 4
+    },
+    {
+      "time": 35,
+      "kind": "weapon",
+      "type": "bronze",
+      "random": true
+    },
+    {
+      "time": 55,
+      "kind": "food",
+      "type": "P",
+      "random": true,
+      "group": {
+        "shape": "line",
+        "count": 3,
+        "size": 0.5710000000000001,
+        "angle": 45
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 60,
+      "kind": "enemy",
+      "type": "mouse",
+      "random": true,
+      "randomCount": 4,
+      "shield": null
+    },
+    {
+      "time": 55,
+      "kind": "weapon",
+      "type": "bronze",
+      "random": true
+    },
+    {
+      "time": 25,
+      "kind": "weapon",
+      "type": "bronze",
+      "random": true
+    },
+    {
+      "time": 60,
+      "kind": "weapon",
+      "type": "wood",
+      "random": true
+    },
+    {
+      "time": 65,
+      "kind": "weapon",
+      "type": "wood",
+      "random": true
+    }
+  ],
+  "bossLevel": false,
+  "killGoal": 10,
+  "survive": false,
+  "catBlock": {
+    "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+    "messages": {
+      "item": "Koshi found the Cat Block!",
+      "enemy": "Koshi found a Cat Block carried by an enemy!",
+      "chest": "Koshi opened the treasure chest and found the Cat Block!",
+      "achievement": "Koshi earned the Cat Brick!"
+    },
+    "trigger": {
+      "type": "chest"
+    }
+  },
+  "cutscene": {
+    "theme": "happy-meadows",
+    "lines": [
+      {
+        "speaker": "tom",
+        "text": "You may have proven yourself to not be a total pushover, kitty cat. However, your demise is inevitable.",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "mouse",
+        "text": "I dunno boss. He really wacked us.",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "tom",
+        "text": "Silence!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "mouse",
+        "text": "Next thing you know it, he's going to find that secret treasure box of ours sitting over there in the corner. Things really aren't looking good!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "koshi",
+        "text": "Treasure box! Awesome. Count me in!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      }
+    ]
+  },
+  "levelInfo": {
+    "pages": [
+      {
+        "title": "Cat Block",
+        "text": "Every level has a cat block Koshi can collect. Each level may have a different way to find or earn it. Hints are provided at the start of the levels when you still have one to collect.",
+        "graphics": [
+          "item:cat-block"
+        ]
+      },
+      {
+        "title": "Keys & Treasure Chests",
+        "text": "Some levels have treasure chests. These chests always hold a cat block, but Koshi must collect a certain number of keys in order to open it. The keys required to open it will be indicated below the chest. Keys can be collected throughout the level. Sometimes enemies will be carrying them - Koshi must destroy them to take the key!",
+        "graphics": [
+          "item:key",
+          "item:treasure-chest"
+        ]
+      }
+    ]
+  },
+  "brickTypes": [
+    {
+      "edge": "right",
+      "start": 0.25,
+      "end": 0.375,
+      "kind": "fast",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.375,
+      "end": 0.5,
+      "kind": "fast",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.5,
+      "end": 0.625,
+      "kind": "fast",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.625,
+      "end": 0.75,
+      "kind": "fast",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.625,
+      "end": 0.75,
+      "kind": "slow",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.75,
+      "end": 0.875,
+      "kind": "slow",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.125,
+      "end": 0.25,
+      "kind": "slow",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.25,
+      "end": 0.375,
+      "kind": "slow",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "bottom",
+      "start": 0.6,
+      "end": 0.8,
+      "kind": "slow",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "bottom",
+      "start": 0.2,
+      "end": 0.4,
+      "kind": "fast",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "top",
+      "start": 0.6,
+      "end": 0.8,
+      "kind": "fast",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    }
+  ],
+  "brickGroups": [
+    {
+      "owner": 21,
+      "members": [
+        15,
+        17,
+        19,
+        21
+      ]
+    },
+    {
+      "owner": 20,
+      "members": [
+        20,
+        22
+      ]
+    },
+    {
+      "owner": 12,
+      "members": [
+        12,
+        14
+      ]
+    }
+  ]
+}

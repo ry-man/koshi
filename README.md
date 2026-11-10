@@ -1162,8 +1162,9 @@ tracks his health; his death animation finishes before Koshi celebrates.
    and on-screen lifetime (required for food, optional for items and weapons).
    Leave an item or weapon lifetime blank to keep it until the level ends.
    With the **Place** tool, click/tap the dotted
-   playable area to add objects. Each click creates one timed placement;
-   repeating clicks creates a group with the same timing.
+   playable area to add an object. Each placement is automatically selected,
+   switching to **Select** so inspector changes edit the object just placed.
+   Choose **Place**, **New event**, or a palette option to place another object.
 3. Select a marker or event in the chronological list to edit it. Drag a marker,
    or expand **Exact position** and enter X/Y percentages. Changes to selected
    events apply automatically when a control changes (numeric fields commit when

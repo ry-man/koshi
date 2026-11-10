@@ -108,11 +108,30 @@
         "size": 0.5
       },
       "shield": null
+    },
+    {
+      "time": 30,
+      "kind": "item",
+      "type": "cat-block",
+      "x": 0.8942939622873288,
+      "y": 0.49877532843464706
     }
   ],
   "bossLevel": false,
   "killGoal": 10,
   "survive": false,
+  "catBlock": {
+    "description": "To earn Cat Brick: Find during gameplay when it spawns.",
+    "messages": {
+      "item": "Koshi found the Cat Block!",
+      "enemy": "Koshi found a Cat Block carried by an enemy!",
+      "chest": "Koshi opened the treasure chest and found the Cat Block!",
+      "achievement": "Koshi earned the Cat Brick!"
+    },
+    "trigger": {
+      "type": "spawn"
+    }
+  },
   "cutscene": {
     "theme": "happy-meadows",
     "lines": [
@@ -160,7 +179,7 @@
       },
       {
         "speaker": "mouse",
-        "text": "Uh oh. Tom! Look over there. I think we may have left some weapons laying around again. Hopefully Koshi doesn't see them and start fighting back!",
+        "text": "Uh oh. Tom! Look over there. I think we may have left some weapons lying around again. Hopefully Koshi doesn't see them and start fighting back!",
         "actors": [
           {
             "character": "koshi",
