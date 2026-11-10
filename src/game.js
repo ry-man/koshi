@@ -1812,6 +1812,25 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       || !['horizontal', 'vertical'].includes(item.crabDirection)) fail(`${name} has an invalid Robo Crab direction.`);
     result.crabDirection = item.crabDirection;
   };
+  const carriedItems = (event, result, name) => {
+    if (event.carriesCatBlock !== undefined) {
+      if (event.kind !== 'enemy' || typeof event.carriesCatBlock !== 'boolean') fail(`${name} has an invalid Cat Block carrier setting.`);
+      if (event.carriesCatBlock) result.carriesCatBlock = true;
+    }
+    if (event.carriesKey !== undefined) {
+      if (event.kind !== 'enemy' || typeof event.carriesKey !== 'boolean') fail(`${name} has an invalid key carrier setting.`);
+      if (event.carriesKey) result.carriesKey = true;
+    }
+    if (event.carriesItem !== undefined) {
+      if (event.kind !== 'enemy' || typeof event.carriesItem !== 'string'
+        || (!Object.hasOwn(ITEMS, event.carriesItem) && !Object.hasOwn(WEAPONS, event.carriesItem))) {
+        fail(`${name} has an invalid carried item.`);
+      }
+      if ((event.carriesCatBlock === true && event.carriesItem !== 'cat-block')
+        || (event.carriesKey === true && event.carriesItem !== 'key')) fail(`${name} specifies conflicting carried items.`);
+      result.carriesItem = event.carriesItem;
+    }
+  };
   const obstructionAppearance = (item, result, name) => {
     const obstruction = item.kind === 'object' && OBJECTS[item.type]?.obstruction;
     for (const field of ['color', 'patternColor', 'pattern']) {
@@ -1893,8 +1912,8 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
-      if (!random || !['enemy', 'item'].includes(event.kind) || group) {
-        fail(`${name} independent random placements require a random enemy or item without a formation.`);
+      if (!random || group) {
+        fail(`${name} independent random placements require a random location without a formation.`);
       }
       randomCount = number(event.randomCount, 2, 100, `${name} independent random placement count`);
       if (!Number.isInteger(randomCount)) fail(`${name} independent random placement count must be a whole number.`);
@@ -1916,22 +1935,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (!tracks.some(track => track.id === event.track)) fail(`${name}: unknown Cat Track.`);
       result.track = event.track;
     }
-    if (event.carriesCatBlock !== undefined) {
-      if (event.kind !== 'enemy' || typeof event.carriesCatBlock !== 'boolean') fail(`${name} has an invalid Cat Block carrier setting.`);
-      if (event.carriesCatBlock) result.carriesCatBlock = true;
-    }
-    if (event.carriesKey !== undefined) {
-      if (event.kind !== 'enemy' || typeof event.carriesKey !== 'boolean') fail(`${name} has an invalid key carrier setting.`);
-      if (event.carriesKey) result.carriesKey = true;
-    }
-    if (event.carriesItem !== undefined) {
-      if (event.kind !== 'enemy' || typeof event.carriesItem !== 'string' || !Object.hasOwn(ITEMS, event.carriesItem)) {
-        fail(`${name} has an invalid carried item.`);
-      }
-      if ((event.carriesCatBlock === true && event.carriesItem !== 'cat-block')
-        || (event.carriesKey === true && event.carriesItem !== 'key')) fail(`${name} specifies conflicting carried items.`);
-      result.carriesItem = event.carriesItem;
-    }
+    carriedItems(event, result, name);
     if (event.keysRequired !== undefined && (event.kind !== 'item' || event.type !== 'treasure-chest')) {
       fail(`${name}: keysRequired is only supported for treasure chests.`);
     }
@@ -2097,6 +2101,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
           }
           shield(spawn, override.spawner, `Brick override ${i + 1}`);
           crabDirection(spawn, override.spawner, `Brick override ${i + 1}`);
+          carriedItems(spawn, override.spawner, `Brick override ${i + 1}`);
           obstructionAppearance(spawn, override.spawner, `Brick override ${i + 1}`);
           if (spawn.kind === 'object' && spawn.lifetime != null) fail(`Brick override ${i + 1}: objects cannot have a lifetime.`);
           if (spawn.kind === 'food') override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn food lifetime`);
@@ -4426,13 +4431,15 @@ class Game {
           return snap(this.pointFromRelative((column + .5) / columns, (row + .5) / rows));
         });
       }
-      const points = [], existing = event.kind === 'item' ? this.collectiblePoints() : this.robots;
+      const pickup = ['food', 'item', 'weapon'].includes(event.kind);
+      const points = [], existing = event.kind === 'enemy' ? this.robots : this.collectiblePoints();
       for (let index = 0; index < event.randomCount; index++) {
-        if (event.kind === 'item') {
+        if (event.kind !== 'enemy') {
           const radius = needsBrickSpawnClearance(event.type) ? DITTO_STAMP_RADIUS : this.spawnRadius(event);
           const bounds = this.randomSpawnBounds(event.time, radius);
           points.push(this.findRandomSpawnPoint(bounds, [...existing, ...points], SPAWN_SPACING,
-            point => this.pickupClear(point) && (!needsBrickSpawnClearance(event.type) || this.stampSpawnClear(point))));
+            point => (!pickup || this.pickupClear(point))
+              && (!needsBrickSpawnClearance(event.type) || this.stampSpawnClear(point))));
         } else {
           const radius = event.type === 'robo-cow' ? 26 : 19;
           const occupied = [...existing, ...points];
@@ -5325,7 +5332,7 @@ class Game {
       const item = this.createCollectible(this.elapsed, type, null, { x: enemy.x, y: enemy.y });
       if (type === 'cat-block') item.source = 'enemy';
       if (type === 'treasure-chest') item.keysRequired = 1;
-      if (this.pickupClear(item)) this.items.push(item);
+      if (this.pickupClear(item)) (Object.hasOwn(WEAPONS, type) ? this.weapons : this.items).push(item);
     }
     enemy.carriesItem = null;
     enemy.carriesKey = false;

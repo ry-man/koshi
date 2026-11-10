@@ -44,7 +44,7 @@ for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy
   }
   $('#brick-spawn-item').append(group);
 }
-$('#event-carries-item').append(...Object.entries(ITEMS).map(([value, item]) => {
+$('#event-carries-item').append(...Object.entries({ ...ITEMS, ...WEAPONS }).map(([value, item]) => {
   const option = document.createElement('option');
   option.value = value; option.textContent = item.name;
   return option;
@@ -577,7 +577,7 @@ function description(event) {
     : event.kind === 'weapon' ? WEAPONS[event.type].name
       : event.kind === 'item' ? ITEMS[event.type].name
         : event.kind === 'object' ? OBJECTS[event.type].name
-        : `${CHARACTERS[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}${carriedItem(event) ? ` · carries ${ITEMS[carriedItem(event)]?.name ?? carriedItem(event)}` : ''}`;
+        : `${CHARACTERS[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}${carriedItem(event) ? ` · carries ${ITEMS[carriedItem(event)]?.name ?? WEAPONS[carriedItem(event)]?.name ?? carriedItem(event)}` : ''}`;
 }
 
 function icon(event) {
@@ -615,7 +615,7 @@ function readEvent() {
     if ($('#event-group-size').value !== '') event.group.size = Number($('#event-group-size').value) / 100;
     if (event.group.shape === 'line') event.group.angle = Number($('#event-group-angle').value);
   }
-  if (event.random && ['enemy', 'item'].includes(event.kind) && !event.group
+  if (event.random && !event.group
     && Number($('#event-random-count').value) > 1) event.randomCount = Number($('#event-random-count').value);
   if (!event.random && !event.group && event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) Object.assign(event, snapWheel(event.x, event.y));
   return event;
@@ -633,7 +633,7 @@ function updateEventPlacement() {
   $('#event-size-label').textContent = shape === 'circle' ? 'Diameter (%)' : 'Length (%)';
   const random = $('#event-location').value === 'random';
   $('#event-position').hidden = random;
-  const randomCountEnabled = random && shape === 'single' && ['enemy', 'item'].includes($('#event-kind').value);
+  const randomCountEnabled = random && shape === 'single';
   $('#event-random-count-label').hidden = !randomCountEnabled;
   $('#event-random-count').disabled = !randomCountEnabled;
   for (const id of ['#event-x', '#event-y']) {
@@ -769,10 +769,31 @@ function renderList() {
   level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time).forEach(({ event, index }) => {
     const li = document.createElement('li'), button = document.createElement('button');
     button.type = 'button'; button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
+    button.dataset.kind = event.kind;
     const time = document.createElement('span'); time.className = 'event-time'; time.textContent = `${event.time}s`;
     const location = document.createElement('span'); location.className = 'event-location';
     location.textContent = `${event.random ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''} · #${index + 1}`;
-    button.append(time, description(event), location);
+    const category = document.createElement('span'); category.className = 'event-category';
+    category.textContent = event.kind;
+    button.append(time, category);
+    if (event.kind !== 'food') {
+      const artwork = picture(`${event.kind}:${event.type}`, 'brick-spawn-item');
+      artwork.classList.add('event-icon');
+      artwork.setAttribute('aria-hidden', 'true');
+      button.append(artwork);
+    }
+    button.append(description(event), location);
+    if (['food', 'enemy', 'weapon'].includes(event.kind)) {
+      const totals = pointReference([event], []);
+      const amount = event.kind === 'weapon' ? totals.weaponHits : totals[event.kind];
+      const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
+      const badge = document.createElement('span');
+      badge.className = 'event-points';
+      badge.textContent = String(amount);
+      badge.setAttribute('aria-label', `${amount} ${label}`);
+      badge.title = `${amount} ${label}`;
+      button.append(badge);
+    }
     button.addEventListener('click', click => choose('event', index, isAdditive(click)));
     li.append(button); list.append(li);
   });
@@ -1280,17 +1301,34 @@ function updateCameraView(camera) {
 
 function pointReference(events, bricks) {
   const spawns = bricks.filter(brick => brick.absorbedBy === null && brick.spawner).map(brick => brick.spawner);
-  const totals = { food: 0, enemy: 0, soccer: 0 };
-  for (const source of [...events, ...spawns]) {
+  const totals = { food: 0, enemy: 0, soccer: 0, weapons: 0, weaponHits: 0,
+    weaponEnemyPoints: 0, specialEnemies: 0,
+    shields: { none: 0, red: 0, green: 0, blue: 0 },
+    weaponSources: { scheduled: { count: 0, hits: 0 }, spawner: { count: 0, hits: 0 }, drop: { count: 0, hits: 0 } } };
+  const addWeapon = (type, count, origin) => {
+    const hits = WEAPONS[type].uses * count;
+    totals.weapons += count; totals.weaponHits += hits;
+    totals.weaponSources[origin].count += count; totals.weaponSources[origin].hits += hits;
+  };
+  for (const [source, origin] of [...events.map(event => [event, 'scheduled']), ...spawns.map(spawn => [spawn, 'spawner'])]) {
     const count = source.group?.count ?? source.randomCount ?? 1;
     if (source.kind === 'food') totals.food += FOODS[source.type].value * count;
-    if (source.kind === 'enemy') totals.enemy += (source.shield ? SHIELDS[source.shield].hits : 1) * count;
+    if (source.kind === 'enemy') {
+      const points = (source.shield ? SHIELDS[source.shield].hits : 1) * count;
+      totals.enemy += points;
+      totals.shields[source.shield ?? 'none'] += count;
+      if (['boss', 'robo-love-bug'].includes(source.type)) totals.specialEnemies += count;
+      else totals.weaponEnemyPoints += points;
+      if (Object.hasOwn(WEAPONS, source.carriesItem ?? '')) addWeapon(source.carriesItem, count, 'drop');
+    }
+    if (source.kind === 'weapon') addWeapon(source.type, count, origin);
     if (source.kind === 'object' && source.type === 'soccer-ball') totals.soccer += count;
   }
-  const scoringSpawner = spawns.some(source => source.kind === 'food' || source.kind === 'enemy'
+  const scoringSpawner = spawns.some(source => ['food', 'enemy', 'weapon'].includes(source.kind)
     || (source.kind === 'object' && source.type === 'soccer-ball'));
   const extra = scoringSpawner && [...events, ...spawns].some(source =>
-    source.kind === 'item' && ['battery', 'ditto-stamp'].includes(source.type));
+    (source.kind === 'item' && ['battery', 'ditto-stamp'].includes(source.type))
+    || (source.kind === 'enemy' && ['battery', 'ditto-stamp'].includes(source.carriesItem)));
   return { ...totals, extra };
 }
 
@@ -1300,7 +1338,8 @@ function renderPointReference(events, bricks) {
     const output = $(`#available-${kind}`), value = String(totals[kind]);
     if (output.textContent !== value) output.textContent = value;
   }
-  $('#point-reference-extra').hidden = !totals.extra;
+  $('#available-weapons').textContent = String(totals.weapons);
+  $('#available-weapon-hits').textContent = String(totals.weaponHits);
 }
 
 function render() {
@@ -1662,6 +1701,7 @@ function moveEvent(index, x, y) {
   let point = placementPosition(x, y);
   if (!event.group && event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) point = snapWheel(point.x, point.y);
   delete event.random;
+  delete event.randomCount;
   Object.assign(event, point);
 }
 
@@ -2177,7 +2217,7 @@ function applyToSelected() {
           ...(value('#event-formation') === 'line' ? { angle: Number(value('#event-group-angle')) } : {}) };
       }
     }
-    if (touched.has('#event-random-count') && next.random && ['enemy', 'item'].includes(next.kind) && !next.group) {
+    if (touched.has('#event-random-count') && next.random && !next.group) {
       const count = Number(value('#event-random-count'));
       if (count > 1) next.randomCount = count;
       else delete next.randomCount;
@@ -2214,7 +2254,7 @@ function applyToSelected() {
     }
     if (next.kind !== 'item' || next.type !== 'treasure-chest') delete next.keysRequired;
     else if (keysChanged) next.keysRequired = Number(value('#event-keys-required'));
-    if (!next.random || !['enemy', 'item'].includes(next.kind) || next.group) delete next.randomCount;
+    if (!next.random || next.group) delete next.randomCount;
     for (const field of ['color', 'pattern', 'patternColor']) {
       if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) delete next[field];
       else if (textureFields.includes(field)) next[field] = value(`#event-${field}`);

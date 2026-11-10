@@ -143,8 +143,19 @@
 .input-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .inspector-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 #event-count { color: var(--muted); font-size: 12px; margin-left: 10px; }
-#event-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; list-style: none; padding: 0; max-height: 350px; overflow-y: auto; }
-#event-list button { width: 100%; text-align: left; }
+#event-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; list-style: none; padding: 8px; max-height: 350px; overflow-y: auto; }
+#event-list button { position: relative; width: 100%; text-align: left; padding-right: 64px; }
+#event-list [data-kind="enemy"] { --event-color: #ffaba2; }
+#event-list [data-kind="food"] { --event-color: #b7df83; }
+#event-list [data-kind="weapon"] { --event-color: #ffd078; }
+#event-list [data-kind="item"] { --event-color: #d6b2ff; }
+#event-list [data-kind="object"] { --event-color: #8ed8ee; }
+#event-list button[data-kind] { border: 2px solid var(--event-color); background: color-mix(in srgb, var(--event-color) 26%, #26373e); }
+#event-list button[data-kind]:hover { background: color-mix(in srgb, var(--event-color) 34%, #26373e); }
+#event-list button[aria-pressed="true"] { outline: 4px solid #fff; outline-offset: -2px; box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66; }
+.event-icon.palette-picture { display: inline-block; width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
+.event-points { position: absolute; top: 8px; right: 8px; min-width: 32px; padding: 4px 6px; border-radius: 4px; background: color-mix(in srgb, var(--event-color) 75%, #fff); color: #17232c; font-size: 13px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.event-category { display: inline-block; color: var(--event-color); text-transform: capitalize; margin-right: 10px; font-size: 10px; font-weight: 700; }
 .event-time { color: var(--accent); margin-right: 10px; font-variant-numeric: tabular-nums; }
 .event-location { display: block; color: var(--muted); margin-top: 5px; font-size: 10px; }
 .empty-state { color: var(--muted); font-size: 13px; padding: 20px 0; }

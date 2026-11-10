@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, SWORDS, SLIMES } = require('../src/game.js');
+const { Game, SWORDS, WEAPONS, SLIMES } = require('../src/game.js');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
 const helper = source.slice(source.indexOf('function cameraBoundsVisible('), source.indexOf('function render('));
@@ -92,7 +92,7 @@ test('scrolling render skips distant artwork but draws visible attacks from dist
   const calls = new Map();
   const layers = new Map();
   const context = {
-    game, SWORDS, SLIMES, buttons: [], trail: [], ending: null, colors: {},
+    game, SWORDS, WEAPONS, SLIMES, buttons: [], trail: [], ending: null, colors: {},
     canvas: { width: 960, height: 600 }, board: { clientWidth: 960, clientHeight: 600 },
     document: { querySelector: () => ({ style: {} }) },
     powerupStreamRows: () => ({}), robotDrawOrder: robots => robots, line() {},

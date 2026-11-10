@@ -103,10 +103,10 @@
             <dl aria-live="polite">
               <div><dt>Food points</dt><dd id="available-food">0</dd></div>
               <div><dt>Enemy points</dt><dd id="available-enemy">0</dd></div>
+              <div><dt>Weapons</dt><dd id="available-weapons">0</dd></div>
+              <div><dt>Weapon hits</dt><dd id="available-weapon-hits">0</dd></div>
               <div><dt>Soccer goals</dt><dd id="available-soccer">0</dd></div>
             </dl>
-            <p>Counts scheduled placements and one spawn per spawning brick, including groups and enemy shields. Actual scores depend on gameplay; soccer balls need goal bricks.</p>
-            <p id="point-reference-extra" hidden>Batteries or Ditto Stamps can produce additional spawns, so totals may be higher.</p>
           </section>
           <div id="editor-board-scroll" tabindex="0" role="region" aria-label="Scrollable level board">
           <div id="editor-board" data-orientation="landscape" tabindex="-1">
@@ -267,7 +267,7 @@
             </fieldset>
             <label id="shield-label" hidden>Enemy shield <select id="event-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
             <label id="crab-direction-label" hidden>Crab direction <select id="event-crab-direction" disabled><option value="random">Random</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label>
-            <label id="event-carrier-label" hidden>Carried item <select id="event-carries-item" disabled><option value="">None</option></select></label>
+            <label id="event-carrier-label" hidden>Carried item or weapon <select id="event-carries-item" disabled><option value="">None</option></select></label>
             <label id="chest-keys-label" hidden>Keys needed to open chest <input id="event-keys-required" type="number" min="1" max="100000" step="1" value="1" disabled></label>
             <div class="input-pair">
               <label>Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
@@ -282,7 +282,7 @@
               <label><span id="event-size-label">Length (%)</span><input id="event-group-size" type="number" min="0.1" max="100" step="any" placeholder="Auto" disabled></label>
               <label id="event-angle-label">Angle (degrees) <input id="event-group-angle" type="number" min="0" max="360" step="any" value="0" disabled></label>
             </div>
-            <label id="event-random-count-label" hidden>Independent random placements <input id="event-random-count" type="number" min="1" max="100" step="1" value="1" disabled></label>
+            <label id="event-random-count-label" hidden>Count (independent random placements) <input id="event-random-count" type="number" min="1" max="100" step="1" value="1" disabled></label>
             <details id="event-position" class="inspector-help"><summary>Center position</summary>
             <div class="input-pair">
               <label>X (%) <input id="event-x" type="number" min="0" max="100" step="any" value="50" required></label>

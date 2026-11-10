@@ -2308,7 +2308,8 @@ function render(now) {
       const side = carriedItems.length > 1 && index === 0 ? -1 : 1;
       ctx.translate(enemy.x + side * enemy.radius, enemy.y - enemy.radius - 10);
       ctx.scale(.72, .72);
-      drawGameItem({ x: 0, y: 0, type, keysRequired: 1 });
+      if (Object.hasOwn(WEAPONS, type)) drawWeapon(0, 0, type);
+      else drawGameItem({ x: 0, y: 0, type, keysRequired: 1 });
       ctx.restore();
     }
   }

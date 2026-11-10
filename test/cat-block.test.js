@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, LEVELS, CAT_BLOCK_MESSAGES, ITEMS, validateCustomLevel } = require('../src/game.js');
+const { Game, LEVELS, CAT_BLOCK_MESSAGES, ITEMS, WEAPONS, validateCustomLevel } = require('../src/game.js');
 
 const catBlock = { description: 'Find the Cat Block.', messages: CAT_BLOCK_MESSAGES };
 const level = events => ({
@@ -162,6 +162,63 @@ test('Cat Block, keys, chests and enemy carriers validate as custom-level events
     { time: 0, kind: 'item', type: 'key', x: .5, y: .5, carriesKey: true },
     { time: 0, kind: 'enemy', type: 'mouse', x: .5, y: .5, carriesKey: 2 },
   ]) assert.throws(() => validateCustomLevel(level([event])), /key carrier/);
+});
+
+test('enemy weapon drops validate, persist, render badges and equip with their catalog hit capacity', () => {
+  for (const type of Object.keys(WEAPONS)) {
+    const event = { time: 0, kind: 'enemy', type: 'mouse', x: .6, y: .5, carriesItem: type, shield: 'red' };
+    const draft = validateCustomLevel(level([event]));
+    assert.equal(draft.events[0].carriesItem, type);
+    const game = new Game(() => .5, { customLevel: draft });
+    game.start();
+    const [enemy] = game.createCustomSpawn(event);
+    game.defeatEnemy(enemy);
+    assert.equal(game.items.length, 0);
+    assert.equal(game.weapons.length, 1);
+    const [drop] = game.weapons;
+    assert.equal(drop.type, type);
+    assert.equal(drop.expires, undefined);
+    assert.deepEqual({ x: drop.x, y: drop.y }, { x: enemy.x, y: enemy.y });
+    assert.equal(enemy.carriesItem, null);
+    game.robots = [];
+    game.cat.x = enemy.x; game.cat.y = enemy.y;
+    game.combat(0, enemy.x, enemy.y);
+    assert.equal(game.weapons.length, 0);
+    assert.equal(game.weapon.type, type);
+    assert.equal(game.weapon.uses, WEAPONS[type].uses);
+  }
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const badgeCode = source.slice(source.indexOf('    const carriedItems = enemy.carriesItem'), source.indexOf('  for (const enemy of visibleRobots) if'));
+  const calls = [];
+  const context = vm.createContext({
+    WEAPONS, enemy: { carriesItem: 'hammer-gold', x: 200, y: 200, radius: 19 },
+    ctx: { save() {}, restore() {}, translate() {}, scale() {} },
+    drawWeapon: (...args) => calls.push(args),
+    drawGameItem: () => assert.fail('weapon badge must use weapon artwork'),
+  });
+  vm.runInContext(badgeCode.slice(0, badgeCode.lastIndexOf('  }')), context);
+  assert.deepEqual(calls, [[0, 0, 'hammer-gold']]);
+});
+
+test('enemy spawning bricks preserve and drop carried weapons at fixed and random locations', () => {
+  for (const position of [{}, { x: .6, y: .5 }]) {
+    const draft = { ...level([]), brickTypes: [{
+      edge: 'top', start: 0, end: .1, kind: 'normal',
+      spawner: { kind: 'enemy', type: 'mouse', carriesItem: 'silver', ...position },
+    }] };
+    assert.equal(validateCustomLevel(draft).brickTypes[0].spawner.carriesItem, 'silver');
+    const game = new Game(() => .5, { customLevel: draft });
+    const brick = game.bricks.find(brick => brick.absorbedBy === null && brick.spawner);
+    game.spawnFromBrick(brick);
+    const enemy = game.robots.at(-1);
+    assert.equal(enemy.carriesItem, 'silver');
+    game.defeatEnemy(enemy);
+    assert.equal(game.weapons.at(-1).type, 'silver');
+    draft.brickTypes[0].spawner.carriesItem = 'not-a-weapon';
+    assert.throws(() => validateCustomLevel(draft), /invalid carried item/);
+    draft.brickTypes[0].spawner = { kind: 'weapon', type: 'silver', carriesItem: 'silver' };
+    assert.throws(() => validateCustomLevel(draft), /invalid carried item/);
+  }
 });
 
 test('enemy events accept and drop any catalog item while validating legacy carrier settings', () => {
@@ -349,7 +406,7 @@ test('key artwork uses solid bright yellow paths without emoji or transparency',
   assert.ok(strokes.includes('#fff59a'));
   assert.equal(ctx.globalAlpha, 1);
   assert.doesNotMatch(code, /globalAlpha|fillText/);
-  assert.match(source, /ctx\.scale\(\.72, \.72\);\s*drawGameItem\(\{ x: 0, y: 0, type, keysRequired: 1 \}\)/,
+  assert.match(source, /ctx\.scale\(\.72, \.72\);\s*if \(Object\.hasOwn\(WEAPONS, type\)\) drawWeapon\(0, 0, type\);\s*else drawGameItem\(\{ x: 0, y: 0, type, keysRequired: 1 \}\)/,
     'carrier uses the generic item artwork at a larger readable size');
 });
 

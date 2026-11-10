@@ -401,7 +401,9 @@ test('settings and introductions share a collapsible frame, and points sit direc
   assert.match(settings, /aria-label="Level settings" open>/);
   for (const id of ['settings-form', 'cutscene-form', 'level-info-form']) assert.ok(settings.includes(`id="${id}"`));
   assert.doesNotMatch(settings, /Apply settings|point-reference/);
-  assert.match(html, /id="point-reference-extra"[\s\S]*?<\/section>\s*<div id="editor-board-scroll"/);
+  assert.match(html, /id="available-soccer"[^]*?<\/dl>\s*<\/section>\s*<div id="editor-board-scroll"/);
+  const reference = html.match(/<section class="point-reference"[\s\S]*?<\/section>/)[0];
+  assert.doesNotMatch(reference, /<p\b/);
   assert.match(html, /id="show-random" type="checkbox" checked/);
 });
 
@@ -480,7 +482,7 @@ test('random-spawn visibility filters random groups, multi-count events, and cam
   const context = vm.createContext({
     level: { events }, templates, $: () => ({ checked: showRandom }),
     previewGame: { customEventPoints: item => Array(item.group?.count ?? item.randomCount ?? 1).fill({ x: 100, y: 100 }) },
-    FOODS, SHIELDS,
+    FOODS, SHIELDS, WEAPONS,
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
   const totals = JSON.stringify(context.pointReference(events, []));
@@ -497,7 +499,7 @@ test('random-spawn visibility filters random groups, multi-count events, and cam
 test('point reference counts event groups, independent random events, shield values and spawners', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ FOODS, SHIELDS, $: selector => {
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, $: selector => {
     if (!nodes.has(selector)) nodes.set(selector, {});
     return nodes.get(selector);
   } });
@@ -522,14 +524,130 @@ test('point reference counts event groups, independent random events, shield val
   assert.equal(nodes.get('#available-food').textContent, '27');
   assert.equal(nodes.get('#available-enemy').textContent, '20');
   assert.equal(nodes.get('#available-soccer').textContent, '5');
-  assert.equal(nodes.get('#point-reference-extra').hidden, false);
+  assert.equal(context.pointReference(events, bricks).extra, true);
   context.renderPointReference([], []);
   for (const kind of ['food', 'enemy', 'soccer']) assert.equal(nodes.get(`#available-${kind}`).textContent, '0');
-  assert.equal(nodes.get('#point-reference-extra').hidden, true);
-  context.renderPointReference([{ kind: 'item', type: 'ditto-stamp' }], bricks);
-  assert.equal(nodes.get('#point-reference-extra').hidden, false);
-  context.renderPointReference([{ kind: 'item', type: 'battery' }], [{ absorbedBy: null, spawner: { kind: 'heart', type: 'heart' } }]);
-  assert.equal(nodes.get('#point-reference-extra').hidden, true);
+  assert.equal(context.pointReference([], []).extra, false);
+  assert.equal(context.pointReference([{ kind: 'item', type: 'ditto-stamp' }], bricks).extra, true);
+  assert.equal(context.pointReference([{ kind: 'item', type: 'battery' }], [{ absorbedBy: null, spawner: { kind: 'heart', type: 'heart' } }]).extra, false);
+});
+
+test('weapon budget includes grouped pickups, hammers, enemy drops and active spawning bricks without mutating levels', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const nodes = new Map();
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, $: selector => {
+    if (!nodes.has(selector)) nodes.set(selector, {});
+    return nodes.get(selector);
+  } });
+  vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
+  const events = [
+    { kind: 'weapon', type: 'wood', group: { count: 2 } },
+    { kind: 'weapon', type: 'hammer-silver', randomCount: 3 },
+    { kind: 'enemy', type: 'mouse', shield: 'blue', group: { count: 2 }, carriesItem: 'bronze' },
+    { kind: 'enemy', type: 'ram', shield: 'red', randomCount: 4, carriesItem: 'battery' },
+    { kind: 'enemy', type: 'boss' },
+    { kind: 'enemy', type: 'robo-love-bug', shield: 'green' },
+  ];
+  const bricks = [
+    { absorbedBy: null, spawner: { kind: 'weapon', type: 'gold' } },
+    { absorbedBy: null, spawner: { kind: 'enemy', type: 'mouse', carriesItem: 'hammer-gold' } },
+    { absorbedBy: 1, spawner: { kind: 'weapon', type: 'gold' } },
+  ];
+  const before = JSON.stringify({ events, bricks });
+  const totals = context.pointReference(events, bricks);
+  assert.equal(totals.weapons, 9);
+  assert.equal(totals.weaponHits, 43);
+  assert.equal(totals.enemy, 21);
+  assert.equal(totals.weaponEnemyPoints, 17);
+  assert.equal(totals.specialEnemies, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(totals.weaponSources)), {
+    scheduled: { count: 5, hits: 17 }, spawner: { count: 1, hits: 10 }, drop: { count: 3, hits: 16 },
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(totals.shields)), { none: 2, red: 4, green: 1, blue: 2 });
+  assert.equal(totals.extra, true, 'dropped batteries can recharge weapon sources');
+  context.renderPointReference(events, bricks);
+  assert.equal(nodes.get('#available-weapons').textContent, '9');
+  assert.equal(nodes.get('#available-weapon-hits').textContent, '43');
+  assert.equal(nodes.size, 5, 'only numeric totals are rendered');
+  context.renderPointReference([{ kind: 'enemy', type: 'mouse', shield: 'blue' }], []);
+  assert.equal(nodes.get('#available-enemy').textContent, '4');
+  context.renderPointReference([], []);
+  assert.equal(nodes.get('#available-weapons').textContent, '0');
+  assert.equal(nodes.get('#available-weapon-hits').textContent, '0');
+  assert.equal(JSON.stringify({ events, bricks }), before);
+});
+
+test('timeline categories have subdued card colors and artwork while retaining sorting and selection', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
+  const node = () => ({
+    children: [], dataset: {}, attributes: {}, listeners: {}, classList: { add() {} },
+    append(...children) { this.children.push(...children); },
+    replaceChildren() { this.children = []; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, handler) { this.listeners[name] = handler; },
+  });
+  const list = node(), count = node(), choices = [];
+  const kinds = ['enemy', 'food', 'weapon', 'item', 'object'];
+  const events = kinds.map((kind, index) => ({ kind, type: { enemy: 'mouse', food: 'S', weapon: 'wood', item: 'battery', object: 'soccer-ball' }[kind],
+    time: 5 - index, x: .5, y: .5 }));
+  const context = vm.createContext({
+    level: { events }, selectedEvents: new Set([2]), OBJECTS, FOODS, SHIELDS, WEAPONS,
+    $: selector => selector === '#event-list' ? list : count,
+    document: { createElement: node }, plural: (n, noun) => `${n} ${noun}s`,
+    description: event => event.type, isAdditive: click => click.shiftKey,
+    picture: (value, control) => Object.assign(node(), { value, control }),
+    choose: (...args) => choices.push(args),
+  });
+  vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
+  vm.runInContext(source.slice(source.indexOf('function renderList('), source.indexOf('function renderBrickInspector(')), context);
+  context.renderList();
+  assert.equal(count.textContent, '5 events');
+  assert.deepEqual(list.children.map(li => li.children[0].dataset.kind), [...kinds].reverse());
+  const colors = new Set();
+  for (const [index, li] of list.children.entries()) {
+    const button = li.children[0], kind = button.dataset.kind;
+    assert.equal(button.children[1].textContent, kind);
+    assert.equal(button.children[0].textContent, `${index + 1}s`);
+    assert.equal(button.attributes['aria-pressed'], String(kind === 'weapon'));
+    if (kind !== 'food') {
+      assert.equal(button.children[2].value, `${kind}:${events[4 - index].type}`);
+      assert.equal(button.children[2].control, 'brick-spawn-item');
+      assert.equal(button.children[2].attributes['aria-hidden'], 'true');
+    } else assert.equal(button.children[2], 'S', 'food keeps its existing inline icon and description');
+    const badge = button.children.find(child => child.className === 'event-points');
+    if (['food', 'enemy', 'weapon'].includes(kind)) {
+      assert.equal(badge.textContent, '1');
+      assert.equal(badge.attributes['aria-label'], `1 ${{ food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[kind]}`);
+    } else assert.equal(badge, undefined);
+    button.listeners.click({ shiftKey: true });
+    const color = css.match(new RegExp(`\\[data-kind="${kind}"\\] \\{ --event-color: (#[a-f0-9]+);`));
+    assert.ok(color, `${kind} has a category color`);
+    colors.add(color[1]);
+  }
+  assert.equal(colors.size, kinds.length);
+  assert.match(css, /#event-list button\[data-kind\]\s*\{[^}]*border: 2px solid var\(--event-color\)/);
+  assert.match(css, /#event-list button\[data-kind\]\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 26%, #26373e\)/);
+  assert.match(css, /#event-list button\[data-kind\]:hover\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 34%, #26373e\)/);
+  assert.match(css, /#event-list button\[aria-pressed="true"\]\s*\{[^}]*outline: 4px solid #fff;[^}]*box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66/);
+  assert.match(css, /#event-list\s*\{[^}]*gap: 12px;[^}]*padding: 8px/);
+  assert.deepEqual(choices[0], ['event', 4, true]);
+  const examples = [
+    { kind: 'food', type: 'H', group: { count: 5 }, expected: 35 },
+    { kind: 'food', type: 'P', randomCount: 6, expected: 12 },
+    { kind: 'enemy', type: 'mouse', shield: 'blue', group: { count: 3 }, expected: 12 },
+    { kind: 'enemy', type: 'ram', shield: 'red', randomCount: 4, expected: 8 },
+    { kind: 'enemy', type: 'boss', expected: 1 },
+    { kind: 'weapon', type: 'silver', group: { count: 4 }, expected: 20 },
+    { kind: 'weapon', type: 'hammer-gold', randomCount: 100, expected: 1000 },
+  ];
+  context.level.events = examples.map((example, time) => ({ ...example, time, x: .5, y: .5 }));
+  context.renderList();
+  for (const [index, li] of list.children.entries()) {
+    const badge = li.children[0].children.find(child => child.className === 'event-points');
+    assert.equal(badge.textContent, String(examples[index].expected));
+  }
+  assert.match(css, /\.event-points\s*\{[^}]*position: absolute;[^}]*top: 8px; right: 8px;[^}]*background: color-mix/);
 });
 
 test('the event category pane contains its complete form and actions', () => {
@@ -804,11 +922,11 @@ test('enemy editor exposes one carried-item selector and resolves legacy carrier
   const options = [];
   const setup = source.slice(source.indexOf("$('#event-carries-item').append"), source.indexOf('let level = blank();'));
   const optionContext = vm.createContext({
-    ITEMS, document: { createElement: () => ({}) },
+    ITEMS, WEAPONS, document: { createElement: () => ({}) },
     $: () => ({ append: (...items) => options.push(...items) }),
   });
   vm.runInContext(setup, optionContext);
-  assert.deepEqual(options.map(option => option.value), Object.keys(ITEMS));
+  assert.deepEqual(options.map(option => option.value), Object.keys({ ...ITEMS, ...WEAPONS }));
   assert.match(html, /<option value="">None<\/option>/);
   const context = vm.createContext({});
   vm.runInContext(`${source.slice(source.indexOf('const carriedItem ='), source.indexOf('const board ='))}\nglobalThis.testCarriedItem = carriedItem;`, context);

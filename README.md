@@ -1186,6 +1186,22 @@ tracks his health; his death animation finishes before Koshi celebrates.
    time and position; move it to create lines/circles. **Delete** removes it.
    **New event** returns to placement mode. Overlapping markers can always
    be selected separately from the event list.
+   Timeline rows are color-coded and labeled by category: enemies (red), food
+   (green), weapons (gold), items (purple), and objects (blue), with full category-colored
+   borders and richer, dark-tinted full-card backgrounds. Item, weapon, enemy, and object icons use the editor's
+   palette artwork alongside the existing food icons. Selected events have a thick,
+   glowing white border.
+   Food, enemy, and weapon events have a light top-right badge showing their
+   total food points, shield-weighted enemy points, or weapon strikes, including
+   every grouped or independently random copy.
+   The **Available points reference** displays only totals for food points,
+   shield-weighted enemy points, weapons, weapon hits, and soccer goals.
+   Totals include scheduled placements, one spawn per spawning brick, groups,
+   independently random placements, and enemy weapon drops.
+   For custom levels, **Carried item or weapon** lets enemies drop any item, sword,
+   or hammer at their defeat location. Weapons stay until collected and equip with
+   their normal hit count. JSON uses `carriesItem` for either item or weapon IDs.
+   Connecting such an enemy to a spawning brick preserves its carried pickup.
    **Discretize X, Y** snaps board placements and marker moves to the visible
    dots, including spawn templates and arrow-key moves. It defaults to checked;
    uncheck it for free placement. New board placements use the current preview
@@ -1306,7 +1322,10 @@ Optional `group` holds `shape` (`"line"` or `"circle"`), `count`, optional
   "group": { "shape": "circle", "count": 8, "size": 0.6 } }
 ```
 
-Random enemy and item events can use `randomCount` (2–100) to spawn that many
+For any event category, choose **Location: Random** and **Formation: Single** to
+show **Count (independent random placements)**. A count of 1 places one element;
+2–100 places independent copies rather than a line or circle. Bosses remain single.
+Random events can use `randomCount` (2–100) to spawn that many
 independent copies at the same time and with the same attributes. Each copy is
 given a separate random position; it cannot be combined with a formation:
 

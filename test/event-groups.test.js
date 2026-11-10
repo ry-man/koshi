@@ -34,10 +34,14 @@ test('random singles and line/circle groups validate and preserve optional field
   }
 });
 
-test('independent random enemy and item counts validate, preview separately, and spawn together', () => {
+test('independent random counts for every category validate, preview separately, and spawn together', () => {
   for (const [kind, type, attributes] of [
     ['enemy', 'mouse', { shield: 'green', carriesItem: 'key' }],
     ['item', 'battery', { lifetime: 12 }],
+    ['food', 'S', { lifetime: 10 }],
+    ['weapon', 'hammer-silver', { lifetime: 12 }],
+    ['object', 'soccer-ball', {}],
+    ['object', 'obstruction-circle', {}],
   ]) {
     const source = event(kind, type, { ...attributes, random: true, randomCount: 4 });
     const saved = validateCustomLevel(blank([source]));
@@ -54,7 +58,9 @@ test('independent random enemy and item counts validate, preview separately, and
     game.prepareSpawns();
     assert.equal(game.pendingSpawns.get(game.customEvents[0]), pending);
     game.elapsed = 5; game.spawnCustomEvents();
-    const spawned = kind === 'enemy' ? game.robots : game.items;
+    const spawned = kind === 'enemy' ? game.robots : kind === 'food' ? game.food
+      : kind === 'weapon' ? game.weapons : kind === 'item' ? game.items
+        : type === 'soccer-ball' ? game.soccerBalls : game.obstructions;
     assert.equal(spawned.length, 4);
     for (const item of spawned) {
       assert.equal(item.type, type);
@@ -78,7 +84,7 @@ test('invalid random flags, group shapes, counts, sizes and angles are rejected 
   assert.throws(() => validateCustomLevel(blank([event('food', 'S', { random: 'true' })])), /random/);
   for (const invalid of [
     event('enemy', 'mouse', { randomCount: 4 }),
-    event('food', 'S', { random: true, randomCount: 4 }),
+    event('food', 'S', { randomCount: 4 }),
     event('item', 'key', { random: true, randomCount: 1 }),
     event('item', 'key', { random: true, randomCount: 2.5 }),
     event('item', 'key', { random: true, randomCount: 101 }),
@@ -217,9 +223,10 @@ test('boundary-only enemy singles and group members snap to the nearest edge', (
 
 test('random tools preserve required brick clearance even for maximum-sized formations', () => {
   for (const type of ['saw-blade', 'ditto-stamp', 'paint-pencil-red']) {
-    for (const shape of ['line', 'circle']) {
+    for (const shape of ['line', 'circle', 'single']) {
       for (const options of [{}, { portrait: true, scale: .6 }]) {
-        const source = event('item', type, { random: true, group: { shape, count: 8, size: 1 } });
+        const source = event('item', type, { random: true,
+          ...(shape === 'single' ? { randomCount: 8 } : { group: { shape, count: 8, size: 1 } }) });
         const game = gameFor([source], options);
         const points = game.customEventPoints(source);
         assert.equal(points.length, 8);
@@ -326,6 +333,55 @@ test('editor placement fields serialize random groups and independent random eve
   context.applyToSelected();
   assert.equal(context.level.events[0].randomCount, undefined);
   assert.equal(context.level.events[0].random, undefined);
+});
+
+test('editor exposes independent random counts for every category and preserves them through edits', () => {
+  for (const [kind, type] of [['food', 'S'], ['weapon', 'gold'], ['item', 'battery'], ['enemy', 'mouse'], ['object', 'soccer-ball']]) {
+    const { context, $ } = editorContext();
+    $('#event-kind').value = kind; $('#event-type').value = type;
+    $('#event-shield').value = 'none';
+    $('#event-time').value = '5'; $('#event-lifetime').value = '10';
+    $('#event-location').value = 'random'; $('#event-formation').value = 'single';
+    $('#event-random-count').value = '4';
+    context.updateEventPlacement();
+    assert.equal($('#event-random-count-label').hidden, false, `${kind} count is visible`);
+    assert.equal($('#event-random-count').disabled, false);
+    assert.equal($('#event-group-options').hidden, true);
+    context.level = validateCustomLevel(blank([context.readEvent()]));
+    assert.equal(context.level.events[0].randomCount, 4);
+    assert.equal(context.level.events[0].group, undefined);
+    context.selectedEvents = new Set([0]); context.populateEventForm();
+    assert.equal($('#event-random-count').value, 4);
+    $('#event-random-count').value = '6'; context.touched.add('#event-random-count');
+    context.applyToSelected();
+    assert.equal(context.level.events[0].randomCount, 6);
+    context.touched.clear(); context.touched.add('#event-time'); $('#event-time').value = '7';
+    context.applyToSelected();
+    assert.equal(context.level.events[0].randomCount, 6, 'unrelated edits retain the count');
+    context.touched.clear(); context.touched.add('#event-random-count'); $('#event-random-count').value = '1';
+    context.applyToSelected();
+    assert.equal(context.level.events[0].randomCount, undefined);
+    context.touched.clear(); context.touched.add('#event-formation'); $('#event-formation').value = 'circle';
+    $('#event-count-input').value = '5'; $('#event-group-size').value = '';
+    context.applyToSelected(); context.updateEventPlacement();
+    assert.equal(context.level.events[0].randomCount, undefined);
+    assert.equal(context.level.events[0].group.count, 5);
+    assert.equal($('#event-random-count-label').hidden, true);
+    $('#event-location').value = 'fixed'; $('#event-formation').value = 'single';
+    context.updateEventPlacement();
+    assert.equal($('#event-random-count-label').hidden, true);
+  }
+});
+
+test('dragging independent random events converts them to valid fixed singles', () => {
+  const { context } = editorContext();
+  context.level = blank([event('food', 'S', { random: true, randomCount: 4 })]);
+  context.moveEvent(0, .6, .7);
+  const [moved] = validateCustomLevel(context.level).events;
+  assert.equal(moved.random, undefined);
+  assert.equal(moved.randomCount, undefined);
+  assert.equal(moved.x, .6);
+  assert.equal(moved.y, .7);
 });
 
 test('multi-event edits preserve untouched placement fields and dragging random groups fixes their center', () => {
