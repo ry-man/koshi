@@ -216,7 +216,8 @@ test('Official and Beta level selection share map sizing, node rendering, textur
     assert.equal(first.className, 'map-node');
     assert.equal(first.style.left, '12%');
   }
-  assert.equal(official.map.map.style.height, '150px');
+  const officialRows = Math.ceil(officialGraph.worldLevels(OFFICIAL_WORLDS[0]).length / 4);
+  assert.equal(official.map.map.style.height, `${officialRows * 100 + 50}px`);
   for (const world of OFFICIAL_WORLDS.filter(world => !world.mapOnly)) {
     official.map.showWorld(world);
     assert.equal(official.map.map.dataset.theme, 'official');
@@ -229,7 +230,7 @@ test('Official and Beta level selection share map sizing, node rendering, textur
   assert.equal(official.map.map.style.height, '900px');
   official.map.showWorld(OFFICIAL_WORLDS[0]);
   assert.equal(official.map.map.classList.contains('official-world-map'), false);
-  assert.equal(official.map.map.style.height, '150px');
+  assert.equal(official.map.map.style.height, `${officialRows * 100 + 50}px`);
   const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert.match(css, /\.world-map\[data-view="levels"\] \.map-node:not\(\.map-node-boss\)\s*\{[^}]*background-image:[^}]*repeating-linear-gradient[^}]*box-shadow:/);
   assert.match(css, /\.world-map\[data-view="levels"\]\[data-theme="official"\]\s*\{[^}]*var\(--world-color\)/);
