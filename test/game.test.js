@@ -705,6 +705,8 @@ test('the main button continues the most recent save, or starts a guest adventur
   const context = vm.createContext({
     document: { querySelector: () => ({ addEventListener: (name, listener) => { listeners[name] = listener; } }) },
     openLevelPicker: options => actions.push(options),
+    startAdventure: () => actions.push('adventure'),
+    activeSave: null,
     recentSave: () => recent,
     saveAttempt: action => action(),
     continueSave: (index, id) => actions.push(['continue', index, id]),
@@ -716,7 +718,7 @@ test('the main button continues the most recent save, or starts a guest adventur
   const start = source.indexOf("document.querySelector('#title-start').addEventListener");
   vm.runInContext(source.slice(start, source.indexOf('function openLevelPicker(', start)), context);
   listeners.click();
-  assert.equal(actions[0], undefined, 'guest adventure keeps the restored map selection');
+  assert.equal(actions[0], 'adventure', 'new guest play uses the campaign introduction flow');
   recent = { index: 2, slot: { id: 'slot-c', owner: 'Mia' } };
   listeners.click();
   assert.deepEqual(actions[1], ['continue', 2, 'slot-c']);
@@ -726,9 +728,12 @@ test('the main button continues the most recent save, or starts a guest adventur
   context.dismissTitle();
   assert.equal(actions.length, 2);
   assert.equal(actions[1], undefined, 'Escape opens the map without a level override');
+  recent = null;
+  context.dismissTitle();
+  assert.equal(actions[2], 'adventure', 'Escape without a save uses the same introduction flow');
   context.game.customLevel = {};
   context.dismissTitle();
-  assert.deepEqual(actions.slice(2), ['close', 'focus'], 'custom editor flow stays unchanged');
+  assert.deepEqual(actions.slice(3), ['close', 'focus'], 'custom editor flow stays unchanged');
 });
 
 test('level begins with three hearts, no enemies, and correct boundary brick mix', () => {
