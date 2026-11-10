@@ -138,13 +138,39 @@ test('Discretize X, Y snaps placements and moves to rendered dot centers without
   assert.match(html, /<option value="1" selected>1s<\/option>/);
 });
 
-test('Print JSON and Load JSON share one text box without file or draft controls', () => {
+test('full grid toggle shows alignment guides and highlights markers sharing an axis', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const start = source.indexOf('function alignmentAxes(');
+  const end = source.indexOf('\nfunction ', start + 1);
+  const context = vm.createContext({});
+  vm.runInContext(source.slice(start, end), context);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.alignmentAxes(
+    { x: 100, y: 200 }, [{ x: 101, y: 240 }, { x: 150, y: 201 }], 2, 2))),
+  { vertical: true, horizontal: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(context.alignmentAxes(
+    { x: 100, y: 200 }, [{ x: 104, y: 240 }, { x: 150, y: 204 }], 2, 2))),
+  { vertical: false, horizontal: false });
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
+  const editor = source.slice(source.indexOf("$('#full-grid').addEventListener"), source.indexOf("new ResizeObserver"));
+  assert.match(html, /id="full-grid" type="checkbox"> Full grid lines/);
+  assert.match(html, /id="alignment-guides"/);
+  assert.match(editor, /renderBoard/);
+  assert.match(source, /gesture\?\.type === 'marker' && gesture\.moved/);
+  assert.match(source, /marker\.classList\.toggle\('alignment-highlight'/);
+  assert.match(css, /data-full-grid="true"\] #playable-area/);
+  assert.match(css, /#alignment-guides line\s*\{[^}]*stroke:/);
+  assert.match(css, /\.marker\.alignment-highlight\s*\{[^}]*drop-shadow/);
+});
+
+test('Print, paste, and open JSON files use validated level import without draft controls', async () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, {
       value: '',
       listeners: {}, addEventListener(type, action) { this.listeners[type] = action; },
+      click() { this.clicked = true; },
     });
     return nodes.get(selector);
   };
@@ -163,21 +189,41 @@ test('Print JSON and Load JSON share one text box without file or draft controls
   $('#level-json').value = JSON.stringify(loaded);
   $('#import-json').listeners.click();
   assert.deepEqual(JSON.parse(JSON.stringify(context.level)), validateCustomLevel(loaded));
+  const fileInput = $('#import-file');
+  fileInput.files = [{ name: '1-1.json', text: async () => JSON.stringify(loaded) }];
+  await fileInput.listeners.change();
+  assert.deepEqual(JSON.parse(JSON.stringify(context.level)), validateCustomLevel(loaded));
+  assert.equal($('#level-json').value, JSON.stringify(loaded));
+  assert.equal(fileInput.value, '');
+  $('#import-file-button').listeners.click();
+  assert.equal(fileInput.clicked, true, 'the visible button opens the file picker');
   const before = context.level;
+  const invalidFiles = [
+    { name: 'invalid.json', text: async () => '{' },
+    { name: 'invalid-level.json', text: async () => JSON.stringify({ ...loaded, duration: -1 }) },
+  ];
+  for (const file of invalidFiles) {
+    fileInput.files = [file];
+    await fileInput.listeners.change();
+    assert.equal(context.level, before, 'invalid files leave the level unchanged');
+    assert.equal(fileInput.value, '');
+    assert.equal(messages.at(-1).error, true);
+  }
   for (const invalid of ['{', JSON.stringify({ ...loaded, duration: -1 })]) {
     $('#level-json').value = invalid;
     $('#import-json').listeners.click();
     assert.equal(context.level, before, 'invalid JSON leaves the level unchanged');
     assert.equal(messages.at(-1).error, true);
   }
-  assert.equal(errors.length, 2);
+  assert.equal(errors.length, 4);
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   const panel = html.slice(html.indexOf('<fieldset id="files-access"'), html.indexOf('</fieldset>', html.indexOf('<fieldset id="files-access"')));
-  assert.equal((panel.match(/<button /g) ?? []).length, 2);
+  assert.equal((panel.match(/<button /g) ?? []).length, 3);
   assert.equal((panel.match(/<textarea /g) ?? []).length, 1);
-  for (const label of ['Print JSON', 'Load JSON']) assert.ok(panel.includes(`>${label}</button>`));
-  assert.doesNotMatch(panel, /type="file"|json-filename|json-directory|save-draft|load-draft|download-json/);
-  assert.doesNotMatch(source, /showDirectoryPicker|createWritable|#save-draft|#load-draft|#import-file|#download-json/);
+  for (const label of ['Print JSON', 'Load JSON', 'Open JSON file']) assert.ok(panel.includes(`>${label}</button>`));
+  assert.match(panel, /id="import-file" type="file" accept="\.json,application\/json"/);
+  assert.doesNotMatch(panel, /json-filename|json-directory|save-draft|load-draft|download-json/);
+  assert.doesNotMatch(source, /showDirectoryPicker|createWritable|#save-draft|#load-draft|#download-json/);
 });
 
 test('cutscene edits apply automatically and new lines inherit the previous speaker and cast', () => {

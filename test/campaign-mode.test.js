@@ -13,12 +13,16 @@ const authoredWorlds = new Set(authored.map(entry => entry.worldId));
 const officialCount = authored.length + 17 - authoredWorlds.size;
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 
-test('game selection is available only on the title screen', () => {
+test('game selection is available on the title screen and in the level editor', () => {
   const html = read('index.html');
   const title = html.slice(html.indexOf('<dialog id="title-screen"'), html.indexOf('<dialog id="level-picker"'));
   assert.equal((html.match(/data-campaign-select/g) ?? []).length, 1);
   assert.match(title, /data-campaign-select/);
-  assert.doesNotMatch(read('editor.html'), /data-campaign-select/);
+  const editor = read('editor.html');
+  const library = editor.slice(editor.indexOf('<section class="editor-panel" aria-label="Level library">'),
+    editor.indexOf('<details class="editor-panel level-settings-panel"'));
+  assert.match(library, /<select data-campaign-select aria-label="Choose game version">[\s\S]*<option value="official">Official<\/option>/);
+  assert.match(read('src/editor.js'), /campaignMode\.setup\(/);
 });
 
 test('title notice preserves spacing in both games and startup hides the unfinished gameplay surface', () => {

@@ -56,6 +56,7 @@
 #brick-selection { color: var(--muted); font-size: 12px; }
 #editor-board { position: relative; aspect-ratio: 8 / 5; border: 1px solid #ffffff20; background: #101d25; border-radius: 8px; touch-action: none; user-select: none; overflow: hidden; }
 #editor-board[data-orientation="portrait"] { aspect-ratio: 5 / 8; width: min(100%, 340px); margin: auto; }
+#editor-board[data-full-grid="true"] #playable-area { background-image: linear-gradient(to right, #8da39d30 1px, transparent 1px), linear-gradient(to bottom, #8da39d30 1px, transparent 1px), radial-gradient(#8da39d35 1px, transparent 1px); background-position: 9px 9px, 9px 9px, 0 0; }
 #editor-board-scroll { overflow: auto; margin-top: 12px; }
 #editor-board-scroll[data-dynamic-view="true"] { overflow: hidden; max-height: none; }
 #editor-board-scroll[data-dynamic-view="true"][data-orientation="portrait"] { width: min(100%, 340px); margin-left: auto; margin-right: auto; }
@@ -78,7 +79,10 @@
 .brick-inspector label:has(input[type="checkbox"]) { flex-direction: row; align-items: center; min-height: 44px; }
 .brick-inspector input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
 #playable-area { position: absolute; border: 1px dashed #d3ef8b55; background: radial-gradient(#8da39d35 1px, transparent 1px); background-size: 18px 18px; pointer-events: none; }
+#alignment-guides { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+#alignment-guides line { stroke: #f4d885aa; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 #markers { position: absolute; inset: 0; pointer-events: none; }
+.editor-main .marker.alignment-highlight { filter: drop-shadow(0 0 5px #f4d885); z-index: 3; }
 #cat-tracks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
 .cat-tracks-panel { margin-top: 16px; }
 #cat-tracks[data-editable="true"] .track-path { pointer-events: stroke; cursor: pointer; }

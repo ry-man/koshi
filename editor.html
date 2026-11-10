@@ -29,6 +29,7 @@
       <p id="portal-warning" class="editor-warning" role="status" aria-live="polite" hidden></p>
       <section class="editor-panel" aria-label="Level library">
         <p data-campaign-label></p>
+        <label>Game version <select data-campaign-select aria-label="Choose game version"><option value="beta">Beta</option><option value="official">Official</option></select></label>
         <label>Level <select id="editor-level"><option value="custom">Your custom level (editable)</option></select></label>
       </section>
       <details class="editor-panel level-settings-panel" aria-label="Level settings" open>
@@ -95,7 +96,7 @@
       </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
-          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><label class="inline-label"><input id="discretize-xy" type="checkbox" checked> Discretize X, Y</label><label class="inline-label"><input id="dynamic-view" type="checkbox" disabled> Dynamic View</label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
+          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><label class="inline-label"><input id="discretize-xy" type="checkbox" checked> Discretize X, Y</label><label class="inline-label"><input id="full-grid" type="checkbox"> Full grid lines</label><label class="inline-label"><input id="dynamic-view" type="checkbox" disabled> Dynamic View</label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
           <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
           <section class="point-reference" aria-labelledby="point-reference-heading">
             <h2 id="point-reference-heading">Available points reference</h2>
@@ -111,6 +112,7 @@
           <div id="editor-board" data-orientation="landscape" tabindex="-1">
             <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
             <div id="playable-area" aria-hidden="true"></div>
+            <svg id="alignment-guides" aria-hidden="true"></svg>
             <svg id="cat-tracks" aria-label="Cat Tracks"></svg>
             <div id="markers"></div>
             <button id="koshi-start-marker" class="marker koshi-start-marker" type="button" aria-label="Koshi starting point"><img src="./icons/koshi.svg" alt=""><small>Start</small></button>
@@ -302,9 +304,11 @@
         <div class="file-actions">
           <button id="generate-json">Print JSON</button>
           <button id="import-json">Load JSON</button>
+          <button id="import-file-button" type="button">Open JSON file</button>
         </div>
+        <input id="import-file" type="file" accept=".json,application/json" hidden aria-label="Choose level JSON file">
         <label for="level-json">Level JSON</label>
-        <textarea id="level-json" rows="9" spellcheck="false" placeholder="Print JSON to copy and save manually, or paste level JSON here and choose Load JSON."></textarea>
+        <textarea id="level-json" rows="9" spellcheck="false" placeholder="Open a JSON file, or paste level JSON here and choose Load JSON. Print JSON to copy the edited level."></textarea>
         </fieldset>
       </section>
       <noscript><p class="error">Please enable JavaScript to use the level editor.</p></noscript>

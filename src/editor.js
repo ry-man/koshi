@@ -921,6 +921,7 @@ function renderBrickInspector(bricks) {
 function renderBoard() {
   const portrait = $('#orientation').value === 'portrait';
   board.dataset.orientation = portrait ? 'portrait' : 'landscape';
+  board.dataset.fullGrid = String($('#full-grid').checked);
   $('#editor-board-scroll').dataset.orientation = board.dataset.orientation;
   const availableWidth = $('#editor-board-scroll').clientWidth;
   const screenWidth = portrait ? Math.min(availableWidth, 340) : availableWidth;
@@ -1071,6 +1072,32 @@ function renderBoard() {
   const b = previewGame.bounds();
   renderKoshiStart();
   $('#playable-area').style.cssText = `left:${b.left / previewGame.width * 100}%;top:${b.top / previewGame.height * 100}%;width:${(b.right - b.left) / previewGame.width * 100}%;height:${(b.bottom - b.top) / previewGame.height * 100}%`;
+  const alignmentGuides = $('#alignment-guides');
+  alignmentGuides.setAttribute('viewBox', `0 0 ${previewGame.width} ${previewGame.height}`);
+  alignmentGuides.replaceChildren();
+  const movingPoints = gesture?.type === 'marker' && gesture.moved
+    ? selectedList().flatMap(index => previewGame.customEventPoints(level.events[index], { preview: true })) : [];
+  if ($('#full-grid').checked && movingPoints.length) {
+    const coordinates = new Set();
+    const addGuide = (axis, coordinate) => {
+      const key = `${axis}:${coordinate.toFixed(2)}`;
+      if (coordinates.has(key)) return;
+      coordinates.add(key);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      if (axis === 'vertical') {
+        line.setAttribute('x1', coordinate); line.setAttribute('x2', coordinate);
+        line.setAttribute('y1', b.top); line.setAttribute('y2', b.bottom);
+      } else {
+        line.setAttribute('x1', b.left); line.setAttribute('x2', b.right);
+        line.setAttribute('y1', coordinate); line.setAttribute('y2', coordinate);
+      }
+      alignmentGuides.append(line);
+    };
+    for (const point of movingPoints) {
+      addGuide('vertical', point.x);
+      addGuide('horizontal', point.y);
+    }
+  }
   const summary = [selectedBricks.size && plural(selectedBricks.size, 'brick'), selectedEvents.size && plural(selectedEvents.size, 'event')].filter(Boolean);
   $('#selection-summary').textContent = summary.length ? `${summary.join(' + ')} selected` : 'Nothing selected';
   $('#clear-selection').disabled = !summary.length;
@@ -1095,6 +1122,11 @@ function renderBoard() {
     marker.style.color = event.kind === 'weapon' ? WEAPONS[event.type].color : '';
     if (event.shield) marker.style.boxShadow = `0 0 0 3px ${SHIELDS[event.shield].color}`;
     const selected = spawnKey ? selectedBricks.has(spawnKey) : selectedEvents.has(index);
+    if (!selected && movingPoints.length) {
+      const axes = alignmentAxes(point, movingPoints, 3 * previewGame.width / board.clientWidth,
+        3 * previewGame.height / board.clientHeight);
+      marker.classList.toggle('alignment-highlight', axes.vertical || axes.horizontal);
+    }
     marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);
     marker.setAttribute('aria-pressed', String(selected));
     const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s${event.random || event.previewRandom ? ' · random' : ''}`;
@@ -1217,6 +1249,13 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
   }
   if (time >= level.duration) pausePreview();
   $('#preview-play').disabled = time >= level.duration;
+}
+
+function alignmentAxes(point, references, toleranceX, toleranceY) {
+  return {
+    vertical: references.some(reference => Math.abs(point.x - reference.x) <= toleranceX),
+    horizontal: references.some(reference => Math.abs(point.y - reference.y) <= toleranceY),
+  };
 }
 
 function updateCameraView(camera) {
@@ -2637,6 +2676,7 @@ $('#show-all').addEventListener('change', renderBoard);
 $('#show-random').addEventListener('change', renderBoard);
 $('#dynamic-view').addEventListener('change', () => renderPreviewTime());
 $('#orientation').addEventListener('change', renderBoard);
+$('#full-grid').addEventListener('change', renderBoard);
 new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
 function validateSavedLevel() {
   if (trackDrawing) throw new Error('Apply the Cat Track or Cancel edits before printing JSON or playtesting.');
@@ -2651,6 +2691,23 @@ $('#generate-json').addEventListener('click', () => attempt(() => {
 $('#import-json').addEventListener('click', () => attempt(() => {
   replaceLevel(JSON.parse($('#level-json').value)); message('JSON loaded. Review the placements or playtest the level.');
 }));
+$('#import-file-button').addEventListener('click', () => $('#import-file').click());
+$('#import-file').addEventListener('change', async () => {
+  const input = $('#import-file');
+  const file = input.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    replaceLevel(JSON.parse(text));
+    $('#level-json').value = text;
+    message(`${file.name} loaded. Review the placements or playtest the level.`);
+  } catch (error) {
+    console.error('Level editor:', error);
+    message(`Could not load ${file.name}: ${error.message}`, true);
+  } finally {
+    input.value = '';
+  }
+});
 $('#new-level').addEventListener('click', () => {
   if (dirty && !confirm('Discard this unsaved level and start a new one?')) return;
   replaceLevel(blank()); message('New level created.');
