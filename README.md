@@ -73,9 +73,14 @@ On Windows, use `npm.cmd run build` and `npm.cmd test` if needed.
 You can also ask Copilot to "update the Official levels from the latest JSON
 files" or invoke `/sync-official-levels` where skill slash commands are supported.
 The repository's [sync-official-levels skill](./.github/skills/sync-official-levels/SKILL.md)
-guides validation, regeneration, tests, and review. Unlisted files remain drafts
-unless explicitly approved for publication; committing and pushing are separate
-actions requiring your request. Skills must be enabled and discovered by the
+guides validation, regeneration, the full test suite, and review, then commits
+with an automatically generated `Adding levels X, updating levels Y in official campaign`
+message and pushes to production (`origin/main`). Every required check must
+pass before committing or pushing; the workflow verifies the matching GitHub
+Pages deployment before claiming the live game is updated. Use "local only",
+"do not commit", or "do not push" to override those steps. Unlisted files remain
+drafts unless explicitly approved for publication, and unrelated changes or
+unpushed commits are not silently included. Skills must be enabled and discovered by the
 Copilot environment; the build/test validation does not depend on skill loading.
 
 ## Beta and Official games
