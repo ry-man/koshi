@@ -582,7 +582,7 @@ const levels = [
           },
           {
             "speaker": "tom",
-            "text": "You wretched feline! Now you will pay. I have summoned a small pack of my Robo Mice chase you around somewhat aimlessly.",
+            "text": "You wretched feline! Now you will pay. I have summoned a small pack of my Robo Mice to chase you around somewhat aimlessly.",
             "actors": [
               {
                 "character": "koshi",
@@ -1069,12 +1069,6 @@ const levels = [
           "lifetime": 8
         },
         {
-          "time": 48,
-          "kind": "weapon",
-          "type": "bronze",
-          "random": true
-        },
-        {
           "time": 50,
           "kind": "enemy",
           "type": "mouse",
@@ -1092,6 +1086,12 @@ const levels = [
           "type": "cat-block",
           "x": 0.8942939622873288,
           "y": 0.49877532843464706
+        },
+        {
+          "time": 48,
+          "kind": "weapon",
+          "type": "silver",
+          "random": true
         }
       ],
       "bossLevel": false,
@@ -1230,6 +1230,11 @@ const levels = [
               "weapon:silver",
               "weapon:gold"
             ]
+          },
+          {
+            "title": "Sword Pickups",
+            "text": "If Koshi already has a sword, he will still pick up any other sword he crosses. Note that he will always then drop his current sword and replace it with the new one! Be careful to not grab swords too hastily without putting them to use!",
+            "graphics": []
           }
         ]
       }
