@@ -27,6 +27,10 @@ const boardCtx = canvas.getContext('2d');
 const actorCtx = actorCanvas.getContext('2d');
 let ctx = boardCtx;
 const FOOD_COLORS = { S: '#ff2d55', P: '#ff9f0a', B: '#ffd60a', C: '#ffcc00', L: '#ff6b2c', F: '#0a84ff', H: '#34c759' };
+const foodBadgeCache = new Map();
+document.fonts.ready.then(() => foodBadgeCache.clear());
+document.fonts.addEventListener('loadingdone', () => foodBadgeCache.clear());
+document.fonts.addEventListener('loadingerror', () => foodBadgeCache.clear());
 const board = document.querySelector('#board');
 const overlay = document.querySelector('#overlay');
 const play = document.querySelector('#play');
@@ -2449,13 +2453,23 @@ function render(now) {
 }
 
 function drawFoodBadge(type) {
-  ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = FOOD_COLORS[type]; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#000'; ctx.filter = 'saturate(1.8) brightness(1.15) contrast(1.1)';
-  ctx.font = '25px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(FOODS[type].icon, 0, 1);
-  ctx.filter = 'none';
+  let sprite = foodBadgeCache.get(type);
+  if (!sprite) {
+    // Include the pickup pop's maximum 1.25x scale without rebuilding during its animation.
+    const scale = Math.max(canvas.width / game.viewportWidth, canvas.height / game.viewportHeight) * 1.25;
+    sprite = document.createElement('canvas');
+    sprite.width = sprite.height = Math.ceil(48 * scale);
+    const context = sprite.getContext('2d');
+    context.setTransform(sprite.width / 48, 0, 0, sprite.height / 48, sprite.width / 2, sprite.height / 2);
+    context.fillStyle = '#fff8e6'; context.strokeStyle = FOOD_COLORS[type]; context.lineWidth = 4;
+    context.beginPath(); context.arc(0, 0, 18, 0, Math.PI * 2); context.fill(); context.stroke();
+    context.fillStyle = '#000'; context.filter = 'saturate(1.8) brightness(1.15) contrast(1.1)';
+    context.font = '25px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    context.textAlign = 'center'; context.textBaseline = 'middle';
+    context.fillText(FOODS[type].icon, 0, 1);
+    foodBadgeCache.set(type, sprite);
+  }
+  ctx.drawImage(sprite, -24, -24, 48, 48);
 }
 
 function drawWornSunglasses(game) {
@@ -4703,6 +4717,7 @@ function drawEnemyDeath(enemy) {
 
 function resize() {
   if (!game) return;
+  foodBadgeCache.clear();
   board.style.setProperty('--board-scale-x', board.clientWidth / game.viewportWidth);
   board.style.setProperty('--board-scale-y', board.clientHeight / game.viewportHeight);
   const ratio = window.devicePixelRatio || 1;

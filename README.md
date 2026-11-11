@@ -24,6 +24,10 @@ blocks the npm script. Both direct `file://` access and HTTP hosting are support
 The server regenerates the Official bundle at startup and on game/editor page
 refresh, so edits to published JSON files appear without restarting it.
 
+Food badges reuse offscreen artwork so emoji color filters do not run on the
+game canvas every frame. The cache refreshes on board resize and font loading,
+and includes resolution for pickup-pop animations.
+
 ## Publishing Official levels
 
 1. Export a level from the editor to `levels/official/`, usually under its world
