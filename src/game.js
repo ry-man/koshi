@@ -3369,7 +3369,9 @@ class Game {
     if (fireDart && this.state === 'playing') {
       this.weapon.uses--;
       this.ropeDart = { x: this.cat.x, y: this.cat.y, direction: { x: dx / distance, y: dy / distance },
-        type: this.weapon.type, phase: 'flying', hit: new Set() };
+        type: this.weapon.type, phase: 'flying', hit: new Set(),
+        launchContacts: new Set([...this.obstructions, ...this.bumpers].filter(object =>
+          obstructionSurface(this.cat.x, this.cat.y, object).gap <= this.cat.radius + 1e-6)) };
       this.cat.vx = 0; this.cat.vy = 0;
       this.boosted = false;
     }
@@ -3436,7 +3438,7 @@ class Game {
       if (this.ropeDart.phase !== 'pulling') return [];
       const dx = this.ropeDart.x - x, dy = this.ropeDart.y - y;
       const contact = Math.max(0, Math.min(1,
-        this.hazardObstacleTime(this.cat, dx, dy, radius, this.brickParts())));
+        this.hazardObstacleTime(this.cat, dx, dy, radius, this.brickParts(), null, true)));
       return [[x, y], [x + dx * contact, y + dy * contact]];
     }
     const speed = Math.hypot(vx, vy);
@@ -3755,19 +3757,20 @@ class Game {
     });
   }
 
-  hazardObstacleTime(point, dx, dy, radius, parts, ignore = null) {
+  hazardObstacleTime(point, dx, dy, radius, parts, ignore = null, allowDeparture = false) {
+    const ignored = object => object === ignore || (ignore instanceof Set && ignore.has(object));
     let time = Infinity;
     for (const part of this.collisionCandidates(parts, point.x, point.y, dx, dy, radius)) {
       if (Math.hypot(point.x - Math.max(part.x, Math.min(part.x + part.w, point.x)),
-        point.y - Math.max(part.y, Math.min(part.y + part.h, point.y))) <= radius) return 0;
+        point.y - Math.max(part.y, Math.min(part.y + part.h, point.y))) <= radius && !allowDeparture) return 0;
       time = Math.min(time, brickContact(point.x, point.y, dx, dy, radius, { ...part, collisionBody: null }));
     }
-    for (const obstruction of this.obstructions) if (obstruction !== ignore) {
-      if (obstructionSurface(point.x, point.y, obstruction).gap <= radius) return 0;
+    for (const obstruction of this.obstructions) if (!ignored(obstruction)) {
+      if (obstructionSurface(point.x, point.y, obstruction).gap <= radius && !allowDeparture) return 0;
       time = Math.min(time, obstructionContact(point.x, point.y, dx, dy, radius, obstruction));
     }
-    for (const bumper of this.bumpers) if (bumper !== ignore) {
-      if (Math.hypot(point.x - bumper.x, point.y - bumper.y) <= radius + bumper.radius) return 0;
+    for (const bumper of this.bumpers) if (!ignored(bumper)) {
+      if (Math.hypot(point.x - bumper.x, point.y - bumper.y) <= radius + bumper.radius && !allowDeparture) return 0;
       time = Math.min(time, circleContact(point.x - bumper.x, point.y - bumper.y, dx, dy, radius + bumper.radius));
     }
     return time;
@@ -6610,11 +6613,16 @@ class Game {
       return;
     }
     if (dart.phase !== 'flying') return;
+    const launchContacts = dart.launchContacts ?? new Set();
+    for (const object of launchContacts) {
+      if (obstructionSurface(dart.x, dart.y, object).gap > this.cat.radius + 1e-6) launchContacts.delete(object);
+    }
     const dx = dart.direction.x * ROPE_DART_SPEED * dt, dy = dart.direction.y * ROPE_DART_SPEED * dt;
     const edge = Math.min(
       dx > 0 ? (this.width - ROPE_DART_RADIUS - dart.x) / dx : dx < 0 ? (ROPE_DART_RADIUS - dart.x) / dx : Infinity,
       dy > 0 ? (this.height - ROPE_DART_RADIUS - dart.y) / dy : dy < 0 ? (ROPE_DART_RADIUS - dart.y) / dy : Infinity);
-    const stop = Math.max(0, Math.min(edge, this.hazardObstacleTime(dart, dx, dy, ROPE_DART_RADIUS, this.brickParts())));
+    const stop = Math.max(0, Math.min(edge,
+      this.hazardObstacleTime(dart, dx, dy, ROPE_DART_RADIUS, this.brickParts(), launchContacts)));
     const fraction = Math.min(1, stop);
     for (const item of [...this.itemCases]) {
       const time = circleContact(dart.x - item.x, dart.y - item.y, dx, dy, ROPE_DART_RADIUS + item.radius);
@@ -6631,10 +6639,10 @@ class Game {
     dart.x += dx * fraction; dart.y += dy * fraction;
     if (stop <= 1) {
       dart.phase = 'pulling';
-      const object = this.obstructions.find(obstruction =>
-        obstructionSurface(dart.x, dart.y, obstruction).gap <= ROPE_DART_RADIUS + 1e-6)
-        ?? this.bumpers.find(bumper =>
-          Math.hypot(dart.x - bumper.x, dart.y - bumper.y) <= ROPE_DART_RADIUS + bumper.radius + 1e-6);
+      const object = this.obstructions.find(obstruction => !launchContacts.has(obstruction)
+        && obstructionSurface(dart.x, dart.y, obstruction).gap <= ROPE_DART_RADIUS + 1e-6)
+        ?? this.bumpers.find(bumper => !launchContacts.has(bumper)
+          && Math.hypot(dart.x - bumper.x, dart.y - bumper.y) <= ROPE_DART_RADIUS + bumper.radius + 1e-6);
       if (object) dart.attachment = { object, x: object.x, y: object.y };
     }
   }

@@ -666,6 +666,8 @@ the board; phones keep compact controls above it without scrolling away from pla
   multiple robots, dealing one hit to each (including a shield downgrade), and
   stops at the first brick, obstruction or bumper. Koshi stays still during
   flight, then is pulled directly toward the stopped dart to collect it.
+  Obstructions and bumpers already touching Koshi at launch do not catch the
+  dart until it clears them. The pull still cannot pass through solid objects.
   Retrieval stops the pull's momentum. Contact effects still apply normally:
   obstructions stop Koshi, while bumpers bounce him away.
   During the pull, the dotted trajectory ends at the dart or first blocking

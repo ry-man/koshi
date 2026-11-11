@@ -159,6 +159,85 @@ test('moving enemy crossing the flight path is hit even when its endpoint is out
   assert.equal(game.robots.length, 0);
 });
 
+test('a solid already pushing Koshi does not catch the departing dart, and the pull preview allows departure', () => {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-vertical',
+    'obstruction-rectangle-horizontal', 'bumper-green']) {
+    const { game, target } = arena();
+    const object = game.createCustomSpawn({ kind: 'object', type, x: .4, y: .5 })[0];
+    const halfWidth = type.includes('rectangle') ? object.width / 2 : object.radius;
+    object.x = game.cat.x - halfWidth - game.cat.radius; object.y = game.cat.y;
+    (type.startsWith('bumper') ? game.bumpers : game.obstructions).push(object);
+    equip(game);
+    const startX = game.cat.x, objectX = object.x;
+    assert.equal(fire(game, target), true);
+    const dart = game.ropeDart;
+    assert.ok(dart.launchContacts.has(object));
+    // The pushing solid moves over the launch point before the dart's next flight step.
+    object.x += game.cat.radius;
+    game.updateRopeDart(.04, new Map());
+    assert.equal(dart.phase, 'flying');
+    assert.equal(dart.x, startX + 36);
+    assert.equal(dart.attachment, undefined);
+    object.x = objectX;
+    game.updateRopeDart(1, new Map());
+    assert.equal(dart.launchContacts.has(object), false, 'clearance restores normal collision with the object');
+    assert.equal(dart.phase, 'pulling');
+    assert.ok(game.trajectory().at(-1)[0] > startX + 100, 'existing contact does not collapse the preview');
+    until(game, () => !game.ropeDart);
+    assert.ok(game.cat.x > startX + 100, 'Koshi actually pulls away from the existing contact');
+    assert.equal(game.weapon.uses, 4);
+    assert.equal(game.hearts, 3);
+  }
+});
+
+test('launch clearance does not ignore new blockers or let Koshi pull through the launch obstruction', () => {
+  for (const intoContact of [false, true]) {
+    const { game, target } = arena();
+    const object = game.createCustomSpawn({ kind: 'object', type: 'obstruction-circle', x: .4, y: .5 })[0];
+    const startX = game.cat.x;
+    object.x = startX + (intoContact ? 1 : -1) * (object.radius + game.cat.radius);
+    object.y = game.cat.y;
+    game.obstructions.push(object);
+    const blocker = game.createCustomSpawn({ kind: 'object', type: 'obstruction-circle', x: .7, y: .5 })[0];
+    blocker.x = startX + 200; blocker.y = game.cat.y;
+    game.obstructions.push(blocker);
+    equip(game); fire(game, target);
+    const dart = game.ropeDart;
+    game.updateRopeDart(1, new Map());
+    assert.equal(dart.attachment.object, blocker, 'a different solid still catches the dart');
+    const points = game.trajectory();
+    until(game, () => !game.ropeDart);
+    assert.ok(Math.abs(game.cat.x - points.at(-1)[0]) < 1e-6, 'preview matches solid pull clearance');
+    if (intoContact) assert.equal(game.cat.x, startX, 'Koshi cannot pass through the touching solid');
+    else assert.ok(game.cat.x > startX + 100);
+    assert.equal(game.weapon.uses, 4);
+  }
+});
+
+test('Koshi can rope-dart away while a tracked obstruction pushes him across the launch point', () => {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-horizontal']) {
+    const { game, target } = arena({ customLevel: custom([
+      { kind: 'object', type, time: 0, x: .4, y: .3, track: 'pushing' },
+    ], { tracks: [{ id: 'pushing', nodes: [{ x: .4, y: .3 }, { x: .4, y: .7 }],
+      speed: 600, closed: false }] }) });
+    const object = game.obstructions[0];
+    const halfHeight = type.includes('rectangle') ? object.height / 2 : object.radius;
+    game.cat.x = object.x; game.cat.y = object.y + halfHeight + game.cat.radius;
+    const start = { x: game.cat.x, y: game.cat.y };
+    equip(game);
+    assert.equal(game.steer(target.id, target.x + target.w / 2, start.y), true);
+    const dart = game.ropeDart;
+    game.update(.05);
+    assert.ok(game.cat.y > start.y + 20, 'the actual tracked solid pushes Koshi during flight');
+    assert.equal(dart.phase, 'flying', 'the pushing solid does not catch the dart at its old launch point');
+    until(game, () => dart.phase === 'pulling');
+    assert.notEqual(dart.attachment?.object, object);
+    until(game, () => game.cat.x > start.x + 50);
+    assert.equal(game.state, 'playing');
+    assert.equal(game.weapon.uses, 4);
+  }
+});
+
 test('pull trajectories stop at dart contact instead of sliding or forecasting a bumper bounce', () => {
   for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-vertical', 'bumper-green']) {
     const { game, target } = arena();
