@@ -222,12 +222,14 @@ test('offscreen bugs are dormant companions only when they enter the visible scr
     const game = arena({ scroll: true, portrait }), a = bug(game), b = bug(game);
     const camera = game.camera(), axis = portrait ? 'y' : 'x';
     const other = portrait ? 'x' : 'y', extent = portrait ? camera.height : camera.width;
-    a[axis] = extent * .4; b[axis] = extent + b.radius + 10;
+    const start = camera[axis];
+    a[axis] = start + extent * .4;
+    b[axis] = portrait ? start - b.radius - 10 : start + extent + b.radius + 10;
     a[other] = b[other] = portrait ? camera.width / 2 : camera.height / 2;
     game.robots = [a, b];
     game.combat(0, game.cat.x, game.cat.y);
     assert.deepEqual(game.robots, [b], 'single visible bug dies; offscreen bug waits');
-    b[axis] = extent * .8;
+    b[axis] = start + extent * .8;
     game.combat(0, game.cat.x, game.cat.y);
     assert.equal(game.robots.length, 0, 'offscreen survivor dies when it becomes the lone visible bug');
   }

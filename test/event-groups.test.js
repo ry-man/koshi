@@ -110,12 +110,13 @@ test('fixed lines honor angle, length, center and equal spacing in desktop and p
       const source = event('food', 'H', { x: .4, y: .6, group: { shape: 'line', count: 5, size: .4, angle } });
       const game = gameFor([source], options);
       const points = game.customEventPoints(source);
-      const center = game.pointFromRelative(source.x, source.y), b = game.bounds();
+      const center = game.campaignEventPoint(source.x, source.y), b = game.bounds();
       const length = Math.min(b.right - b.left, b.bottom - b.top) * .4;
+      const rotation = (angle - (options.portrait ? 90 : 0)) * Math.PI / 180;
       close(mean(points, 'x'), center.x); close(mean(points, 'y'), center.y);
       for (let i = 1; i < points.length; i++) {
-        close(points[i].x - points[i - 1].x, Math.cos(angle * Math.PI / 180) * length / 4);
-        close(points[i].y - points[i - 1].y, Math.sin(angle * Math.PI / 180) * length / 4);
+        close(points[i].x - points[i - 1].x, Math.cos(rotation) * length / 4);
+        close(points[i].y - points[i - 1].y, Math.sin(rotation) * length / 4);
       }
     }
   }

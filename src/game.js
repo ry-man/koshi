@@ -3193,11 +3193,16 @@ function rotateToward(angle, target, maximum) {
 }
 
 class Game {
-  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, levels = LEVELS, customLevel = null, editorPreview = false, catBlockCollected = false } = {}) {
+  constructor(random = Math.random, { portrait = false, scale = 1, level = 0, levels = LEVELS, customLevel = null,
+    customCoordinateOrientation = 'landscape', editorPreview = false, catBlockCollected = false } = {}) {
     if (customLevel) {
+      if (!['landscape', 'viewport'].includes(customCoordinateOrientation)) {
+        throw new RangeError(`Unknown custom coordinate orientation: ${customCoordinateOrientation}`);
+      }
       this.customLevel = validateCustomLevel(customLevel, { allowUnpairedPortals: editorPreview, allowIncompleteBoss: editorPreview });
       this.levelIndex = -1;
-      this.level = { ...this.customLevel, heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [], items: [] };
+      this.level = { ...this.customLevel, coordinateOrientation: customCoordinateOrientation,
+        heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [], items: [] };
       this.customEvents = [...this.customLevel.events].sort((a, b) => a.time - b.time);
     } else {
       if (!levels[level]) throw new RangeError(`Unknown level: ${level}`);
@@ -3208,13 +3213,18 @@ class Game {
     this.random = random;
     this.catBlockPreviouslyCollected = catBlockCollected;
     this.portrait = portrait;
-    this.scale = scale;
-    const dimensions = boardDimensions(portrait, scale, this.level.autoscroll?.length);
+    // Authored JSON geometry is only rotated; display scaling must not reshape the board.
+    this.scale = this.level.coordinateOrientation === 'landscape' ? 1 : scale;
+    const dimensions = boardDimensions(portrait, this.scale, this.level.autoscroll?.length);
     this.width = dimensions.width;
     this.height = dimensions.height;
     this.viewportWidth = portrait ? HEIGHT : WIDTH;
     this.viewportHeight = portrait ? WIDTH : HEIGHT;
     this.reset();
+  }
+
+  get landscapePortrait() {
+    return this.portrait && this.level.coordinateOrientation === 'landscape';
   }
 
   reset() {
@@ -3252,7 +3262,10 @@ class Game {
     this.brickRevision = 0;
     this.brickPartsCache = null;
     this.cat = { x: this.viewportWidth / 2, y: this.viewportHeight / 2, radius: 21, vx: 0, vy: 0 };
-    if (this.level.bossLevel) this.cat.y += 110;
+    if (this.landscapePortrait) {
+      this.cat.y = this.height - this.viewportHeight / 2;
+      if (this.level.bossLevel) this.cat.x += 110;
+    } else if (this.level.bossLevel) this.cat.y += 110;
     if (this.level.koshiStart) Object.assign(this.cat, this.campaignEventPoint(this.level.koshiStart.x, this.level.koshiStart.y));
     this.catHistory = [{ time: 0, x: this.cat.x, y: this.cat.y }];
     this.tickStart = null;
@@ -4368,14 +4381,17 @@ class Game {
   }
 
   camera(time = this.elapsed) {
-    return cameraAt(this.level.autoscroll, time, this.portrait, this.scale);
+    const camera = cameraAt(this.level.autoscroll, time, this.portrait, this.scale);
+    if (this.landscapePortrait) camera.y = this.height - camera.height - camera.y;
+    return camera;
   }
 
   simulationBounds() {
     if (!this.level.autoscroll) return { x: 0, y: 0, width: this.width, height: this.height };
     const camera = this.camera();
     return this.portrait
-      ? { x: camera.x, y: camera.y - camera.height / 2, width: camera.width, height: camera.height * 2.5 }
+      ? { x: camera.x, y: camera.y - camera.height * (this.landscapePortrait ? 1 : .5),
+        width: camera.width, height: camera.height * 2.5 }
       : { x: camera.x - camera.width / 2, y: camera.y, width: camera.width * 2.5, height: camera.height };
   }
 
@@ -4446,10 +4462,10 @@ class Game {
     if (!this.level.autoscroll) return bounds;
     const camera = this.camera(time), next = this.camera(time + visibilityDuration);
     const result = {
-      left: Math.max(bounds.left, next.x + radius),
-      top: Math.max(bounds.top, next.y + radius),
-      right: Math.min(bounds.right, camera.x + camera.width - radius),
-      bottom: Math.min(bounds.bottom, camera.y + camera.height - radius),
+      left: Math.max(bounds.left, camera.x + radius, next.x + radius),
+      top: Math.max(bounds.top, camera.y + radius, next.y + radius),
+      right: Math.min(bounds.right, camera.x + camera.width - radius, next.x + next.width - radius),
+      bottom: Math.min(bounds.bottom, camera.y + camera.height - radius, next.y + next.height - radius),
     };
     if (result.left > result.right || result.top > result.bottom) {
       throw new RangeError('No random spawn can remain on screen for one second at this camera speed.');
@@ -4533,6 +4549,14 @@ class Game {
   campaignEventPoint(x, y) {
     const position = this.campaignEventCoordinates(x, y);
     return this.pointFromRelative(position.x, position.y);
+  }
+
+  campaignSourceCoordinates(x, y) {
+    if (this.level.coordinateOrientation === 'landscape') {
+      return this.portrait ? { x: 1 - y, y: x } : { x, y };
+    }
+    if (this.levelIndex < 0 || this.portrait) return { x, y };
+    return this.level.autoscroll ? { x: 1 - y, y: x } : { x: y, y: 1 - x };
   }
 
   campaignEventAppearance(event) {

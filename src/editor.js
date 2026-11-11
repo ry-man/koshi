@@ -1397,7 +1397,7 @@ function renderBoard() {
       if (selected && !readOnly() && !trackObjectAction && connectingSpawn === null && !event.random && !event.group) {
         const outline = document.createElement('span');
         outline.className = 'obstruction-resize-box';
-        outline.style.cssText = `width:${width / frameWidth * 100}%;height:${height / frameHeight * 100}%;transform:translate(-50%, -50%) rotate(${event.rotation ?? 0}deg)`;
+        outline.style.cssText = `width:${width / frameWidth * 100}%;height:${height / frameHeight * 100}%;transform:translate(-50%, -50%) rotate(${appearance.rotation ?? 0}deg)`;
         for (const handle of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
           const grip = document.createElement('span');
           grip.className = `obstruction-resize-handle resize-${handle}`;
@@ -1446,18 +1446,16 @@ function renderBoard() {
       const direction = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] }[key.key];
       if (!direction) return;
       key.preventDefault();
-      const grid = placementGrid();
-      const stepX = grid ? grid.spacing / grid.width : .01;
-      const stepY = grid ? grid.spacing / grid.height : .01;
+      const step = placementStep(direction);
       if (spawnKey) {
         attempt(() => saveSpawnTemplate(spawnKey, { ...event, ...placementPosition(
-          event.x + direction[0] * stepX, event.y + direction[1] * stepY) }));
+          event.x + step.x, event.y + step.y) }));
         setSelection([], [spawnKey]); focusSpawnTemplate(spawnKey); return;
       }
       if (!selectedEvents.has(index)) { selectedEvents = new Set([index]); selectedBricks = new Set(); }
       for (const item of selectedList()) {
         const center = eventPlacementPosition(level.events[item]);
-        moveEvent(item, center.x + direction[0] * stepX, center.y + direction[1] * stepY);
+        moveEvent(item, center.x + step.x, center.y + step.y);
       }
       markChanged(); setSelection();
       focusMarker(index);
@@ -1601,13 +1599,16 @@ function render() {
 
 function renderKoshiStart() {
   const cat = previewGame.cat, bounds = previewGame.bounds();
+  const source = previewGame.campaignSourceCoordinates(
+    (cat.x - bounds.left) / (bounds.right - bounds.left),
+    (cat.y - bounds.top) / (bounds.bottom - bounds.top));
   const marker = $('#koshi-start-marker');
   marker.style.left = `${cat.x / previewGame.width * 100}%`;
   marker.style.top = `${cat.y / previewGame.height * 100}%`;
   marker.setAttribute('aria-pressed', String(activeCategory === 'koshi'));
   marker.querySelector('small').textContent = level.koshiStart ? 'Start' : 'Start (default)';
-  $('#koshi-x').value = (cat.x - bounds.left) / (bounds.right - bounds.left) * 100;
-  $('#koshi-y').value = (cat.y - bounds.top) / (bounds.bottom - bounds.top) * 100;
+  $('#koshi-x').value = source.x * 100;
+  $('#koshi-y').value = source.y * 100;
   $('#koshi-reset').disabled = !level.koshiStart;
   $('#koshi-start-status').textContent = level.koshiStart ? 'Custom starting point placed.' : 'No custom starting point. Using the level default.';
 }
@@ -1653,10 +1654,10 @@ $('#koshi-start-marker').addEventListener('keydown', event => {
   const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
   if (!direction) return;
   event.preventDefault(); event.stopPropagation();
-  const grid = placementGrid();
+  const step = placementStep(direction);
   attempt(() => saveKoshiStart(placementPosition(
-    Number($('#koshi-x').value) / 100 + direction[0] * (grid ? grid.spacing / grid.width : .01),
-    Number($('#koshi-y').value) / 100 + direction[1] * (grid ? grid.spacing / grid.height : .01))));
+    Number($('#koshi-x').value) / 100 + step.x,
+    Number($('#koshi-y').value) / 100 + step.y)));
 });
 
 function populateTrackForm() {
@@ -1736,10 +1737,10 @@ function renderCatTracks() {
   };
   for (const track of previewGame.catTracks) {
     const nodes = track.id === selectedTrackId ? trackNodeGesture?.nodes ?? trackDrawNodes : null;
-    draw(track, nodes ? nodes.map(node => previewGame.pointFromRelative(node.x, node.y)) : track.path.nodes);
+    draw(track, nodes ? nodes.map(node => previewGame.campaignEventPoint(node.x, node.y)) : track.path.nodes);
   }
   if (!selectedTrackId && trackDrawNodes.length) draw({ id: '', closed: $('#track-closed').checked, power: $('#track-power').value },
-    (trackNodeGesture?.nodes ?? trackDrawNodes).map(node => previewGame.pointFromRelative(node.x, node.y)));
+    (trackNodeGesture?.nodes ?? trackDrawNodes).map(node => previewGame.campaignEventPoint(node.x, node.y)));
 }
 
 function saveTrackNodeMove(index, point) {
@@ -1774,9 +1775,8 @@ function moveTrackNodeWithKeyboard(event, index) {
   pausePreview();
   selectedTrackNode = index;
   attempt(() => {
-    const node = trackDrawNodes[index], grid = placementGrid();
-    saveTrackNodeMove(index, placementPosition(node.x + direction[0] * (grid ? grid.spacing / grid.width : .01),
-      node.y + direction[1] * (grid ? grid.spacing / grid.height : .01)));
+    const node = trackDrawNodes[index], step = placementStep(direction);
+    saveTrackNodeMove(index, placementPosition(node.x + step.x, node.y + step.y));
   });
   renderBoard(); focusTrackNode(index);
 }
@@ -1974,8 +1974,19 @@ function placementPosition(x, y) {
     const index = Math.max(0, Math.min(last, Math.round((value * length - first) / grid.spacing)));
     return (first + index * grid.spacing) / length;
   };
-  return grid ? { x: snap(x, grid.width, grid.left), y: snap(y, grid.height, grid.top) }
-    : { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+  if (!grid) return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+  const point = previewGame.campaignEventCoordinates(x, y);
+  return previewGame.campaignSourceCoordinates(
+    snap(point.x, grid.width, grid.left), snap(point.y, grid.height, grid.top));
+}
+
+function placementStep(direction) {
+  const grid = placementGrid();
+  const origin = previewGame.campaignSourceCoordinates(0, 0);
+  const point = previewGame.campaignSourceCoordinates(
+    direction[0] * (grid ? grid.spacing / grid.width : .01),
+    direction[1] * (grid ? grid.spacing / grid.height : .01));
+  return { x: point.x - origin.x, y: point.y - origin.y };
 }
 
 function moveEvent(index, x, y) {
@@ -1992,14 +2003,16 @@ function pointerPosition(event) {
   const rect = board.getBoundingClientRect(), b = previewGame.bounds();
   const x = (event.clientX - rect.left - board.clientLeft) / board.clientWidth * previewGame.width;
   const y = (event.clientY - rect.top - board.clientTop) / board.clientHeight * previewGame.height;
-  return { x: (x - b.left) / (b.right - b.left), y: (y - b.top) / (b.bottom - b.top) };
+  return previewGame.campaignSourceCoordinates(
+    (x - b.left) / (b.right - b.left), (y - b.top) / (b.bottom - b.top));
 }
 
 function eventPlacementPosition(event) {
   if (!event.random) return { x: event.x ?? .5, y: event.y ?? .5 };
   const camera = previewGame.camera(event.time), bounds = previewGame.bounds();
-  return { x: (camera.x + camera.width / 2 - bounds.left) / (bounds.right - bounds.left),
-    y: (camera.y + camera.height / 2 - bounds.top) / (bounds.bottom - bounds.top) };
+  return previewGame.campaignSourceCoordinates(
+    (camera.x + camera.width / 2 - bounds.left) / (bounds.right - bounds.left),
+    (camera.y + camera.height / 2 - bounds.top) / (bounds.bottom - bounds.top));
 }
 
 function resizedObstruction(origin, handle, dx, dy, bounds) {
@@ -2143,9 +2156,11 @@ board.addEventListener('pointermove', event => {
     renderBoard();
   } else if (gesture.type === 'resize') {
     const point = pointerPosition(event), bounds = previewGame.bounds();
+    const sourceBounds = previewGame.landscapePortrait
+      ? { left: bounds.top, right: bounds.bottom, top: bounds.left, bottom: bounds.right } : bounds;
     const resized = resizedObstruction(gesture.origin, gesture.handle,
-      (point.x - gesture.start.x) * (bounds.right - bounds.left),
-      (point.y - gesture.start.y) * (bounds.bottom - bounds.top), bounds);
+      (point.x - gesture.start.x) * (sourceBounds.right - sourceBounds.left),
+      (point.y - gesture.start.y) * (sourceBounds.bottom - sourceBounds.top), sourceBounds);
     if (gesture.spawnKey) {
       gesture.draft = resized;
       updateSpawnTemplateDraft(gesture.spawnKey, resized);

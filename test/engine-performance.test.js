@@ -150,7 +150,7 @@ test('simulation buffer covers half a screen behind and a screen ahead, includin
     const game = arena(true, portrait);
     game.elapsed = 10;
     const camera = game.camera(), bounds = game.simulationBounds();
-    assert.equal(bounds[portrait ? 'y' : 'x'], camera[portrait ? 'y' : 'x'] - 480);
+    assert.equal(bounds[portrait ? 'y' : 'x'], camera[portrait ? 'y' : 'x'] - (portrait ? 960 : 480));
     assert.equal(bounds[portrait ? 'height' : 'width'], 2400);
     const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'snake', x: .5, y: .5 })[0];
     if (portrait) enemy.y = bounds.y + bounds.height + 80;

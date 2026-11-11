@@ -142,12 +142,15 @@ and update only `file` when moving its JSON. Level names, permanent IDs, source
 files, and world/number pairs must be unique. Numeric level numbers sort
 numerically within a world; other number strings follow manifest order.
 
-Official JSON placements use the wide desktop/editor **Landscape** board as their
+Authored JSON placements use the wide desktop/editor **Landscape** board as their
 coordinate reference. On the tall phone board, positions rotate counterclockwise
 with the bricks: `(x, y)` becomes `(y, 1 - x)`. Formation angles, obstruction
 rotations, Cat Tracks, Koshi's starting position, and placed spawning-brick
-templates follow the same rotation. The read-only Official editor preview uses
-the same mapping as gameplay; source JSON is not rewritten.
+templates follow the same rotation. Phone display scaling does not change the
+board geometry. Scrolling phone levels start at the bottom and scroll upward,
+matching a counterclockwise rotation of the desktop camera. Editable JSON and
+read-only Official previews use the same mapping as gameplay; portrait edits are
+mapped back to landscape coordinates and source JSON is not rewritten on rotation.
 
 The first published level in a world replaces that world's temporary starter;
 worlds without authored levels retain their existing starters. Preserve a

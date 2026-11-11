@@ -13,7 +13,8 @@ const object = (type = 'bumper-red', extra = {}) => ({ kind: 'object', type, tim
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-6, `${actual} != ${expected}`);
 function arena(source, options = {}) {
   const game = new Game(() => .5, { customLevel: source, ...options });
-  Object.assign(game.cat, { x: 100, y: 500, vx: 0, vy: 0 });
+  const camera = game.camera();
+  Object.assign(game.cat, { x: camera.x + 100, y: camera.y + 500, vx: 0, vy: 0 });
   game.start();
   return game;
 }
@@ -342,9 +343,11 @@ test('editor moves individual saved nodes transactionally and rejects self-inter
     pausePreview() {}, renderCatTracks() {}, renderBoard() {},
     board: { setPointerCapture() {}, hasPointerCapture: () => true, releasePointerCapture() {} },
     pointerPosition: event => event.point, placementPosition: (x, y) => ({ x, y }),
+    previewGame: new Game(() => .5, { customLevel: blank() }),
     $: () => ({ querySelector: () => ({ focus() {} }) }),
   });
   vm.runInContext(source.slice(source.indexOf('function saveTrackNodeMove('), source.indexOf("$('#track-choice').addEventListener")), context);
+  vm.runInContext(source.slice(source.indexOf('function placementStep('), source.indexOf('function moveEvent(')), context);
   const pointer = (extra = {}) => ({ button: 0, pointerId: 1, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {}, ...extra });
   context.startTrackNodeDrag(pointer(), 1);
   context.dragTrackNode(pointer({ point: { x: .6, y: .3 } }));

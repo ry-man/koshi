@@ -81,7 +81,7 @@ test('random saw spawns share stamp and brush clearance, while explicit placemen
     const [explicit] = game.createCustomSpawn(placement);
     game.pendingSpawns.set(placement, { kind: 'item', time: 2, items: [explicit] });
     game.takeSpawn(placement, () => assert.fail('must reuse explicit saw'));
-    assert.deepEqual({ x: explicit.x, y: explicit.y }, game.pointFromRelative(0, 0));
+    assert.deepEqual({ x: explicit.x, y: explicit.y }, game.campaignEventPoint(0, 0));
     assert.equal(game.stampSpawnClear(explicit), false);
   }
 });

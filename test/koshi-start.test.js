@@ -29,7 +29,7 @@ test('game and editor previews use the exact start on desktop, phone, and scroll
       ...(scrolling ? { autoscroll: { length: 20, speed: 0, events: [] } } : {}) };
     for (const editorPreview of [false, true]) {
       const game = new Game(() => .5, { customLevel: source, portrait, scale, editorPreview });
-      const point = game.pointFromRelative(source.koshiStart.x, source.koshiStart.y);
+      const point = game.campaignEventPoint(source.koshiStart.x, source.koshiStart.y);
       assert.deepEqual({ x: game.cat.x, y: game.cat.y }, point);
       assert.deepEqual(game.catHistory, [{ time: 0, ...point }]);
       assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
@@ -43,19 +43,21 @@ test('game and editor previews use the exact start on desktop, phone, and scroll
   }
 });
 
-test('absent start keeps the ordinary center and existing boss and scrolling defaults', () => {
+test('absent start rotates the desktop center, boss offset and scrolling first screen', () => {
   for (const portrait of [false, true]) {
     const game = new Game(() => .5, { customLevel: blank(), portrait });
     assert.deepEqual([game.cat.x, game.cat.y], [game.width / 2, game.height / 2]);
     const scrolling = new Game(() => .5, { customLevel: { ...blank(),
       autoscroll: { length: 20, speed: 0, events: [] } }, portrait });
-    assert.deepEqual([scrolling.cat.x, scrolling.cat.y], [scrolling.viewportWidth / 2, scrolling.viewportHeight / 2]);
+    assert.deepEqual([scrolling.cat.x, scrolling.cat.y], [scrolling.viewportWidth / 2,
+      portrait ? scrolling.height - scrolling.viewportHeight / 2 : scrolling.viewportHeight / 2]);
     const source = { ...blank(), goal: 0, bossLevel: true,
       events: [{ kind: 'enemy', type: 'boss', time: 0, x: .5, y: .2 }] };
     const boss = new Game(() => .5, { customLevel: source, portrait });
-    assert.deepEqual([boss.cat.x, boss.cat.y], [boss.viewportWidth / 2, boss.viewportHeight / 2 + 110]);
+    assert.deepEqual([boss.cat.x, boss.cat.y], [boss.viewportWidth / 2 + (portrait ? 110 : 0),
+      boss.viewportHeight / 2 + (portrait ? 0 : 110)]);
     const placed = new Game(() => .5, { customLevel: { ...source, koshiStart: { x: .3, y: .7 } }, portrait });
-    assert.deepEqual({ x: placed.cat.x, y: placed.cat.y }, placed.pointFromRelative(.3, .7));
+    assert.deepEqual({ x: placed.cat.x, y: placed.cat.y }, placed.campaignEventPoint(.3, .7));
   }
 });
 
@@ -81,6 +83,7 @@ function fixture() {
     context.renderKoshiStart();
   };
   vm.runInContext(source.slice(source.indexOf('function renderKoshiStart('), source.indexOf('function populateTrackForm(')), context);
+  vm.runInContext(source.slice(source.indexOf('function placementStep('), source.indexOf('function moveEvent(')), context);
   context.render();
   return { $, context, source, changes: () => changes, lock: () => { locked = true; } };
 }

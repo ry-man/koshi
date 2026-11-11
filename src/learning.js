@@ -280,7 +280,7 @@ class Tutorial {
     }
     const level = { version: 1, id: `Practice ${index + 1}`, duration: 3600, goal: 1000, heartCost: 10, brickSet: 1, events: [],
       ...(this.lesson.id === 'boom-time' ? { activationLimit: 2 } : {}) };
-    const game = new Game(() => .5, { ...options, customLevel: level });
+    const game = new Game(() => .5, { ...options, customLevel: level, customCoordinateOrientation: 'viewport' });
     // Only the objectives lesson uses normal victory rules.
     game.level.duration = Infinity;
     game.level.goal = this.lesson.id === 'objectives' ? 1 : Infinity;

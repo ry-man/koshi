@@ -1006,8 +1006,9 @@ test('crowded enemy spawns settle without overlap and collisions freeze on pause
     for (const [x, y] of [[0, 0], [.5, 0], [.5, .5], [1, 1]]) {
       const game = arena(options);
       game.cat.x = game.width / 2; game.cat.y = game.height * .8;
+      const source = game.campaignSourceCoordinates(x, y);
       game.robots = Array.from({ length: 40 }, (_, i) =>
-        game.createCustomSpawn({ kind: 'enemy', type: ['mouse', 'wheel', 'ram', 'bucket'][i % 4], x, y })[0]);
+        game.createCustomSpawn({ kind: 'enemy', type: ['mouse', 'wheel', 'ram', 'bucket'][i % 4], ...source })[0]);
       game.combat(1 / 120, game.cat.x, game.cat.y);
       for (let i = 0; i < game.robots.length; i++) for (let j = i + 1; j < game.robots.length; j++) {
         assert.ok(Math.hypot(game.robots[i].x - game.robots[j].x, game.robots[i].y - game.robots[j].y) >= 38 - 1e-6);

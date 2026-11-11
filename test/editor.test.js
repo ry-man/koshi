@@ -286,7 +286,7 @@ test('Discretize X, Y snaps placements and moves to rendered dot centers without
   const context = vm.createContext({
     $: selector => selector === '#discretize-xy' ? checkbox : area,
     getComputedStyle: () => ({ backgroundSize: '18px 18px' }),
-    level, readOnly: () => false, snapWheel,
+    level, previewGame: new Game(() => .5, { customLevel: blank() }), readOnly: () => false, snapWheel,
   });
   vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function pointerPosition(')), context);
   assert.equal(context.placementPosition(.237, .641).x, .237);
@@ -1746,15 +1746,57 @@ test('custom events are stable-sorted, spawn once at exact times, and work at ti
   assert.equal(game.levelIndex, -1);
 });
 
-test('custom normalized placements keep the same relative safe-area positions in both orientations', () => {
+test('portrait editor pointers, grids, keyboard steps and random placement centers map back to landscape JSON', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const level = { ...blank(), autoscroll: { length: 36, speed: .25, events: [] } };
+  const game = new Game(() => .5, { customLevel: level, portrait: true, scale: .31 });
+  const checkbox = { checked: false };
+  const area = { clientLeft: 1, clientTop: 1, getBoundingClientRect: () => ({ width: 220, height: 1400 }) };
+  const board = { clientWidth: 300, clientHeight: game.height / 2, clientLeft: 1, clientTop: 1,
+    getBoundingClientRect: () => ({ left: 100, top: 200 }) };
+  const context = vm.createContext({
+    previewGame: game, board, level, readOnly: () => false, snapWheel,
+    $: selector => selector === '#discretize-xy' ? checkbox : area,
+    getComputedStyle: () => ({ backgroundSize: '18px 18px' }),
+  });
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function resizedObstruction(')), context);
+  for (const [x, y] of [[.1, .7], [.3, .2], [.9, .6]]) {
+    const world = game.campaignEventPoint(x, y);
+    const point = context.pointerPosition({
+      clientX: 101 + world.x / game.width * board.clientWidth,
+      clientY: 201 + world.y / game.height * board.clientHeight,
+    });
+    assert.ok(Math.abs(point.x - x) < 1e-10);
+    assert.ok(Math.abs(point.y - y) < 1e-10);
+    checkbox.checked = true;
+    const snapped = context.placementPosition(point.x, point.y);
+    const displayed = game.campaignEventCoordinates(snapped.x, snapped.y);
+    for (const [value, length] of [[displayed.x, 220], [displayed.y, 1400]]) {
+      const dot = (value * length - 10) / 18;
+      assert.ok(Math.abs(dot - Math.round(dot)) < 1e-10);
+    }
+    checkbox.checked = false;
+  }
+  const right = context.placementStep([1, 0]), up = context.placementStep([0, -1]);
+  assert.ok(Math.abs(right.x) < 1e-10); assert.ok(Math.abs(right.y - .01) < 1e-10);
+  assert.ok(Math.abs(up.x - .01) < 1e-10); assert.ok(Math.abs(up.y) < 1e-10);
+  for (const time of [0, 30, 75, 120]) {
+    const center = context.eventPlacementPosition({ time, random: true });
+    const point = game.campaignEventPoint(center.x, center.y), camera = game.camera(time);
+    assert.ok(Math.abs(point.x - camera.x - camera.width / 2) < 1e-8);
+    assert.ok(Math.abs(point.y - camera.y - camera.height / 2) < 1e-8);
+  }
+});
+
+test('custom landscape placements rotate counterclockwise into the phone safe area', () => {
   for (const options of [{}, { portrait: true, scale: .31 }, { portrait: true, scale: .6 }]) {
     const level = { ...blank(), events: [event('food', 'F', 0), event('weapon', 'gold', 0), event('enemy', 'mouse', 0), event('enemy', 'ram', 0), event('enemy', 'bucket', 0)] };
     const game = new Game(() => .5, { ...options, customLevel: level });
     game.start();
     const b = game.bounds();
     for (const item of [...game.food, ...game.weapons, ...game.robots]) {
-      assert.ok(Math.abs((item.x - b.left) / (b.right - b.left) - .2) < 1e-8);
-      assert.ok(Math.abs((item.y - b.top) / (b.bottom - b.top) - .7) < 1e-8);
+      assert.ok(Math.abs((item.x - b.left) / (b.right - b.left) - (options.portrait ? .7 : .2)) < 1e-8);
+      assert.ok(Math.abs((item.y - b.top) / (b.bottom - b.top) - (options.portrait ? .8 : .7)) < 1e-8);
       for (const brick of game.bricks) {
         const x = Math.max(brick.x, Math.min(brick.x + brick.w, item.x));
         const y = Math.max(brick.y, Math.min(brick.y + brick.h, item.y));
@@ -1806,7 +1848,7 @@ test('wheel and snake placements snap to an edge and begin at that exact perimet
         const level = { ...blank(), events: [{ ...event('enemy', type, 0), ...snapped }] };
         const game = new Game(() => .5, { ...options, customLevel: level });
         game.start();
-        const point = game.pointFromRelative(snapped.x, snapped.y);
+        const point = game.campaignEventPoint(snapped.x, snapped.y);
         assert.ok(Math.abs(game.robots[0].x - point.x) < 1e-8, type);
         assert.ok(Math.abs(game.robots[0].y - point.y) < 1e-8, type);
         game.update(.1);

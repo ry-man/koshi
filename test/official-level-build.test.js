@@ -26,25 +26,76 @@ test('all authored Official placements preserve desktop coordinates and rotate w
     const level = officialCampaign.findIndex(level => level.id === entry.id);
     const desktop = new Game(() => .5, { levels: officialCampaign, level });
     assert.equal(desktop.level.coordinateOrientation, 'landscape');
-    for (const scale of [1, .5]) {
+    for (const scale of [1, .5, .31]) {
       const phone = new Game(() => .5, { levels: officialCampaign, level, portrait: true, scale });
+      const custom = new Game(() => .5, { customLevel: source, portrait: true, scale, editorPreview: true });
+      close(phone.width, desktop.height); close(phone.height, desktop.width);
+      close(custom.width, phone.width); close(custom.height, phone.height);
+      for (const brick of desktop.bricks) {
+        for (const rotated of [phone.bricks[brick.id], custom.bricks[brick.id]]) {
+          close(rotated.x, brick.y); close(rotated.y, desktop.width - brick.x - brick.w);
+          close(rotated.w, brick.h); close(rotated.h, brick.w);
+          assert.equal(rotated.kind, brick.kind);
+          assert.equal(rotated.absorbedBy, brick.absorbedBy);
+          assert.deepEqual(rotated.region, brick.region);
+        }
+      }
+      for (const time of [0, 10, 45, 60, 90, 105, 120, 1000]) {
+        desktop.elapsed = phone.elapsed = time;
+        const camera = desktop.camera(time), rotated = phone.camera(time);
+        close(rotated.x, camera.y); close(rotated.y, desktop.width - camera.x - camera.width);
+        assert.deepEqual(custom.camera(time), rotated);
+        const bounds = desktop.simulationBounds(), rotatedBounds = phone.simulationBounds();
+        close(rotatedBounds.x, bounds.y); close(rotatedBounds.y, desktop.width - bounds.x - bounds.width);
+        close(rotatedBounds.width, bounds.height); close(rotatedBounds.height, bounds.width);
+      }
+      desktop.elapsed = phone.elapsed = 0;
+      close(phone.cat.x, desktop.cat.y); close(phone.cat.y, desktop.width - desktop.cat.x);
+      close(custom.cat.x, phone.cat.x); close(custom.cat.y, phone.cat.y);
       for (const event of source.events.filter(event => !event.random)) {
         const position = relative(desktop, desktop.campaignEventPoint(event.x, event.y));
         close(position.x, event.x); close(position.y, event.y);
         const rotated = relative(phone, phone.campaignEventPoint(event.x, event.y));
         close(rotated.x, event.y); close(rotated.y, 1 - event.x);
-        if (scale !== 1) continue;
         const points = desktop.customEventPoints(event, { preview: true });
         const rotatedPoints = phone.customEventPoints(event, { preview: true });
+        const customPoints = custom.customEventPoints(event, { preview: true });
         assert.equal(points.length, rotatedPoints.length);
+        assert.deepEqual(customPoints, rotatedPoints);
         for (let i = 0; i < points.length; i++) {
           const original = relative(desktop, points[i]), rotated = relative(phone, rotatedPoints[i]);
           close(rotated.x, original.y); close(rotated.y, 1 - original.x);
+          close(rotatedPoints[i].x, points[i].y);
+          close(rotatedPoints[i].y, desktop.width - points[i].x);
+        }
+        const entities = desktop.createCustomSpawn(event);
+        const rotatedEntities = phone.createCustomSpawn(event);
+        assert.equal(rotatedEntities.length, entities.length);
+        for (let i = 0; i < entities.length; i++) {
+          close(rotatedEntities[i].x, entities[i].y);
+          close(rotatedEntities[i].y, desktop.width - entities[i].x);
         }
       }
     }
     assert.equal(JSON.stringify(source), before);
   }
+});
+
+test('the scrolling phone camera and first screen preserve visibility without reversing brick identity', () => {
+  const source = require('../levels/official/world-1/1-7.json');
+  const desktop = new Game(() => .5, { customLevel: source });
+  const phone = new Game(() => .5, { customLevel: source, portrait: true, scale: .31 });
+  const next = game => new Map(game.perimeter.map((id, i) => [id, game.perimeter[(i + 1) % game.perimeter.length]]));
+  assert.deepEqual(next(desktop), next(phone));
+  for (const time of [0, 10, 45, 60, 90, 105, 120]) {
+    desktop.elapsed = phone.elapsed = time;
+    for (const brick of desktop.bricks) {
+      assert.equal(phone.brickVisible(phone.bricks[brick.id]), desktop.brickVisible(brick));
+    }
+  }
+  assert.ok(phone.camera(10).y < phone.camera(0).y, 'counterclockwise camera scrolls upward');
+  phone.reset(); phone.start();
+  assert.equal(phone.checkOffscreenDeath(), false, 'the default starting point is on the bottom first screen');
 });
 
 test('Official geometry, tracks, starting position and spawning templates use the same phone rotation', () => {
@@ -80,17 +131,18 @@ test('Official geometry, tracks, starting position and spawning templates use th
   assert.equal(JSON.stringify(source), before);
 });
 
-test('Official orientation handling does not change Beta or editable custom placements', () => {
+test('editable JSON uses Official rotation while Beta retains its original orientation', () => {
   for (const portrait of [false, true]) {
     const beta = new Game(() => .5, { portrait });
     assert.deepEqual(beta.campaignEventCoordinates(.2, .3), portrait ? { x: .2, y: .3 } : { x: .7, y: .2 });
     const source = { version: 1, id: 'Custom coordinates', duration: 60, goal: 1000,
       heartCost: null, brickSet: 1, events: [] };
     const custom = new Game(() => .5, { customLevel: source, portrait });
-    assert.deepEqual(custom.campaignEventCoordinates(.2, .3), { x: .2, y: .3 });
+    assert.deepEqual(custom.campaignEventCoordinates(.2, .3), portrait ? { x: .3, y: .8 } : { x: .2, y: .3 });
+    assert.deepEqual(custom.campaignSourceCoordinates(.3, .8), portrait ? { x: 1 - .8, y: .3 } : { x: .3, y: .8 });
     const event = { kind: 'object', type: 'obstruction-rectangle', rotation: 20 };
     assert.equal(beta.campaignEventAppearance(event), event);
-    assert.equal(custom.campaignEventAppearance(event), event);
+    assert.deepEqual(custom.campaignEventAppearance(event), portrait ? { ...event, rotation: 290 } : event);
   }
 });
 

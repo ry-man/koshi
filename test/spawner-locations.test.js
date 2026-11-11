@@ -47,7 +47,7 @@ test('every fixed-location spawn uses the chosen position and initializes attrib
     const game = new Game(() => .5, { ...options, customLevel: levelFor(spawn) });
     game.start(); game.elapsed = 5;
     const brick = game.bricks.find(brick => brick.spawner);
-    const expected = game.pointFromRelative(brick.spawner.x, brick.spawner.y);
+    const expected = game.campaignEventPoint(brick.spawner.x, brick.spawner.y);
     game.spawnFromBrick(brick);
     assert.equal(brick.spawned, true);
     if (field === 'obstructions' || field === 'bumpers') {

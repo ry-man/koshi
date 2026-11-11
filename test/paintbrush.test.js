@@ -106,7 +106,7 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
       game.spawnFromBrick(spawner);
       assert.ok(game.stampSpawnClear(game.items.at(-1)));
       const explicit = game.createCustomSpawn({ time: 0, kind: 'item', type, x: 0, y: 0 })[0];
-      assert.deepEqual({ x: explicit.x, y: explicit.y }, game.pointFromRelative(0, 0));
+      assert.deepEqual({ x: explicit.x, y: explicit.y }, game.campaignEventPoint(0, 0));
     }
   });
 }

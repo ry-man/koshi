@@ -122,7 +122,7 @@ test('custom goalie placements stay at their markers and travel gradually to goa
     for (const edge of ['top', 'bottom', 'left', 'right']) {
       const game = arena(options, edge);
       parkCat(game);
-      const point = game.pointFromRelative(.4, .4);
+      const point = game.campaignEventPoint(.4, .4);
       const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'goalie', x: .4, y: .4 })[0];
       assert.equal(enemy.x, point.x); assert.equal(enemy.y, point.y);
       game.robots.push(enemy);

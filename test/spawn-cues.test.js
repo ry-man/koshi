@@ -82,7 +82,7 @@ test('custom previews begin exactly one second before spawning and reserve exact
     game.update(.5);
     const cues = game.spawnCues;
     for (const cue of cues) assert.ok(Math.abs(cue.progress - .5) < 1e-8);
-    assert.deepEqual(cues.map(point), placements(2).map(event => game.pointFromRelative(event.x, event.y)));
+    assert.deepEqual(cues.map(point), placements(2).map(event => game.campaignEventPoint(event.x, event.y)));
     assert.equal(game.robots.length + game.food.length + game.weapons.length, 0);
     assert.equal(game.score, 0);
     assert.equal(game.hearts, 3);
