@@ -1920,7 +1920,7 @@ const levels = [
         {
           "time": 55,
           "kind": "food",
-          "type": "S",
+          "type": "P",
           "random": true,
           "group": {
             "shape": "circle",
