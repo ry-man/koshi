@@ -804,7 +804,6 @@ function populateEventForm() {
       $('#event-lifetime').value = lifetime === MIXED ? '' : lifetime;
       $('#event-lifetime').placeholder = lifetime === MIXED && collectibles.some(event => event.lifetime != null) ? 'Mixed' : kind === 'food' ? '' : 'Until level ends';
     }
-    if (common(items.map(event => event.time)) !== MIXED) $('#timeline').value = items[0].time;
   } else {
     typeOptions($('#event-type').value || undefined);
   }
@@ -918,7 +917,10 @@ function renderList() {
   }
   level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time).forEach(({ event, index }) => {
     const li = document.createElement('li');
-    const button = eventTimelineButton(event, index, click => choose('event', index, isAdditive(click)));
+    const button = eventTimelineButton(event, index, click => {
+      choose('event', index, isAdditive(click));
+      if (selectedEvents.has(index)) centerEventMarker(index);
+    });
     li.append(button); list.append(li);
   });
 }
@@ -935,6 +937,18 @@ function overlappingMarkers(x, y) {
     if (!found.has(key)) found.set(key, { index, spawnKey });
   }
   return [...found.values()];
+}
+
+function centerEventMarker(index) {
+  const markers = [...$('#markers').querySelectorAll(`.marker[data-index="${index}"]`)];
+  if (!markers.length) return;
+  markers[0].scrollIntoView({ block: 'center', inline: 'nearest' });
+  const viewport = $('#editor-board-scroll'), viewportRect = viewport.getBoundingClientRect();
+  const rectangles = markers.map(marker => marker.getBoundingClientRect());
+  const x = rectangles.reduce((sum, rect) => sum + rect.left + rect.width / 2, 0) / rectangles.length;
+  const y = rectangles.reduce((sum, rect) => sum + rect.top + rect.height / 2, 0) / rectangles.length;
+  viewport.scrollLeft += x - viewportRect.left - viewport.clientLeft - viewport.clientWidth / 2;
+  viewport.scrollTop += y - viewportRect.top - viewport.clientTop - viewport.clientHeight / 2;
 }
 
 function pickOverlappingMarker(input, marker = null, additive = isAdditive(input), previousSelection = null) {
@@ -1450,11 +1464,11 @@ function renderBoard() {
     });
     markers.append(marker);
   });
-  renderPreviewTime();
+  renderPreviewTime(Number($('#timeline').value), false, false);
   syncAccess();
 }
 
-function renderPreviewTime(time = Number($('#timeline').value), followTime = false) {
+function renderPreviewTime(time = Number($('#timeline').value), followTime = false, followCamera = true) {
   time = Math.max(0, Math.min(level.duration, time));
   $('#timeline').value = time;
   $('#time-label').textContent = `${time.toFixed(1)}s`;
@@ -1463,9 +1477,9 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
   const camera = previewGame.camera(time), outline = $('#camera-outline');
   outline.hidden = !level.autoscroll;
   outline.style.cssText = `left:${camera.x / previewGame.width * 100}%;top:${camera.y / previewGame.height * 100}%;width:${camera.width / previewGame.width * 100}%;height:${camera.height / previewGame.height * 100}%`;
-  updateCameraView(camera);
+  updateCameraView(camera, followCamera);
   for (const marker of $('#markers').querySelectorAll('.marker[data-index]')) {
-    marker.hidden = connectingSpawn === null && !$('#show-all').checked
+    marker.hidden = connectingSpawn === null && !selectedEvents.has(Number(marker.dataset.index)) && !$('#show-all').checked
       && (Number(marker.dataset.previewStart) > time
         || (marker.dataset.previewEnd !== undefined && Number(marker.dataset.previewEnd) <= time));
     const event = level.events[Number(marker.dataset.index)];
@@ -1486,13 +1500,13 @@ function alignmentAxes(point, references, toleranceX, toleranceY) {
   };
 }
 
-function updateCameraView(camera) {
+function updateCameraView(camera, followCamera = true) {
   const toggle = $('#dynamic-view'), viewport = $('#editor-board-scroll');
   toggle.disabled = !level.autoscroll;
   const dynamic = Boolean(level.autoscroll && toggle.checked);
   viewport.dataset.dynamicView = String(dynamic);
   viewport.style.height = dynamic ? `${camera.height / previewGame.height * board.clientHeight}px` : '';
-  if (!dynamic) return;
+  if (!dynamic || !followCamera) return;
   const boardRect = board.getBoundingClientRect(), viewportRect = viewport.getBoundingClientRect();
   const left = boardRect.left - viewportRect.left - viewport.clientLeft + viewport.scrollLeft + board.clientLeft;
   const top = boardRect.top - viewportRect.top - viewport.clientTop + viewport.scrollTop + board.clientTop;

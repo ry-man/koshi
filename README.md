@@ -1495,6 +1495,11 @@ tracks his health; his death animation finishes before Koshi celebrates.
    positioned spawns** to hide random events (including random groups and campaign
    schedule examples) while retaining fixed placements. This preview-only toggle
    does not remove events or change available-point totals.
+   Selecting a board marker preserves the current view and preview time.
+   Selecting an event in the timeline centers the editor view on its displayed
+   icon (or formation center), regardless of its spawn time. Selected events
+   remain visible when **Show all spawn locations** is off. **Dynamic View**
+   resumes following the game camera when you scrub or play the preview.
    Clicking overlapping markers opens an element picker with the same event
    IDs, timing, category, artwork, descriptions, placement details and point
    totals as the timeline. Choose a row to select that event (or spawning brick);

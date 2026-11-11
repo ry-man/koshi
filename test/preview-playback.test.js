@@ -32,7 +32,7 @@ function fixture({ duration = 20, time = 2, speed = 1 } = {}) {
   markers.forEach((marker, index) => { marker.dataset.index = String(index); marker.style = {}; });
   const cameras = [], level = { duration, events: markers.map(() => ({})), autoscroll: { length: 16, speed: .25 } };
   const context = {
-    $, level, connectingSpawn: null,
+    $, level, connectingSpawn: null, selectedEvents: new Set(),
     board: { clientHeight: 600 },
     previewGame: { width: 1000, height: 600,
       camera(time) { cameras.push(time); return { x: time * 10, y: 0, width: 500, height: 600 }; } },
@@ -101,6 +101,24 @@ test('Dynamic View follows camera position only when enabled for an autoscrollin
   assert.equal(f.$('#dynamic-view').disabled, true);
   assert.equal(viewport.dataset.dynamicView, 'false');
   assert.equal(viewport.style.height, '');
+});
+
+test('selection rerenders preserve the view while explicit preview movement resumes camera following', () => {
+  const f = fixture({ time: 12 }), viewport = f.$('#editor-board-scroll');
+  Object.assign(viewport, { scrollLeft: 333, scrollTop: 240, clientLeft: 0, clientTop: 0 });
+  viewport.getBoundingClientRect = () => ({ left: 100, top: 200 });
+  Object.assign(f.context.board, { clientWidth: 1000, clientLeft: 1, clientTop: 1 });
+  f.context.board.getBoundingClientRect = () => ({ left: 100 - viewport.scrollLeft, top: 200 - viewport.scrollTop });
+  f.$('#dynamic-view').checked = true;
+  f.context.selectedEvents.add(0);
+  f.context.renderPreviewTime(12, false, false);
+  assert.equal(viewport.scrollLeft, 333);
+  assert.equal(viewport.scrollTop, 240);
+  assert.equal(f.$('#timeline').value, 12);
+  assert.equal(f.markers[0].hidden, false, 'selected time-zero event remains visible after its lifetime');
+  f.context.renderPreviewTime(13, true);
+  assert.equal(viewport.scrollLeft, 131);
+  assert.equal(viewport.scrollTop, 1);
 });
 
 test('preview plays from its current position at exact real-time multiples without changing the level', () => {

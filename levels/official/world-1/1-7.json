@@ -72,12 +72,112 @@
       "shield": null
     },
     {
-      "time": 13,
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.2511012205945445,
+      "y": 0.49877532843464706,
+      "color": "#06b6d4",
+      "patternColor": "#bbf7d0",
+      "pattern": "stripes",
+      "width": 192,
+      "height": 192
+    },
+    {
+      "time": 18,
       "kind": "food",
       "type": "P",
-      "x": 0.21714596371948924,
+      "x": 0.2963748964279515,
       "y": 0.49877532843464706,
       "lifetime": 5
+    },
+    {
+      "time": 18,
+      "kind": "food",
+      "type": "P",
+      "x": 0.2511012205945445,
+      "y": 0.11400578935649076,
+      "lifetime": 5
+    },
+    {
+      "time": 18,
+      "kind": "food",
+      "type": "P",
+      "x": 0.2058275447611375,
+      "y": 0.49877532843464706,
+      "lifetime": 5
+    },
+    {
+      "time": 18,
+      "kind": "food",
+      "type": "P",
+      "x": 0.2511012205945445,
+      "y": 0.8835448675128034,
+      "lifetime": 5
+    },
+    {
+      "time": 20,
+      "kind": "enemy",
+      "type": "mouse",
+      "random": true,
+      "randomCount": 3,
+      "shield": null
+    },
+    {
+      "time": 25,
+      "kind": "weapon",
+      "type": "bronze",
+      "x": 0.2963748964279515,
+      "y": 0.11400578935649076
+    },
+    {
+      "time": 25,
+      "kind": "weapon",
+      "type": "wood",
+      "x": 0.2963748964279515,
+      "y": 0.8835448675128034
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-diamond",
+      "x": 0.38692224809476555,
+      "y": 0.49877532843464706,
+      "color": "#06b6d4",
+      "patternColor": "#bbf7d0",
+      "pattern": "stripes"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-diamond",
+      "x": 0.4321959239281726,
+      "y": 0.49877532843464706,
+      "color": "#06b6d4",
+      "patternColor": "#bbf7d0",
+      "pattern": "stripes"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-diamond",
+      "x": 0.4774695997615796,
+      "y": 0.49877532843464706,
+      "color": "#06b6d4",
+      "patternColor": "#bbf7d0",
+      "pattern": "stripes"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-diamond",
+      "x": 0.6321546588590536,
+      "y": 0.49877532843464706,
+      "color": "#06b6d4",
+      "patternColor": "#bbf7d0",
+      "pattern": "stripes",
+      "width": 304.3203863956534,
+      "height": 165.56521739130437
     }
   ],
   "bossLevel": false,
@@ -88,11 +188,11 @@
     "speed": 0.25,
     "events": [
       {
-        "time": 30,
+        "time": 45,
         "speed": 0
       },
       {
-        "time": 45,
+        "time": 60,
         "speed": 0.25
       },
       {

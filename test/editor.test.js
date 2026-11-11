@@ -813,6 +813,32 @@ test('overlap picker deduplicates visible events, shares timeline details and se
   assert.equal(JSON.stringify(events), before, 'picking never modifies level content');
 });
 
+test('timeline navigation centers rendered marker positions without consulting spawn time or moving preview time', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const viewport = { scrollLeft: 300, scrollTop: 500, clientLeft: 2, clientTop: 3,
+    clientWidth: 400, clientHeight: 600, getBoundingClientRect: () => ({ left: 100, top: 200 }) };
+  let rectangles = [{ left: 480, top: 700, width: 40, height: 40 }];
+  const timeline = { value: 35 };
+  const context = vm.createContext({ $: selector => selector === '#editor-board-scroll' ? viewport
+    : selector === '#timeline' ? timeline : {
+      querySelectorAll: () => rectangles.map(rect => ({ getBoundingClientRect: () => rect, scrollIntoView() {} })),
+    } });
+  vm.runInContext(source.slice(source.indexOf('function centerEventMarker('), source.indexOf('function pickOverlappingMarker(')), context);
+  context.centerEventMarker(0);
+  assert.equal(viewport.scrollLeft, 498);
+  assert.equal(viewport.scrollTop, 717);
+  assert.equal(timeline.value, 35);
+  rectangles = [{ left: 200, top: 300, width: 40, height: 40 }, { left: 400, top: 500, width: 40, height: 40 }];
+  context.centerEventMarker(1);
+  assert.equal(viewport.scrollLeft, 516, 'formation uses the mean rendered center');
+  assert.equal(viewport.scrollTop, 634);
+  rectangles = [];
+  context.centerEventMarker(2);
+  assert.equal(viewport.scrollLeft, 516, 'filtered random markers do not cause camera fallback');
+  assert.doesNotMatch(source, /if \(common\(items\.map\(event => event\.time\)\) !== MIXED\) \$\('#timeline'\)\.value/);
+  assert.match(source, /renderPreviewTime\(Number\(\$\('#timeline'\)\.value\), false, false\)/);
+});
+
 test('drag and nudge origins for random events use their displayed spawn-time screen center', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const game = new Game(() => .5, { customLevel: { ...blank(), autoscroll: { length: 56, speed: 2, events: [] } } });
@@ -847,7 +873,7 @@ test('timeline categories have subdued card colors and artwork while retaining s
     document: { createElement: node }, plural: (n, noun) => `${n} ${noun}s`,
     description: event => event.type, isAdditive: click => click.shiftKey,
     picture: (value, control) => Object.assign(node(), { value, control }),
-    choose: (...args) => choices.push(args),
+    choose: (...args) => choices.push(args), centerEventMarker() {},
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
   vm.runInContext(source.slice(source.indexOf('function eventTimelineButton('), source.indexOf('function overlappingMarkers(')), context);
