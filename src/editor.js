@@ -117,6 +117,7 @@ function syncAccess() {
   board.dataset.readOnly = String(locked);
   $('#editor-bricks').setAttribute('aria-label', locked ? 'Read-only boundary bricks' : 'Editable boundary bricks');
   $('#playtest').textContent = locked ? 'Play game level →' : 'Playtest →';
+  $('#copy-official-level').disabled = !locked || campaignMode.active.id !== 'official';
 }
 
 function selectEditorLevel() {
@@ -162,9 +163,33 @@ function selectEditorLevel() {
   }
   showCategory(activeCategory);
   syncAccess();
-  message(readOnly() ? 'Game level opened read-only. Select your custom level to resume editing.' : 'Your custom workspace restored.');
+  message(readOnly()
+    ? 'Game level opened read-only. Select your custom level to resume editing, or use Edit a copy for an Official level.'
+    : 'Your custom workspace restored.');
 }
 $('#editor-level').addEventListener('change', () => { pausePreview(); attempt(selectEditorLevel); });
+
+function copyOfficialLevel() {
+  if (!readOnly() || campaignMode.active.id !== 'official') return;
+  const campaign = LEVELS[campaignIndex];
+  const authored = globalThis.KoshiOfficialLevels.find(entry => entry.id === campaign.id);
+  const candidate = validateDraft(authored ? authored.level
+    : { ...campaignPreview(campaignIndex), version: 1, id: campaign.name });
+  if (customWorkspace?.dirty
+    && !confirm('Replace your unsaved custom workspace with this Official level copy? Print JSON and save the text first to keep it.')) return;
+  campaignIndex = null;
+  customWorkspace = null;
+  committed = '';
+  $('#editor-level').value = 'custom';
+  $('#timeline').value = 0;
+  $('#level-json').value = '';
+  syncAccess();
+  replaceLevel(candidate);
+  showCategory(activeCategory);
+  message('Official level copied into your editable workspace. Edit and Print JSON; the built-in game level is unchanged.');
+}
+$('#copy-official-level').addEventListener('click', () => attempt(copyOfficialLevel));
+
 for (const type of ['click', 'change', 'input', 'submit']) document.addEventListener(type, event => {
   if (!readOnly() || !event.target.closest('button, input, select, textarea, form')
     || !event.target.closest([...accessFields, ...writeButtons].join(', '))) return;

@@ -948,21 +948,108 @@ test('read-only campaign controls lock all write surfaces but leave inspection a
   const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access'];
   const writeButtons = ['#place-mode', '#new-level'];
   const board = { dataset: {} };
-  const context = vm.createContext({ $, board, accessFields, writeButtons, readOnly: () => locked, level: { id: '1-19', name: 'Finale' } });
+  const campaignMode = { active: { id: 'official' } };
+  const context = vm.createContext({ $, board, accessFields, writeButtons, campaignMode,
+    readOnly: () => locked, level: { id: '1-19', name: 'Finale' } });
   vm.runInContext(source.slice(source.indexOf('function syncAccess('), source.indexOf('function selectEditorLevel(')), context);
   context.syncAccess();
   for (const selector of [...accessFields, ...writeButtons]) assert.equal($(selector).disabled, true);
   for (const selector of accessFields) assert.ok(html.includes(`<fieldset id="${selector.slice(1)}"`));
   assert.equal(board.dataset.readOnly, 'true');
   assert.equal($('#playtest').textContent, 'Play game level →');
+  assert.equal($('#copy-official-level').disabled, false);
   for (const selector of ['#editor-level', '#timeline', '#orientation', '#show-all', '#show-random', '#select-mode']) assert.equal($(selector).disabled, false);
   locked = false; context.syncAccess();
   for (const selector of [...accessFields, ...writeButtons]) assert.equal($(selector).disabled, false);
   assert.equal(board.dataset.readOnly, 'false');
+  assert.equal($('#copy-official-level').disabled, true);
+  locked = true; campaignMode.active.id = 'beta'; context.syncAccess();
+  assert.equal($('#copy-official-level').disabled, true, 'Beta levels stay read-only');
   for (const fn of ['markChanged', 'moveEvent', 'placeAt', 'startPlacement', 'deleteSelected']) {
     assert.match(source.slice(source.indexOf(`function ${fn}(`)), /^function [^{]+\{\s+if \(readOnly\(\)\) return;/);
   }
   assert.ok(source.includes("if (readOnly()) { down.stopPropagation(); return; }"), 'campaign markers cannot be dragged');
+});
+
+test('Official levels copy authored JSON into an independent editable workspace and export without campaign metadata', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const bundle = require('../src/official-levels.generated.js');
+  const { OFFICIAL_WORLDS, OFFICIAL_LEVEL_DATA, assembleCampaign } = require('../src/campaign.js');
+  const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  const before = JSON.stringify({ bundle, levels });
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {},
+      addEventListener(type, handler) { this.listeners[type] = handler; } });
+    return nodes.get(selector);
+  };
+  let confirms = 0, allowReplace = true;
+  const context = vm.createContext({
+    $, LEVELS: levels, KoshiOfficialLevels: bundle,
+    Game: class extends Game { constructor(random, options) { super(random, { ...options, levels }); } },
+    campaignMode: { active: { id: 'official' } }, campaignIndex: 0,
+    validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
+    activeCategory: 'food', customWorkspace: null, level: null, committed: '',
+    confirm() { confirms++; return allowReplace; },
+    syncAccess() {}, pausePreview() {}, populateTrackForm() {}, populateSettings() {}, populateCutscene() {},
+    populateLevelInfo() {}, setSelection() {}, showCategory() {}, message() {}, attempt: action => action(),
+  });
+  context.readOnly = () => context.campaignIndex !== null;
+  context.markChanged = () => { context.dirty = JSON.stringify(context.level) !== context.committed; };
+  vm.runInContext(source.slice(source.indexOf('function campaignPreview('), source.indexOf('function syncAccess('))
+    + source.slice(source.indexOf('function replaceLevel('), source.indexOf('let previewPlayback'))
+    + source.slice(source.indexOf('function copyOfficialLevel('), source.indexOf("for (const type of ['click', 'change', 'input', 'submit'])")), context);
+
+  for (const [index, campaign] of levels.entries()) {
+    context.campaignIndex = index;
+    context.customWorkspace = { dirty: false };
+    $('#editor-level').value = String(index);
+    $('#level-json').value = 'Stale JSON';
+    $('#copy-official-level').listeners.click();
+    assert.equal(context.campaignIndex, null);
+    assert.equal(context.customWorkspace, null);
+    assert.equal($('#editor-level').value, 'custom');
+    assert.equal($('#level-json').value, '');
+    assert.equal(context.dirty, true, 'copied level is unsaved');
+    assert.equal(context.level.id, campaign.name, 'JSON uses the authored name, not the permanent save ID');
+    const authored = bundle.find(entry => entry.id === campaign.id);
+    const printed = validateCustomLevel(context.level, { requireCatBlockConsistency: true });
+    assert.deepEqual(printed, context.level);
+    if (authored) {
+      assert.deepEqual(printed, authored.level, 'unchanged copy prints the complete authored JSON');
+      assert.notEqual(context.level, authored.level);
+      assert.notEqual(context.level.events, authored.level.events);
+      assert.ok(context.level.events.every(event => !Object.hasOwn(event, 'previewRandom')));
+    }
+    for (const key of ['name', 'number', 'worldId', 'food', 'enemies', 'weapons', 'items']) {
+      assert.equal(Object.hasOwn(printed, key), false, `${key} is not source-level JSON`);
+    }
+    context.level.id = 'Edited copy';
+    if (context.level.events.length) context.level.events[0].time = 0;
+    if (context.level.brickTypes?.length) context.level.brickTypes[0].kind = 'normal';
+    if (context.level.cutscene?.lines.length) context.level.cutscene.lines[0].text = 'Changed dialogue';
+    assert.equal(JSON.stringify({ bundle, levels }), before, 'editing nested fields never mutates the built-in game');
+  }
+  assert.equal(confirms, 0, 'clean custom workspace does not prompt');
+  context.campaignIndex = 0;
+  const workspace = { dirty: true, level: blank() };
+  context.customWorkspace = workspace;
+  const previous = context.level;
+  allowReplace = false;
+  context.copyOfficialLevel();
+  assert.equal(confirms, 1);
+  assert.equal(context.level, previous);
+  assert.equal(context.customWorkspace, workspace);
+  assert.equal(context.campaignIndex, 0);
+  allowReplace = true;
+  context.copyOfficialLevel();
+  assert.equal(confirms, 2);
+  assert.equal(context.campaignIndex, null);
+  context.campaignMode.active.id = 'beta';
+  context.campaignIndex = 0;
+  const officialCopy = context.level;
+  context.copyOfficialLevel();
+  assert.equal(context.level, officialCopy, 'Beta copy attempts do not change the workspace');
 });
 
 test('campaign play links choose the original game level and malformed links report an error', () => {

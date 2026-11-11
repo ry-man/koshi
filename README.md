@@ -264,7 +264,8 @@ start on the second line. The focused page heading has no browser-default outlin
 navigation buttons retain their keyboard focus indicators.
 Click **Apply information** before saving, exporting JSON, or playtesting.
 Disabling the section and applying removes the information from the level.
-Campaign levels remain read-only in the editor; use custom levels for authoring.
+Campaign originals remain read-only; Official levels can be copied into the
+custom workspace with **Edit a copy**.
 
 Information appears after any opening cutscene and before the objectives.
 Small left/right arrows beside the page counter browse pages; **Close** or
@@ -1022,6 +1023,13 @@ placements, not fixed campaign coordinates. **Play game level** opens the origin
 campaign level, not an editable snapshot. Editing and JSON printing/loading
 are disabled while viewing game levels. Select **Your custom level** to
 restore your custom workspace and unsaved work; browsing never overwrites it.
+To revise an Official level, select **Official** under **Game version**, select
+the level, then click **Edit a copy**. This loads an independent editable copy
+using the authored data, preserving random spawns, groups, dialogue and settings.
+Replacing an unsaved custom workspace asks for confirmation first.
+Edit the copy, use **Playtest** to test only that snapshot, then **Print JSON**
+to copy the result into the source JSON file manually. Copying, editing and
+playtesting never update the built-in campaign or its source files.
 It is a separate page, works by double-clicking the file, and is included in
 the GitHub Pages deployment at `/koshi/editor.html`. No server-side storage
 or build tools are needed.
