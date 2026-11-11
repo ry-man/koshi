@@ -28,6 +28,89 @@ Food badges reuse offscreen artwork so emoji color filters do not run on the
 game canvas every frame. The cache refreshes on board resize and font loading,
 and includes resolution for pickup-pop animations.
 
+## On-demand performance test
+
+Run **Terminal -> Run Task -> Performance Test (on demand)** in VS Code, or:
+
+```sh
+npm run perf
+```
+
+On Windows, use `npm.cmd run perf` if needed. This is strictly opt-in: it is not
+part of startup, builds, `npm test`, publishing, or CI. Ordinary play does not
+load the recorder, install observers, or wrap the frame loop. The small recorder
+unit tests in `npm test` do not launch browsers or run performance scenarios.
+Use the existing Playwright setup (`npm ci`, then `npm run setup:publish`) if
+browser dependencies are not already installed.
+
+The command starts its own loopback server and isolated Chromium profile,
+blocks service workers, and closes everything afterward. It never uses your
+personal saves or edits level content. It runs:
+
+- Two warmed-up 30-second gameplay runs each of Official 1-2, a scrolling Beta
+  level, and a busy non-scrolling Beta level selected by authored event count.
+- A 120-second active-gameplay soak split across five real UI restart cycles
+  in the same page, with natural-memory samples each second and post-GC retained
+  heap/DOM counts between segments. Forced GC never runs inside timed segments.
+- A separate full-duration CPU/timeline diagnostic replay of the scenario with
+  the worst measured p99, using the same seed/restart procedure. Profiling
+  overhead is excluded from regression results. `--profile-seconds` can override
+  the replay duration; otherwise it follows `--seconds`.
+
+Expect several minutes, plus introductions, warm-up, and any automatic recovery
+from wins/losses. Each timed segment must collect the requested amount of active
+gameplay and real pointer inputs, not merely wait with the page open. The runner
+uses a fixed random seed and repeated input sequence; real frame scheduling and
+resulting gameplay are not lockstep deterministic. Reports include actual
+inputs, recoveries, elapsed game time, and entity counts for context.
+
+Ignored `performance-results/<timestamp>/` folders contain:
+
+- `summary.txt`: frame interval p95/p99/max, >33 ms and >50 ms counts, simulation,
+  UI, render, and total JavaScript frame-work timings; retained-memory changes.
+- `report.json`: raw recent frames, median/mean/percentiles, slow-frame context,
+  enemies/projectiles/effect counts, available Long Animation Frame/Long Task
+  attribution, browser/environment metadata, memory/layout metrics, and errors.
+- `diagnostic-trace.json`: load in Chrome DevTools **Performance** to inspect
+  scripting, GC, style/layout, paint, and raster activity.
+- `diagnostic.cpuprofile` and `diagnostic.png`: CPU call tree and replay screenshot.
+
+The 60 Hz frame budget is 16.67 ms. Frame intervals and JavaScript frame work
+are separate measurements: low JavaScript cost does not rule out rendering or
+scheduling stalls. Paused gameplay, dialogs, transitions, and background-tab
+gaps are excluded. Frame history is bounded to the newest 18,000 samples per
+segment; percentiles and threshold counts use that retained window, and the
+report flags truncation. Slow-frame/observer details retain the latest 200
+entries. Long Animation Frames only cover severe stalls (about 50 ms+) and
+browser support varies; frame interval recording remains the primary measure.
+
+Options are forwarded after `--`, for example:
+
+```sh
+npm run perf -- --cpu 4 --headed
+npm run perf -- --seconds 5 --warmup 1 --repeats 1 --soak-seconds 10 --restarts 2 --profile-seconds 3
+npm run perf -- --baseline performance-results/<previous-run>/report.json
+```
+
+Other options: `--output <directory>` and positive durations/counts for the
+flags shown above. A baseline must have the same browser version, platform,
+viewport, headless mode, CPU throttle, and workload settings. The command fails
+on browser/application errors, missing gameplay coverage, or a baseline p95
+regression exceeding **both 20% and 1 ms** in any measured phase/frame interval.
+Without a baseline, timing thresholds are diagnostic, not machine-dependent
+pass/fail gates. Memory growth is a signal to investigate, not proof of a leak.
+Use controlled hardware for comparisons; headless CI and CPU throttling do not
+replace testing on an actual lower-end device.
+
+For manual reproduction, serve the game and add `&perf=1` to its URL, for
+example <http://127.0.0.1:4173/?game=official&perf=1>. This lazily enables a
+once-per-second overlay and bounded recorder only for that page. In the browser
+console, use `KoshiPerformance.snapshot()` to inspect/export the report,
+`stop()` to stop recording, `start()` to reset and resume, or
+`setOverlay(false)` to hide the overlay (all methods on `KoshiPerformance`).
+Record a Chrome DevTools Performance trace while reproducing manual issues.
+The automated runner hides the overlay to avoid its DOM-update overhead.
+
 ## Publishing Official levels
 
 1. Export a level from the editor to `levels/official/`, usually under its world

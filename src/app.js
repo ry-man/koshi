@@ -5068,5 +5068,33 @@ if (game && (game.level.cutscene || game.level.levelInfo)
 document.body.classList.remove('game-loading');
 installBackNavigation();
 new ResizeObserver(resize).observe(board);
-requestAnimationFrame(frame);
+if (new URLSearchParams(location.search).get('perf') === '1') {
+  import('./performance.js').then(() => {
+    const monitor = globalThis.KoshiPerformanceTools.createMonitor({
+      isActive: () => game?.state === 'playing' && !document.querySelector('dialog[open]')
+        && !phaseTransition.busy && !cutscene.active,
+      getScene: () => ({
+        level: game?.level.id, elapsed: game?.elapsed ?? 0, state: game?.state,
+        counts: Object.fromEntries([
+          'robots', 'food', 'items', 'enemyDeaths', 'weaponAttacks', 'bossProjectiles',
+          'turretProjectiles', 'turretEffects', 'hazardBeams', 'hazardFlames',
+          'hazardMissiles', 'hazardExplosions', 'paintEffects', 'brickDestructions',
+          'glassBreaks', 'bubblePops', 'goalEffects', 'pickups',
+        ].map(key => [key, game?.[key]?.length ?? 0])),
+        enemyProjectiles: game?.robots.reduce((sum, enemy) =>
+          sum + (enemy.waves?.length ?? 0) + (enemy.bombs?.length ?? 0), 0) ?? 0,
+      }),
+    });
+    Game.prototype.update = monitor.wrapPhase('simulation', Game.prototype.update);
+    syncUI = monitor.wrapPhase('ui', syncUI);
+    render = monitor.wrapPhase('render', render);
+    frame = monitor.wrapFrame(frame);
+    globalThis.KoshiPerformance = monitor;
+    requestAnimationFrame(frame);
+  }).catch(error => {
+    console.error('Performance diagnostics could not be loaded:', error);
+    reportCampaignError(error);
+    requestAnimationFrame(frame);
+  });
+} else requestAnimationFrame(frame);
 })();

@@ -1,5 +1,6 @@
 node_modules/
 coverage/
+performance-results/
 _site/
 npm-debug.log*
 .DS_Store

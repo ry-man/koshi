@@ -2,6 +2,15 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Performance Test (on demand)",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/performance.js"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
       "label": "Publish Official Levels",
       "type": "process",
       "command": "node",

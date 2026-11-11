@@ -9,6 +9,7 @@
     "test": "node --test",
     "start": "node tools/serve.js",
     "smoke:official": "node tools/smoke-official-levels.js",
+    "perf": "node tools/performance.js",
     "publish:official": "node tools/publish-official-levels.js",
     "publish:official:check": "node tools/publish-official-levels.js --check",
     "setup:publish": "playwright install chromium"
