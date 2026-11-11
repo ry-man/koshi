@@ -489,7 +489,8 @@ test('every weapon replaces the current weapon and resets its hit count or timer
   const game = arena();
   assert.deepEqual(Object.fromEntries(Object.entries(WEAPONS).map(([type, weapon]) => [type, weapon.uses])),
     { wood: 1, bronze: 3, silver: 5, gold: 10, 'hammer-bronze': 3, 'hammer-silver': 5, 'hammer-gold': 10,
-      'axe-silver': undefined, 'axe-gold': undefined });
+      'axe-silver': undefined, 'axe-gold': undefined,
+      'rope-dart-bronze': 3, 'rope-dart-silver': 5, 'rope-dart-gold': 10 });
   for (const current of Object.keys(WEAPONS)) {
     for (const replacement of Object.keys(WEAPONS)) {
       equip(game, current);
@@ -601,7 +602,7 @@ test('weapon drop artwork falls with gravity, rotates, settles, then fades witho
 });
 
 test('exhausted and timed-out weapons become harmless fades that pause, finish and reset', () => {
-  for (const type of Object.keys(WEAPONS)) {
+  for (const type of Object.keys(WEAPONS).filter(type => !WEAPONS[type].ropeDart)) {
     for (const state of ['playing', 'won', 'lost', 'boss-defeated']) {
       const game = arena();
       equip(game, type);
@@ -723,7 +724,7 @@ test('attack effects freeze on pause and fade after the level ends', () => {
 });
 
 test('every sword defeats wheels too, and swept motion collects weapons and hearts', () => {
-  for (const type of Object.keys(WEAPONS)) {
+  for (const type of Object.keys(WEAPONS).filter(type => !WEAPONS[type].ropeDart)) {
     const game = arena();
     equip(game, type);
     game.spawnEnemies([0, 'wheel', 1]);

@@ -34,7 +34,7 @@ const GUIDE = [
         item.name, `Adds ${item.seconds} seconds to the level clock. The +${item.seconds}s is printed on its face. Stopwatch bonuses add together.`, `item:${type}`,
       ]),
       [ITEMS.battery.name, 'Adds one charge to the battery stockpile. The swirling lightning bolt shows how many you hold. Touch a used spawning brick to make it produce its item again; each new touch spends one battery.', 'item:battery'],
-      [ITEMS.anvil.name, 'A shaded black iron anvil with grey and blue highlights and a thin bright outline fully restores your held weapon: original strikes for swords and hammers, or a fresh full timer for axes. It does not stack extra strikes or time, replace the weapon, or affect the level clock. Collected with no effect when unarmed.', 'item:anvil'],
+      [ITEMS.anvil.name, 'A shaded black iron anvil with grey and blue highlights and a thin bright outline fully restores your held weapon: original strikes for swords and hammers, original shots for Rope Darts, or a fresh full timer for axes. It does not stack extra strikes, shots or time, replace the weapon, or affect the level clock. Collected with no effect when unarmed.', 'item:anvil'],
       [ITEMS['music-box'].name, 'Puts enemies to sleep for ten seconds. Most sleeping enemies cannot hurt Koshi, but Robo Snake’s spiked body remains dangerous. A scrolling musical score lasts for the whole effect; another box refreshes ten seconds. Simultaneous timed power-up banners occupy separate rows. Pause freezes the effect and animation.', 'item:music-box'],
       [ITEMS['kitty-cape'].name, 'A green cape like Koshi’s title-screen cape doubles his movement speed for ten seconds, including his current flight. Boost launches double that speed again; conveyors keep their normal pace. A translucent banner of cat heads and lightning bolts scrolls behind the arena for the whole effect. Another cape refreshes ten seconds without stacking. Pause freezes the power and animation; restart clears both. Available for custom-level placements and spawners.', 'item:kitty-cape'],
       [ITEMS.eggplant.name, 'A harmful pickup: subtracts 10 food points, but never lowers your score below zero.', 'item:eggplant'],
@@ -154,14 +154,16 @@ const GUIDE = [
       ['Damage & defeats', 'Unarmed contact with hostile robots costs one heart; Robo Goalie is harmless. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach an attackable robot to strike automatically. Love Bugs require Barrier isolation instead and can hurt Koshi even while he holds a weapon.'],
       ...Object.entries(WEAPONS).map(([type, weapon]) => [
         weapon.name,
-        weapon.axe
+        weapon.ropeDart
+          ? `${weapon.uses} shots. Select a brick while resting to fire along the selected line. One shot deals one hit to each enemy crossed. Koshi waits until the dart hits a brick, obstruction or bumper, then is pulled toward it to collect it. Normal surface effects still apply. Moving clicks steer without firing; no new shot until collection. No automatic melee damage. Cannot damage Love Bugs or Tom the Toaster.`
+          : weapon.axe
           ? `Unlimited strikes for ${weapon.seconds} seconds after pickup. The entire brown shaft continuously turns white starting at the top end above the blade, then continuing toward the butt, becoming all white at expiry. An Anvil refills it to brown. Each contact deals one hit, including shield hits. Pause freezes the timer and handle meter. Cannot damage Love Bugs or Tom the Toaster.`
           : weapon.hammer
           ? `${weapon.uses} hammer hits. Each contact spends as many hits as possible to damage an enemy shield or defeat an unshielded enemy, using no more hits than needed. Cannot damage Love Bugs or Tom the Toaster.`
           : `${weapon.uses} sword hit${weapon.uses === 1 ? '' : 's'} before breaking. Shield hits also spend a hit. Cannot damage Love Bugs or Tom the Toaster.`,
         `weapon:${type}`,
       ]),
-      ['One weapon at a time', 'Every collected sword, hammer or axe replaces your current weapon and resets its hit count or timer. A weaker weapon can reduce your remaining hits or time. Weapons stop working immediately when their strikes or time run out, then fade away over 0.55 seconds. Uncollected weapons remain until their optional on-screen lifetime expires, or until the level ends.'],
+      ['One weapon at a time', 'Every collected weapon replaces your current weapon and resets its hit count, shots or timer. A weaker weapon can reduce your remaining capacity. Weapons stop working immediately when their strikes or time run out, then fade away over 0.55 seconds. The final Rope Dart shot finishes its pull before fading. Uncollected weapons remain until their optional on-screen lifetime expires, or until the level ends.'],
     ],
   },
   {
@@ -255,7 +257,8 @@ const LESSONS = [
   { id: 'ditto-stamp', title: 'Ditto Stamp', instruction: 'Collect the stamp and land on one brick to copy its properties. Land on another to apply them; the destination keeps its shape.' },
   { id: 'paintbrush', title: 'Paintbrushes', instruction: 'Collect the green brush, then touch a different brick. It changes that brick to a ready Normal brick; red paints Fast and blue paints Slow.' },
   { id: 'keys', title: 'Keys, chests & Cat Blocks', instruction: 'Collect the key, then touch the chest to spend it and collect the Cat Block. Campaign Cat Blocks are kept only after a win.' },
-  { id: 'anvil', title: 'Anvil', instruction: 'Choose a weapon, then collect the anvil. Your partially used weapon returns to its full strike count or full axe timer. Anvils do nothing when unarmed.' },
+  { id: 'anvil', title: 'Anvil', instruction: 'Choose a weapon, then collect the anvil. Your partially used weapon returns to its full strike count, shot count or full axe timer. Anvils do nothing when unarmed.' },
+  { id: 'rope-dart', title: 'Rope Dart', instruction: 'While resting, select the outlined brick to fire the Silver Rope Dart through both robots. Koshi waits for the dart to stop, then follows the rope and collects it. One click spends one shot, even when it hits multiple enemies.' },
 ];
 
 class Tutorial {
@@ -319,7 +322,11 @@ class Tutorial {
     const addFood = (fraction, value = 'S') => {
       game.food.push({ ...along(fraction), id: game.foodId++, type: value, born: 0, expires: 3600, lifetime: 3600 });
     };
-    const addSword = () => game.weapons.push({ ...along(.22), type: this.sword });
+    const addSword = () => {
+      if (WEAPONS[this.sword].ropeDart) {
+        game.weapon = { type: this.sword, uses: WEAPONS[this.sword].uses, expires: Infinity };
+      } else game.weapons.push({ ...along(.22), type: this.sword });
+    };
     const id = this.lesson.id;
     if (id === 'robo-love-bug') {
       this.target.barrier = true;
@@ -468,6 +475,13 @@ class Tutorial {
         expires: weapon.seconds ? game.elapsed + 2 : Infinity };
       addItem('anvil', .5);
     }
+    if (id === 'rope-dart') {
+      game.weapon = { type: 'rope-dart-silver', uses: WEAPONS['rope-dart-silver'].uses, expires: Infinity };
+      for (const fraction of [.45, .8]) {
+        game.robots.push({ ...along(fraction), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
+      }
+      game.enemiesSleepUntil = Infinity;
+    }
     if (id === 'cat-shield') {
       addItem('cat-shield-blue');
       game.robots.push({ ...along(.8), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
@@ -587,6 +601,7 @@ class Tutorial {
         && (WEAPONS[game.weapon.type].seconds
           ? game.weapon.expires - game.elapsed > WEAPONS[game.weapon.type].seconds - 1
           : game.weapon.uses === WEAPONS[game.weapon.type].uses),
+      'rope-dart': game.enemies >= 2 && !game.ropeDart && this.actions > 0,
       'cat-shield': game.catShield === 'green' && game.hearts === 3 && game.tookDamage,
       'music-box': game.musicStreamUntil > game.elapsed,
       'spooky-mask': game.maskActive && game.robots.some(enemy => enemy.afraid),

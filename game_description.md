@@ -835,6 +835,29 @@ changes the weapon type, or adds level time. When unarmed, Koshi collects it wit
 no effect. Available for custom-level placements, spawners and enemy drops only.
 Anvil practice demonstrates replenishment with any selected weapon.
 
+### Rope Darts
+Bronze, Silver and Gold Rope Darts have 3, 5 and 10 shots, matching the corresponding
+weapon colors. A ground pickup shows a grey-white rope coil beside a wide,
+minimalist faceted dart; after pickup only the dart and its remaining shot count
+are held. Selecting a usable brick while resting launches along the selected line
+and spends one shot. Koshi waits while the dart flies; each enemy crossed takes
+one hit, including shield downgrades, without consuming additional shots. Protected
+enemies, Robo Love Bugs and Tom remain immune. The dart stops at bricks,
+obstructions and bumpers, then pulls Koshi directly toward it along a visible
+grey-white rope. A dart attached to a moving obstruction or bumper moves with it
+until retrieval; destruction of its attachment reels it back safely.
+If collision clearance stops Koshi before he can reach the dart,
+it reels back along the remaining rope without dealing extra damage.
+Collection enables another shot; the last shot completes the
+pull before fading. Retrieval clears pull momentum; obstructions stop Koshi,
+while normal bumper contact bounces him away.
+Moving clicks steer normally without firing; deployed darts
+cannot be redirected or fired again before collection. Body contact does not
+auto-attack. Arrival applies normal surface effects, including spikes, slime,
+springs, portals and bumpers. Pause freezes flight and pull; restart clears both.
+Anvils refill shots; a replacement weapon cancels deployment. Available in custom
+levels, spawners, enemy drops, the editor, guide and dedicated practice only.
+
 Robo Love Bugs are immune to every sword, hammer and axe, as well as Boost and turret
 attacks; use Barrier fences to isolate them instead.
 

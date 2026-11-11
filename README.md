@@ -660,13 +660,38 @@ the board; phones keep compact controls above it without scrolling away from pla
   Replaced axes retain their meter state while dropping; expired axes fade with
   a white handle.
   Axes cannot damage Robo Love Bugs or Tom the Toaster.
+  Custom levels also support **Bronze, Silver and Gold Rope Darts** with **3, 5
+  and 10 shots**. Select a usable brick while Koshi is resting to launch the dart
+  along the exact selected line. One click spends one shot; the dart pierces
+  multiple robots, dealing one hit to each (including a shield downgrade), and
+  stops at the first brick, obstruction or bumper. Koshi stays still during
+  flight, then is pulled directly toward the stopped dart to collect it.
+  Retrieval stops the pull's momentum. Contact effects still apply normally:
+  obstructions stop Koshi, while bumpers bounce him away.
+  During the pull, the dotted trajectory ends at the dart or first blocking
+  surface, without predicting sliding or a bounce beyond retrieval.
+  A dart attached to a moving obstruction or bumper follows that object's motion
+  while Koshi approaches. If the object is destroyed, the dart reels back safely.
+  Collision clearance can stop Koshi short on angled approaches; the dart then
+  reels back along the remaining rope for collection without dealing extra damage.
+  Normal contact effects still apply, including spikes, slime, springs, portals and
+  bumpers. Moving clicks steer normally without firing; clicks during deployment
+  cannot redirect the pull or launch another dart. The final shot completes its
+  pull before the weapon fades. Rope Darts do not auto-attack on body contact,
+  damage Love Bugs or Tom, or spend extra shots for hitting multiple enemies.
+  Ground pickups show a grey-white coiled rope and a wide, faceted metal dart;
+  held weapons show only the numbered dart. In flight, the grey-white rope joins
+  Koshi to the dart. Pause freezes both flight and pull; restart clears them.
+  Anvils restore original shot counts, including while deployed. Replacing the
+  weapon cancels its deployment. The editor, spawners, enemy drops, guide and
+  dedicated Rope Dart practice support all three variants without campaign changes.
   The **Anvil**, available in custom levels, spawners and enemy drops, fully
   restores the held weapon's original strike count or axe duration without
   stacking, changing weapon type or adding level time. It is collected with no
   effect when unarmed. Its traditional iron shape is black with shaded grey and
   bluish highlights and a thin bright blue-white outline for contrast.
   Anvil practice lets you choose any weapon and replenish it.
-  The replaced sword, hammer or axe visibly drops, rotates as it falls, then fades away;
+  The replaced weapon visibly drops, rotates as it falls, then fades away;
   it is only a visual effect and cannot be collected again.
   When a weapon runs out of strikes or its timer expires, it stops working
   immediately but fades visually in place over 0.55 seconds. This cosmetic fade

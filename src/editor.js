@@ -811,7 +811,8 @@ function renderList() {
     if (['food', 'enemy', 'weapon'].includes(event.kind)) {
       const totals = pointReference([event], []);
       const amount = event.kind === 'weapon' ? totals.weaponHits : totals[event.kind];
-      const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
+      const label = event.kind === 'weapon' && WEAPONS[event.type].ropeDart ? 'weapon shots'
+        : { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
       const badge = document.createElement('span');
       badge.className = 'event-points';
       const strikes = amount === Infinity ? 'Unlimited (timed)' : String(amount);

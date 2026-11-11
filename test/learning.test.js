@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 61);
+  assert.equal(LESSONS.length, 62);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -138,7 +138,7 @@ test('tutorial weapon choices match the game catalog', () => {
   for (const [type, weapon] of Object.entries(WEAPONS)) {
     const option = html.match(new RegExp(`<option value="${type}"[^>]*>([^<]+)<`));
     assert.ok(option, `missing ${type} option`);
-    const capacity = weapon.seconds ? `${weapon.seconds} seconds` : `${weapon.uses} hit`;
+    const capacity = weapon.seconds ? `${weapon.seconds} seconds` : `${weapon.uses} ${weapon.ropeDart ? 'shot' : 'hit'}`;
     assert.ok(option[1].includes(capacity), `${type} label matches its hit count or timer`);
   }
 });
@@ -344,7 +344,7 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
 
   test(`sword pickups and enemy intercepts complete without damage on ${layout}`, () => {
     for (const id of ['mouse', 'wheel', 'ram', 'bucket', 'objectives']) {
-      for (const sword of Object.keys(WEAPONS)) {
+      for (const sword of Object.keys(WEAPONS).filter(type => !WEAPONS[type].ropeDart)) {
         const tutorial = new Tutorial(); tutorial.sword = sword; tutorial.select(indexOf(id), options);
         aim(tutorial); wait(tutorial, .9);
         assert.equal(tutorial.observe(), true, `${id} using ${sword}`);

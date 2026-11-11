@@ -60,6 +60,7 @@ const SYMBOLS = {
   sword: 'M0 -23 L6 -14 L4 8 H-4 L-6 -14 Z M-10 9 H10 M0 9 V22',
   hammer: 'M-13 -19 H13 L17 -15 V-4 L13 0 H5 L3 3 H-3 L-5 0 H-13 L-17 -4 V-15 Z M0 -3 V27',
   axe: 'M-8 -25 Q-30 -10 -8 5 Q-15 -4 -8 -5 H8 Q15 -4 8 5 Q30 -10 8 -25 Q15 -16 8 -15 H-8 Q-15 -16 -8 -25 Z M0 -21 V27',
+  'rope-dart': 'M0 -27 L11 -4 L8 14 L0 19 L-8 14 L-11 -4 Z M0 -27 V19 M-16 -9 C-30 -9 -30 25 -16 25 C-2 25 -2 -9 -16 -9 M-16 -5 C-25 -5 -25 21 -16 21 C-7 21 -7 -5 -16 -5 M-16 25 Q-4 30 0 21',
   S: 'M-14 -8 Q-18 7 0 19 Q18 7 14 -8 Z M-14 -8 L-4 -6 L0 -16 L4 -6 L14 -8 M-6 0 L-5 3 M5 4 L4 7',
   P: 'M0 -2 C-20 -32 -30 10 -10 12 C8 16 24 -8 12 -14 C0 -26 -14 6 0 14 C22 26 26 -8 6 -6 M-14 10 L14 -10',
   B: 'M-18 -14 Q-12 22 18 12 L20 4 Q-6 12 -12 -16 Z',
@@ -89,7 +90,7 @@ const SYMBOLS = {
 };
 
 function spawnSymbol(spawn) {
-  return SYMBOLS[spawn.kind === 'weapon' ? WEAPONS[spawn.type].axe ? 'axe' : WEAPONS[spawn.type].hammer ? 'hammer' : 'sword' : spawn.kind === 'heart' ? 'heart'
+  return SYMBOLS[spawn.kind === 'weapon' ? WEAPONS[spawn.type].ropeDart ? 'rope-dart' : WEAPONS[spawn.type].axe ? 'axe' : WEAPONS[spawn.type].hammer ? 'hammer' : 'sword' : spawn.kind === 'heart' ? 'heart'
     : spawn.kind === 'item' && BOOM_TIME_TYPES.has(spawn.type) ? 'boom-time'
       : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch'
         : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}`

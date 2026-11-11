@@ -935,7 +935,7 @@ function syncUI() {
     ? Math.max(0, Math.ceil(game.weapon.expires - game.elapsed)) : null;
   const weaponLabel = game.weapon
     ? `Weapon: ${WEAPONS[game.weapon.type].name}, ${weaponTime === null
-      ? `${weaponCount} hit${weaponCount === 1 ? '' : 's'}`
+      ? `${weaponCount} ${WEAPONS[game.weapon.type].ropeDart ? 'shot' : 'hit'}${weaponCount === 1 ? '' : 's'}`
       : `${weaponTime} second${weaponTime === 1 ? '' : 's'}`} remaining`
     : 'Weapon: none equipped';
   if (weaponStatus.textContent !== weaponLabel) weaponStatus.textContent = weaponLabel;
@@ -968,7 +968,9 @@ function syncUI() {
     document.querySelector('#game-status').textContent = `Tap or click a point to aim and fire. Watch the ${color} arc on the turret.`;
     gameCanvas.setAttribute('aria-label', `Inside ${turret.type} turret. ${turret.shotsRemaining} shots remain; the ${color} arc shows time remaining. Click or tap a point to aim and fire.`);
   } else {
-    gameCanvas.setAttribute('aria-label', 'Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center. In a turret, click or tap to aim and fire.');
+    gameCanvas.setAttribute('aria-label', game.weapon && WEAPONS[game.weapon.type].ropeDart
+      ? `Game board. Rope Dart: ${game.ropeDart ? game.ropeDart.phase === 'flying' ? 'dart flying; Koshi waits' : game.ropeDart.phase === 'returning' ? 'reeling the dart back to Koshi' : 'pulling Koshi toward the dart' : 'select a brick while resting to fire; moving clicks steer normally'}. Keyboard users can Tab to a brick and press Enter.`
+      : 'Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center. In a turret, click or tap to aim and fire.');
   }
   if (tutorial) updateTutorial();
   pause.disabled = !['playing', 'paused'].includes(game.state);
@@ -1404,6 +1406,9 @@ function selectTutorial(index) {
   updateBoardVisibility();
   document.querySelector('#tutorial-step').value = String(index);
   document.querySelector('#tutorial-instruction').textContent = tutorial.lesson.instruction;
+  if (game.weapon && WEAPONS[game.weapon.type].ropeDart && !['anvil', 'rope-dart'].includes(tutorial.lesson.id)) {
+    document.querySelector('#tutorial-instruction').textContent += ' Your Rope Dart is already equipped: select a brick while resting to fire, then wait for the pull and collection.';
+  }
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
@@ -1563,7 +1568,9 @@ function guidePicture(picture, title, fillBrick = false) {
     drawRobot({ type, x: 80, y: 42, distance: 0 });
   } else if (kind === 'weapon') {
     ctx.save(); ctx.translate(80, 40); ctx.scale(1.25, 1.25);
-    drawWeapon(0, 0, type); ctx.restore();
+    if (WEAPONS[type].ropeDart) drawRopeDart(0, 0, WEAPONS[type].color, undefined, true);
+    else drawWeapon(0, 0, type);
+    ctx.restore();
   } else if (kind === 'item') {
     drawGameItem({ x: 80, y: 42, type });
   } else {
@@ -2274,7 +2281,8 @@ function render(now) {
   }
   for (const item of game.weapons) {
     if (!visible(item)) continue;
-    drawWeapon(item.x, item.y, item.type);
+    if (WEAPONS[item.type].ropeDart) drawRopeDart(item.x, item.y, WEAPONS[item.type].color, undefined, true);
+    else drawWeapon(item.x, item.y, item.type);
     drawObjectLifetime(item);
   }
   for (const enemy of game.robots) {
@@ -2439,7 +2447,7 @@ function render(now) {
     ctx.restore();
   }
   const swing = [...game.weaponAttacks].reverse().find(attack => attack.age < .18 && !attack.weaponExpired);
-  if (game.weapon || swing) {
+  if ((game.weapon || swing) && !game.ropeDart) {
     const type = game.weapon?.type ?? swing.type;
     const age = swing && swing.type === type ? swing.age : null;
     const swingAngle = age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4;
@@ -2451,6 +2459,7 @@ function render(now) {
         : []));
     ctx.restore();
   }
+  if (game.ropeDart) drawFlyingRopeDart(game);
   for (const attack of game.weaponAttacks) {
     const age = attack.age;
     if (age >= 0 && age < .55 && visible(attack, 64)) drawAttackPop(attack, age);
@@ -3005,9 +3014,48 @@ function drawAxe(x, y, color, label, remaining = 1) {
   ctx.restore();
 }
 
+function drawRopeDart(x, y, color, label, coiled = false) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(.5);
+  if (coiled) {
+    ctx.strokeStyle = '#87949f'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.ellipse(-15, 5, 9, 17, -.3, 0, Math.PI * 2);
+    ctx.ellipse(-15, 5, 5, 14, -.3, 0, Math.PI * 2);
+    ctx.moveTo(-12, 21); ctx.quadraticCurveTo(0, 29, 10, 17); ctx.stroke();
+    ctx.strokeStyle = '#edf0ed'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.translate(10, -2);
+  }
+  ctx.fillStyle = color; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -27); ctx.lineTo(11, -4); ctx.lineTo(8, 14);
+  ctx.lineTo(0, 19); ctx.lineTo(-8, 14); ctx.lineTo(-11, -4);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#17212a33'; ctx.beginPath();
+  ctx.moveTo(0, -27); ctx.lineTo(0, 19); ctx.lineTo(8, 14); ctx.lineTo(11, -4); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(0, 21, 3.5, 3, 0, 0, Math.PI * 2); ctx.stroke();
+  if (label !== undefined) {
+    ctx.fillStyle = '#000000'; ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, 0, 0, 16);
+  }
+  ctx.restore();
+}
+
+function drawFlyingRopeDart(game) {
+  const dart = game.ropeDart;
+  ctx.save();
+  ctx.strokeStyle = '#87949f'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(game.cat.x, game.cat.y); ctx.lineTo(dart.x, dart.y); ctx.stroke();
+  ctx.strokeStyle = '#edf0ed'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.translate(dart.x, dart.y);
+  ctx.rotate(Math.atan2(dart.direction.y, dart.direction.x) + Math.PI / 2 - .5);
+  drawRopeDart(0, 0, WEAPONS[dart.type].color, String(game.weapon.uses));
+  ctx.restore();
+}
+
 function drawWeapon(x, y, type, label, remaining) {
   const weapon = WEAPONS[type];
-  if (weapon.axe) drawAxe(x, y, weapon.color, label, remaining);
+  if (weapon.ropeDart) drawRopeDart(x, y, weapon.color, label);
+  else if (weapon.axe) drawAxe(x, y, weapon.color, label, remaining);
   else if (weapon.hammer) drawHammer(x, y, weapon.color, label);
   else drawSword(x, y, weapon.color, label);
 }

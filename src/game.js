@@ -184,7 +184,13 @@ const AXES = {
   'axe-silver': { name: 'Silver Axe', color: SWORDS.silver.color, seconds: 6, axe: true },
   'axe-gold': { name: 'Golden Axe', color: SWORDS.gold.color, seconds: 12, axe: true },
 };
-const WEAPONS = { ...SWORDS, ...HAMMERS, ...AXES };
+const ROPE_DARTS = Object.fromEntries(['bronze', 'silver', 'gold'].map(metal => [
+  `rope-dart-${metal}`, { name: `${metal[0].toUpperCase() + metal.slice(1)} Rope Dart`,
+    color: SWORDS[metal].color, uses: SWORDS[metal].uses, ropeDart: true },
+]));
+const ROPE_DART_SPEED = 900;
+const ROPE_DART_RADIUS = 8;
+const WEAPONS = { ...SWORDS, ...HAMMERS, ...AXES, ...ROPE_DARTS };
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const CAT_SHIELDS = {
   red: { hits: 1, next: null, color: '#ed5555' },
@@ -3145,6 +3151,7 @@ class Game {
     this.enemyDeaths = [];
     this.weaponAttacks = [];
     this.weaponDrops = [];
+    this.ropeDart = null;
     this.boss = null;
     this.bossDefeated = false;
     this.bossProjectiles = [];
@@ -3286,7 +3293,7 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.activeTurret || this.bubbleTrap || this.catCircleTrap
+    if (this.state !== 'playing' || this.activeTurret || this.ropeDart || this.bubbleTrap || this.catCircleTrap
       || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick) || !this.brickVisible(brick)) return false;
     if (this.level.autoscroll) {
       const camera = this.camera();
@@ -3299,6 +3306,7 @@ class Game {
     const distance = Math.hypot(dx, dy);
     if (!distance) return false;
     const boost = this.boostReady;
+    const fireDart = this.weapon && WEAPONS[this.weapon.type].ropeDart && !this.cat.vx && !this.cat.vy;
     const speed = SPEED * (boost ? 2 : 1) * (this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
     const vx = dx / distance * speed, vy = dy / distance * speed;
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
@@ -3339,6 +3347,13 @@ class Game {
       this.cat.vx = 0; this.cat.vy = 0;
       this.boosted = false; this.target = null;
       this.state = 'lost';
+    }
+    if (fireDart && this.state === 'playing') {
+      this.weapon.uses--;
+      this.ropeDart = { x: this.cat.x, y: this.cat.y, direction: { x: dx / distance, y: dy / distance },
+        type: this.weapon.type, phase: 'flying', hit: new Set() };
+      this.cat.vx = 0; this.cat.vy = 0;
+      this.boosted = false;
     }
     return true;
   }
@@ -3399,6 +3414,13 @@ class Game {
 
   predictedTrajectory() {
     const { x, y, vx, vy, radius } = this.cat;
+    if (this.ropeDart) {
+      if (this.ropeDart.phase !== 'pulling') return [];
+      const dx = this.ropeDart.x - x, dy = this.ropeDart.y - y;
+      const contact = Math.max(0, Math.min(1,
+        this.hazardObstacleTime(this.cat, dx, dy, radius, this.brickParts())));
+      return [[x, y], [x + dx * contact, y + dy * contact]];
+    }
     const speed = Math.hypot(vx, vy);
     if (!speed || this.conveyorRide) return this.target ? [[x, y], [this.target.x, this.target.y]] : [];
     const parts = this.brickParts(), spikes = this.spikeParts(parts);
@@ -3677,6 +3699,10 @@ class Game {
   }
 
   damageTurretEnemy(enemy) {
+    this.damageRangedEnemy(enemy);
+  }
+
+  damageRangedEnemy(enemy) {
     if (enemy.type === 'boss' || enemy.type === 'robo-love-bug') return;
     if (this.enemyDamageProgress(enemy) !== null || !this.robots.includes(enemy)) return;
     if (enemy.shield) {
@@ -6519,6 +6545,68 @@ class Game {
     });
     if (expired && age !== null) swing.weaponExpired = true;
     this.weapon = null;
+    this.ropeDart = null;
+  }
+
+  updateRopeDart(dt, previous) {
+    const dart = this.ropeDart;
+    if (!dart) return;
+    if (dart.phase === 'returning') {
+      const dx = this.cat.x - dart.x, dy = this.cat.y - dart.y;
+      const distance = Math.hypot(dx, dy);
+      const travel = Math.min(distance, ROPE_DART_SPEED * dt);
+      if (distance > 0) {
+        dart.x += dx / distance * travel; dart.y += dy / distance * travel;
+      }
+      if (distance - travel <= this.cat.radius + ROPE_DART_RADIUS) this.collectRopeDart();
+      return;
+    }
+    if (dart.phase !== 'flying') return;
+    const dx = dart.direction.x * ROPE_DART_SPEED * dt, dy = dart.direction.y * ROPE_DART_SPEED * dt;
+    const edge = Math.min(
+      dx > 0 ? (this.width - ROPE_DART_RADIUS - dart.x) / dx : dx < 0 ? (ROPE_DART_RADIUS - dart.x) / dx : Infinity,
+      dy > 0 ? (this.height - ROPE_DART_RADIUS - dart.y) / dy : dy < 0 ? (ROPE_DART_RADIUS - dart.y) / dy : Infinity);
+    const stop = Math.max(0, Math.min(edge, this.hazardObstacleTime(dart, dx, dy, ROPE_DART_RADIUS, this.brickParts())));
+    const fraction = Math.min(1, stop);
+    for (const enemy of [...this.robots]) {
+      const old = previous.get(enemy) ?? enemy;
+      const time = circleContact(dart.x - old.x, dart.y - old.y,
+        dx - (enemy.x - old.x), dy - (enemy.y - old.y), ROPE_DART_RADIUS + enemy.radius);
+      if (time > fraction || dart.hit.has(enemy)) continue;
+      dart.hit.add(enemy);
+      this.damageRangedEnemy(enemy);
+    }
+    dart.x += dx * fraction; dart.y += dy * fraction;
+    if (stop <= 1) {
+      dart.phase = 'pulling';
+      const object = this.obstructions.find(obstruction =>
+        obstructionSurface(dart.x, dart.y, obstruction).gap <= ROPE_DART_RADIUS + 1e-6)
+        ?? this.bumpers.find(bumper =>
+          Math.hypot(dart.x - bumper.x, dart.y - bumper.y) <= ROPE_DART_RADIUS + bumper.radius + 1e-6);
+      if (object) dart.attachment = { object, x: object.x, y: object.y };
+    }
+  }
+
+  moveAttachedRopeDart() {
+    const dart = this.ropeDart, attachment = dart?.attachment;
+    if (!attachment) return;
+    const { object } = attachment;
+    if (!this.obstructions.includes(object) && !this.bumpers.includes(object)) {
+      delete dart.attachment;
+      dart.phase = 'returning';
+      return;
+    }
+    dart.x += object.x - attachment.x;
+    dart.y += object.y - attachment.y;
+    attachment.x = object.x; attachment.y = object.y;
+  }
+
+  collectRopeDart() {
+    this.ropeDart = null;
+    this.cat.vx = 0; this.cat.vy = 0;
+    this.target = null;
+    this.conveyorRide = null;
+    if (this.weapon && WEAPONS[this.weapon.type].ropeDart && this.weapon.uses === 0) this.dropWeapon(true);
   }
 
   combat(dt, startX, startY) {
@@ -6733,6 +6821,7 @@ class Game {
     this.updateSoccerBalls(dt, startX, startY, previous);
     this.updateBossProjectiles(dt, startX, startY);
     for (const enemy of this.robots) if (enemy.type === 'snake') this.updateSnakeTrail(enemy);
+    this.updateRopeDart(dt, previous);
     const isolated = this.isolatedLoveBugs(fences);
     this.robots = this.robots.filter(enemy => {
       if (!isolated.has(enemy)) return true;
@@ -6755,7 +6844,9 @@ class Game {
         if (distance <= this.cat.radius + enemy.radius && this.enemyDamageProgress(enemy) === null) this.takeDamage();
         return true;
       }
-      if (enemy.type !== 'robo-love-bug' && !this.activeTurret && (this.weapon || this.boosted) && distance <= this.cat.radius + enemy.radius + 18) {
+      if (enemy.type !== 'robo-love-bug' && !this.activeTurret
+        && (this.weapon && !WEAPONS[this.weapon.type].ropeDart || this.boosted)
+        && distance <= this.cat.radius + enemy.radius + 18) {
         if (this.enemyDamageProgress(enemy) === null) {
           if (!this.boosted) {
             this.weaponAttacks = this.weaponAttacks.filter(attack => attack.age < .55);
@@ -7255,6 +7346,7 @@ class Game {
     }
     if (this.state !== 'playing') { this.tickStart = null; return; }
     this.updateCatTracks(dt);
+    this.moveAttachedRopeDart();
     this.clearBlockedPickups();
     this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
@@ -7276,8 +7368,20 @@ class Game {
         && parts.some(part => part.id === brick.id && this.touchingPart(part))) this.touchTurret(brick);
     }
     const ride = this.conveyorRide;
+    if (this.ropeDart) {
+      this.conveyorRide = null;
+      const dart = this.ropeDart;
+      const distance = Math.hypot(dart.x - cat.x, dart.y - cat.y);
+      if (dart.phase === 'pulling' && distance > 1e-9) {
+        const speed = SPEED * (this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
+        cat.vx = (dart.x - cat.x) / distance * speed;
+        cat.vy = (dart.y - cat.y) / distance * speed;
+      } else {
+        cat.vx = 0; cat.vy = 0;
+      }
+    }
     let rideEnd = false;
-    if (ride) {
+    if (ride && !this.ropeDart) {
       const edge = this.conveyorEdge(ride.id, parts);
       if (!edge) {
         this.conveyorRide = null;
@@ -7293,7 +7397,16 @@ class Game {
     }
     let dx = this.bubbleTrap || this.catCircleTrap ? 0 : cat.vx * dt;
     let dy = this.bubbleTrap || this.catCircleTrap ? 0 : cat.vy * dt;
-    if (this.obstructions.length) {
+    let ropeObstruction = false;
+    if (this.ropeDart?.phase === 'pulling') {
+      const distance = Math.hypot(this.ropeDart.x - cat.x, this.ropeDart.y - cat.y);
+      const fraction = Math.min(1, distance / (Math.hypot(dx, dy) || 1));
+      dx *= fraction; dy *= fraction;
+      const contact = Math.min(1, ...this.obstructions.map(obstruction =>
+        obstructionContact(cat.x, cat.y, dx, dy, cat.radius, obstruction)));
+      ropeObstruction = contact < 1;
+      dx *= contact; dy *= contact;
+    } else if (this.obstructions.length) {
       const motion = { x: cat.x + dx, y: cat.y + dy, radius: cat.radius };
       this.moveAroundObstructions(motion, cat, true);
       dx = motion.x - cat.x; dy = motion.y - cat.y;
@@ -7439,6 +7552,25 @@ class Game {
     }
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
+    if (this.ropeDart?.phase === 'pulling') {
+      const blocked = contacts.length || bumperContacts.length || ropeObstruction;
+      const reach = blocked ? cat.radius + ROPE_DART_RADIUS : 1e-6;
+      if (Math.hypot(this.ropeDart.x - endX, this.ropeDart.y - endY) <= reach) {
+        const vx = cat.vx, vy = cat.vy;
+        this.collectRopeDart();
+        if (bumperContacts.length || contacts.some(part => {
+          const brick = this.bricks[part.id];
+          return brick.springs || brick.portal;
+        })) {
+          // Surface responses use the incoming pull velocity, not leftover momentum.
+          cat.vx = vx; cat.vy = vy;
+        }
+      } else if (blocked) {
+        // Koshi's larger collision body may stop short of the dart on angled approaches.
+        this.ropeDart.phase = 'returning';
+      }
+      if (ropeObstruction) { cat.vx = 0; cat.vy = 0; this.target = null; }
+    }
     if (bubbleHit && bubbleTime <= contact + 1e-9 && bubbleTime <= 1) {
       this.bubbles = this.bubbles.filter(bubble => bubble !== bubbleHit);
       cat.vx = 0; cat.vy = 0;
@@ -7605,6 +7737,7 @@ class Game {
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
 const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
+api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;
 Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks });
 if (typeof module !== 'undefined' && module.exports) {

@@ -102,7 +102,8 @@ test('weapon status announces remaining hits or seconds and weapon illustrations
     const uses = WEAPONS[type].uses;
     game.weapon = { type, uses, expires: WEAPONS[type].seconds ? game.elapsed + WEAPONS[type].seconds : Infinity };
     vm.runInContext(display, context);
-    const remaining = WEAPONS[type].seconds ? `${WEAPONS[type].seconds} seconds` : `${uses} hit${uses === 1 ? '' : 's'}`;
+    const remaining = WEAPONS[type].seconds ? `${WEAPONS[type].seconds} seconds`
+      : `${uses} ${WEAPONS[type].ropeDart ? 'shot' : 'hit'}${uses === 1 ? '' : 's'}`;
     assert.equal(weaponStatus.textContent, `Weapon: ${WEAPONS[type].name}, ${remaining} remaining`);
   }
   game.weapon = { type: 'axe-silver', expires: game.elapsed + .1 };
