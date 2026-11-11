@@ -50,6 +50,7 @@ const SYMBOLS = {
   goalie: 'M0 -22 C20 -22 26 28 0 28 C-26 28 -20 -22 0 -22 Z M-6 -22 L-11 -31 M0 -22 V-33 M6 -22 L11 -31 M-9 -9 A2 2 0 1 0 -9 -8 M9 -9 A2 2 0 1 0 9 -8 M-3 -8 C-4 0 -9 9 -3 11 C9 14 6 2 3 -8 M-19 0 H-7 M7 0 H19 M-12 3 V21 M-4 14 V26 M4 14 V26 M12 3 V21 M8 7 A4 4 0 1 0 16 7 A4 4 0 1 0 8 7 M-15 8 L-10 3 L-6 8 Z',
   'robo-koshi': 'M-7 -13 L-22 -30 L-19 -5 M7 -13 L22 -30 L19 -5 M0 -22 V-33 M0 -34 A3 3 0 1 1 0 -28 M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-14 -7 H-7 V1 H-14 Z M7 -7 H14 V1 H7 Z M-5 5 L0 9 L5 5 M-7 12 H7',
   'robo-snail': 'M-5 -14 L4 -25 H20 L29 -14 V9 L18 22 H4 L-5 10 Z M0 10 V-8 L6 -16 H15 L23 -8 V5 L15 15 H7 L3 11 M7 15 L16 2 V-4 L12 -7 L8 -4 V1 L11 4 M-27 23 V5 Q-27 -4 -18 -4 Q-8 -4 -8 5 V22 H18 M-23 -4 V-16 M-13 -4 V-16 M-28 -18 A5 2 0 1 0 -18 -18 A5 2 0 1 0 -28 -18 M-18 -18 A5 2 0 1 0 -8 -18 A5 2 0 1 0 -18 -18 M-22 12 V9 C-22 0 -13 0 -13 9 V12 Z M-22 8 H-13 M-19 8 V12 M-16 8 V12',
+  'robo-trash-bin': 'M-21 -20 H21 V-14 H-21 Z M-18 -14 L-15 20 Q0 25 15 20 L18 -14 Z M-11 -7 H-3 V-1 H-11 Z M3 -7 H11 V-1 H3 Z M-7 11 Q0 4 7 11 M-18 17 A5 5 0 1 0 -12 23 M18 17 A5 5 0 1 1 12 23',
   'robo-cow': 'M-20 -7 L-29 -19 L-15 -17 L-7 -21 H13 L22 -15 L29 -23 L28 -8 Q32 1 23 9 L21 17 H13 L10 8 H-8 L-12 18 H-20 L-19 7 Q-29 1 -20 -7 M-12 -3 H-5 V2 H-12 Z M7 -3 H14 V2 H7 Z M-2 5 Q2 9 6 5',
   'robo-crab': 'M-23 4 Q-23 -7 -12 -7 H12 Q23 -7 23 4 V8 Q23 19 12 19 H-12 Q-23 19 -23 8 Z M-23 2 H-35 V-24 H-29 M23 2 H35 V-24 H29 M-16 13 L-31 16 L-24 26 M16 13 L31 16 L24 26 M-10 -7 V-19 M10 -7 V-19 M-18 -23 H-2 V-15 H-18 Z M2 -23 H18 V-15 H2 Z M-13 12 V7 H13 V12 M-36 -24 L-37 -38 L-22 -38 L-30 -28 L-23 -31 V-24 Z M36 -24 L37 -38 L22 -38 L30 -28 L23 -31 V-24 Z',
   'robo-love-bug': 'M0 -9 C-30 -13 -30 25 0 25 C30 25 30 -13 0 -9 Z M0 -9 V25 M-22 -7 C-22 -31 22 -31 22 -7 Z M-10 -22 L-18 -33 M10 -22 L18 -33 M-21 -35 A3 3 0 1 1 -15 -35 A3 3 0 1 1 -21 -35 M15 -35 A3 3 0 1 1 21 -35 A3 3 0 1 1 15 -35 M-18 -4 L-27 -9 M-20 6 H-28 M-18 17 L-26 23 M18 -4 L27 -9 M20 6 H28 M18 17 L26 23 M-12 -19 H-5 V-12 H-12 Z M5 -19 H12 V-12 H5 Z M0 19 C-31 2 -13 -9 0 2 C13 -9 31 2 0 19 Z',
@@ -151,7 +152,7 @@ function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return WEAPONS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return spawn.type === 'robo-koshi' ? '#454d52' : ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
-    : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-cow' ? '#9451bd' : spawn.type === 'robo-crab' ? '#929ba1'
+    : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-trash-bin' ? '#008459' : spawn.type === 'robo-cow' ? '#9451bd' : spawn.type === 'robo-crab' ? '#929ba1'
       : spawn.type === 'robo-love-bug' ? '#f29ac2' : spawn.type === 'robo-unicorn' ? '#ef9dca' : spawn.type === 'goalie' ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   if (spawn.kind === 'object') return spawn.color ?? OBJECTS[spawn.type].color;

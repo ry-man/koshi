@@ -1082,6 +1082,9 @@ function syncUI() {
     }
     if (!visible) continue;
     syncSunglassesGlow(item);
+    if (brick.slimed && brick.slimeAppliedAt !== undefined) {
+      button.querySelector('.brick-slime').style.opacity = Math.min(1, Math.max(0, (game.elapsed - brick.slimeAppliedAt) / .7));
+    }
     if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
       item.usesLeft = brick.usesLeft;
       const wear = 1 - brick.usesLeft / brick.crumbler;
@@ -1496,7 +1499,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
-    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-trash-bin', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
     'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives', 'anvil',
   ].includes(tutorial.lesson.id);
   makeBrickButtons();
@@ -2399,6 +2402,27 @@ function render(now) {
     }
   }
   for (const enemy of robotDrawOrder(visibleRobots)) {
+    if (enemy.type === 'robo-trash-bin' && enemy.binState === 'pour' && enemy.binPourPoint) {
+      const angle = (enemy.binAngle ?? 0) + Math.PI / 2;
+      const x = enemy.x + Math.sin(angle) * 21;
+      const y = enemy.y - Math.cos(angle) * 21;
+      const nx = -Math.sin(enemy.binAngle ?? 0), ny = Math.cos(enemy.binAngle ?? 0);
+      const length = Math.max(0, (enemy.binPourPoint.x - x) * nx + (enemy.binPourPoint.y - y) * ny);
+      ctx.save();
+      ctx.strokeStyle = ctx.fillStyle = SLIMES[enemy.binColor].color;
+      ctx.lineWidth = 14; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, y);
+      ctx.lineTo(x + nx * length, y + ny * length); ctx.stroke();
+      for (let i = 0; i < 10; i++) {
+        const progress = ((enemy.binPourTime ?? 0) * .8 + i / 10) % 1;
+        const spread = Math.sin(i * 2.4 + (enemy.binPourTime ?? 0) * 5) * 5;
+        ctx.beginPath();
+        ctx.arc(x + nx * length * progress - ny * spread,
+          y + ny * length * progress + nx * spread, 5 + i % 3 * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
     drawRobot(enemy, null, game.enemyDamageProgress(enemy));
     if (enemy.asleep) {
       ctx.save(); ctx.fillStyle = '#d7c3ff'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
@@ -3832,6 +3856,64 @@ function drawRobot(enemy, deathProgress = null, damageProgress = null) {
   ctx.restore();
 }
 
+function drawRoboTrashBin(enemy, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  ctx.save();
+  if (deathProgress === null) {
+    if (enemy.binState && enemy.binState !== 'roam') {
+      const rock = Math.sin((enemy.age ?? 0) * 3) * .12;
+      const distance = enemy.binDestination ? Math.hypot(enemy.x - enemy.binDestination.x, enemy.y - enemy.binDestination.y) : 0;
+      const turn = enemy.binState === 'travel' ? Math.max(0, Math.min(1, 1 - distance / enemy.binTurnDistance)) : 1;
+      const angle = enemy.binAngle ?? 0;
+      ctx.rotate(rock + Math.atan2(Math.sin(angle - rock), Math.cos(angle - rock)) * turn
+        + (enemy.binTilt ?? 0) * Math.PI / 2);
+    } else ctx.rotate(Math.sin((enemy.age ?? 0) * 3) * .12);
+  }
+  else {
+    ctx.globalAlpha *= Math.min(1, (1 - progress) / .25);
+    ctx.translate(progress * 12, progress * 12);
+    ctx.rotate(Math.min(1, progress / .45) * 1.4);
+  }
+  ctx.strokeStyle = '#143a30'; ctx.lineWidth = 2;
+  ctx.fillStyle = '#252b2a';
+  for (const x of [-14, 14]) {
+    ctx.beginPath(); ctx.arc(x, 19, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  ctx.fillStyle = damageColor ?? '#008459';
+  ctx.beginPath(); ctx.moveTo(-19, -16); ctx.lineTo(19, -16);
+  ctx.lineTo(15, 20); ctx.quadraticCurveTo(0, 25, -15, 20); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#006748'; ctx.fillRect(-15, -12, 4, 29);
+  ctx.fillStyle = '#ffe34c';
+  ctx.fillRect(-11, -7, 8, 6); ctx.fillRect(3, -7, 8, 6);
+  ctx.strokeStyle = '#132c25'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-7, 11); ctx.quadraticCurveTo(0, 4, 7, 11); ctx.stroke();
+  ctx.save(); ctx.translate(-18, -17);
+  if (deathProgress !== null) ctx.rotate(-Math.min(1, progress / .4) * 1.2);
+  else ctx.rotate(-(enemy.binTilt ?? 0) * 1.2);
+  ctx.fillStyle = '#252b2a'; ctx.strokeStyle = '#111817';
+  ctx.beginPath(); ctx.roundRect(-3, -6, 42, 8, 3); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  if (deathProgress !== null && progress > .2) {
+    const spill = Math.min(1, (progress - .2) / .55);
+    for (const [index, piece] of (enemy.trashPieces ?? []).entries()) {
+      ctx.save();
+      ctx.translate(Math.cos(piece.angle) * piece.speed * spill,
+        -20 + Math.sin(piece.angle) * piece.speed * spill + 35 * spill * spill);
+      ctx.rotate(piece.angle + spill * 3);
+      ctx.fillStyle = ['#d3c7a6', '#9cabb0', '#bc7652'][index % 3];
+      if (piece.shape === 0) ctx.fillRect(-piece.size, -piece.size / 2, piece.size * 2, piece.size);
+      else if (piece.shape === 1) {
+        ctx.beginPath(); ctx.arc(0, 0, piece.size, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.moveTo(0, -piece.size); ctx.lineTo(piece.size, piece.size);
+        ctx.lineTo(-piece.size, piece.size); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
 function drawRoboKoshi(enemy, deathProgress = null, damageColor = null) {
   const progress = deathProgress ?? 0;
   ctx.save();
@@ -4374,6 +4456,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
     drawRoboSnail(enemy, deathProgress, damageColor);
     ctx.restore(); return;
   }
+  if (enemy.type === 'robo-trash-bin') {
+    drawRoboTrashBin(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
   if (enemy.type === 'robo-crab') {
     drawRoboCrab(enemy, deathProgress, damageColor);
     ctx.restore(); return;
@@ -4880,6 +4966,12 @@ function drawEnemyDeath(enemy) {
   ctx.save();
   if (enemy.type === 'boss') {
     drawRobot(enemy, progress);
+  } else if (enemy.type === 'robo-trash-bin') {
+    drawRobot(enemy, progress);
+    if (progress >= .65) {
+      ctx.translate(enemy.x, enemy.y);
+      drawRobotExplosion((progress - .65) / .35);
+    }
   } else if (enemy.type === 'robo-love-bug') {
     drawRobot(enemy, progress);
     if (progress >= .55) {

@@ -462,6 +462,12 @@ function drawPortrait(ctx, character, speaking, time) {
     }
     box('#202a30', 10, 20, 13, talking ? 5 : 1);
     box('#202a30', 10, 21, 1, 3); box('#202a30', 22, 21, 1, 3);
+  } else if (character === 'robo-trash-bin') {
+    box('#202b28', 3, 5, 26, 5);
+    box('#005b40', 5, 10, 22, 20); box('#008459', 7, 10, 18, 19);
+    for (const x of [9, 19]) box('#ffe34c', x, 14, 5, blink ? 1 : 4);
+    box('#18352b', 11, 24, 2, 2); box('#18352b', 13, 22, 6, talking ? 4 : 2);
+    box('#18352b', 19, 24, 2, 2);
   } else if (character === 'robo-snail') {
     box('#314443', 13, 9, 17, 18); box('#777f80', 15, 8, 14, 17);
     box('#826345', 16, 10, 5, 5); box('#a17a4c', 21, 15, 7, 5);
@@ -773,7 +779,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(actorScale * height / width * 960 / 540, actorScale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, boss: 40 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, 'robo-trash-bin': 23, boss: 40 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);

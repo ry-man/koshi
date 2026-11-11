@@ -2110,6 +2110,18 @@ a big frown, and a smoke puff expands and fades. Available in custom placements,
 enemy spawners, the guide, tutorial practice and cutscenes; no existing campaign
 levels are changed.
 
+Robo Trash Bin (`robo-trash-bin`) is available in custom levels and enemy
+spawners. It rocks while floating, waits a random 3–5 seconds, then travels to
+a randomly selected non-slime brick other than Cinder or Goal. Each bin claims
+its own target and turns feet-first only when within roughly one brick length.
+It opens its lid and tips sideways before pouring, then rights itself and closes
+the lid. Bins use a random, stable push priority to avoid blocking one another.
+After a three-second pour, the brick and its merged group gain red, green, or
+blue slime with equal probability, replacing any other contact surface. Sleep pauses it;
+fear interrupts its current pour. On scrolling boards it targets visible bricks
+and abandons a target that scrolls away. On defeat it tips over, spills rubbish,
+and explodes.
+
 Robo Snail (`robo-snail`) is a green, continuously wandering enemy that moves
 slightly faster than Robo Mouse. Its blocky grey-and-brown spiral shell sits
 behind a tall green head with upright stalks, horizontal red eye grilles, and

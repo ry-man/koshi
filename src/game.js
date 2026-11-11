@@ -274,7 +274,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
   'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
   'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
@@ -1942,7 +1942,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, boss: true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, boss: true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
@@ -2124,7 +2124,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -3266,6 +3266,8 @@ class Game {
     this.pickups = [];
     this.foodId = 0;
     this.robots = [];
+    this.trashBinClaims = new Map();
+    this.trashBinPrioritySequence = 0;
     this.enemyDeaths = [];
     this.weaponAttacks = [];
     this.weaponDrops = [];
@@ -4710,6 +4712,7 @@ class Game {
     }
     if (event.type === 'robo-cow') this.initializeRoboCow(enemy);
     if (event.type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
+    if (event.type === 'robo-trash-bin') this.initializeTrashBin(enemy);
     if (event.type === 'boss') this.initializeBoss(enemy);
     return [enemy];
   }
@@ -5203,6 +5206,7 @@ class Game {
       this.ensureEnemySpawnClear(enemy);
       if (type === 'robo-cow') this.initializeRoboCow(enemy);
       if (type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
+      if (type === 'robo-trash-bin') this.initializeTrashBin(enemy);
       this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       if (type === 'boss') this.initializeBoss(enemy);
       items.push(enemy);
@@ -5507,6 +5511,7 @@ class Game {
   defeatEnemy(enemy, awardPoints = true, cause = null) {
     if (enemy.type === 'robo-love-bug' && cause !== 'isolation') return;
     if (enemy.type === 'boss' && enemy.health > 0) return;
+    if (enemy.type === 'robo-trash-bin') this.releaseTrashBinTarget(enemy);
     if (awardPoints) {
       this.enemies += enemy.defeatPoints ?? 1;
       this.catBlockProgress.defeated[enemy.type] = (this.catBlockProgress.defeated[enemy.type] ?? 0) + 1;
@@ -5522,6 +5527,10 @@ class Game {
     enemy.carriesKey = false;
     enemy.carriesCatBlock = false;
     this.enemyDeaths.push({ ...enemy, ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}),
+      ...(enemy.type === 'robo-trash-bin' ? { trashPieces: Array.from({ length: 7 }, () => ({
+        angle: this.random() * Math.PI * 2, speed: 20 + this.random() * 35,
+        size: 3 + this.random() * 4, shape: Math.floor(this.random() * 3),
+      })) } : {}),
       bombs: enemy.bombs?.map(bomb => ({ ...bomb })) ?? [], deathProgress: 0 });
     if (enemy.type === 'robo-snail') this.freezeBrickCooldowns();
     this.checkCatBlockAchievement();
@@ -5729,6 +5738,140 @@ class Game {
     this.chooseCowWalkDistance(enemy);
     this.placeWheel(enemy);
     this.updateRoboCowFacing(enemy);
+  }
+
+  releaseTrashBinTarget(enemy) {
+    if (this.trashBinClaims.get(enemy.binTarget) === enemy) this.trashBinClaims.delete(enemy.binTarget);
+  }
+
+  initializeTrashBin(enemy) {
+    this.releaseTrashBinTarget(enemy);
+    if (enemy.binPriority === undefined) {
+      enemy.binPriority = this.random();
+      enemy.binPriorityOrder = this.trashBinPrioritySequence++;
+    }
+    enemy.binState = 'roam';
+    enemy.binWait = 3 + this.random() * 2;
+    enemy.binTarget = null;
+    enemy.binPourTime = 0;
+    enemy.binPhaseTime = 0;
+    enemy.binTilt = 0;
+  }
+
+  updateTrashBin(enemy, seconds, bounds) {
+    const transitionDuration = .6;
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const eligible = brick => brick && brick.absorbedBy === null && !brick.slimed
+      && !['cinder', 'goal'].includes(brick.kind) && this.brickVisible(brick);
+    if (!['roam', 'recover'].includes(enemy.binState) && !eligible(this.bricks[enemy.binTarget])) {
+      this.initializeTrashBin(enemy);
+    }
+    if (enemy.binState === 'roam') {
+      enemy.binWait -= seconds;
+      enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * seconds;
+      enemy.x += Math.cos(enemy.phase) * 75 * seconds;
+      enemy.y += Math.sin(enemy.phase) * 75 * seconds;
+      if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+      enemy.x = clamp(enemy.x, bounds.left, bounds.right);
+      enemy.y = clamp(enemy.y, bounds.top, bounds.bottom);
+      if (enemy.binWait > 1e-9) return;
+      const claimed = new Set([...this.trashBinClaims.keys()].map(id => {
+        const brick = this.bricks[id];
+        return brick.absorbedBy ?? brick.id;
+      }));
+      const candidates = this.bricks.filter(brick => eligible(brick) && !claimed.has(brick.id));
+      if (!candidates.length) { enemy.binWait = 3 + this.random() * 2; return; }
+      const brick = candidates[Math.floor(this.random() * candidates.length)];
+      const camera = this.camera();
+      const part = this.brickParts().find(part => part.id === brick.id && part.sourceId !== undefined
+        && (!this.level.autoscroll || this.entityIntersectsBounds(part, camera)));
+      const edge = brickRegions(this.bricks, this.width, this.height).get(part.sourceId).edge;
+      const outward = { top: { x: 0, y: -1 }, bottom: { x: 0, y: 1 },
+        left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }[edge];
+      const point = {
+        x: outward.x ? part.x + part.w / 2 - outward.x * part.w / 2
+          : clamp(part.x + part.w / 2, bounds.left, bounds.right),
+        y: outward.y ? part.y + part.h / 2 - outward.y * part.h / 2
+          : clamp(part.y + part.h / 2, bounds.top, bounds.bottom),
+      };
+      enemy.binTarget = brick.id;
+      enemy.binColor = ['red', 'green', 'blue'][Math.floor(this.random() * 3)];
+      enemy.binAngle = Math.atan2(-outward.x, outward.y);
+      enemy.binTurnDistance = boardDimensions(this.portrait, this.scale).pitch;
+      const opening = { x: 21 * outward.y, y: -21 * outward.x };
+      enemy.binDestination = {
+        x: clamp(point.x - outward.x * 26 - opening.x, bounds.left, bounds.right),
+        y: clamp(point.y - outward.y * 26 - opening.y, bounds.top, bounds.bottom),
+      };
+      enemy.binPourPoint = {
+        x: outward.x ? point.x : enemy.binDestination.x + opening.x,
+        y: outward.y ? point.y : enemy.binDestination.y + opening.y,
+      };
+      this.trashBinClaims.set(brick.id, enemy);
+      enemy.binState = 'travel';
+      return;
+    }
+    if (enemy.binState !== 'recover') {
+      const destination = enemy.binDestination;
+      const dx = destination.x - enemy.x, dy = destination.y - enemy.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance > 1e-6) {
+        if (enemy.binState !== 'travel') {
+          enemy.binState = 'travel';
+          enemy.binPhaseTime = 0;
+          enemy.binPourTime = 0;
+          enemy.binTilt = 0;
+        }
+        const step = Math.min(distance, 75 * seconds);
+        enemy.x += dx / distance * step;
+        enemy.y += dy / distance * step;
+        if (step < distance) return;
+        seconds -= step / 75;
+      }
+      if (enemy.binState === 'travel') {
+        enemy.binState = 'prepare';
+        enemy.binPhaseTime = 0;
+      }
+    }
+    if (enemy.binState === 'prepare') {
+      const step = Math.min(seconds, transitionDuration - enemy.binPhaseTime);
+      enemy.binPhaseTime += step;
+      seconds -= step;
+      enemy.binTilt = Math.min(1, enemy.binPhaseTime / transitionDuration);
+      if (enemy.binPhaseTime < transitionDuration - 1e-9) return;
+      enemy.binState = 'pour';
+      enemy.binTilt = 1;
+    }
+    if (enemy.binState === 'pour') {
+      const step = Math.min(seconds, 3 - enemy.binPourTime);
+      enemy.binPourTime += step;
+      seconds -= step;
+      if (enemy.binPourTime < 3 - 1e-9) return;
+      const brick = this.bricks[enemy.binTarget], portal = brick.portal;
+      this.barriers = this.barriers.filter(fence => fence.id !== brick.id);
+      if (this.activeTurret?.brickId === brick.id) this.exitTurret();
+      if (this.conveyorRide?.id === brick.id) this.conveyorRide = null;
+      for (const member of this.bricks) {
+        if (member.id === brick.id || member.absorbedBy === brick.id) {
+          for (const surface of CONTACT_SURFACES) member[surface] = ['portal', 'spawner', 'turret', 'hazard'].includes(surface) ? null : false;
+          member.slimed = true;
+          member.slimeColor = enemy.binColor;
+          member.slimeAppliedAt = this.elapsed;
+        } else if (portal && member.portal === portal) member.portal = null;
+      }
+      this.spawnerTouching.delete(brick.id);
+      this.spikeTouching.delete(brick.id);
+      this.brickRevision++;
+      this.releaseTrashBinTarget(enemy);
+      enemy.binState = 'recover';
+      enemy.binPhaseTime = 0;
+    }
+    if (enemy.binState === 'recover') {
+      enemy.binPhaseTime += seconds;
+      enemy.binTilt = Math.max(0, 1 - enemy.binPhaseTime / transitionDuration);
+      if (enemy.binPhaseTime >= transitionDuration - 1e-9) this.initializeTrashBin(enemy);
+    }
   }
 
   updateRoboCowFacing(enemy, seconds) {
@@ -6476,6 +6619,27 @@ class Game {
       }
       return;
     }
+    if (a.type === 'robo-trash-bin' && b.type === 'robo-trash-bin') {
+      const leader = a.binPriority > b.binPriority || (a.binPriority === b.binPriority
+        && a.binPriorityOrder < b.binPriorityOrder) ? a : b;
+      const yielding = leader === a ? b : a, sign = yielding === a ? 1 : -1;
+      yielding.x += nx * overlap * sign;
+      yielding.y += ny * overlap * sign;
+      clamp(yielding);
+      const radius = a.radius + b.radius + 1e-7;
+      if (Math.hypot(a.x - b.x, a.y - b.y) < radius) {
+        let best = null;
+        for (let i = 0; i < 32; i++) {
+          const angle = i * Math.PI * 2 / 32;
+          const x = leader.x + Math.cos(angle) * radius, y = leader.y + Math.sin(angle) * radius;
+          if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) continue;
+          const distance = Math.hypot(x - yielding.x, y - yielding.y);
+          if (!best || distance < best.distance) best = { x, y, distance };
+        }
+        if (best) { yielding.x = best.x; yielding.y = best.y; }
+      }
+      return;
+    }
     if (a.type === 'goalie' && b.type === 'goalie') {
       const leader = (a.goaliePushPriority ?? a.y) >= (b.goaliePushPriority ?? b.y) ? a : b;
       const yielding = leader === a ? b : a;
@@ -6565,7 +6729,7 @@ class Game {
         const a = this.robots[i], b = this.robots[j], oldA = previous.get(a), oldB = previous.get(b);
         if (a.type === 'robo-koshi' || b.type === 'robo-koshi') continue;
         // Goalie priority preserves the leader's full step; overlap resolution moves only the yielding guard.
-        if (a.type === 'goalie' && b.type === 'goalie') continue;
+        if (a.type === b.type && ['goalie', 'robo-trash-bin'].includes(a.type)) continue;
         const x = oldA.x - oldB.x, y = oldA.y - oldB.y, radius = a.radius + b.radius;
         const dx = a.x - b.x - x, dy = a.y - b.y - y;
         const length = dx * dx + dy * dy, incoming = x * dx + y * dy;
@@ -6876,6 +7040,7 @@ class Game {
       }
       enemy.asleep = this.enemiesSleepUntil > this.elapsed + 1e-9;
       if (enemy.type === 'robo-cow') this.updateRoboCowFear(enemy);
+      if (enemy.type === 'robo-trash-bin' && this.maskActive && !enemy.afraid) this.initializeTrashBin(enemy);
       enemy.afraid = this.maskActive;
       enemy.fleeMoving = false;
       if (enemy.asleep) { enemy.touching = false; continue; }
@@ -6895,6 +7060,8 @@ class Game {
         enemy.distance += (enemy.barrierDirection ?? 1) * 95 * dt; this.placeWheel(enemy);
       } else if (enemy.type === 'robo-cow') {
         this.updateRoboCow(enemy, dt);
+      } else if (enemy.type === 'robo-trash-bin') {
+        this.updateTrashBin(enemy, dt, bounds);
       } else if (enemy.type === 'robo-unicorn') {
         this.updateRoboUnicorn(enemy, dt, bounds);
       } else if (enemy.type === 'robo-crab') {
@@ -7315,7 +7482,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'boss' ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : enemy.type === 'robo-unicorn' ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (enemy.type === 'boss' ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
