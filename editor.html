@@ -329,7 +329,7 @@
       </div>
       <section class="editor-panel" aria-label="Scheduled events">
         <div class="section-heading"><h2>Event timeline <span id="event-count">0 events</span></h2><button id="new-level">New level</button></div>
-        <ol id="event-list"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
+        <ol id="event-list" class="event-timeline"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
       </section>
       <section class="editor-panel" aria-label="Import and export">
         <fieldset id="files-access" class="access-fields">
@@ -344,6 +344,11 @@
         <textarea id="level-json" rows="9" spellcheck="false" placeholder="Open a JSON file, or paste level JSON here and choose Load JSON. Print JSON to copy the edited level."></textarea>
         </fieldset>
       </section>
+      <dialog id="overlap-picker" class="editor-panel overlap-picker" aria-labelledby="overlap-title">
+        <div class="section-heading"><h2 id="overlap-title">Choose a game element</h2><button id="overlap-close" type="button" aria-label="Close element picker">Close</button></div>
+        <p>Several elements overlap here. Select one to inspect or edit.</p>
+        <ol id="overlap-events" class="event-timeline"></ol>
+      </dialog>
       <noscript><p class="error">Please enable JavaScript to use the level editor.</p></noscript>
     </main>
   </body>

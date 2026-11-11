@@ -164,17 +164,21 @@
 .input-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .inspector-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 #event-count { color: var(--muted); font-size: 12px; margin-left: 10px; }
-#event-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; list-style: none; padding: 8px; max-height: 350px; overflow-y: auto; }
-#event-list button { position: relative; width: 100%; text-align: left; padding-left: 52px; padding-right: 64px; overflow: hidden; }
+.event-timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 12px; list-style: none; padding: 8px; max-height: 350px; overflow-y: auto; }
+.event-timeline button { position: relative; width: 100%; text-align: left; padding-left: 52px; padding-right: 64px; overflow: hidden; }
 .event-id { position: absolute; inset: 0 auto 0 0; width: 40px; display: flex; align-items: center; justify-content: center; background: var(--event-color); color: #101d25; font-weight: 900; font-size: 17px; font-variant-numeric: tabular-nums; }
-#event-list [data-kind="enemy"] { --event-color: #ffaba2; }
-#event-list [data-kind="food"] { --event-color: #b7df83; }
-#event-list [data-kind="weapon"] { --event-color: #ffd078; }
-#event-list [data-kind="item"] { --event-color: #d6b2ff; }
-#event-list [data-kind="object"] { --event-color: #8ed8ee; }
-#event-list button[data-kind] { border: 2px solid var(--event-color); background: color-mix(in srgb, var(--event-color) 26%, #26373e); }
-#event-list button[data-kind]:hover { background: color-mix(in srgb, var(--event-color) 34%, #26373e); }
-#event-list button[aria-pressed="true"] { outline: 4px solid #fff; outline-offset: -2px; box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66; }
+.event-timeline [data-kind="enemy"] { --event-color: #ffaba2; }
+.event-timeline [data-kind="food"] { --event-color: #b7df83; }
+.event-timeline [data-kind="weapon"] { --event-color: #ffd078; }
+.event-timeline [data-kind="item"] { --event-color: #d6b2ff; }
+.event-timeline [data-kind="object"] { --event-color: #8ed8ee; }
+.event-timeline [data-kind="heart"] { --event-color: #ffaba2; }
+.event-timeline button[data-kind] { border: 2px solid var(--event-color); background: color-mix(in srgb, var(--event-color) 26%, #26373e); }
+.event-timeline button[data-kind]:hover { background: color-mix(in srgb, var(--event-color) 34%, #26373e); }
+.event-timeline button[aria-pressed="true"] { outline: 4px solid #fff; outline-offset: -2px; box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66; }
+.overlap-picker { width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); color: var(--text); overflow-y: auto; }
+.overlap-picker::backdrop { background: #050a0dcc; }
+.overlap-picker .event-timeline { max-height: none; }
 .event-icon.palette-picture { display: inline-block; width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
 .event-points { position: absolute; top: 8px; right: 8px; min-width: 32px; padding: 4px 6px; border-radius: 4px; background: color-mix(in srgb, var(--event-color) 75%, #fff); color: #17232c; font-size: 13px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .event-category { display: inline-block; color: var(--event-color); text-transform: capitalize; margin-right: 10px; font-size: 10px; font-weight: 700; }

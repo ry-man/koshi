@@ -1495,6 +1495,13 @@ tracks his health; his death animation finishes before Koshi celebrates.
    positioned spawns** to hide random events (including random groups and campaign
    schedule examples) while retaining fixed placements. This preview-only toggle
    does not remove events or change available-point totals.
+   Clicking overlapping markers opens an element picker with the same event
+   IDs, timing, category, artwork, descriptions, placement details and point
+   totals as the timeline. Choose a row to select that event (or spawning brick);
+   **Shift**/**Ctrl**/**Command**-click retains additive selection. **Close** or
+   **Escape** dismisses the picker. Hidden markers are excluded, and repeated
+   copies of one event appear as a single choice. Dragging still moves the
+   selected markers without opening the picker.
    **Playtest** runs the real
    game. Switch **Preview** to check phone portrait placement.
 6. **Print JSON** displays the complete level JSON in the text box below the
@@ -1561,8 +1568,12 @@ change the formation's shape. On autoscrolling levels, all random placements,
 including enemies and independent copies, use the viewport at their spawn time
 and stay visible for at least one second. Perimeter enemies snap only to visible
 board edges, and random formations shrink uniformly to fit that viewport.
-The editor shows representative random locations at the center of the available
-spawn area; actual random locations are selected once per spawn warning and
+The editor centers random-spawn markers on the screen at their spawn time,
+including in scrolling levels. Independent random copies share that center;
+line and circle previews remain centered formations. Random perimeter enemies
+are also shown at the center in the editor, not snapped to an edge.
+These markers are illustrative, not predictions of actual random locations,
+which are selected once per spawn warning and
 reused when the event appears. Dragging or nudging a random marker changes its
 event to a fixed location. Only single fixed events can connect to brick spawners.
 

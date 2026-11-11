@@ -750,6 +750,83 @@ test('point targets include Cat Brick goals and warnings use strict thresholds a
   ]);
 });
 
+test('overlap picker deduplicates visible events, shares timeline details and selects events or spawn templates', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const node = () => ({
+    children: [], dataset: {}, attributes: {}, listeners: {}, classList: { add() {} },
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, handler) { this.listeners[name] = handler; },
+  });
+  const marker = (dataset, hidden = false, left = 10) => ({ dataset, hidden,
+    getBoundingClientRect: () => ({ left, right: left + 40, top: 10, bottom: 50 }) });
+  const markers = [marker({ index: '0' }), marker({ index: '0' }), marker({ index: '1' }),
+    marker({ index: '2' }, true), marker({ index: '3' }, false, 80), marker({ spawnKey: 'left-1' })];
+  const events = [
+    { ...event(), kind: 'enemy', type: 'mouse', time: 8, random: true, shield: 'blue', randomCount: 4 },
+    { ...event(), kind: 'food', type: 'H', time: 5, lifetime: 10, group: { shape: 'circle', count: 4, size: .6 } },
+    event(), event(),
+  ];
+  const template = { ...event(), kind: 'heart', type: 'heart' };
+  const dialog = { open: false, showModal() { this.open = true; }, close() { this.open = false; } };
+  const list = node(), close = node(), choices = [], focused = [], selections = [];
+  const before = JSON.stringify(events);
+  const context = vm.createContext({
+    document: { createElement: node }, level: { events }, selectedEvents: new Set(), selectedBricks: new Set(),
+    OBJECTS, FOODS, SHIELDS, WEAPONS,
+    $: selector => ({ '#markers': { querySelectorAll: () => markers }, '#overlap-picker': dialog,
+      '#overlap-events': list, '#overlap-close': close })[selector],
+    description: event => `${event.type} · ${event.shield ?? 'no'} shield`,
+    picture: (value, control) => Object.assign(node(), { value, control }),
+    isAdditive: input => Boolean(input.shiftKey),
+    choose: (...args) => choices.push(args), focusMarker: index => focused.push(index),
+    focusSpawnTemplate: key => focused.push(key), spawnTemplate: () => ({ event: template }),
+    setSelection: (...args) => selections.push(args),
+  });
+  vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
+  vm.runInContext(source.slice(source.indexOf('function eventTimelineButton('), source.indexOf('function renderBrickInspector(')), context);
+  assert.equal(context.overlappingMarkers(25, 25).length, 3);
+  assert.equal(context.pickOverlappingMarker({ clientX: 90, clientY: 25 }), false);
+  assert.equal(dialog.open, false);
+  assert.equal(context.pickOverlappingMarker({ clientX: 25, clientY: 25, shiftKey: true },
+    null, true, { events: [3], bricks: [] }), true);
+  assert.deepEqual(selections, [[[3], []]], 'opening restores selection before the pointer press');
+  assert.equal(list.children.length, 3);
+  const contents = button => button.children.map(child => typeof child === 'string'
+    ? child : { text: child.textContent, className: child.className, value: child.value, attributes: child.attributes });
+  for (const [index, li] of list.children.slice(0, 2).entries()) {
+    const timeline = context.eventTimelineButton(events[index], index, () => {});
+    assert.deepEqual(contents(li.children[0]), contents(timeline), 'picker contains every timeline detail');
+  }
+  list.children[1].children[0].listeners.click();
+  assert.equal(dialog.open, false);
+  assert.deepEqual(choices.pop(), ['event', 1, true]);
+  assert.equal(focused.pop(), 1);
+  assert.equal(context.pickOverlappingMarker({ detail: 0 }, markers[0]), true, 'keyboard activation finds overlaps');
+  list.children[2].children[0].listeners.click();
+  assert.deepEqual(choices.pop(), ['brick', 'left-1', false]);
+  assert.equal(focused.pop(), 'left-1');
+  assert.equal(context.pickOverlappingMarker({ clientX: 25, clientY: 25 }), true);
+  close.listeners.click();
+  assert.equal(dialog.open, false);
+  assert.equal(JSON.stringify(events), before, 'picking never modifies level content');
+});
+
+test('drag and nudge origins for random events use their displayed spawn-time screen center', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const game = new Game(() => .5, { customLevel: { ...blank(), autoscroll: { length: 56, speed: 2, events: [] } } });
+  const context = vm.createContext({ previewGame: game });
+  vm.runInContext(source.slice(source.indexOf('function eventPlacementPosition('), source.indexOf('function resizedObstruction(')), context);
+  for (const time of [0, 5, 30]) {
+    const position = context.eventPlacementPosition({ time, random: true });
+    const point = game.pointFromRelative(position.x, position.y), camera = game.camera(time);
+    assert.equal(point.x, camera.x + camera.width / 2);
+    assert.equal(point.y, camera.y + camera.height / 2);
+  }
+  assert.equal(JSON.stringify(context.eventPlacementPosition({ x: .1, y: .7 })), '{"x":0.1,"y":0.7}');
+});
+
 test('timeline categories have subdued card colors and artwork while retaining sorting and selection', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
@@ -773,7 +850,7 @@ test('timeline categories have subdued card colors and artwork while retaining s
     choose: (...args) => choices.push(args),
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
-  vm.runInContext(source.slice(source.indexOf('function renderList('), source.indexOf('function renderBrickInspector(')), context);
+  vm.runInContext(source.slice(source.indexOf('function eventTimelineButton('), source.indexOf('function overlappingMarkers(')), context);
   context.renderList();
   assert.equal(count.textContent, '5 events');
   assert.deepEqual(list.children.map(li => li.children[0].dataset.kind), [...kinds].reverse());
@@ -802,11 +879,11 @@ test('timeline categories have subdued card colors and artwork while retaining s
     colors.add(color[1]);
   }
   assert.equal(colors.size, kinds.length);
-  assert.match(css, /#event-list button\[data-kind\]\s*\{[^}]*border: 2px solid var\(--event-color\)/);
-  assert.match(css, /#event-list button\[data-kind\]\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 26%, #26373e\)/);
-  assert.match(css, /#event-list button\[data-kind\]:hover\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 34%, #26373e\)/);
-  assert.match(css, /#event-list button\[aria-pressed="true"\]\s*\{[^}]*outline: 4px solid #fff;[^}]*box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66/);
-  assert.match(css, /#event-list\s*\{[^}]*gap: 12px;[^}]*padding: 8px/);
+  assert.match(css, /\.event-timeline button\[data-kind\]\s*\{[^}]*border: 2px solid var\(--event-color\)/);
+  assert.match(css, /\.event-timeline button\[data-kind\]\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 26%, #26373e\)/);
+  assert.match(css, /\.event-timeline button\[data-kind\]:hover\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 34%, #26373e\)/);
+  assert.match(css, /\.event-timeline button\[aria-pressed="true"\]\s*\{[^}]*outline: 4px solid #fff;[^}]*box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66/);
+  assert.match(css, /\.event-timeline\s*\{[^}]*gap: 12px;[^}]*padding: 8px/);
   assert.deepEqual(choices[0], ['event', 4, true]);
   const examples = [
     { kind: 'food', type: 'H', group: { count: 5 }, expected: 35 },

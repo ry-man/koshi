@@ -871,6 +871,43 @@ function selectAll() {
   setSelection(level.events.map((_, index) => index), previewGame.bricks.filter(brick => brick.absorbedBy === null).map(brick => regionKey(brick.region)));
 }
 
+function eventTimelineButton(event, index, onChoose, spawnKey = null) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.setAttribute('aria-pressed', String(spawnKey ? selectedBricks.has(spawnKey) : selectedEvents.has(index)));
+  button.dataset.kind = event.kind;
+  const id = document.createElement('span');
+  id.className = 'event-id'; id.textContent = spawnKey ? 'B' : String(index + 1);
+  id.setAttribute('aria-label', spawnKey ? `Spawning brick ${spawnKey}` : `Event ID ${index + 1}`);
+  const time = document.createElement('span'); time.className = 'event-time'; time.textContent = spawnKey ? 'Spawn only' : `${event.time}s`;
+  const location = document.createElement('span'); location.className = 'event-location';
+  location.textContent = `${event.random || event.previewRandom ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''}${spawnKey ? ` · spawning brick ${spawnKey}` : ` · #${index + 1}`}`;
+  const category = document.createElement('span'); category.className = 'event-category';
+  category.textContent = event.kind;
+  button.append(time, category);
+  if (event.kind !== 'food') {
+    const artwork = picture(`${event.kind}:${event.type}`, 'brick-spawn-item');
+    artwork.classList.add('event-icon');
+    artwork.setAttribute('aria-hidden', 'true');
+    button.append(artwork);
+  }
+  button.append(event.kind === 'heart' ? 'Heart' : description(event), location);
+  button.append(id);
+  if (['food', 'enemy', 'weapon'].includes(event.kind)) {
+    const totals = pointReference([event], []);
+    const amount = event.kind === 'weapon' ? totals.weaponHits : totals[event.kind];
+    const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
+    const badge = document.createElement('span');
+    badge.className = 'event-points';
+    const strikes = amount === Infinity ? 'Unlimited (timed)' : String(amount);
+    badge.textContent = strikes;
+    badge.setAttribute('aria-label', `${strikes} ${label}`);
+    badge.title = `${strikes} ${label}`;
+    button.append(badge);
+  }
+  button.addEventListener('click', onChoose);
+  return button;
+}
+
 function renderList() {
   const list = $('#event-list');
   list.replaceChildren();
@@ -880,42 +917,48 @@ function renderList() {
     li.textContent = 'No events yet. Place your first object on the board.'; list.append(li);
   }
   level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time).forEach(({ event, index }) => {
-    const li = document.createElement('li'), button = document.createElement('button');
-    button.type = 'button'; button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
-    button.dataset.kind = event.kind;
-    const id = document.createElement('span');
-    id.className = 'event-id'; id.textContent = String(index + 1);
-    id.setAttribute('aria-label', `Event ID ${index + 1}`);
-    const time = document.createElement('span'); time.className = 'event-time'; time.textContent = `${event.time}s`;
-    const location = document.createElement('span'); location.className = 'event-location';
-    location.textContent = `${event.random ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''} · #${index + 1}`;
-    const category = document.createElement('span'); category.className = 'event-category';
-    category.textContent = event.kind;
-    button.append(time, category);
-    if (event.kind !== 'food') {
-      const artwork = picture(`${event.kind}:${event.type}`, 'brick-spawn-item');
-      artwork.classList.add('event-icon');
-      artwork.setAttribute('aria-hidden', 'true');
-      button.append(artwork);
-    }
-    button.append(description(event), location);
-    button.append(id);
-    if (['food', 'enemy', 'weapon'].includes(event.kind)) {
-      const totals = pointReference([event], []);
-      const amount = event.kind === 'weapon' ? totals.weaponHits : totals[event.kind];
-      const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
-      const badge = document.createElement('span');
-      badge.className = 'event-points';
-      const strikes = amount === Infinity ? 'Unlimited (timed)' : String(amount);
-      badge.textContent = strikes;
-      badge.setAttribute('aria-label', `${strikes} ${label}`);
-      badge.title = `${strikes} ${label}`;
-      button.append(badge);
-    }
-    button.addEventListener('click', click => choose('event', index, isAdditive(click)));
+    const li = document.createElement('li');
+    const button = eventTimelineButton(event, index, click => choose('event', index, isAdditive(click)));
     li.append(button); list.append(li);
   });
 }
+
+function overlappingMarkers(x, y) {
+  const found = new Map();
+  for (const marker of $('#markers').querySelectorAll('.marker')) {
+    if (marker.hidden) continue;
+    const rect = marker.getBoundingClientRect();
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+    const spawnKey = marker.dataset.spawnKey;
+    const index = spawnKey ? null : Number(marker.dataset.index);
+    const key = spawnKey ? `brick:${spawnKey}` : `event:${index}`;
+    if (!found.has(key)) found.set(key, { index, spawnKey });
+  }
+  return [...found.values()];
+}
+
+function pickOverlappingMarker(input, marker = null, additive = isAdditive(input), previousSelection = null) {
+  const rect = marker?.getBoundingClientRect();
+  const x = input.detail === 0 && rect ? (rect.left + rect.right) / 2 : input.clientX;
+  const y = input.detail === 0 && rect ? (rect.top + rect.bottom) / 2 : input.clientY;
+  const candidates = overlappingMarkers(x, y);
+  if (candidates.length < 2) return false;
+  if (previousSelection) setSelection(previousSelection.events, previousSelection.bricks);
+  const dialog = $('#overlap-picker'), list = $('#overlap-events');
+  list.replaceChildren(...candidates.map(({ index, spawnKey }) => {
+    const event = spawnKey ? spawnTemplate(spawnKey).event : level.events[index];
+    const li = document.createElement('li');
+    li.append(eventTimelineButton(event, index, () => {
+      dialog.close();
+      if (spawnKey) { choose('brick', spawnKey, additive); focusSpawnTemplate(spawnKey); }
+      else { choose('event', index, additive); focusMarker(index); }
+    }, spawnKey));
+    return li;
+  }));
+  dialog.showModal();
+  return true;
+}
+$('#overlap-close').addEventListener('click', () => $('#overlap-picker').close());
 
 function renderBrickInspector(bricks) {
   const regions = brickEditRegions(previewGame.bricks);
@@ -1259,7 +1302,8 @@ function renderBoard() {
   renderSpawnLinks(templates);
   [...level.events.map((event, index) => ({ event, index })), ...templates]
     .filter(({ event }) => $('#show-random').checked || !(event.random || event.previewRandom))
-    .flatMap(entry => previewGame.customEventPoints(entry.event, { preview: true }).map(point => ({ ...entry, point })))
+    .flatMap(entry => previewGame.customEventPoints(entry.event.previewRandom
+      ? { ...entry.event, random: true } : entry.event, { preview: true }).map(point => ({ ...entry, point })))
     .forEach(({ event, index, spawnKey, point }) => {
     const marker = document.createElement('button');
     marker.className = spawnKey ? 'marker spawn-template' : 'marker';
@@ -1365,6 +1409,7 @@ function renderBoard() {
       if (click.detail !== 0 && !readOnly()) return;
       if (trackObjectAction && !spawnKey) { updateTrackObject(index); return; }
       if (!readOnly() && connectingSpawn !== null && !spawnKey) { attempt(() => connectSpawn(index)); return; }
+      if (pickOverlappingMarker(click, marker)) return;
       if (spawnKey) { choose('brick', spawnKey, isAdditive(click)); focusSpawnTemplate(spawnKey); return; }
       choose('event', index, isAdditive(click));
       focusMarker(index);
@@ -1396,7 +1441,10 @@ function renderBoard() {
         setSelection([], [spawnKey]); focusSpawnTemplate(spawnKey); return;
       }
       if (!selectedEvents.has(index)) { selectedEvents = new Set([index]); selectedBricks = new Set(); }
-      for (const item of selectedList()) moveEvent(item, (level.events[item].x ?? .5) + direction[0] * stepX, (level.events[item].y ?? .5) + direction[1] * stepY);
+      for (const item of selectedList()) {
+        const center = eventPlacementPosition(level.events[item]);
+        moveEvent(item, center.x + direction[0] * stepX, center.y + direction[1] * stepY);
+      }
       markChanged(); setSelection();
       focusMarker(index);
     });
@@ -1933,6 +1981,13 @@ function pointerPosition(event) {
   return { x: (x - b.left) / (b.right - b.left), y: (y - b.top) / (b.bottom - b.top) };
 }
 
+function eventPlacementPosition(event) {
+  if (!event.random) return { x: event.x ?? .5, y: event.y ?? .5 };
+  const camera = previewGame.camera(event.time), bounds = previewGame.bounds();
+  return { x: (camera.x + camera.width / 2 - bounds.left) / (bounds.right - bounds.left),
+    y: (camera.y + camera.height / 2 - bounds.top) / (bounds.bottom - bounds.top) };
+}
+
 function resizedObstruction(origin, handle, dx, dy, bounds) {
   const geometry = obstructionGeometry(origin);
   const west = handle.includes('w'), east = handle.includes('e');
@@ -1960,6 +2015,9 @@ function resizedObstruction(origin, handle, dx, dy, bounds) {
 function startGesture(event, target) {
   if (readOnly() && ['marker', 'resize', 'spawn-template', 'koshi'].includes(target.type)) return;
   gesture = { ...target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, additive: isAdditive(event), moved: false };
+  if (target.type === 'marker' || target.type === 'spawn-template') {
+    gesture.previousSelection = { events: [...selectedEvents], bricks: [...selectedBricks] };
+  }
   if (target.type === 'marker') {
     // Pressing an unselected marker adds it (or replaces the selection) so the drag moves it with the group.
     if (!selectedEvents.has(target.index)) {
@@ -1969,6 +2027,7 @@ function startGesture(event, target) {
     }
     gesture.start = pointerPosition(event);
     gesture.origins = new Map(selectedList().map(index => [index, { ...level.events[index] }]));
+    gesture.positions = new Map([...gesture.origins].map(([index, origin]) => [index, eventPlacementPosition(origin)]));
   }
   if (target.type === 'koshi') {
     gesture.start = pointerPosition(event);
@@ -2088,7 +2147,7 @@ board.addEventListener('pointermove', event => {
     renderBoard();
   } else if (gesture.type === 'marker') {
     const point = pointerPosition(event);
-    for (const [index, origin] of gesture.origins) moveEvent(index, (origin.x ?? .5) + point.x - gesture.start.x, (origin.y ?? .5) + point.y - gesture.start.y);
+    for (const [index, origin] of gesture.positions) moveEvent(index, origin.x + point.x - gesture.start.x, origin.y + point.y - gesture.start.y);
     renderBoard();
   } else drawBox(event);
 });
@@ -2110,6 +2169,7 @@ board.addEventListener('pointerup', event => {
     attempt(() => {
       if (current.moved) saveSpawnTemplate(current.spawnKey, current.draft);
     });
+    if (!current.moved && pickOverlappingMarker(event, null, current.additive, current.previousSelection)) return;
     setSelection([], [current.spawnKey]); focusSpawnTemplate(current.spawnKey);
     return;
   }
@@ -2126,6 +2186,7 @@ board.addEventListener('pointerup', event => {
   }
   if (current.type === 'marker') {
     gesture = null;
+    if (!current.moved && pickOverlappingMarker(event, null, current.additive, current.previousSelection)) return;
     if (current.moved) { markChanged(); setSelection(); message(`Moved ${plural(current.origins.size, 'event')}.`); }
     else if (current.added || !current.additive) setSelection(current.additive ? selectedEvents : [current.index], current.additive ? selectedBricks : []);
     else setSelection(toggled(selectedEvents, current.index));

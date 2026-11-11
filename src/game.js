@@ -4441,10 +4441,10 @@ class Game {
     return OBJECTS[event.type].bubble ? 24 : 20;
   }
 
-  randomSpawnBounds(time = this.elapsed, radius = 18) {
+  randomSpawnBounds(time = this.elapsed, radius = 18, visibilityDuration = 1) {
     const bounds = this.bounds();
     if (!this.level.autoscroll) return bounds;
-    const camera = this.camera(time), next = this.camera(time + 1);
+    const camera = this.camera(time), next = this.camera(time + visibilityDuration);
     const result = {
       left: Math.max(bounds.left, next.x + radius),
       top: Math.max(bounds.top, next.y + radius),
@@ -4597,15 +4597,13 @@ class Game {
     if (event.track) return [this.trackEventPoint(event)];
     const b = this.bounds(), width = b.right - b.left, height = b.bottom - b.top;
     const randomBounds = event.random
-      ? this.randomSpawnBounds(event.time, needsBrickSpawnClearance(event.type) ? DITTO_STAMP_RADIUS : this.spawnRadius(event))
+      ? this.randomSpawnBounds(event.time, needsBrickSpawnClearance(event.type) ? DITTO_STAMP_RADIUS : this.spawnRadius(event), preview ? 0 : 1)
       : b;
-    const relativeRandomPoint = (x, y) => ({
-      x: randomBounds.left + x * (randomBounds.right - randomBounds.left),
-      y: randomBounds.top + y * (randomBounds.bottom - randomBounds.top),
-    });
+    const camera = preview && event.random ? this.camera(event.time) : null;
+    const previewCenter = camera ? { x: camera.x + camera.width / 2, y: camera.y + camera.height / 2 } : null;
     const edge = event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type);
     const snap = point => {
-      if (!edge) return point;
+      if (!edge || (preview && event.random)) return point;
       if (event.random && this.level.autoscroll) {
         const candidates = [];
         for (const x of [b.left, b.right]) {
@@ -4632,11 +4630,7 @@ class Game {
     };
     if (event.randomCount > 1) {
       if (preview) {
-        const columns = Math.ceil(Math.sqrt(event.randomCount)), rows = Math.ceil(event.randomCount / columns);
-        return Array.from({ length: event.randomCount }, (_, index) => {
-          const column = index % columns, row = Math.floor(index / columns);
-          return snap(relativeRandomPoint((column + .5) / columns, (row + .5) / rows));
-        });
+        return Array.from({ length: event.randomCount }, () => ({ ...previewCenter }));
       }
       const pickup = ['food', 'item', 'weapon'].includes(event.kind);
       const points = [], existing = event.kind === 'enemy' ? this.robots : this.collectiblePoints();
@@ -4658,7 +4652,7 @@ class Game {
     }
     if (!event.group) {
       const point = event.random
-        ? preview ? relativeRandomPoint(.5, .5)
+        ? preview ? previewCenter
           : needsBrickSpawnClearance(event.type) ? this.randomStampPoint(SPAWN_SPACING, event.time)
             : ['food', 'item', 'weapon'].includes(event.kind) ? this.randomPickupPoint(event.time)
               : event.kind === 'object' ? this.randomSpawnPoint(event.time, this.spawnRadius(event))
@@ -4700,8 +4694,8 @@ class Game {
         }) : event.kind === 'enemy' && this.level.autoscroll
           ? point => offsets.every(offset => enemyClear({ x: point.x + offset.x, y: point.y + offset.y })) : null;
       center = this.findRandomSpawnPoint(area, this.collectiblePoints(), SPAWN_SPACING + size / 2, safe);
-    } else center = event.random ? { x: (areaBounds.left + areaBounds.right) / 2,
-      y: (areaBounds.top + areaBounds.bottom) / 2 } : this.campaignEventPoint(event.x, event.y);
+    } else center = previewCenter ?? (event.random ? { x: (areaBounds.left + areaBounds.right) / 2,
+      y: (areaBounds.top + areaBounds.bottom) / 2 } : this.campaignEventPoint(event.x, event.y));
     // Keep an explicitly centered formation intact when space near an edge is limited.
     const fit = Math.max(0, Math.min(1,
       reachX > 1e-9 ? Math.min(center.x - areaBounds.left, areaBounds.right - center.x) / reachX : 1,

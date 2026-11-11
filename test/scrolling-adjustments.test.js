@@ -11,8 +11,8 @@ const level = (events = [], autoscroll = { length: 56, speed: 2, events: [] }) =
   version: 1, id: 'Scrolling adjustments', duration: 60, goal: 0, survive: true,
   heartCost: null, brickSet: 1, events, autoscroll,
 });
-const assertVisible = (game, point, time, radius = 18) => {
-  for (const moment of [time, time + 1]) {
+const assertVisible = (game, point, time, radius = 18, visibilityDuration = 1) => {
+  for (const moment of [time, time + visibilityDuration]) {
     const camera = game.camera(moment);
     assert.ok(point.x - radius >= camera.x - 1e-7 && point.x + radius <= camera.x + camera.width + 1e-7,
       `${point.type ?? 'point'} x=${point.x}, radius=${radius}, camera x=${camera.x} at ${moment}s`);
@@ -78,11 +78,39 @@ test('editor random previews and generated copies use the spawn-time viewport fo
           for (const preview of [false, true]) {
             const points = game.customEventPoints(event, { preview });
             assert.equal(points.length, placement.group?.count ?? placement.randomCount ?? 1);
-            for (const point of points) assertVisible(game, point, event.time, radius);
+            for (const point of points) assertVisible(game, point, event.time, radius, preview ? 0 : 1);
+            if (preview) {
+              const camera = game.camera(event.time);
+              for (const axis of ['x', 'y']) {
+                const mean = points.reduce((sum, point) => sum + point[axis], 0) / points.length;
+                const center = camera[axis] + camera[axis === 'x' ? 'width' : 'height'] / 2;
+                assert.ok(Math.abs(mean - center) < 1e-7, `${type} preview is screen-centered on ${axis}`);
+              }
+            }
           }
           for (const enemy of kind === 'enemy' ? game.createCustomSpawn(event) : []) {
             assertVisible(game, enemy, event.time, enemy.radius);
           }
+        }
+      }
+    }
+  }
+});
+
+test('random previews stay screen-centered across camera pauses, endpoints and speeds too fast for live spawns', () => {
+  for (const options of [{}, { portrait: true, scale: .5 }]) {
+    for (const autoscroll of [undefined,
+      { length: 56, speed: 2, events: [{ time: 5, speed: 0 }, { time: 10, speed: 3 }] },
+      { length: 1000, speed: 100, events: [] }]) {
+      const draft = level();
+      if (autoscroll) draft.autoscroll = autoscroll;
+      else delete draft.autoscroll;
+      const game = new Game(() => .1, { customLevel: draft, ...options });
+      for (const time of [0, 5, 7, 12, 59]) {
+        const camera = game.camera(time), center = { x: camera.x + camera.width / 2, y: camera.y + camera.height / 2 };
+        for (const type of ['battery', 'ditto-stamp']) {
+          const event = { time, kind: 'item', type, random: true, randomCount: 4 };
+          assert.deepEqual(game.customEventPoints(event, { preview: true }), Array(4).fill(center));
         }
       }
     }
