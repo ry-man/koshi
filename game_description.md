@@ -813,6 +813,11 @@ Their timer starts on pickup, pauses with gameplay, and allows unlimited strikes
 until it expires. Each contact deals one hit, including shield contacts, like a sword.
 Collecting any weapon replaces the old weapon and resets its hit count or timer.
 The equipped axe displays only the number of seconds remaining, without a suffix.
+Its entire shaft, including the top end above the blade, starts fully brown and
+continuously turns white from that top end toward the butt as
+time runs out, becoming all white exactly at expiry and staying white during the
+fade. Pause freezes the meter; an Anvil or fresh pickup restores a brown handle.
+Replaced axes preserve their meter state during their cosmetic drop.
 Its minimalist double-bladed head
 uses the corresponding sword color, with the same handle width as swords and hammers.
 Axes are available in the editor, spawners, enemy drops and weapon practice;

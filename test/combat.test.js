@@ -498,6 +498,8 @@ test('every weapon replaces the current weapon and resets its hit count or timer
       game.weapons.push(distant);
       game.weapons.push({ x: game.cat.x, y: game.cat.y, type: replacement });
       const drops = game.weaponDrops.length;
+      const handleRemaining = WEAPONS[current].axe
+        ? Math.max(0, Math.min(1, (game.weapon.expires - game.elapsed) / WEAPONS[current].seconds)) : undefined;
       game.combat(0, game.cat.x, game.cat.y);
       assert.equal(game.weapon.type, replacement);
       assert.equal(game.weapon.uses, WEAPONS[replacement].uses);
@@ -505,6 +507,7 @@ test('every weapon replaces the current weapon and resets its hit count or timer
       assert.equal(game.weaponDrops.length, drops + 1);
       assert.deepEqual(game.weaponDrops.at(-1), {
         x: game.cat.x + 30, y: game.cat.y - 20, type: current, age: 0, angle: 0,
+        ...(WEAPONS[current].axe ? { handleRemaining } : {}),
       });
       assert.deepEqual(game.weapons, [distant], 'uncollected weapons persist');
       game.weapons = [];
@@ -589,6 +592,11 @@ test('weapon drop artwork falls with gravity, rotates, settles, then fades witho
     assert.equal(frames[3][2].at(-1), .8, 'fully visible until landing');
     assert.ok(Math.abs(frames[4][2].at(-1) - .4) < 1e-9, 'half faded halfway through fade');
     assert.deepEqual(frames[5], [], 'expired effects draw nothing');
+    operations.length = 0;
+    context.drawWeaponDrop({ x: 100, y: 80, angle: .2, type, age: 0,
+      handleRemaining: .375 });
+    assert.deepEqual(operations[2], ['weapon', 0, 0, type, undefined, .375, .8],
+      'axe drop forwards its saved handle state');
   }
 });
 

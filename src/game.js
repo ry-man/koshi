@@ -6512,6 +6512,10 @@ class Game {
       x: this.cat.x + 30, y: this.cat.y - 20, type: this.weapon.type, age: 0,
       angle: age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4,
       ...(expired ? { expired: true } : {}),
+      ...(WEAPONS[this.weapon.type].axe ? {
+        handleRemaining: expired ? 0 : Math.max(0, Math.min(1,
+          (this.weapon.expires - this.elapsed) / WEAPONS[this.weapon.type].seconds)),
+      } : {}),
     });
     if (expired && age !== null) swing.weaponExpired = true;
     this.weapon = null;

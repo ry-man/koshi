@@ -2446,7 +2446,9 @@ function render(now) {
     ctx.save(); ctx.translate(game.cat.x + 30, game.cat.y - 20); ctx.rotate(swingAngle);
     drawWeapon(0, 0, type, game.weapon?.type === type
       ? WEAPONS[type].seconds ? String(Math.max(0, Math.ceil(game.weapon.expires - game.elapsed))) : String(game.weapon.uses)
-      : undefined);
+      : undefined, ...(WEAPONS[type].axe
+        ? [game.weapon?.type === type ? Math.max(0, Math.min(1, (game.weapon.expires - game.elapsed) / WEAPONS[type].seconds)) : 0]
+        : []));
     ctx.restore();
   }
   for (const attack of game.weaponAttacks) {
@@ -2700,7 +2702,7 @@ function drawWeaponDrop(drop) {
   ctx.globalAlpha *= opacity;
   ctx.translate(drop.x + fall * 18, drop.y + fall * fall * 52);
   ctx.rotate(drop.angle + fall * 1.25);
-  drawWeapon(0, 0, drop.type);
+  drawWeapon(0, 0, drop.type, ...(drop.handleRemaining === undefined ? [] : [undefined, drop.handleRemaining]));
   ctx.restore();
 }
 
@@ -2976,10 +2978,18 @@ function drawHammer(x, y, color, label) {
   ctx.restore();
 }
 
-function drawAxe(x, y, color, label) {
+function drawAxe(x, y, color, label, remaining = 1) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(.5);
   line([[0, -21], [0, 27]], '#17212a', 7);
-  line([[0, -21], [0, 27]], '#8a6953', 5);
+  let handle = remaining <= 0 ? '#ffffff' : '#8a6953';
+  if (remaining > 0 && remaining < 1) {
+    handle = ctx.createLinearGradient(0, -23.5, 0, 29.5);
+    handle.addColorStop(0, '#ffffff');
+    handle.addColorStop(1 - remaining, '#ffffff');
+    handle.addColorStop(1 - remaining, '#8a6953');
+    handle.addColorStop(1, '#8a6953');
+  }
+  line([[0, -21], [0, 27]], handle, 5);
   ctx.fillStyle = color; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
   ctx.beginPath();
   ctx.moveTo(-8, -25); ctx.quadraticCurveTo(-30, -10, -8, 5);
@@ -2995,9 +3005,9 @@ function drawAxe(x, y, color, label) {
   ctx.restore();
 }
 
-function drawWeapon(x, y, type, label) {
+function drawWeapon(x, y, type, label, remaining) {
   const weapon = WEAPONS[type];
-  if (weapon.axe) drawAxe(x, y, weapon.color, label);
+  if (weapon.axe) drawAxe(x, y, weapon.color, label, remaining);
   else if (weapon.hammer) drawHammer(x, y, weapon.color, label);
   else drawSword(x, y, weapon.color, label);
 }

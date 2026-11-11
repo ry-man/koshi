@@ -652,6 +652,13 @@ the board; phones keep compact controls above it without scrolling away from pla
   The held axe shows only the number of seconds remaining (no suffix); weapon status
   announces seconds remaining. The editor reports axe
   strike capacity as **Unlimited (timed)** rather than a fixed hit count.
+  The axe handle is also a continuous timer meter: it starts fully brown and
+  turns white from the top end above the blade, across the blade, and toward the
+  butt, becoming completely white at expiry. The upper end is part of the meter,
+  not a permanently white tip.
+  Pause freezes the meter; an Anvil or fresh axe pickup refills it to brown.
+  Replaced axes retain their meter state while dropping; expired axes fade with
+  a white handle.
   Axes cannot damage Robo Love Bugs or Tom the Toaster.
   The **Anvil**, available in custom levels, spawners and enemy drops, fully
   restores the held weapon's original strike count or axe duration without

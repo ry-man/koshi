@@ -157,6 +157,7 @@ test('battle axe art uses a double blade, sword colors and the existing 5px hand
       return () => {};
     },
   });
+
   const context = vm.createContext({ ctx, WEAPONS });
   vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
     + source.slice(source.indexOf('function drawSword('), source.indexOf('function drawAttackPop(')), context);
@@ -171,5 +172,75 @@ test('battle axe art uses a double blade, sword colors and the existing 5px hand
     assert.equal(spawnColor({ kind: 'weapon', type }), SWORDS[sword].color);
     assert.match(spawnSymbol({ kind: 'weapon', type }), /Q-30 -10.*Q30 -10/);
     assert.notEqual(spawnSymbol({ kind: 'weapon', type }), spawnSymbol({ kind: 'weapon', type: sword }));
+  }
+});
+
+test('axe handle meter continuously replaces brown with white and has exact full and empty endpoints', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const strokes = [], gradients = [];
+  const ctx = new Proxy({ strokeStyle: '', lineWidth: 0 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'stroke') return () => strokes.push([target.strokeStyle, target.lineWidth]);
+      if (name === 'createLinearGradient') return (...coordinates) => {
+        const gradient = { coordinates, stops: [], addColorStop(...stop) { this.stops.push(stop); } };
+        gradients.push(gradient);
+        return gradient;
+      };
+      return () => {};
+    },
+  });
+  const context = vm.createContext({ ctx, WEAPONS });
+  vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
+    + source.slice(source.indexOf('function drawAxe('), source.indexOf('function drawAttackPop(')), context);
+  for (const [type] of axes) {
+    for (const remaining of [1, .999, .75, .5, .123, .001, 0]) {
+      strokes.length = 0; gradients.length = 0;
+      context.drawWeapon(0, 0, type, undefined, remaining);
+      assert.deepEqual(strokes[0], ['#17212a', 7], 'outline and handle width are preserved');
+      assert.equal(strokes[1][1], 5);
+      if (remaining === 1 || remaining === 0) {
+        assert.equal(strokes[1][0], remaining === 1 ? '#8a6953' : '#ffffff');
+        assert.equal(gradients.length, 0);
+      } else {
+        assert.equal(strokes[1][0], gradients[0]);
+        assert.deepEqual(gradients[0].coordinates, [0, -23.5, 0, 29.5],
+          'meter spans the entire shaft including the upper end and rounded caps');
+        assert.deepEqual(gradients[0].stops, [
+          [0, '#ffffff'], [1 - remaining, '#ffffff'],
+          [1 - remaining, '#8a6953'], [1, '#8a6953'],
+        ]);
+        const boundary = -23.5 + 53 * (1 - remaining);
+        if (remaining === .999) assert.ok(boundary < -21, 'upper shaft stays brown just after pickup');
+        if (remaining === .75) {
+          assert.ok(boundary > -15, 'upper end above the blade turns white first');
+          assert.ok(boundary < -5, 'lower handle is still brown while meter crosses the blade');
+        }
+      }
+    }
+  }
+});
+
+test('axe meter follows pause, Anvil refill, replacement snapshots and expiry', () => {
+  for (const [type, seconds] of axes) {
+    const game = arena();
+    equip(game, type);
+    game.update(seconds / 4);
+    const remaining = (game.weapon.expires - game.elapsed) / seconds;
+    assert.ok(Math.abs(remaining - .75) < 1e-9);
+    game.pause(); game.update(100);
+    assert.equal((game.weapon.expires - game.elapsed) / seconds, remaining);
+    game.resume();
+    equip(game, 'wood');
+    assert.equal(game.weaponDrops.at(-1).handleRemaining, remaining);
+    equip(game, type);
+    game.update(seconds / 2);
+    game.collectItem({ type: 'anvil' });
+    assert.equal(game.weapon.expires, game.elapsed + seconds);
+    game.elapsed = game.weapon.expires;
+    game.combat(0, game.cat.x, game.cat.y);
+    assert.equal(game.weapon, null);
+    assert.equal(game.weaponDrops.at(-1).handleRemaining, 0);
+    assert.equal(game.weaponDrops.at(-1).expired, true);
   }
 });

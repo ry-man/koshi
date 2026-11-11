@@ -138,7 +138,14 @@ test('weapon counts are passed to the equipped weapon without a separate badge',
       weapon: { type, uses, expires: WEAPONS[type].seconds ? 5 + WEAPONS[type].seconds : Infinity }, weaponAttacks: [] };
     vm.runInNewContext(body, { game, WEAPONS, ctx, visible: () => true,
       drawAttackPop() {}, drawWeapon: (...args) => swords.push(args) });
-    assert.deepEqual(swords[0], [0, 0, type, label]);
+    assert.deepEqual(swords[0], [0, 0, type, label, ...(WEAPONS[type].axe ? [1] : [])]);
+    if (WEAPONS[type].axe) {
+      swords.length = 0;
+      game.elapsed += WEAPONS[type].seconds * .375;
+      vm.runInNewContext(body, { game, WEAPONS, ctx, visible: () => true,
+        drawAttackPop() {}, drawWeapon: (...args) => swords.push(args) });
+      assert.equal(swords[0][4], .625, 'handle uses continuous time, not the rounded count');
+    }
     assert.deepEqual(texts, []);
     assert.deepEqual(arcs, []);
   }

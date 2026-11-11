@@ -155,7 +155,7 @@ const GUIDE = [
       ...Object.entries(WEAPONS).map(([type, weapon]) => [
         weapon.name,
         weapon.axe
-          ? `Unlimited strikes for ${weapon.seconds} seconds after pickup. Each contact deals one hit, including shield hits. Pause freezes the timer. Cannot damage Love Bugs or Tom the Toaster.`
+          ? `Unlimited strikes for ${weapon.seconds} seconds after pickup. The entire brown shaft continuously turns white starting at the top end above the blade, then continuing toward the butt, becoming all white at expiry. An Anvil refills it to brown. Each contact deals one hit, including shield hits. Pause freezes the timer and handle meter. Cannot damage Love Bugs or Tom the Toaster.`
           : weapon.hammer
           ? `${weapon.uses} hammer hits. Each contact spends as many hits as possible to damage an enemy shield or defeat an unshielded enemy, using no more hits than needed. Cannot damage Love Bugs or Tom the Toaster.`
           : `${weapon.uses} sword hit${weapon.uses === 1 ? '' : 's'} before breaking. Shield hits also spend a hit. Cannot damage Love Bugs or Tom the Toaster.`,
