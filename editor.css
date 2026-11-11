@@ -2,7 +2,7 @@
 .editor-main a { color: var(--accent); }
 .editor-main .brand { color: var(--text); }
 .editor-main .masthead > a:last-child { font-size: 13px; }
-.editor-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-top: 30px; }
+.editor-heading { display: flex; justify-content: flex-end; align-items: center; padding-top: 30px; }
 .editor-heading .primary { text-decoration: none; text-align: center; color: var(--bg); }
 .editor-main button { background: #26373e; border: 1px solid #ffffff24; color: var(--text); border-radius: 6px; min-height: 44px; padding: 8px 13px; font-size: 12px; }
 .editor-main button:hover { background: #34494e; }
@@ -14,6 +14,7 @@
 #editor-board[data-read-only="true"] .marker { cursor: pointer; }
 .editor-panel h2 { font-size: 20px; font-weight: 500; margin: 0; }
 .level-settings-panel > summary, .introduction-panel > summary { cursor: pointer; }
+.editor-panel.level-settings-panel > summary { color: #ffd078; font-size: 20px; font-weight: 800; }
 .level-settings-panel[open] > summary { margin-bottom: 16px; }
 .introduction-panel { margin-top: 16px; padding-top: 12px; border-top: 1px solid #ffffff18; }
 .introduction-panel[open] > summary { margin-bottom: 12px; }
@@ -22,15 +23,13 @@
 .editor-panel input:focus-visible, .editor-panel select:focus-visible, .editor-panel textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .settings-grid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); align-items: end; gap: 12px; }
 .settings-grid .full-width { grid-column: 1 / -1; }
-.point-reference { margin-top: 16px; padding-top: 12px; border-top: 1px solid #ffffff18; }
-.point-reference h2 { font-size: 15px; }
-.point-reference-grid { display: flex; align-items: flex-start; gap: 16px; margin: 10px 0; }
+.point-reference-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; margin: 10px 0; }
 .point-reference table { border-collapse: collapse; font-size: 12px; flex: 0 0 auto; }
 .point-reference th, .point-reference td { border: 1px solid #ffffff40; padding: 6px 8px; text-align: center; }
 .point-reference th[scope="row"] { text-align: left; }
 .point-reference output { font-weight: 700; color: var(--accent); }
 .point-reference .not-applicable { background: #ffffff20; }
-#point-warnings { flex: 1; min-width: 0; border: 1px solid #ffffff40; border-radius: 6px; padding: 8px; }
+#point-warnings { flex: 1 1 150px; min-width: 0; border: 1px solid #ffffff40; border-radius: 6px; padding: 8px; }
 #point-warnings p { margin: 4px 0; font-weight: 700; }
 #point-warnings [data-color="red"] { color: #ffaba2; }
 #point-warnings [data-color="yellow"] { color: #ffd078; }
@@ -51,16 +50,22 @@
 .scene-line > button { justify-self: start; }
 .scene-cast { display: flex; flex-wrap: wrap; gap: 12px; }
 .editor-workspace { display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 30vw, 560px); gap: 18px; align-items: start; }
-.stage-toolbar, .section-heading, .file-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.stage-panel { container-type: inline-size; }
+.stage-toolbar { display: grid; grid-template-columns: minmax(150px, .7fr) minmax(290px, 1.4fr) minmax(190px, .9fr) minmax(210px, 1fr); gap: 10px; align-items: start; }
+.stage-control-group { min-width: 0; padding: 10px; border: 1px solid #ffffff25; border-radius: 8px; }
+.editor-panel .stage-control-group h2 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+.view-settings, .placement-settings { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.view-settings h2, .placement-settings h2 { align-self: stretch; }
+.section-heading, .file-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .stage-toolbar label { flex-direction: row; align-items: center; }
 .stage-toolbar select { width: auto; }
 .tool-group { display: inline-flex; gap: 4px; }
-.obstruction-tools { align-items: center; }
+.obstruction-tools { align-items: center; flex-wrap: wrap; }
 #obstruction-texture-swatch { display: block; width: 48px; height: 28px; border: 1px solid #ffffff80; border-radius: 4px; image-rendering: pixelated; }
 #editor-board[data-obstruction-tool="sample"] .obstruction-marker { cursor: crosshair; }
 #editor-board[data-obstruction-tool="paint"] .obstruction-marker { cursor: cell; }
-.selection-toolbar { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 10px; }
-.selection-toolbar output { font-weight: 700; margin-right: auto; }
+.selection-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.selection-toolbar output { font-weight: 700; flex-basis: 100%; }
 .selection-toolbar label { flex-direction: row; align-items: center; }
 #editor-board[data-tool="select"] { cursor: crosshair; }
 #selection-box { position: absolute; z-index: 5; border: 2px dashed white; background: #ffffff22; pointer-events: none; }
@@ -209,20 +214,27 @@
 .editor-warning { border: 1px solid #ef9947; padding: 10px 12px; border-radius: 6px; background: #342b25; color: #ffd4a2; font-size: 13px; line-height: 1.5; }
 #playtest[aria-disabled="true"] { background: #695c47; color: #fff; }
 [hidden] { display: none !important; }
+@container (max-width: 1000px) {
+  .stage-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .view-settings, .point-reference { grid-column: 1 / -1; }
+}
+@container (max-width: 480px) {
+  .stage-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .view-settings, .point-reference { grid-column: auto; }
+  .point-reference-grid { overflow-x: auto; }
+  .point-reference table { font-size: 10px; }
+  .point-reference th, .point-reference td { padding: 4px; }
+}
 @media (max-width: 1000px) { .settings-grid { grid-template-columns: repeat(3, 1fr); }.editor-workspace { grid-template-columns: minmax(0, 1fr) 280px; } }
 @media (max-width: 760px) {
   .editor-main { padding: 0 10px 20px; }
   .editor-main .masthead { height: auto; padding: 16px 0; }
-  .editor-heading { padding-top: 15px; align-items: start; }.editor-heading h1 { font-size: 25px; letter-spacing: -.8px; }
+  .editor-heading { padding-top: 15px; align-items: start; }
   .editor-heading .primary { min-width: 100px; padding: 12px; font-size: 12px; }
   .editor-panel { padding: 12px; }.editor-workspace { grid-template-columns: 1fr; }
-  .settings-grid { grid-template-columns: 1fr 1fr; }.stage-toolbar { gap: 8px; }.stage-toolbar label { font-size: 11px; }
+  .settings-grid { grid-template-columns: 1fr 1fr; }
   .editor-main .marker { width: 36px; height: 36px; }
   .inspector { position: static; max-height: none; overflow: visible; }
-  .point-reference-grid { overflow-x: auto; }
-  .point-reference table { font-size: 10px; }
-  .point-reference th, .point-reference td { padding: 4px; }
-  #point-warnings { min-width: 120px; }
 }
 .info-page { margin: 12px 0; display: grid; gap: 12px; }
 .info-page label { display: grid; gap: 6px; }

@@ -517,14 +517,28 @@ test('palette image artwork fits its icon slot in menus, markers, and informatio
   assert.match(css, /\.info-graphics-preview \.palette-picture\s*\{[^}]*width:\s*64px;[^}]*height:\s*52px;/);
 });
 
-test('settings and introductions share a collapsible frame, and points sit directly above the board', () => {
+test('settings and introductions share a collapsible frame, and board controls are grouped above the board', () => {
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   const settings = html.slice(html.indexOf('<details class="editor-panel level-settings-panel"'), html.indexOf('<div class="editor-workspace">'));
   assert.match(settings, /aria-label="Level settings" open>/);
   for (const id of ['settings-form', 'cutscene-form', 'level-info-form']) assert.ok(settings.includes(`id="${id}"`));
   assert.doesNotMatch(settings, /Apply settings|point-reference/);
-  assert.match(html, /id="available-soccer"[^]*?<\/table>[^]*?<\/section>\s*<div id="editor-board-scroll"/);
-  const reference = html.match(/<section class="point-reference"[\s\S]*?<\/section>/)[0];
+  const toolbar = html.slice(html.indexOf('<div class="stage-toolbar">'), html.indexOf('<div id="editor-board-scroll"'));
+  const groups = [
+    ['view-settings', ['orientation', 'full-grid', 'dynamic-view']],
+    ['point-reference', ['available-soccer', 'point-warnings']],
+    ['texture-mapping', ['obstruction-eyedropper', 'obstruction-texture-swatch', 'obstruction-paint']],
+    ['placement-settings', ['place-mode', 'select-mode', 'discretize-xy', 'selection-summary', 'additive-select', 'select-all', 'clear-selection']],
+  ];
+  let previous = -1;
+  for (const [name, ids] of groups) {
+    const section = toolbar.match(new RegExp(`<section class="stage-control-group ${name}"[\\s\\S]*?<\\/section>`));
+    assert.ok(section, `${name} group exists above the board`);
+    assert.ok(section.index > previous, `${name} follows the preceding group`);
+    previous = section.index;
+    for (const id of ids) assert.match(section[0], new RegExp(`id="${id}"`));
+  }
+  const reference = toolbar.match(/<section class="stage-control-group point-reference"[\s\S]*?<\/section>/)[0];
   assert.match(reference, /axes assume one successful strike per active second/);
   assert.match(reference, /id="point-warnings"/);
   const assumptions = reference.match(/<details class="point-assumptions">([\s\S]*?)<\/details>/);

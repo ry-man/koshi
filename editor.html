@@ -24,7 +24,7 @@
         <a class="brand" data-game-link href="./index.html"><span class="brand-mark">K</span> KOSHI'S QUEST</a>
         <a data-game-link href="./index.html">Back to game →</a>
       </header>
-      <div class="editor-heading"><div><p class="eyebrow">THE DESIGN STUDIO</p><h1>Build the next adventure.</h1></div><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
+      <div class="editor-heading"><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
       <p id="editor-message" role="status" aria-live="polite"></p>
       <p id="portal-warning" class="editor-warning" role="status" aria-live="polite" hidden></p>
       <section class="editor-panel" aria-label="Level library">
@@ -98,9 +98,14 @@
       </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
-          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><label class="inline-label"><input id="discretize-xy" type="checkbox" checked> Discretize X, Y</label><label class="inline-label"><input id="full-grid" type="checkbox"> Full grid lines</label><label class="inline-label"><input id="dynamic-view" type="checkbox" disabled> Dynamic View</label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div><div class="tool-group obstruction-tools" role="group" aria-label="Obstruction texture tools"><button id="obstruction-eyedropper" type="button" aria-pressed="false" title="Sample an obstruction's texture">Eyedropper</button><canvas id="obstruction-texture-swatch" width="48" height="28" role="img" aria-label="No obstruction texture stored"></canvas><button id="obstruction-paint" type="button" aria-pressed="false" disabled title="Apply the stored texture to obstructions">Paint can</button></div></div>
-          <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
-          <section class="point-reference" aria-labelledby="point-reference-heading">
+          <div class="stage-toolbar">
+          <section class="stage-control-group view-settings" aria-labelledby="view-settings-heading">
+            <h2 id="view-settings-heading">View settings</h2>
+            <label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label>
+            <label class="inline-label"><input id="full-grid" type="checkbox"> Full grid lines</label>
+            <label class="inline-label"><input id="dynamic-view" type="checkbox" disabled> Dynamic View</label>
+          </section>
+          <section class="stage-control-group point-reference" aria-labelledby="point-reference-heading">
             <h2 id="point-reference-heading">Available points reference</h2>
             <div class="point-reference-grid">
               <table aria-label="Level points and targets" aria-live="polite">
@@ -119,6 +124,17 @@
               <p>Weapon estimate: swords and hammers use their charges; axes assume one successful strike per active second (silver: 6, gold: 12); Rope Darts assume one successful strike per shot (bronze: 3, silver: 5, gold: 10). Axes and darts may hit more or fewer enemies. Totals include every scheduled/grouped/random copy, one spawn per spawning brick, enemy weapon drops and weapons inside Item Cases. Assume every pickup is collected and used fully; misses, replacement losses, case-breaking costs, timing, recharges, duplication and non-weapon attacks are not simulated. Warnings are planning estimates, not proof a level is impossible.</p>
             </details>
           </section>
+          <section class="stage-control-group texture-mapping" aria-labelledby="texture-mapping-heading">
+            <h2 id="texture-mapping-heading">Texture mapping</h2>
+            <div class="tool-group obstruction-tools" role="group" aria-label="Obstruction texture tools"><button id="obstruction-eyedropper" type="button" aria-pressed="false" title="Sample an obstruction's texture">Eyedropper</button><canvas id="obstruction-texture-swatch" width="48" height="28" role="img" aria-label="No obstruction texture stored"></canvas><button id="obstruction-paint" type="button" aria-pressed="false" disabled title="Apply the stored texture to obstructions">Paint can</button></div>
+          </section>
+          <section class="stage-control-group placement-settings" aria-labelledby="placement-settings-heading">
+            <h2 id="placement-settings-heading">Selection &amp; placement</h2>
+            <div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div>
+            <label class="inline-label"><input id="discretize-xy" type="checkbox" checked> Discretize X, Y</label>
+            <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
+          </section>
+          </div>
           <div id="editor-board-scroll" tabindex="0" role="region" aria-label="Scrollable level board">
           <div id="editor-board" data-orientation="landscape" tabindex="-1">
             <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
