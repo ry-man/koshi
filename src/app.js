@@ -1559,17 +1559,17 @@ function guidePicture(picture, title, fillBrick = false) {
     return image;
   }
   if (picture.startsWith('special:')) {
-    const type = picture.slice(8), image = document.createElement('div');
+    const [, type, variant, power] = picture.split(':'), image = document.createElement('div');
     image.className = 'guide-special-brick';
     image.setAttribute('role', 'img'); image.setAttribute('aria-label', title);
     const brick = { x: 0, y: 0, w: 160, h: 70,
       kind: type === 'goal' || type === 'cinder' ? type : 'normal',
-      portal: type === 'portal' ? 'purple' : null, toggle: type === 'toggle' ? 4 : null,
-      toggleRemaining: type === 'toggle' ? 4 : 0, boost: type === 'boost',
+      portal: type === 'portal' ? variant || 'purple' : null, toggle: type === 'toggle' ? Number(variant || 4) : null,
+      toggleRemaining: type === 'toggle' ? Number(variant || 4) : 0, boost: type === 'boost',
       barrier: type === 'barrier',
       power: type === 'power',
-      turret: type === 'turret' ? 'laser' : null,
-      hazard: type === 'hazard' ? { type: 'flame' } : null,
+      turret: type === 'turret' ? variant || 'laser' : null,
+      hazard: type === 'hazard' ? { type: variant || 'flame', ...(power ? { power } : {}) } : null,
       spawner: type === 'spawner' ? { kind: 'enemy', type: 'mouse' } : null };
     decorateBrick(image, brick, [brick]);
     return image;
@@ -1582,9 +1582,12 @@ function guidePicture(picture, title, fillBrick = false) {
   const previous = ctx;
   ctx = image.getContext('2d');
   ctx.scale(2, 2);
-  const [kind, type] = picture.split(':');
+  const [kind, type, variant] = picture.split(':');
   if (kind === 'object' && type === 'soccer-ball') {
     drawSoccerBall(ctx, { x: 80, y: 42, radius: 16, vx: 0, vy: 0, angle: 0 });
+  } else if (kind === 'object' && type === 'item-case') {
+    drawItemCase(ctx, { x: 80, y: 42, containsItem: 'key' },
+      item => drawGameItem({ x: 0, y: 0, type: item, keysRequired: 1 }));
   } else if (kind === 'object' && OBJECTS[type]?.bumper) {
     drawBumper(ctx, { x: 80, y: 42, type, radius: 22 }, 0);
   } else if (kind === 'object' && OBJECTS[type]?.bubble) {
@@ -1592,7 +1595,7 @@ function guidePicture(picture, title, fillBrick = false) {
   } else if (kind === 'object' && OBJECTS[type]?.catCircle) {
     drawCatCircle(ctx, { x: 80, y: 42, radius: 24 });
   } else if (kind === 'object' && OBJECTS[type]?.obstruction) {
-    drawObstruction(ctx, { x: 80, y: 40, type, radius: 32 });
+    drawObstruction(ctx, { x: 80, y: 40, type, radius: 32, destructible: variant === 'destructible' });
   } else if (kind === 'brick' || kind === 'slime') {
     const crumbler = type.includes('crumbler');
     const warped = type.includes('warped');
@@ -1676,7 +1679,24 @@ function showGuideChapter(index) {
   for (const [title, description, picture] of GUIDE[index].sections) {
     const section = document.createElement('section'), label = document.createElement('h4'), text = document.createElement('p');
     label.textContent = title; text.textContent = description;
-    if (picture) section.append(guidePicture(picture, title));
+    if (Array.isArray(picture)) {
+      const visuals = document.createElement('div');
+      visuals.className = 'guide-visuals';
+      for (const id of picture) {
+        const parts = id.split(':'), type = parts[1];
+        const name = parts[0] === 'item' ? ITEMS[type].name
+          : parts[0] === 'object' ? OBJECTS[type].name
+          : parts[0] === 'weapon' ? WEAPONS[type].name
+          : parts[0] === 'special' && type === 'toggle' ? ({ 1: 'Red / 1', 2: 'Green / 2', 4: 'Blue / 4' }[parts[2]])
+          : parts[0] === 'special' ? parts.slice(2).join(' ') || type
+          : type;
+        const figure = document.createElement('figure'), caption = document.createElement('figcaption');
+        caption.textContent = name.replaceAll('-', ' ');
+        figure.append(guidePicture(id, caption.textContent), caption);
+        visuals.append(figure);
+      }
+      section.append(visuals);
+    } else if (picture) section.append(guidePicture(picture, title));
     section.append(label, text); content.append(section);
   }
   content.scrollTop = 0;

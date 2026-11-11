@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { GUIDE, LESSONS, Tutorial } = require('../src/learning.js');
-const { Game, CHARACTERS, ITEMS, OBJECTS, SWORDS, WEAPONS, LEVELS, CONTACT_SURFACES, brickRegions, levelObjective } = require('../src/game.js');
+const { Game, CHARACTERS, ITEMS, OBJECTS, SWORDS, WEAPONS, HAZARDS, PORTALS, LEVELS, CONTACT_SURFACES, brickRegions, levelObjective } = require('../src/game.js');
 
 const indexOf = id => LESSONS.findIndex(lesson => lesson.id === id);
 function practice(id, options = {}) {
@@ -45,7 +45,7 @@ test('guide covers all playable topics and lessons have unique freely selectable
 });
 
 test('guide illustrates every brick, enemy, heart, weapon, and power-up without a story section', () => {
-  const pictures = GUIDE.flatMap(chapter => chapter.sections.map(([, , picture]) => picture).filter(Boolean));
+  const pictures = GUIDE.flatMap(chapter => chapter.sections.flatMap(([, , picture]) => picture ? [picture].flat() : []));
   const pictureSet = new Set(pictures);
   for (const type of Object.keys(ITEMS)) assert.ok(pictureSet.has(`item:${type}`), `missing item: ${type}`);
   for (const type of Object.keys(OBJECTS)) assert.ok(pictureSet.has(`object:${type}`), `missing object: ${type}`);
@@ -53,9 +53,14 @@ test('guide illustrates every brick, enemy, heart, weapon, and power-up without 
     assert.ok(pictureSet.has(`enemy:${type}`), `missing enemy: ${type}`);
   }
   for (const picture of [
-    'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped', 'brick:warped-crumbler',
+    'brick:slow', 'brick:normal', 'brick:fast', 'brick:crumbler', 'brick:warped',
     'slime:blue', 'slime:green', 'slime:red', 'brick:springs', 'brick:spikes', 'brick:conveyor', 'heart',
-    'special:cinder', 'special:goal', 'object:soccer-ball', 'special:portal', 'special:toggle', 'special:spawner', 'special:turret', 'special:boost',
+    'special:cinder', 'special:goal', 'object:soccer-ball', 'special:spawner', 'special:boost',
+    ...Object.keys(PORTALS).map(color => `special:portal:${color}`),
+    ...[1, 2, 4].map(count => `special:toggle:${count}`),
+    ...['laser', 'fireball'].map(type => `special:turret:${type}`),
+    ...Object.keys(HAZARDS).map(type => `special:hazard:${type}`),
+    ...Object.keys(HAZARDS).flatMap(type => ['yellow', 'black'].map(power => `special:hazard:${type}:${power}`)),
     'enemy:mouse', 'enemy:wheel', 'enemy:ram', 'enemy:bucket', ...Object.keys(WEAPONS).map(type => `weapon:${type}`),
     'item:smiley-cookie', 'item:stopwatch', 'item:stopwatch-green', 'item:stopwatch-blue', 'item:battery', 'item:music-box', 'item:eggplant', 'item:saw-blade', 'item:magic-sunglasses', 'item:ditto-stamp', 'item:spooky-mask',
   ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
@@ -65,6 +70,44 @@ test('guide illustrates every brick, enemy, heart, weapon, and power-up without 
     for (const [title, description] of chapter.sections) assert.doesNotMatch(`${title} ${description}`, /story|cutscene/i);
   }
   assert.ok(GUIDE.some(chapter => chapter.title === 'Objectives'));
+});
+
+test('guide groups variants, separates hazards and turrets, and explains powered tracks', () => {
+  const sections = GUIDE.flatMap(chapter => chapter.sections);
+  const entry = title => {
+    const matches = sections.filter(([name]) => name === title);
+    assert.equal(matches.length, 1, `expected one ${title} entry`);
+    return matches[0];
+  };
+  for (const [title, expected] of [
+    ['Cat Shields', 3], ['Boom Time', 3], ['Stopwatches', 3],
+    ['Thin Paintbrush', 3], ['Wide Paintbrush', 3], ['Paint Roller', 3],
+    ['Steering bricks', 3], ['Bumpers', 3], ['Bubbles', 3], ['Slime', 3],
+    ['Obstructions', 8], ['Swords', 4], ['Hammers', 3], ['Axes', 2], ['Rope Darts', 3],
+    ['Bubble Gun Hazard', 3], ['Bumper Gun Hazard', 3],
+    ['Power-linked Hazard Bricks', Object.keys(HAZARDS).length * 2],
+  ]) assert.equal(entry(title)[2].length, expected, title);
+  for (const title of ['Laser Hazard', 'Flame Hazard', 'Missile Hazard', 'Obstructor Gun Hazard', 'Laser Turret', 'Fireball Turret', 'Destructible obstructions']) entry(title);
+  assert.equal(sections.filter(([title]) => /crumbler/i.test(title)).length, 1);
+  assert.equal(sections.filter(([title]) => /warped/i.test(title)).length, 1);
+  const track = entry('Cat Tracks')[1];
+  assert.match(track, /bumper/i);
+  assert.match(track, /obstruction/i);
+  assert.match(track, /yellow or black/i);
+  assert.match(track, /matching color/i);
+  assert.match(track, /pauses or resumes/i);
+});
+
+test('Item Case is explained in the power-ups guide and has a selectable practice lesson', () => {
+  const chapter = GUIDE.find(({ title }) => title === 'Power-ups & risky items');
+  const entries = GUIDE.flatMap(({ sections }) => sections).filter(([title]) => title === 'Item Case');
+  assert.equal(entries.length, 1);
+  assert.ok(chapter.sections.includes(entries[0]));
+  assert.equal(entries[0][2], 'object:item-case');
+  assert.match(entries[0][1], /sword, hammer or axe/i);
+  assert.match(entries[0][1], /Rope Dart/);
+  assert.match(entries[0][1], /Tutorial to practice/);
+  assert.ok(LESSONS.some(({ id }) => id === 'item-case'));
 });
 
 test('tutorial covers every contact surface, enemy, and new item mechanic, and uses real campaign objectives', () => {

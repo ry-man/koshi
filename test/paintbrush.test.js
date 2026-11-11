@@ -43,7 +43,7 @@ test('all nine brushes support editor placements, spawners, lifetimes, guide pic
     const symbol = spawnSymbol({ kind: 'item', type });
     assert.ok(symbol); symbols.add(symbol);
     assert.equal(spawnColor({ kind: 'item', type }), item.color);
-    assert.ok(GUIDE.flatMap(chapter => chapter.sections).some(([, , picture]) => picture === `item:${type}`));
+    assert.ok(GUIDE.flatMap(chapter => chapter.sections).some(([, , picture]) => [picture].flat().includes(`item:${type}`)));
     assert.equal(item.paintKind, { red: 'fast', green: 'normal', blue: 'slow' }[type.split('-').at(-1)]);
     assert.equal(item.paintUses, { pencil: 1, wide: 3, roller: 5 }[item.brush]);
   }

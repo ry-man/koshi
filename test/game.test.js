@@ -656,6 +656,46 @@ test('soccer goal and ball guide illustrations use shared artwork', () => {
   assert.match(sync, /!\['cinder', 'goal'\]\.includes\(brick\.kind\)/);
 });
 
+test('guide illustrations pass hazard, power, turret, portal, and toggle variants to shared brick artwork', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const source = app.slice(app.indexOf('function guidePicture('), app.indexOf('\nfunction showGuideChapter('));
+  const bricks = [];
+  const context = vm.createContext({
+    document: { createElement: () => ({ setAttribute() {} }) },
+    decorateBrick(_element, brick) { bricks.push(brick); },
+  });
+
+  vm.runInContext(source, context);
+  for (const id of ['special:hazard:bubble-blue:black', 'special:hazard:flame:yellow',
+    'special:turret:fireball', 'special:portal:red', 'special:toggle:2']) {
+    context.guidePicture(id, id);
+  }
+  assert.deepEqual({ ...bricks[0].hazard }, { type: 'bubble-blue', power: 'black' });
+  assert.deepEqual({ ...bricks[1].hazard }, { type: 'flame', power: 'yellow' });
+  assert.equal(bricks[2].turret, 'fireball');
+  assert.equal(bricks[3].portal, 'red');
+  assert.equal(bricks[4].toggle, 2);
+  assert.equal(bricks[4].toggleRemaining, 2);
+});
+
+test('Item Case guide illustration uses the game artwork with a visible pickup', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const source = app.slice(app.indexOf('function guidePicture('), app.indexOf('\nfunction showGuideChapter('));
+  const calls = [], canvasContext = { scale() {} };
+  const context = vm.createContext({
+    document: { createElement: () => ({ getContext: () => canvasContext, setAttribute() {} }) },
+    ctx: null,
+    drawItemCase(ctx, item, drawContent) {
+      calls.push(['case', ctx === canvasContext, item.x, item.y, item.containsItem]);
+      drawContent(item.containsItem);
+    },
+    drawGameItem(item) { calls.push(['content', item.type, item.x, item.y]); },
+  });
+  vm.runInContext(source, context);
+  context.guidePicture('object:item-case', 'Item Case');
+  assert.deepEqual(calls, [['case', true, 80, 42, 'key'], ['content', 'key', 0, 0]]);
+});
+
 test('level popup commits only on Play and cancellation restores selection and menu focus', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const elements = new Map();
