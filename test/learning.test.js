@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 60);
+  assert.equal(LESSONS.length, 61);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -138,7 +138,23 @@ test('tutorial weapon choices match the game catalog', () => {
   for (const [type, weapon] of Object.entries(WEAPONS)) {
     const option = html.match(new RegExp(`<option value="${type}"[^>]*>([^<]+)<`));
     assert.ok(option, `missing ${type} option`);
-    assert.ok(option[1].includes(`${weapon.uses} hit`), `${type} label matches its hit count`);
+    const capacity = weapon.seconds ? `${weapon.seconds} seconds` : `${weapon.uses} hit`;
+    assert.ok(option[1].includes(capacity), `${type} label matches its hit count or timer`);
+  }
+});
+
+test('Anvil practice restores the selected sword, hammer or axe through a real pickup', () => {
+  for (const [type, weapon] of Object.entries(WEAPONS)) {
+    const tutorial = new Tutorial();
+    tutorial.sword = type;
+    tutorial.select(indexOf('anvil'));
+    assert.equal(tutorial.observe(), false);
+    assert.equal(tutorial.game.weapon.type, type);
+    aim(tutorial);
+    wait(tutorial, 1);
+    assert.equal(tutorial.observe(), true, `${type} can complete Anvil practice`);
+    assert.equal(tutorial.game.weapon.uses, weapon.uses);
+    if (weapon.seconds) assert.ok(tutorial.game.weapon.expires - tutorial.game.elapsed > weapon.seconds - 1);
   }
 });
 

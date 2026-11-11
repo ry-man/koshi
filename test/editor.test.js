@@ -640,6 +640,8 @@ test('timeline categories have subdued card colors and artwork while retaining s
     { kind: 'enemy', type: 'boss', expected: 1 },
     { kind: 'weapon', type: 'silver', group: { count: 4 }, expected: 20 },
     { kind: 'weapon', type: 'hammer-gold', randomCount: 100, expected: 1000 },
+    { kind: 'weapon', type: 'axe-silver', expected: 'Unlimited (timed)' },
+    { kind: 'weapon', type: 'axe-gold', group: { count: 3 }, expected: 'Unlimited (timed)' },
   ];
   context.level.events = examples.map((example, time) => ({ ...example, time, x: .5, y: .5 }));
   context.renderList();

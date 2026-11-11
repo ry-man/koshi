@@ -931,8 +931,12 @@ function syncUI() {
   goalCount.setAttribute('aria-label', soccerGoalTarget
     ? `${soccerGoals} of ${goalsGoal} goals scored` : `${soccerGoals} goals scored`);
   const weaponCount = game.weapon ? game.weapon.uses : null;
+  const weaponTime = game.weapon && WEAPONS[game.weapon.type].seconds
+    ? Math.max(0, Math.ceil(game.weapon.expires - game.elapsed)) : null;
   const weaponLabel = game.weapon
-    ? `Weapon: ${WEAPONS[game.weapon.type].name}, ${weaponCount} hit${weaponCount === 1 ? '' : 's'} remaining`
+    ? `Weapon: ${WEAPONS[game.weapon.type].name}, ${weaponTime === null
+      ? `${weaponCount} hit${weaponCount === 1 ? '' : 's'}`
+      : `${weaponTime} second${weaponTime === 1 ? '' : 's'}`} remaining`
     : 'Weapon: none equipped';
   if (weaponStatus.textContent !== weaponLabel) weaponStatus.textContent = weaponLabel;
   const shieldLabel = game.catShield
@@ -1404,7 +1408,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
     'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
-    'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives',
+    'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives', 'anvil',
   ].includes(tutorial.lesson.id);
   makeBrickButtons();
   displayedState = null;
@@ -2434,13 +2438,15 @@ function render(now) {
     }
     ctx.restore();
   }
-  const swing = [...game.weaponAttacks].reverse().find(attack => attack.age < .18);
+  const swing = [...game.weaponAttacks].reverse().find(attack => attack.age < .18 && !attack.weaponExpired);
   if (game.weapon || swing) {
     const type = game.weapon?.type ?? swing.type;
     const age = swing && swing.type === type ? swing.age : null;
     const swingAngle = age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4;
     ctx.save(); ctx.translate(game.cat.x + 30, game.cat.y - 20); ctx.rotate(swingAngle);
-    drawWeapon(0, 0, type, game.weapon?.type === type ? String(game.weapon.uses) : undefined);
+    drawWeapon(0, 0, type, game.weapon?.type === type
+      ? WEAPONS[type].seconds ? String(Math.max(0, Math.ceil(game.weapon.expires - game.elapsed))) : String(game.weapon.uses)
+      : undefined);
     ctx.restore();
   }
   for (const attack of game.weaponAttacks) {
@@ -2687,8 +2693,8 @@ function drawBrickDestructionSmoke(effect) {
 }
 
 function drawWeaponDrop(drop) {
-  const fall = Math.min(1, drop.age / .4);
-  const opacity = Math.max(0, 1 - Math.max(0, drop.age - .4) / .7);
+  const fall = drop.expired ? 0 : Math.min(1, drop.age / .4);
+  const opacity = Math.max(0, drop.expired ? 1 - drop.age / .55 : 1 - Math.max(0, drop.age - .4) / .7);
   if (opacity <= 0) return;
   ctx.save();
   ctx.globalAlpha *= opacity;
@@ -2970,9 +2976,29 @@ function drawHammer(x, y, color, label) {
   ctx.restore();
 }
 
+function drawAxe(x, y, color, label) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(.5);
+  line([[0, -21], [0, 27]], '#17212a', 7);
+  line([[0, -21], [0, 27]], '#8a6953', 5);
+  ctx.fillStyle = color; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-8, -25); ctx.quadraticCurveTo(-30, -10, -8, 5);
+  ctx.quadraticCurveTo(-15, -4, -8, -5); ctx.lineTo(8, -5);
+  ctx.quadraticCurveTo(15, -4, 8, 5); ctx.quadraticCurveTo(30, -10, 8, -25);
+  ctx.quadraticCurveTo(15, -16, 8, -15); ctx.lineTo(-8, -15);
+  ctx.quadraticCurveTo(-15, -16, -8, -25); ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (label !== undefined) {
+    ctx.fillStyle = '#000000'; ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, 0, -10, 16);
+  }
+  ctx.restore();
+}
+
 function drawWeapon(x, y, type, label) {
   const weapon = WEAPONS[type];
-  if (weapon.hammer) drawHammer(x, y, weapon.color, label);
+  if (weapon.axe) drawAxe(x, y, weapon.color, label);
+  else if (weapon.hammer) drawHammer(x, y, weapon.color, label);
   else drawSword(x, y, weapon.color, label);
 }
 
@@ -3051,6 +3077,35 @@ function drawGameItem(item) {
     ctx.fillStyle = '#fff7df'; ctx.beginPath(); ctx.arc(0, 0, 14.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#433b36'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -9); ctx.moveTo(0, 0); ctx.lineTo(6, 3); ctx.stroke();
     ctx.fillStyle = stopwatch.color; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`+${stopwatch.seconds}s`, 0, 9);
+  } else if (item.type === 'anvil') {
+    const iron = ctx.createLinearGradient(-18, -17, 18, 19);
+    iron.addColorStop(0, '#465867'); iron.addColorStop(.35, '#202a33');
+    iron.addColorStop(.7, '#11171d'); iron.addColorStop(1, '#080b10');
+    ctx.fillStyle = iron; ctx.strokeStyle = '#090d12'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(-26, -13); ctx.quadraticCurveTo(-22, -4, -10, -3);
+    ctx.lineTo(-7, -3); ctx.quadraticCurveTo(-2, 5, -12, 12);
+    ctx.lineTo(-17, 14); ctx.lineTo(-17, 20); ctx.lineTo(20, 20); ctx.lineTo(20, 14);
+    ctx.lineTo(14, 12); ctx.quadraticCurveTo(5, 5, 11, -3);
+    ctx.lineTo(22, -3); ctx.lineTo(22, -13); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#111a23'; ctx.beginPath();
+    ctx.moveTo(11, -3); ctx.lineTo(22, -3); ctx.lineTo(22, -13); ctx.lineTo(17, -10);
+    ctx.lineTo(17, -5); ctx.lineTo(7, -5); ctx.quadraticCurveTo(2, 6, 12, 14);
+    ctx.lineTo(15, 16); ctx.lineTo(15, 20); ctx.lineTo(20, 20); ctx.lineTo(20, 14);
+    ctx.lineTo(14, 12); ctx.quadraticCurveTo(5, 5, 11, -3); ctx.closePath(); ctx.fill();
+    const top = ctx.createLinearGradient(0, -18, 0, -10);
+    top.addColorStop(0, '#7b8d9c'); top.addColorStop(.5, '#465c70'); top.addColorStop(1, '#293743');
+    ctx.fillStyle = top; ctx.beginPath();
+    ctx.moveTo(-26, -13); ctx.lineTo(-10, -18); ctx.lineTo(22, -18);
+    ctx.lineTo(22, -13); ctx.lineTo(-10, -10); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#080c11'; ctx.beginPath(); ctx.ellipse(14, -15.5, 2, 1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#536b80'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-14, 15); ctx.lineTo(14, 15); ctx.stroke();
+    ctx.strokeStyle = '#bfd8e8'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-26, -13); ctx.lineTo(-10, -18); ctx.lineTo(22, -18);
+    ctx.lineTo(22, -3); ctx.lineTo(11, -3); ctx.quadraticCurveTo(5, 5, 14, 12);
+    ctx.lineTo(20, 14); ctx.lineTo(20, 20); ctx.lineTo(-17, 20); ctx.lineTo(-17, 14);
+    ctx.lineTo(-12, 12); ctx.quadraticCurveTo(-2, 5, -7, -3); ctx.lineTo(-10, -3);
+    ctx.quadraticCurveTo(-22, -4, -26, -13); ctx.closePath(); ctx.stroke();
   } else if (item.type === 'battery') {
     const yellow = ctx.createLinearGradient(-11, 0, 11, 0);
     yellow.addColorStop(0, '#927317'); yellow.addColorStop(.3, '#ffe66b');

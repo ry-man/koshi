@@ -59,6 +59,7 @@ const SYMBOLS = {
   'bubble-red': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
   sword: 'M0 -23 L6 -14 L4 8 H-4 L-6 -14 Z M-10 9 H10 M0 9 V22',
   hammer: 'M-13 -19 H13 L17 -15 V-4 L13 0 H5 L3 3 H-3 L-5 0 H-13 L-17 -4 V-15 Z M0 -3 V27',
+  axe: 'M-8 -25 Q-30 -10 -8 5 Q-15 -4 -8 -5 H8 Q15 -4 8 5 Q30 -10 8 -25 Q15 -16 8 -15 H-8 Q-15 -16 -8 -25 Z M0 -21 V27',
   S: 'M-14 -8 Q-18 7 0 19 Q18 7 14 -8 Z M-14 -8 L-4 -6 L0 -16 L4 -6 L14 -8 M-6 0 L-5 3 M5 4 L4 7',
   P: 'M0 -2 C-20 -32 -30 10 -10 12 C8 16 24 -8 12 -14 C0 -26 -14 6 0 14 C22 26 26 -8 6 -6 M-14 10 L14 -10',
   B: 'M-18 -14 Q-12 22 18 12 L20 4 Q-6 12 -12 -16 Z',
@@ -69,6 +70,7 @@ const SYMBOLS = {
   'smiley-cookie': 'M0 -21 A21 21 0 1 1 0 21 A21 21 0 1 1 0 -21 M-8 -5 A2 2 0 1 0 -8 -4 M8 -5 A2 2 0 1 0 8 -4 M-10 5 Q0 16 10 5',
   stopwatch: 'M-5 -25 H5 V-19 H-5 Z M-20 -18 H-13 L-9 -14 M20 -18 H13 L9 -14 M0 -20 A20 20 0 1 1 0 20 A20 20 0 1 1 0 -20 M0 -12 V0 L8 5',
   battery: 'M-12 -20 H12 V-16 H16 V17 H-16 V-16 H-12 Z M-7 -8 L0 -1 L-5 5 L7 -5 L1 -6 L5 -12',
+  anvil: 'M-26 -13 L-10 -18 H22 V-3 H11 Q5 5 14 12 L20 14 V20 H-17 V14 L-12 12 Q-2 5 -7 -3 H-10 Q-22 -4 -26 -13 Z M-26 -13 L-10 -10 L22 -13 M-14 15 H14 M12 -16 H16',
   'boom-time': 'M-5 -16 H5 L8 -14 Q20 -16 21 -3 A21 21 0 1 1 -21 -3 Q-20 -16 -8 -14 Z',
   'music-box': 'M-20 -8 H12 L20 -13 V13 L12 18 H-20 Z M-16 -12 H15 V-8 H-16 Z M12 -8 L20 -13 V-10 L12 -5 Z M20 1 H25 M25 -2 A3 3 0 1 1 25 4 M-2 -3 V9 M-2 -3 L7 -6 V5 M-2 2 A5 5 0 1 1 -2 3',
   'cat-block': 'M-17 -12 L-12 -22 L-3 -17 H3 L12 -22 L17 -12 Q22 -7 20 12 Q0 25 -20 12 Q-22 -7 -17 -12 Z M-10 -2 A2 2 0 1 0 -10 -1 M10 -2 A2 2 0 1 0 10 -1 M-7 8 Q0 14 7 8 M-20 -2 L-27 -5 M20 -2 L27 -5 M-10 -23 V-29 H10 V-23 M-8 -29 V-23 M8 -29 V-23',
@@ -87,7 +89,7 @@ const SYMBOLS = {
 };
 
 function spawnSymbol(spawn) {
-  return SYMBOLS[spawn.kind === 'weapon' ? WEAPONS[spawn.type].hammer ? 'hammer' : 'sword' : spawn.kind === 'heart' ? 'heart'
+  return SYMBOLS[spawn.kind === 'weapon' ? WEAPONS[spawn.type].axe ? 'axe' : WEAPONS[spawn.type].hammer ? 'hammer' : 'sword' : spawn.kind === 'heart' ? 'heart'
     : spawn.kind === 'item' && BOOM_TIME_TYPES.has(spawn.type) ? 'boom-time'
       : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch'
         : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}`

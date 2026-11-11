@@ -35,6 +35,7 @@ const ITEMS = {
   'stopwatch-green': { name: 'Green Stopwatch (+30s)', icon: '⏱️', color: '#399d4a', seconds: 30 },
   'stopwatch-blue': { name: 'Blue Stopwatch (+60s)', icon: '⏱️', color: '#287dcc', seconds: 60 },
   battery: { name: 'Battery', icon: '🔋', color: '#f0ce35' },
+  anvil: { name: 'Anvil', icon: '⚒', color: '#526679' },
   'music-box': { name: 'Music Box', icon: '🎵', color: '#d989b8' },
   eggplant: { name: 'Eggplant (-10 food)', icon: '🍆', color: '#8956aa' },
   'saw-blade': { name: 'Saw Blade', icon: '⚙', color: '#c4cdd5' },
@@ -179,7 +180,11 @@ const HAMMERS = {
   'hammer-silver': { name: 'Silver Hammer', color: SWORDS.silver.color, uses: 5, hammer: true },
   'hammer-gold': { name: 'Gold Hammer', color: SWORDS.gold.color, uses: 10, hammer: true },
 };
-const WEAPONS = { ...SWORDS, ...HAMMERS };
+const AXES = {
+  'axe-silver': { name: 'Silver Axe', color: SWORDS.silver.color, seconds: 6, axe: true },
+  'axe-gold': { name: 'Golden Axe', color: SWORDS.gold.color, seconds: 12, axe: true },
+};
+const WEAPONS = { ...SWORDS, ...HAMMERS, ...AXES };
 const SHIELDS = { red: { hits: 2, next: null, color: '#ed5555' }, green: { hits: 3, next: 'red', color: '#63d877' }, blue: { hits: 4, next: 'green', color: '#519eff' } };
 const CAT_SHIELDS = {
   red: { hits: 1, next: null, color: '#ed5555' },
@@ -6500,9 +6505,21 @@ class Game {
     }
   }
 
+  dropWeapon(expired = false) {
+    const swing = [...this.weaponAttacks].reverse().find(attack => attack.age < .18 && !attack.weaponExpired);
+    const age = swing?.type === this.weapon.type ? swing.age : null;
+    this.weaponDrops.push({
+      x: this.cat.x + 30, y: this.cat.y - 20, type: this.weapon.type, age: 0,
+      angle: age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4,
+      ...(expired ? { expired: true } : {}),
+    });
+    if (expired && age !== null) swing.weaponExpired = true;
+    this.weapon = null;
+  }
+
   combat(dt, startX, startY) {
     this.clearBlockedPickups();
-    if (this.weapon && this.weapon.expires <= this.elapsed + 1e-9) this.weapon = null;
+    if (this.weapon && this.weapon.expires <= this.elapsed + 1e-9) this.dropWeapon(true);
     const collected = [];
     const dx = this.cat.x - startX, dy = this.cat.y - startY, length = Math.hypot(dx, dy);
     const reach = this.cat.radius + 14;
@@ -6515,19 +6532,13 @@ class Game {
       collected.push({ item, entry: Math.max(0, along - Math.sqrt(Math.max(0, reach ** 2 - across ** 2))) });
       return false;
     });
-    // Swept pickups replace the sword in encounter order, not spawn-array order.
+    // Swept pickups replace the weapon in encounter order, not spawn-array order.
     for (const { item } of collected.sort((a, b) => a.entry - b.entry)) {
       const weapon = WEAPONS[item.type];
       this.catBlockProgress.swords++;
-      if (this.weapon) {
-        const swing = [...this.weaponAttacks].reverse().find(attack => attack.age < .18);
-        const age = swing?.type === this.weapon.type ? swing.age : null;
-        this.weaponDrops.push({
-          x: this.cat.x + 30, y: this.cat.y - 20, type: this.weapon.type, age: 0,
-          angle: age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4,
-        });
-      }
-      this.weapon = { type: item.type, uses: weapon.uses, expires: Infinity };
+      if (this.weapon) this.dropWeapon();
+      this.weapon = { type: item.type, uses: weapon.uses,
+        expires: weapon.seconds ? this.elapsed + weapon.seconds : Infinity };
       this.recordPickup(item, 'weapon');
     }
     const collectedItems = [];
@@ -6748,9 +6759,9 @@ class Game {
           }
           const hammer = !this.boosted && WEAPONS[this.weapon.type].hammer;
           const hits = hammer ? Math.min(this.weapon.uses, enemy.shield ? SHIELDS[enemy.shield].hits : 1) : 1;
-          if (!this.boosted) {
+          if (!this.boosted && !WEAPONS[this.weapon.type].seconds) {
             this.weapon.uses -= hits;
-            if (this.weapon.uses === 0) this.weapon = null;
+            if (this.weapon.uses === 0) this.dropWeapon(true);
           }
           for (let hit = 0; hit < hits; hit++) {
             if (enemy.shield) enemy.shield = SHIELDS[enemy.shield].next;
@@ -6870,6 +6881,13 @@ class Game {
       this.activationsRemaining += ITEMS[item.type].counts;
     }
     else if (item.type === 'battery') this.batteries++;
+    else if (item.type === 'anvil') {
+      if (this.weapon && this.weapon.expires > this.elapsed + 1e-9) {
+        const weapon = WEAPONS[this.weapon.type];
+        this.weapon.uses = weapon.uses;
+        this.weapon.expires = weapon.seconds ? this.elapsed + weapon.seconds : Infinity;
+      }
+    }
     else if (item.type === 'music-box') {
       this.musicStreamStart = this.elapsed;
       this.musicStreamUntil = this.elapsed + MUSIC_STREAM_DURATION;
@@ -7122,7 +7140,7 @@ class Game {
   updateWeaponDrops(seconds) {
     this.weaponDrops = this.weaponDrops.filter(drop => {
       drop.age += seconds;
-      return drop.age < 1.1 - 1e-9;
+      return drop.age < (drop.expired ? .55 : 1.1) - 1e-9;
     });
   }
 
@@ -7581,7 +7599,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.hazardEnabled = hazardEnabled;
 Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks });

@@ -807,7 +807,30 @@ Swords randomly appear and do not ever disappear unless Koshi picks them up. Kos
 | Silver Sword          | Has 5 attacks then is broken                                                |
 | Gold Sword            | Destroys all enemies touches for 15 seconds, then is broken                 |
 
-Robo Love Bugs are immune to every sword and hammer, as well as Boost and turret
+### Battle axes
+Custom levels can use the Silver Axe (6 seconds) and Golden Axe (12 seconds).
+Their timer starts on pickup, pauses with gameplay, and allows unlimited strikes
+until it expires. Each contact deals one hit, including shield contacts, like a sword.
+Collecting any weapon replaces the old weapon and resets its hit count or timer.
+The equipped axe displays only the number of seconds remaining, without a suffix.
+Its minimalist double-bladed head
+uses the corresponding sword color, with the same handle width as swords and hammers.
+Axes are available in the editor, spawners, enemy drops and weapon practice;
+existing campaign levels are unchanged.
+Weapons whose strikes or time run out stop attacking immediately, then fade in
+place over 0.55 seconds without a count label. The cosmetic fade freezes on pause,
+finishes after win/loss, and clears on restart.
+
+### Anvil
+A traditional black iron anvil with shaded grey and bluish surfaces and a thin
+bright blue-white outline replenishes
+the held weapon to its original capacity: full strikes for swords and hammers,
+or a fresh 6/12-second timer for silver/golden axes. It never stacks capacity,
+changes the weapon type, or adds level time. When unarmed, Koshi collects it with
+no effect. Available for custom-level placements, spawners and enemy drops only.
+Anvil practice demonstrates replenishment with any selected weapon.
+
+Robo Love Bugs are immune to every sword, hammer and axe, as well as Boost and turret
 attacks; use Barrier fences to isolate them instead.
 
 ## Death

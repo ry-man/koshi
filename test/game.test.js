@@ -88,7 +88,7 @@ test('moves count successful steering and mid-flight redirects, not invalid clic
   assert.equal(game.moves, 0);
 });
 
-test('weapon status announces remaining hits and weapon illustrations show the count', () => {
+test('weapon status announces remaining hits or seconds and weapon illustrations show them', () => {
   const { WEAPONS, CAT_SHIELDS } = require('../src/game.js');
   const root = path.resolve(__dirname, '..');
   const app = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
@@ -100,10 +100,14 @@ test('weapon status announces remaining hits and weapon illustrations show the c
   const context = vm.createContext({ game, WEAPONS, CAT_SHIELDS, weaponStatus, shieldStatus });
   for (const type of Object.keys(WEAPONS)) {
     const uses = WEAPONS[type].uses;
-    game.weapon = { type, uses, expires: Infinity };
+    game.weapon = { type, uses, expires: WEAPONS[type].seconds ? game.elapsed + WEAPONS[type].seconds : Infinity };
     vm.runInContext(display, context);
-    assert.match(weaponStatus.textContent, new RegExp(`${WEAPONS[type].name}, ${uses} hit${uses === 1 ? '' : 's'} remaining`));
+    const remaining = WEAPONS[type].seconds ? `${WEAPONS[type].seconds} seconds` : `${uses} hit${uses === 1 ? '' : 's'}`;
+    assert.equal(weaponStatus.textContent, `Weapon: ${WEAPONS[type].name}, ${remaining} remaining`);
   }
+  game.weapon = { type: 'axe-silver', expires: game.elapsed + .1 };
+  vm.runInContext(display, context);
+  assert.equal(weaponStatus.textContent, 'Weapon: Silver Axe, 1 second remaining');
   game.weapon = null;
   vm.runInContext(display, context);
   assert.equal(weaponStatus.textContent, 'Weapon: none equipped');
@@ -111,7 +115,7 @@ test('weapon status announces remaining hits and weapon illustrations show the c
   game.catShield = 'blue';
   vm.runInContext(display, context);
   assert.equal(shieldStatus.textContent, 'Cat Shield: blue, 3 hits remaining');
-  assert.match(app, /drawWeapon\(0, 0, type, game\.weapon\?\.type === type \? String\(game\.weapon\.uses\) : undefined\)/);
+  assert.match(app, /Math\.ceil\(game\.weapon\.expires - game\.elapsed\)/);
 });
 
 test('weapon counts are passed to the equipped weapon without a separate badge', () => {
@@ -119,7 +123,8 @@ test('weapon counts are passed to the equipped weapon without a separate badge',
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const start = app.indexOf('  const swing =', app.indexOf('function render('));
   const body = app.slice(start, app.indexOf('  drawTurretEffects(ctx', start));
-  for (const [type, uses, label] of [['wood', 3, '3'], ['hammer-gold', 10, '10']]) {
+  for (const [type, uses, label] of [['wood', 3, '3'], ['hammer-gold', 10, '10'],
+    ['axe-silver', undefined, '6'], ['axe-gold', undefined, '12']]) {
     const arcs = [], texts = [], swords = [];
     const ctx = new Proxy({}, {
       get(target, name) {
@@ -129,7 +134,8 @@ test('weapon counts are passed to the equipped weapon without a separate badge',
         return () => {};
       },
     });
-    const game = { cat: { x: 400, y: 300 }, elapsed: 5, weapon: { type, uses, expires: Infinity }, weaponAttacks: [] };
+    const game = { cat: { x: 400, y: 300 }, elapsed: 5,
+      weapon: { type, uses, expires: WEAPONS[type].seconds ? 5 + WEAPONS[type].seconds : Infinity }, weaponAttacks: [] };
     vm.runInNewContext(body, { game, WEAPONS, ctx, visible: () => true,
       drawAttackPop() {}, drawWeapon: (...args) => swords.push(args) });
     assert.deepEqual(swords[0], [0, 0, type, label]);
@@ -156,6 +162,11 @@ test('recent sword and hammer attacks swing through 45 degrees, including the la
       drawAttackPop() {}, drawWeapon: (...args) => weapons.push(args) });
     assert.ok(Math.abs(rotations[0] - Math.PI / 4) < 1e-9, `${type} swings 45 degrees`);
     assert.deepEqual(weapons[0], [0, 0, type, undefined]);
+    game.weaponAttacks[0].weaponExpired = true;
+    weapons.length = 0;
+    vm.runInNewContext(body, { game, WEAPONS, ctx, visible: () => true,
+      drawAttackPop() {}, drawWeapon: (...args) => weapons.push(args) });
+    assert.deepEqual(weapons, [], 'expired weapon uses its fading snapshot, not an opaque swing');
   }
 });
 

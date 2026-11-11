@@ -814,9 +814,10 @@ function renderList() {
       const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
       const badge = document.createElement('span');
       badge.className = 'event-points';
-      badge.textContent = String(amount);
-      badge.setAttribute('aria-label', `${amount} ${label}`);
-      badge.title = `${amount} ${label}`;
+      const strikes = amount === Infinity ? 'Unlimited (timed)' : String(amount);
+      badge.textContent = strikes;
+      badge.setAttribute('aria-label', `${strikes} ${label}`);
+      badge.title = `${strikes} ${label}`;
       button.append(badge);
     }
     button.addEventListener('click', click => choose('event', index, isAdditive(click)));
@@ -1331,7 +1332,7 @@ function pointReference(events, bricks) {
     shields: { none: 0, red: 0, green: 0, blue: 0 },
     weaponSources: { scheduled: { count: 0, hits: 0 }, spawner: { count: 0, hits: 0 }, drop: { count: 0, hits: 0 } } };
   const addWeapon = (type, count, origin) => {
-    const hits = WEAPONS[type].uses * count;
+    const hits = WEAPONS[type].seconds ? Infinity : WEAPONS[type].uses * count;
     totals.weapons += count; totals.weaponHits += hits;
     totals.weaponSources[origin].count += count; totals.weaponSources[origin].hits += hits;
   };
@@ -1364,7 +1365,7 @@ function renderPointReference(events, bricks) {
     if (output.textContent !== value) output.textContent = value;
   }
   $('#available-weapons').textContent = String(totals.weapons);
-  $('#available-weapon-hits').textContent = String(totals.weaponHits);
+  $('#available-weapon-hits').textContent = totals.weaponHits === Infinity ? 'Unlimited (timed)' : String(totals.weaponHits);
 }
 
 function render() {

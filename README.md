@@ -644,9 +644,26 @@ the board; phones keep compact controls above it without scrolling away from pla
   Bronze, silver, and gold hammers have 3, 5, and 10 hits; on each contact,
   a hammer spends only as many hits as needed to break the enemy's shield and
   defeat it, or all remaining hits if its charges run out first. Each collected
-  weapon replaces the current weapon and resets its hit count, even if it is weaker.
-  The replaced sword or hammer visibly drops, rotates as it falls, then fades away;
+  weapon replaces the current weapon and resets its hit count or timer, even if it is weaker.
+  Custom levels also support the **Silver Axe** (6 seconds) and **Golden Axe**
+  (12 seconds): unlimited strikes while their pickup-started timer lasts, with one
+  hit per contact, including shields. Pause freezes the timer. Their minimalist
+  double blades match the silver/gold sword colors and use the same handle width.
+  The held axe shows only the number of seconds remaining (no suffix); weapon status
+  announces seconds remaining. The editor reports axe
+  strike capacity as **Unlimited (timed)** rather than a fixed hit count.
+  Axes cannot damage Robo Love Bugs or Tom the Toaster.
+  The **Anvil**, available in custom levels, spawners and enemy drops, fully
+  restores the held weapon's original strike count or axe duration without
+  stacking, changing weapon type or adding level time. It is collected with no
+  effect when unarmed. Its traditional iron shape is black with shaded grey and
+  bluish highlights and a thin bright blue-white outline for contrast.
+  Anvil practice lets you choose any weapon and replenish it.
+  The replaced sword, hammer or axe visibly drops, rotates as it falls, then fades away;
   it is only a visual effect and cannot be collected again.
+  When a weapon runs out of strikes or its timer expires, it stops working
+  immediately but fades visually in place over 0.55 seconds. This cosmetic fade
+  pauses with gameplay, finishes after win/loss, and clears on restart.
   Uncollected weapons and hearts do not expire.
 - The dotted aiming line is subtle and transparent (15% opacity). A small red circle
   with a plus sign and thin black outline marks the exact clicked location,

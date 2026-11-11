@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, ITEMS, CAT_BLOCK_MESSAGES, LEVELS, validateCustomLevel } = require('../src/game.js');
+const { Game, ITEMS, WEAPONS, CAT_BLOCK_MESSAGES, LEVELS, validateCustomLevel } = require('../src/game.js');
 
 const level = (events, extra = {}) => ({
   version: 1, id: 'Item tests', duration: 30, goal: 1000, heartCost: null, brickSet: 1, events,
@@ -55,6 +55,105 @@ test('all power-up items validate in custom levels and item spawners', () => {
   timed.update(2);
   assert.equal(timed.items.length, 1);
   assert.equal(timed.items[0].type, 'battery');
+});
+
+test('anvils restore every held weapon to its original capacity without replacing or stacking it', () => {
+  for (const [type, weapon] of Object.entries(WEAPONS)) {
+    const game = gameWithItem('anvil');
+    game.items = [];
+    game.weapons = [{ type, x: game.cat.x, y: game.cat.y }];
+    game.combat(0, game.cat.x, game.cat.y);
+    game.elapsed += 2;
+    if (weapon.uses) game.weapon.uses = 1;
+    const held = game.weapon, drops = game.weaponDrops.length, timeLimit = game.timeLimit;
+    game.items = [{ type: 'anvil', x: game.cat.x, y: game.cat.y }];
+    game.combat(0, game.cat.x, game.cat.y);
+    assert.equal(game.items.length, 0);
+    assert.equal(game.weapon, held, `${type} is restored rather than replaced`);
+    assert.equal(game.weapon.type, type);
+    assert.equal(game.weapon.uses, weapon.uses);
+    assert.equal(game.weapon.expires, weapon.seconds ? game.elapsed + weapon.seconds : Infinity);
+    assert.equal(game.weaponDrops.length, drops);
+    assert.equal(game.timeLimit, timeLimit);
+    assert.ok(game.pickups.some(pickup => pickup.kind === 'item' && pickup.type === 'anvil'));
+    const restored = { ...game.weapon };
+    game.collectItem({ type: 'anvil' });
+    assert.deepEqual(game.weapon, restored, 'full capacity is not stacked');
+    if (weapon.seconds) {
+      game.pause(); game.update(100);
+      assert.deepEqual(game.weapon, restored);
+      game.resume(); game.update(weapon.seconds);
+      assert.equal(game.weapon, null, 'restored axe still expires at its new deadline');
+    }
+  }
+});
+
+test('anvils are consumed without effect when unarmed or after an axe expires', () => {
+  for (const type of [null, 'axe-silver', 'axe-gold']) {
+    const game = gameWithItem('anvil');
+    if (type) game.weapon = { type, expires: game.elapsed };
+    const score = game.score, timeLimit = game.timeLimit;
+    game.combat(0, game.cat.x, game.cat.y);
+    assert.equal(game.weapon, null);
+    assert.equal(game.items.length, 0);
+    assert.equal(game.score, score);
+    assert.equal(game.timeLimit, timeLimit);
+    assert.ok(game.pickups.some(pickup => pickup.type === 'anvil'));
+    game.weapons = [{ type: 'silver', x: game.cat.x, y: game.cat.y }];
+    game.combat(0, game.cat.x, game.cat.y);
+    game.weapon.uses = 1;
+    game.combat(0, game.cat.x, game.cat.y);
+    assert.equal(game.weapon.uses, 1, 'unarmed pickup is not stored for later');
+  }
+});
+
+test('anvil carriers and spawners validate and spawn the item without adding it to the campaign', () => {
+  const custom = level([{ time: 0, kind: 'enemy', type: 'mouse', carriesItem: 'anvil', x: .6, y: .5 }]);
+  assert.deepEqual(validateCustomLevel(custom), custom);
+  const game = new Game(() => .5, { customLevel: custom });
+  game.start();
+  const [enemy] = game.createCustomSpawn(custom.events[0]);
+  game.defeatEnemy(enemy);
+  assert.equal(game.items[0].type, 'anvil');
+  assert.equal(JSON.stringify(LEVELS).includes('"anvil"'), false);
+  const { spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
+  assert.match(spawnSymbol({ kind: 'item', type: 'anvil' }), /^M-26 -13/);
+  assert.equal(spawnColor({ kind: 'item', type: 'anvil' }), ITEMS.anvil.color);
+  const { GUIDE } = require('../src/learning.js');
+  assert.ok(GUIDE.some(section => section.sections.some(entry => entry[2] === 'item:anvil')));
+});
+
+test('anvil artwork has a horn, broad foot and shaded black iron with grey-blue highlights', () => {
+  const { readFileSync } = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const gradients = [], fills = [], points = [], strokes = [];
+  const ctx = new Proxy({ fillStyle: '', strokeStyle: '' }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'createLinearGradient') return () => {
+        const stops = [];
+        gradients.push(stops);
+        return { addColorStop: (...stop) => stops.push(stop) };
+      };
+      if (name === 'fill') return () => fills.push(target.fillStyle);
+      if (name === 'stroke') return () => strokes.push([target.strokeStyle, target.lineWidth]);
+      if (name === 'moveTo' || name === 'lineTo') return (...point) => points.push(point);
+      return () => {};
+    },
+  });
+  const context = vm.createContext({ ctx, ITEMS });
+  vm.runInContext(source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
+  context.drawGameItem({ type: 'anvil', x: 0, y: 0 });
+  assert.equal(gradients.length, 2);
+  assert.ok(gradients[0].some(([, color]) => color === '#080b10'), 'body includes black iron');
+  assert.ok(gradients[1].some(([, color]) => color === '#465c70'), 'top has bluish shading');
+  assert.ok(gradients[1].some(([, color]) => color === '#7b8d9c'), 'top has a grey highlight');
+  assert.ok(fills.includes('#111a23'), 'side face adds depth');
+  assert.ok(points.some(([x, y]) => x === -26 && y === -13), 'projecting horn');
+  assert.ok(points.some(([x, y]) => x === -17 && y === 20), 'wide base');
+  assert.deepEqual(strokes.at(-1), ['#bfd8e8', 1], 'thin bright outline contrasts with the dark arena');
 });
 
 test('smiley cookie draws all present food toward Koshi while he keeps moving, then triggers a lip lick', () => {
@@ -348,6 +447,15 @@ test('eggplant uses depth shading without penalty text, and sparkle pops grow th
 
   const context = vm.createContext({ ctx, ITEMS, FOODS: require('../src/game.js').FOODS, WEAPONS: require('../src/game.js').WEAPONS,
     FOOD_COLORS: { H: '#f7d26d' },
+    foodBadgeCache: new Map(),
+    canvas: { width: 960, height: 600 }, game: { viewportWidth: 960, viewportHeight: 600 },
+    document: {
+      createElement(tag) {
+        assert.equal(tag, 'canvas');
+        const paint = new Proxy({}, { get: (target, name) => name in target ? target[name] : () => {} });
+        return { getContext: () => paint };
+      },
+    },
     drawWeapon: (...args) => operations.push(['weapon', ...args]) });
   vm.runInContext(source.slice(source.indexOf('function drawCatShield('), source.indexOf('\nfunction updateEnding('))
     + source.slice(source.indexOf('function drawGameItem('), source.indexOf('function drawMusicStream(')), context);
@@ -358,6 +466,7 @@ test('eggplant uses depth shading without penalty text, and sparkle pops grow th
   for (const [kind, type] of [['food', 'H'], ['item', 'battery'], ['weapon', 'gold']]) {
     operations.length = 0;
     context.drawPickupPop({ x: 1, y: 2, kind, type, age: .1 });
+    if (kind === 'food') assert.ok(operations.some(([name]) => name === 'drawImage'), 'food pop draws its cached badge');
     const grow = operations.find(([name]) => name === 'scale')[1];
     assert.ok(grow > 1);
     assert.ok(ctx.globalAlpha < 1 && ctx.globalAlpha > 0);
