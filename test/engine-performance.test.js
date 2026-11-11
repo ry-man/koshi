@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, OBJECTS, obstructionGeometry, brickContact } = require('../src/game.js');
+const { Game, OBJECTS, obstructionGeometry, obstructionVertices, brickContact } = require('../src/game.js');
 
 function arena(scroll = true, portrait = false) {
   const game = new Game(() => .5, { portrait, customLevel: {
@@ -28,13 +28,14 @@ function referenceBlock(wave, parts, previousRadius, obstructions) {
     return result;
   }
   const polygons = parts.map(({ x, y, w, h }) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
-  for (const { type, x, y, radius, width, height } of obstructions) {
+  for (const blocker of obstructions) {
+    const { type, x, y, radius } = blocker;
     const shape = OBJECTS[type].bumper ? 'circle' : OBJECTS[type].obstruction;
-    polygons.push(shape === 'circle' ? Array.from({ length: 128 }, (_, i) =>
-      [x + Math.cos(i * Math.PI / 64) * radius, y + Math.sin(i * Math.PI / 64) * radius])
-      : shape === 'diamond' ? [[x, y - radius], [x + radius, y], [x, y + radius], [x - radius, y]]
-        : [[x - width / 2, y - height / 2], [x + width / 2, y - height / 2],
-          [x + width / 2, y + height / 2], [x - width / 2, y + height / 2]]);
+    const vertices = shape === 'circle' ? Array.from({ length: 128 }, (_, i) =>
+      [Math.cos(i * Math.PI / 64) * radius, Math.sin(i * Math.PI / 64) * radius])
+      : obstructionVertices(blocker);
+    const angle = (blocker.rotation ?? 0) * Math.PI / 180, cos = Math.cos(angle), sin = Math.sin(angle);
+    polygons.push(vertices.map(([vx, vy]) => [x + vx * cos - vy * sin, y + vx * sin + vy * cos]));
   }
   for (let side = 0; side < 4; side++) {
     const [nx, ny] = [[1, 0], [0, 1], [-1, 0], [0, -1]][side];

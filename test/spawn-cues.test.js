@@ -99,7 +99,7 @@ test('custom previews begin exactly one second before spawning and reserve exact
 });
 
 test('obstructions warn for two seconds with exact shape geometry without changing scheduled appearance times', () => {
-  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-horizontal']) {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle']) {
     const events = [
       { time: 3, kind: 'object', type, x: .5, y: .5, width: 160, height: type.includes('rectangle') ? 60 : 160 },
       ...placements(3),
@@ -146,7 +146,7 @@ test('obstruction spawners reserve a position and wait two seconds before becomi
 
 test('obstruction warnings trace the actual dotted shape while retaining the twinkling star', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-horizontal']) {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle']) {
     const calls = [], stack = [], gradient = { addColorStop() {} };
     const ctx = new Proxy({ globalAlpha: 1 }, {
       get(target, name) {

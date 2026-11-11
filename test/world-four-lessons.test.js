@@ -21,9 +21,9 @@ const featured = [
 ];
 const arena = (level, options = {}) => new Game(() => .5, { level: LEVELS.indexOf(level), ...options });
 
-test('13 lessons append stable identities without changing a byte of the previous campaign data', () => {
+test('13 lessons append stable identities against the current campaign baseline', () => {
   assert.equal(createHash('sha256').update(JSON.stringify(LEVELS.slice(0, 62))).digest('hex'),
-    '20a827740227f60a0b5a489551cf366906e4c439de296f59c3dd0f65f8a19148');
+    '07a693cf286e89dbcd3ebcb485c95924da73c32ccf9dfc2335b21b502edf5335');
   assert.deepEqual(lessons.map(level => level.concept), concepts);
   assert.deepEqual(lessons.map(level => level.number), concepts.map((_, i) => `4-${i + 2}`));
   assert.deepEqual(lessons.map(level => level.id), concepts.map((_, i) => `1-${i + 62}`));

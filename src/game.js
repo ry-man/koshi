@@ -17,6 +17,17 @@ const COW_SPEED = 190;
 const COW_EAT_DURATION = 5;
 const OBSTRUCTION_RADIUS = 48;
 const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
+const OBSTRUCTION_PRESETS = {
+  circle: { small: [48, 48], medium: [96, 96], large: [192, 192], huge: [384, 384] },
+  diamond: { small: [48, 48], medium: [96, 96], large: [192, 192], huge: [384, 384] },
+  rectangle: { small: [96, 24], medium: [192, 48], large: [384, 96], huge: [768, 192] },
+  pentagon: { small: [48, 48], medium: [96, 96], large: [192, 192], huge: [384, 384] },
+  hexagon: { small: [48, 48], medium: [96, 96], large: [192, 192], huge: [384, 384] },
+  octagon: { small: [48, 48], medium: [96, 96], large: [192, 192], huge: [384, 384] },
+  v: { small: [96, 48], medium: [192, 96], large: [384, 192], huge: [768, 384] },
+  oval: { small: [72, 48], medium: [144, 96], large: [288, 192], huge: [576, 384] },
+};
+const OBSTRUCTION_SIZES = ['small', 'medium', 'large', 'huge'];
 const DITTO_STAMP_RADIUS = 27;
 const COOLDOWNS = { slow: 15, normal: 8, fast: 3 };
 const SLIMES = { blue: { duration: 5, color: '#287dcc' }, green: { duration: 3, color: '#399d24' }, red: { duration: 1, color: '#cd4136' } };
@@ -137,14 +148,14 @@ const OBJECTS = {
   'bubble-green': { name: 'Green Bubble', icon: '🟢', color: '#399d4a', bubble: true, bubbleColor: 'green' },
   'bubble-red': { name: 'Red Bubble', icon: '🔴', color: '#cd4136', bubble: true, bubbleColor: 'red' },
   'cat-circle': { name: 'Cat Circle', icon: '🐱', color: '#174f36', catCircle: true, radius: 24 },
-  'obstruction-circle': { name: 'Circle Obstruction', icon: '\u25cf', color: '#718596', obstruction: 'circle' },
-  'obstruction-diamond': { name: 'Diamond Obstruction', icon: '\u25c6', color: '#718596', obstruction: 'diamond' },
-  'obstruction-circle-large': { name: 'Large Circle Obstruction', icon: '\u25cf', color: '#718596', obstruction: 'circle', radius: 96 },
-  'obstruction-diamond-large': { name: 'Large Diamond Obstruction', icon: '\u25c6', color: '#718596', obstruction: 'diamond', radius: 96 },
-  'obstruction-rectangle-horizontal': { name: 'Horizontal Long Rectangle Obstruction', icon: '\u25ac', color: '#718596', obstruction: 'rectangle', radius: 96, width: 192, height: 48 },
-  'obstruction-rectangle-vertical': { name: 'Vertical Long Rectangle Obstruction', icon: '\u25ae', color: '#718596', obstruction: 'rectangle', radius: 96, width: 48, height: 192 },
-  'obstruction-rectangle-horizontal-large': { name: 'Large Horizontal Long Rectangle Obstruction', icon: '\u25ac', color: '#718596', obstruction: 'rectangle', radius: 192, width: 384, height: 96 },
-  'obstruction-rectangle-vertical-large': { name: 'Large Vertical Long Rectangle Obstruction', icon: '\u25ae', color: '#718596', obstruction: 'rectangle', radius: 192, width: 96, height: 384 },
+  'obstruction-circle': { name: 'Circle Obstruction', icon: '\u25cf', color: '#718596', obstruction: 'circle', width: 96, height: 96 },
+  'obstruction-diamond': { name: 'Diamond Obstruction', icon: '\u25c6', color: '#718596', obstruction: 'diamond', width: 96, height: 96 },
+  'obstruction-rectangle': { name: 'Rectangle Obstruction', icon: '\u25ac', color: '#718596', obstruction: 'rectangle', width: 192, height: 48 },
+  'obstruction-pentagon': { name: 'Pentagon Obstruction', icon: '\u2b20', color: '#718596', obstruction: 'pentagon', width: 96, height: 96 },
+  'obstruction-hexagon': { name: 'Hexagon Obstruction', icon: '\u2b21', color: '#718596', obstruction: 'hexagon', width: 96, height: 96 },
+  'obstruction-octagon': { name: 'Octagon Obstruction', icon: '\u2bc3', color: '#718596', obstruction: 'octagon', width: 96, height: 96 },
+  'obstruction-v': { name: 'V Obstruction', icon: 'V', color: '#718596', obstruction: 'v', width: 192, height: 96 },
+  'obstruction-oval': { name: 'Oval Obstruction', icon: '\u2b2d', color: '#718596', obstruction: 'oval', width: 144, height: 96 },
 };
 function needsBrickSpawnClearance(type) {
   return type === 'ditto-stamp' || type === 'saw-blade' || Boolean(ITEMS[type]?.paintUses);
@@ -1278,7 +1289,7 @@ const CHALLENGE_LEVEL_DATA = [
     enemies: [[1,'jackolantern',2],[5,'mouse',3],[18,'ball',2],[30,'jackolantern',1,'red'],[42,'mouse',3],[55,'ball',2],[68,'jackolantern',2],
       [80,'mouse',3],[92,'ball',1,'blue'],[102,'jackolantern',1]],
     events: [
-      ...atQuadrants([[0,'obstruction-diamond-large',0],[0,'obstruction-circle-large',3]]),
+      ...atQuadrants([[0,'obstruction-diamond',0,{ width: 192, height: 192 }],[0,'obstruction-circle',3,{ width: 192, height: 192 }]]),
       ...placedFood(120),
       ...spread('weapon', [[14,'gold'],[30,'wood'],[50,'bronze'],[85,'silver'],[105,'bronze']]),
       ...spread('item', [[25,'saw-blade'],[60,'stopwatch']], 3),
@@ -1863,18 +1874,19 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       }
       result[field] = item[field];
     }
-    for (const field of ['width', 'height', 'destructible', 'spiked']) {
+    for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked']) {
       if (item[field] === undefined) continue;
       if (!obstruction) fail(`${name}: ${field} is only supported for obstructions.`);
       if (['destructible', 'spiked'].includes(field) ? typeof item[field] !== 'boolean'
-        : !Number.isFinite(item[field]) || item[field] < 1 || item[field] > 10000) {
+        : field === 'rotation' ? !Number.isInteger(item[field]) || item[field] < 0 || item[field] > 350 || item[field] % 10 !== 0
+          : !Number.isFinite(item[field]) || item[field] < 1 || item[field] > 10000) {
         fail(`${name} has an invalid obstruction ${field}.`);
       }
       result[field] = item[field];
     }
-    if (obstruction && OBJECTS[item.type].obstruction !== 'rectangle'
+    if (obstruction && OBJECTS[item.type].obstruction === 'circle'
       && item.width !== undefined && item.height !== undefined && item.width !== item.height) {
-      fail(`${name}: circles and diamonds require equal width and height.`);
+      fail(`${name}: circles require equal width and height.`);
     }
   };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Level must be a JSON object.');
@@ -1905,6 +1917,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   const events = value.events.map((event, i) => {
     const name = `Event ${i + 1}`;
     if (!event || typeof event !== 'object' || Array.isArray(event)) fail(`${name} must be an object.`);
+    event = normalizeLegacyObstruction(event);
     const time = number(event.time, 0, duration, `${name} time`);
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     if (event.random !== undefined && typeof event.random !== 'boolean') fail(`${name} random location must be a boolean.`);
@@ -2111,7 +2124,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = entry.spawner, types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -2806,26 +2819,19 @@ function fireBlockerGeometry(blocker, object = false) {
   const cached = fireBlockerCache.get(blocker);
   if (cached && cached.x === x && cached.y === y && cached.w === w && cached.h === h
     && cached.radius === radius && cached.width === width && cached.height === height && cached.type === type
-    && cached.object === object) return cached;
+    && cached.rotation === blocker.rotation && cached.object === object) return cached;
   let polygon, left = x, top = y, right = x + w, bottom = y + h;
   if (object) {
     const shape = OBJECTS[type].bumper ? 'circle' : OBJECTS[type].obstruction;
-    left = x - (shape === 'rectangle' ? width / 2 : radius);
-    right = x + (shape === 'rectangle' ? width / 2 : radius);
-    top = y - (shape === 'rectangle' ? height / 2 : radius);
-    bottom = y + (shape === 'rectangle' ? height / 2 : radius);
-    if (shape === 'circle') {
-      polygon = Array.from({ length: 128 }, (_, i) => {
-        const angle = i * Math.PI / 64;
-        return [x + Math.cos(angle) * radius, y + Math.sin(angle) * radius];
-      });
-    } else if (shape === 'diamond') {
-      polygon = [[x, y - radius], [x + radius, y], [x, y + radius], [x - radius, y]];
-    } else {
-      polygon = [[left, top], [right, top], [right, bottom], [left, bottom]];
-    }
+    const vertices = shape === 'circle'
+      ? Array.from({ length: 128 }, (_, i) => [Math.cos(i * Math.PI / 64) * radius, Math.sin(i * Math.PI / 64) * radius])
+      : obstructionVertices(blocker);
+    const angle = (blocker.rotation ?? 0) * Math.PI / 180, cos = Math.cos(angle), sin = Math.sin(angle);
+    polygon = vertices.map(([vx, vy]) => [x + vx * cos - vy * sin, y + vx * sin + vy * cos]);
+    left = Math.min(...polygon.map(point => point[0])); right = Math.max(...polygon.map(point => point[0]));
+    top = Math.min(...polygon.map(point => point[1])); bottom = Math.max(...polygon.map(point => point[1]));
   } else polygon = [[x, y], [right, y], [right, bottom], [x, bottom]];
-  const geometry = { x, y, w, h, radius, width, height, type, object, left, top, right, bottom, polygon };
+  const geometry = { x, y, w, h, radius, width, height, type, rotation: blocker.rotation, object, left, top, right, bottom, polygon };
   fireBlockerCache.set(blocker, geometry);
   return geometry;
 }
@@ -2958,33 +2964,110 @@ function circleContact(x, y, dx, dy, radius) {
 
 function obstructionGeometry(obstruction) {
   const definition = OBJECTS[obstruction.type];
-  if (definition.obstruction !== 'rectangle' && (obstruction.width !== undefined || obstruction.height !== undefined)) {
-    const size = obstruction.width ?? obstruction.height;
-    return { radius: size / 2, width: size, height: size };
+  const width = definition.obstruction === 'circle'
+    ? obstruction.width ?? obstruction.height ?? definition.width ?? OBSTRUCTION_RADIUS * 2
+    : obstruction.width ?? definition.width ?? OBSTRUCTION_RADIUS * 2;
+  const height = definition.obstruction === 'circle' ? width
+    : obstruction.height ?? definition.height ?? OBSTRUCTION_RADIUS * 2;
+  return { radius: Math.max(width, height) / 2, width, height };
+}
+
+function obstructionPresetGeometry(type, size) {
+  const preset = OBSTRUCTION_PRESETS[OBJECTS[type]?.obstruction]?.[size];
+  if (!preset) throw new TypeError(`Unknown obstruction size preset: ${size}.`);
+  return { width: preset[0], height: preset[1] };
+}
+
+function obstructionVertices(obstruction) {
+  const { width, height } = obstructionGeometry(obstruction);
+  const shape = OBJECTS[obstruction.type].obstruction;
+  let unit;
+  if (shape === 'rectangle') unit = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]];
+  else if (shape === 'diamond') unit = [[0, -.5], [.5, 0], [0, .5], [-.5, 0]];
+  else if (shape === 'v') {
+    unit = [[-.5, -.5], [-.3, -.5], [0, .12], [.3, -.5], [.5, -.5], [.16, .5], [-.16, .5]]
+      .map(([x, y]) => [x * width, y * height]);
+    const radius = Math.min(width, height) * .08;
+    return unit.flatMap((point, i) => {
+      const previous = unit[(i + unit.length - 1) % unit.length], next = unit[(i + 1) % unit.length];
+      const incoming = Math.hypot(point[0] - previous[0], point[1] - previous[1]);
+      const outgoing = Math.hypot(next[0] - point[0], next[1] - point[1]);
+      const trim = Math.min(radius, incoming / 2, outgoing / 2);
+      const start = [point[0] + (previous[0] - point[0]) * trim / incoming,
+        point[1] + (previous[1] - point[1]) * trim / incoming];
+      const end = [point[0] + (next[0] - point[0]) * trim / outgoing,
+        point[1] + (next[1] - point[1]) * trim / outgoing];
+      return Array.from({ length: 5 }, (_, step) => {
+        const t = step / 4, inverse = 1 - t;
+        return [inverse ** 2 * start[0] + 2 * inverse * t * point[0] + t ** 2 * end[0],
+          inverse ** 2 * start[1] + 2 * inverse * t * point[1] + t ** 2 * end[1]];
+      });
+    });
   }
-  const radius = obstruction.radius ?? definition.radius ?? OBSTRUCTION_RADIUS;
-  const scale = radius / (definition.radius ?? OBSTRUCTION_RADIUS);
-  return { radius, width: obstruction.width ?? (definition.width ? definition.width * scale : radius * 2),
-    height: obstruction.height ?? (definition.height ? definition.height * scale : radius * 2) };
+  else {
+    const sides = { pentagon: 5, hexagon: 6, octagon: 8 }[shape];
+    const count = sides ?? (shape === 'circle' ? 96 : 64);
+    unit = Array.from({ length: count }, (_, i) => {
+      const angle = -Math.PI / 2 + i * Math.PI * 2 / count;
+      return [Math.cos(angle) / 2, Math.sin(angle) / 2];
+    });
+  }
+  return unit.map(([x, y]) => [x * width, y * height]);
+}
+
+function normalizeLegacyObstruction(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item) || item.kind !== 'object') return item;
+  const legacy = {
+    'obstruction-circle-large': ['obstruction-circle', 192, 192],
+    'obstruction-diamond-large': ['obstruction-diamond', 192, 192],
+    'obstruction-rectangle-horizontal': ['obstruction-rectangle', 192, 48],
+    'obstruction-rectangle-vertical': ['obstruction-rectangle', 48, 192],
+    'obstruction-rectangle-horizontal-large': ['obstruction-rectangle', 384, 96],
+    'obstruction-rectangle-vertical-large': ['obstruction-rectangle', 96, 384],
+  }[item.type];
+  if (!legacy) return item;
+  const [type, defaultWidth, defaultHeight] = legacy;
+  return { ...item, type, width: item.width ?? defaultWidth, height: item.height ?? defaultHeight };
 }
 
 function obstructionSurface(x, y, obstruction) {
+  const definition = OBJECTS[obstruction.type], shape = definition.obstruction;
+  const angle = (obstruction.rotation ?? 0) * Math.PI / 180;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
   let dx = x - obstruction.x, dy = y - obstruction.y;
-  if (OBJECTS[obstruction.type].bumper || OBJECTS[obstruction.type].obstruction === 'circle') {
-    const distance = Math.hypot(dx, dy);
-    return { gap: distance - obstruction.radius, nx: distance ? dx / distance : -1, ny: distance ? dy / distance : 0 };
+  if (shape === 'circle' || definition.bumper) {
+    const distance = Math.hypot(dx, dy), radius = obstruction.radius;
+    return { gap: distance - radius, nx: distance ? dx / distance : -1, ny: distance ? dy / distance : 0 };
   }
-  const diamond = OBJECTS[obstruction.type].obstruction === 'diamond';
-  const u = diamond ? (dx + dy) / Math.SQRT2 : dx, v = diamond ? (dy - dx) / Math.SQRT2 : dy;
-  const halfW = diamond ? obstruction.radius / Math.SQRT2 : obstruction.width / 2;
-  const halfH = diamond ? halfW : obstruction.height / 2;
-  dx = u - Math.max(-halfW, Math.min(halfW, u));
-  dy = v - Math.max(-halfH, Math.min(halfH, v));
-  let gap = Math.hypot(dx, dy), nx, ny;
-  if (gap) { nx = dx / gap; ny = dy / gap; }
-  else if (Math.abs(u) - halfW >= Math.abs(v) - halfH) { gap = Math.abs(u) - halfW; nx = Math.sign(u) || -1; ny = 0; }
-  else { gap = Math.abs(v) - halfH; nx = 0; ny = Math.sign(v) || -1; }
-  return diamond ? { gap, nx: (nx - ny) / Math.SQRT2, ny: (nx + ny) / Math.SQRT2 } : { gap, nx, ny };
+  const localX = dx * cos + dy * sin, localY = -dx * sin + dy * cos;
+  const surface = polygonSurface(localX, localY, obstructionVertices(obstruction));
+  return { ...surface, nx: surface.nx * cos - surface.ny * sin, ny: surface.nx * sin + surface.ny * cos };
+}
+
+function polygonSurface(x, y, vertices) {
+  let inside = false, area = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const [ax, ay] = vertices[i], [bx, by] = vertices[(i + 1) % vertices.length];
+    area += ax * by - bx * ay;
+    if ((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) inside = !inside;
+  }
+  let distance = Infinity, nx = -1, ny = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const [ax, ay] = vertices[i], [bx, by] = vertices[(i + 1) % vertices.length];
+    const ex = bx - ax, ey = by - ay, lengthSquared = ex * ex + ey * ey;
+    const t = Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / lengthSquared));
+    const px = ax + t * ex, py = ay + t * ey, gap = Math.hypot(x - px, y - py);
+    if (gap < distance) {
+      distance = gap;
+      if (gap > 1e-9 && !inside) { nx = (x - px) / gap; ny = (y - py) / gap; }
+      else {
+        const orientation = area >= 0 ? 1 : -1;
+        const length = Math.sqrt(lengthSquared);
+        nx = orientation * ey / length; ny = -orientation * ex / length;
+      }
+    }
+  }
+  return { gap: inside ? -distance : distance, nx, ny };
 }
 
 function obstructionSpikes(obstruction) {
@@ -2993,47 +3076,64 @@ function obstructionSpikes(obstruction) {
   const shape = OBJECTS[obstruction.type].obstruction;
   const depth = Math.min(14, Math.min(width, height) * .6);
   const triangles = [];
-  const point = (x, y) => [obstruction.x + x, obstruction.y + y];
-  if (shape === 'circle') {
-    const count = Math.max(3, Math.round(Math.PI * 2 * radius / 16));
-    for (let i = 0; i < count; i++) {
-      const a = i / count * Math.PI * 2, b = (i + 1) / count * Math.PI * 2, mid = (a + b) / 2;
-      triangles.push([point(Math.cos(a) * radius, Math.sin(a) * radius),
-        point(Math.cos(mid) * (radius + depth), Math.sin(mid) * (radius + depth)),
-        point(Math.cos(b) * radius, Math.sin(b) * radius)]);
-    }
-  } else {
-    const vertices = shape === 'diamond'
-      ? [[0, -radius], [radius, 0], [0, radius], [-radius, 0]]
-      : [[-width / 2, -height / 2], [width / 2, -height / 2], [width / 2, height / 2], [-width / 2, height / 2]];
-    for (const [i, [ax, ay]] of vertices.entries()) {
-      const [bx, by] = vertices[(i + 1) % vertices.length];
-      const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
-      const count = Math.max(1, Math.round(length / 16));
-      for (let j = 0; j < count; j++) {
-        triangles.push([point(ax + dx * j / count, ay + dy * j / count),
-          point(ax + dx * (j + .5) / count + dy / length * depth,
-            ay + dy * (j + .5) / count - dx / length * depth),
-          point(ax + dx * (j + 1) / count, ay + dy * (j + 1) / count)]);
-      }
+  const vertices = obstructionVertices(obstruction);
+  const orientation = Math.sign(vertices.reduce((sum, [x, y], i) => {
+    const [nextX, nextY] = vertices[(i + 1) % vertices.length];
+    return sum + x * nextY - nextX * y;
+  }, 0)) || 1;
+  const angle = (obstruction.rotation ?? 0) * Math.PI / 180, cos = Math.cos(angle), sin = Math.sin(angle);
+  const point = (x, y) => [obstruction.x + x * cos - y * sin, obstruction.y + x * sin + y * cos];
+  for (const [i, [ax, ay]] of vertices.entries()) {
+    const [bx, by] = vertices[(i + 1) % vertices.length];
+    const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy);
+    const count = Math.max(1, Math.round(length / 16));
+    for (let j = 0; j < count; j++) {
+      triangles.push([point(ax + dx * j / count, ay + dy * j / count),
+        point(ax + dx * (j + .5) / count + orientation * dy / length * depth,
+          ay + dy * (j + .5) / count - orientation * dx / length * depth),
+        point(ax + dx * (j + 1) / count, ay + dy * (j + 1) / count)]);
     }
   }
   return triangles;
 }
 
 function obstructionContact(x, y, dx, dy, radius, obstruction) {
-  if (OBJECTS[obstruction.type].obstruction === 'circle') {
+  const shape = OBJECTS[obstruction.type].obstruction;
+  if (shape === 'circle') {
     return circleContact(x - obstruction.x, y - obstruction.y, dx, dy, radius + obstruction.radius);
   }
-  if (OBJECTS[obstruction.type].obstruction === 'rectangle') {
+  if (shape === 'rectangle' && !(obstruction.rotation ?? 0)) {
     return brickContact(x, y, dx, dy, radius, { x: obstruction.x - obstruction.width / 2,
       y: obstruction.y - obstruction.height / 2, w: obstruction.width, h: obstruction.height });
   }
-  const half = obstruction.radius / Math.SQRT2;
-  return brickContact((x - obstruction.x + y - obstruction.y) / Math.SQRT2,
-    (y - obstruction.y - x + obstruction.x) / Math.SQRT2,
-    (dx + dy) / Math.SQRT2, (dy - dx) / Math.SQRT2, radius,
-    { x: -half, y: -half, w: half * 2, h: half * 2 });
+  const travel = Math.hypot(dx, dy);
+  if (!travel) return Infinity;
+  const contactTolerance = 1e-7;
+  const gap = t => obstructionSurface(x + dx * t, y + dy * t, obstruction).gap - radius;
+  const initialGap = gap(0);
+  if (initialGap < -contactTolerance) return 0;
+  // Use the sweep's stopping tolerance so a previous hit still permits departure.
+  if (initialGap <= contactTolerance) {
+    const { nx, ny } = obstructionSurface(x, y, obstruction);
+    if (dx * nx + dy * ny >= -1e-9) return Infinity;
+    return 0;
+  }
+  let t = 0;
+  for (let i = 0; i < 80 && t < 1; i++) {
+    const distance = gap(t);
+    if (distance <= contactTolerance) return t;
+    const previous = t;
+    t = Math.min(1, t + Math.max(distance / travel * .9, 1e-8));
+    if (gap(t) <= 0) {
+      let low = previous, high = t;
+      for (let j = 0; j < 32; j++) {
+        const middle = (low + high) / 2;
+        if (gap(middle) <= 0) high = middle; else low = middle;
+      }
+      return high;
+    }
+  }
+  return gap(1) <= contactTolerance ? 1 : Infinity;
 }
 
 function spikeContact(x, y, dx, dy, radius, triangle) {
@@ -3311,7 +3411,8 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.activeTurret || this.ropeDart || this.bubbleTrap || this.catCircleTrap
+    if (this.state !== 'playing' || this.activeTurret || (this.ropeDart && this.ropeDart.phase !== 'returning')
+      || this.bubbleTrap || this.catCircleTrap
       || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick) || !this.brickVisible(brick)) return false;
     if (this.level.autoscroll) {
       const camera = this.camera();
@@ -3324,7 +3425,7 @@ class Game {
     const distance = Math.hypot(dx, dy);
     if (!distance) return false;
     const boost = this.boostReady;
-    const fireDart = this.weapon && WEAPONS[this.weapon.type].ropeDart && !this.cat.vx && !this.cat.vy;
+    const fireDart = this.weapon && WEAPONS[this.weapon.type].ropeDart && !this.ropeDart && !this.cat.vx && !this.cat.vy;
     const speed = SPEED * (boost ? 2 : 1) * (this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
     const vx = dx / distance * speed, vy = dy / distance * speed;
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
@@ -4328,7 +4429,7 @@ class Game {
     if (OBJECTS[event.type].itemCase) return OBJECTS[event.type].radius;
     if (OBJECTS[event.type].obstruction) {
       const geometry = obstructionGeometry(event);
-      return Math.max(geometry.width, geometry.height) / 2;
+      return Math.hypot(geometry.width, geometry.height) / 2;
     }
     return OBJECTS[event.type].bubble ? 24 : 20;
   }
@@ -4662,7 +4763,7 @@ class Game {
     return { ...point, type: appearance.type, ...obstructionGeometry(appearance),
       color: appearance.color ?? OBJECTS[appearance.type].color,
       pattern: appearance.pattern ?? 'solid', patternColor: appearance.patternColor ?? '#dbe6ed',
-      destructible: appearance.destructible ?? false, spiked: appearance.spiked ?? false };
+      rotation: appearance.rotation ?? 0, destructible: appearance.destructible ?? false, spiked: appearance.spiked ?? false };
   }
 
   updateObstructionSpikeDamage(startX, startY) {
@@ -6662,10 +6763,13 @@ class Game {
   }
 
   collectRopeDart() {
+    const returning = this.ropeDart?.phase === 'returning';
     this.ropeDart = null;
-    this.cat.vx = 0; this.cat.vy = 0;
-    this.target = null;
-    this.conveyorRide = null;
+    if (!returning) {
+      this.cat.vx = 0; this.cat.vy = 0;
+      this.target = null;
+      this.conveyorRide = null;
+    }
     if (this.weapon && WEAPONS[this.weapon.type].ropeDart && this.weapon.uses === 0) this.dropWeapon(true);
   }
 
@@ -7440,14 +7544,14 @@ class Game {
     }
     const ride = this.conveyorRide;
     if (this.ropeDart) {
-      this.conveyorRide = null;
       const dart = this.ropeDart;
       const distance = Math.hypot(dart.x - cat.x, dart.y - cat.y);
       if (dart.phase === 'pulling' && distance > 1e-9) {
         const speed = SPEED * (this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
         cat.vx = (dart.x - cat.x) / distance * speed;
         cat.vy = (dart.y - cat.y) / distance * speed;
-      } else {
+      } else if (dart.phase !== 'returning') {
+        this.conveyorRide = null;
         cat.vx = 0; cat.vy = 0;
       }
     }
@@ -7806,7 +7910,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;

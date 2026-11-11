@@ -1657,10 +1657,14 @@ test('fixed campaign placements rotate with the board on desktop', () => {
     const game = new Game(() => .5, { level: levelIndex, portrait, scale: .625 });
     game.start();
     const bounds = game.bounds();
-    positions.push(new Map(['obstruction-circle-large', 'obstruction-diamond-large'].map(type => {
+    positions.push(new Map(['obstruction-circle', 'obstruction-diamond'].map(type => {
       const event = game.level.events.find(entry => entry.type === type);
       const obstruction = game.obstructions.find(entry => entry.type === type);
       assert.ok(obstruction, `the time-zero ${type} spawns`);
+      assert.equal(obstruction.width, 192);
+      assert.equal(obstruction.height, 192);
+      assert.equal(event.width, 192);
+      assert.equal(event.height, 192);
       return [type, {
         x: (obstruction.x - bounds.left) / (bounds.right - bounds.left),
         y: (obstruction.y - bounds.top) / (bounds.bottom - bounds.top),
@@ -1668,7 +1672,7 @@ test('fixed campaign placements rotate with the board on desktop', () => {
       }];
     })));
   }
-  for (const type of ['obstruction-circle-large', 'obstruction-diamond-large']) {
+  for (const type of ['obstruction-circle', 'obstruction-diamond']) {
     const phone = positions[0].get(type), desktop = positions[1].get(type);
     assert.ok(Math.abs(phone.x - phone.source[0]) < 1e-8);
     assert.ok(Math.abs(phone.y - phone.source[1]) < 1e-8);

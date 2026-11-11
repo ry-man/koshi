@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, obstructionSpikes, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
+const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, obstructionSpikes, obstructionVertices, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
 const HAZARD_FLAME = 'M-24 18 Q-12 12 -20 -2 L-10 -18 Q-13 -2 -4 -8 L3 -17 Q12 -4 9 2 Q18 -10 24 -20 Q16 3 24 18 Z';
 const MISSILE_BODY = 'M-14 -7 H9 Q24 -7 24 0 Q24 7 9 7 H-14 Z';
 const MISSILE_FINS = 'M-15 -6 L-25 -16 L-5 -10 V-6 M-15 6 L-25 16 L-5 10 V6 M-22 0 H-4';
@@ -29,12 +29,12 @@ const SYMBOLS = {
   'item-case': 'M-25 -25 H25 V25 H-25 Z M-19 -13 L-10 -22 M-19 -3 L0 -22 M-7 0 L0 -7 L7 0 L0 7 Z',
   'obstruction-circle': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 Z',
   'obstruction-diamond': 'M0 -23 L23 0 L0 23 L-23 0 Z',
-  'obstruction-circle-large': 'M24 0 A24 24 0 1 1 -24 0 A24 24 0 1 1 24 0 Z',
-  'obstruction-diamond-large': 'M0 -26 L26 0 L0 26 L-26 0 Z',
-  'obstruction-rectangle-horizontal': 'M-22 -5.5 H22 V5.5 H-22 Z',
-  'obstruction-rectangle-vertical': 'M-5.5 -22 H5.5 V22 H-5.5 Z',
-  'obstruction-rectangle-horizontal-large': 'M-26 -6.5 H26 V6.5 H-26 Z',
-  'obstruction-rectangle-vertical-large': 'M-6.5 -26 H6.5 V26 H-6.5 Z',
+  'obstruction-rectangle': 'M-22 -5.5 H22 V5.5 H-22 Z',
+  'obstruction-pentagon': 'M0 -25 L24 -8 L15 20 H-15 L-24 -8 Z',
+  'obstruction-hexagon': 'M-22 -13 L0 -26 L22 -13 V13 L0 26 L-22 13 Z',
+  'obstruction-octagon': 'M-12 -26 H12 L26 -12 V12 L12 26 H-12 L-26 12 V-12 Z',
+  'obstruction-v': 'M-26 -20 H-12 L0 5 L12 -20 H26 L8 24 H-8 Z',
+  'obstruction-oval': 'M26 0 A26 18 0 1 1 -26 0 A26 18 0 1 1 26 0 Z',
   'soccer-ball': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M0 -8 L8 -2 L5 7 H-5 L-8 -2 Z M0 -8 V-20 M8 -2 L19 -6 M5 7 L12 16 M-5 7 L-12 16 M-8 -2 L-19 -6',
   'bumper-red': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0 M2 0 A2 2 0 1 1 -2 0 A2 2 0 1 1 2 0',
   'bumper-green': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 M14 0 A14 14 0 1 1 -14 0 A14 14 0 1 1 14 0 M8 0 A8 8 0 1 1 -8 0 A8 8 0 1 1 8 0 M2 0 A2 2 0 1 1 -2 0 A2 2 0 1 1 2 0',
@@ -684,20 +684,18 @@ function drawSoccerBall(ctx, ball) {
 
 function drawObstruction(ctx, obstruction) {
   const { radius, width, height } = obstructionGeometry(obstruction);
-  const shape = OBJECTS[obstruction.type].obstruction;
+  const vertices = obstructionVertices(obstruction);
   const trace = () => {
     ctx.beginPath();
-    if (shape === 'circle') ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    else if (shape === 'rectangle') ctx.rect(-width / 2, -height / 2, width, height);
-    else {
-      ctx.moveTo(0, -radius); ctx.lineTo(radius, 0);
-      ctx.lineTo(0, radius); ctx.lineTo(-radius, 0); ctx.closePath();
-    }
+    ctx.moveTo(...vertices[0]);
+    for (const point of vertices.slice(1)) ctx.lineTo(...point);
+    ctx.closePath();
   };
   ctx.save(); ctx.translate(obstruction.x, obstruction.y);
+  ctx.rotate((obstruction.rotation ?? 0) * Math.PI / 180);
   if (obstruction.spiked) {
     ctx.beginPath();
-    for (const [a, b, c] of obstructionSpikes({ ...obstruction, x: 0, y: 0 })) {
+    for (const [a, b, c] of obstructionSpikes({ ...obstruction, x: 0, y: 0, rotation: 0 })) {
       ctx.moveTo(...a); ctx.lineTo(...b); ctx.lineTo(...c); ctx.closePath();
     }
     ctx.fillStyle = '#fff'; ctx.strokeStyle = '#aab9c5'; ctx.lineWidth = 1;
@@ -729,10 +727,12 @@ function drawObstruction(ctx, obstruction) {
   bevel.addColorStop(.45, '#ffffff20');
   bevel.addColorStop(.55, '#00000020');
   bevel.addColorStop(1, '#00000099');
-  trace(); ctx.strokeStyle = bevel; ctx.lineWidth = 12; ctx.stroke();
+  trace(); ctx.strokeStyle = bevel; ctx.lineWidth = 12;
+  ctx.lineJoin = OBJECTS[obstruction.type].obstruction === 'v' ? 'round' : 'miter'; ctx.stroke();
   ctx.restore();
   trace();
-  ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2.5;
+  ctx.lineJoin = OBJECTS[obstruction.type].obstruction === 'v' ? 'round' : 'miter'; ctx.stroke();
   if (obstruction.destructible) {
     ctx.save();
     const face = ctx.createLinearGradient(-18, -13, 18, 13);

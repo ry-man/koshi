@@ -1058,7 +1058,7 @@ Koshi, Tom and robots in that level, and explains the level's combination.
 | 3S-6 | Cinder stampede | 35 food, 8 enemy | Robo Cows eating two Boost bricks, barriers, Saw Blade |
 | 3S-7 | Obstacle cup | 5 goals | Fixed, TNT and appearing obstructions, Fireball Turret |
 | 3S-8 | Boom helmet bakery | 50 food | 8-charge Boom Helmet, Boom Times, Robo Snails, Sunglasses |
-| 3S-9 | Jackolantern junkyard | 14 enemy | Jackolanterns, barriers, large obstructions, gold sword |
+| 3S-9 | Jackolantern junkyard | 14 enemy | Jackolanterns, barriers, oversized scrap, gold sword |
 | 3S-10 | Grand slam | 3 goals, 6 enemy, 30 food | Unicorns, goalies, Robo Koshi, sword spawner, bubbles |
 | 3S-11 | Turret derby | 4 goals, 12 enemy | Robo Cows threatening Laser Turrets, goalies, bumpers |
 | 3S-12 | The duck's last stand | 4 goals, 40 food | Robo Koshi, unicorns, Jackolanterns, a Barrier, appearing walls |

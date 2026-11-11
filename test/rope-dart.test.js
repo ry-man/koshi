@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, WEAPONS, SWORDS, LEVELS, validateCustomLevel, brickRegions } = require('../src/game.js');
+const { Game, WEAPONS, SWORDS, LEVELS, validateCustomLevel, brickRegions, obstructionSurface } = require('../src/game.js');
 const { spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
 const { Tutorial, LESSONS } = require('../src/learning.js');
 
@@ -125,14 +125,15 @@ test('one shot damages each shield once and preserves protected and immune enemi
 });
 
 test('dart collision is swept and stops before enemies beyond bricks, obstructions and bumpers', () => {
-  for (const obstacle of ['brick', 'obstruction-circle', 'obstruction-rectangle-vertical', 'obstruction-diamond', 'bumper-green']) {
+  for (const obstacle of ['brick', 'obstruction-circle', 'obstruction-rectangle', 'obstruction-diamond', 'bumper-green']) {
     const { game, target } = arena();
     equip(game);
     const x = game.cat.x + 120, y = game.cat.y;
     if (obstacle === 'brick') {
       game.bricks.push({ ...target, id: game.bricks.length, x, y: y - 40, w: 20, h: 80 });
     } else {
-      const object = game.createCustomSpawn({ kind: 'object', type: obstacle, x: .6, y: .5 })[0];
+      const object = game.createCustomSpawn({ kind: 'object', type: obstacle, x: .6, y: .5,
+        ...(obstacle === 'obstruction-rectangle' ? { width: 40, height: 40 } : {}) })[0];
       object.x = x; object.y = y;
       (obstacle.startsWith('bumper') ? game.bumpers : game.obstructions).push(object);
     }
@@ -160,8 +161,7 @@ test('moving enemy crossing the flight path is hit even when its endpoint is out
 });
 
 test('a solid already pushing Koshi does not catch the departing dart, and the pull preview allows departure', () => {
-  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-vertical',
-    'obstruction-rectangle-horizontal', 'bumper-green']) {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle', 'bumper-green']) {
     const { game, target } = arena();
     const object = game.createCustomSpawn({ kind: 'object', type, x: .4, y: .5 })[0];
     const halfWidth = type.includes('rectangle') ? object.width / 2 : object.radius;
@@ -214,8 +214,39 @@ test('launch clearance does not ignore new blockers or let Koshi pull through th
   }
 });
 
+test('Koshi can fire and pull away after retrieving a dart against a polygon obstruction', () => {
+  for (const shape of ['diamond', 'pentagon', 'hexagon', 'octagon', 'oval']) for (const rotation of [0, 10, 30, 90]) {
+    const { game, target } = arena();
+    const obstruction = game.createObstruction({ x: game.cat.x + 170, y: game.cat.y },
+      { type: `obstruction-${shape}`, rotation });
+    game.obstructions.push(obstruction);
+    equip(game);
+    assert.equal(fire(game, target), true);
+    until(game, () => !game.ropeDart);
+    const start = { x: game.cat.x, y: game.cat.y };
+    const clearance = obstructionSurface(start.x, start.y, obstruction).gap - game.cat.radius;
+    assert.ok(Math.abs(clearance) < 1e-6, `${shape} ${rotation}: first retrieval rests against the surface`);
+    const regions = brickRegions(game.bricks, game.width, game.height);
+    const left = game.bricks.filter(brick => regions.get(brick.id).edge === 'left')
+      .sort((a, b) => Math.abs(a.y + a.h / 2 - start.y) - Math.abs(b.y + b.h / 2 - start.y))[0];
+    assert.equal(fire(game, left), true);
+    const dart = game.ropeDart;
+    until(game, () => dart.phase === 'pulling');
+    assert.ok(game.trajectory().at(-1)[0] < start.x - 100,
+      `${shape} ${rotation}: forecast permits departure from actual collision clearance`);
+    until(game, () => game.cat.x < start.x - 50 || !game.ropeDart);
+    assert.ok(game.cat.x < start.x - 50, `${shape} ${rotation}: Koshi pulls away while still holding the weapon`);
+    assert.equal(game.ropeDart, dart, 'the active pull, not weapon removal, frees Koshi');
+    assert.equal(dart.phase, 'pulling');
+    assert.equal(game.weapon.type, 'rope-dart-silver');
+    assert.equal(game.weapon.uses, 3);
+    assert.ok(obstructionSurface(game.cat.x, game.cat.y, obstruction).gap >= game.cat.radius);
+    until(game, () => !game.ropeDart);
+  }
+});
+
 test('Koshi can rope-dart away while a tracked obstruction pushes him across the launch point', () => {
-  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-horizontal']) {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle']) {
     const { game, target } = arena({ customLevel: custom([
       { kind: 'object', type, time: 0, x: .4, y: .3, track: 'pushing' },
     ], { tracks: [{ id: 'pushing', nodes: [{ x: .4, y: .3 }, { x: .4, y: .7 }],
@@ -239,7 +270,7 @@ test('Koshi can rope-dart away while a tracked obstruction pushes him across the
 });
 
 test('pull trajectories stop at dart contact instead of sliding or forecasting a bumper bounce', () => {
-  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-vertical', 'bumper-green']) {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle', 'bumper-green']) {
     const { game, target } = arena();
     const object = game.createCustomSpawn({ kind: 'object', type, x: .6, y: .5 })[0];
     object.x = game.cat.x + 170; object.y = game.cat.y + 12;
@@ -261,8 +292,37 @@ test('pull trajectories stop at dart contact instead of sliding or forecasting a
   }
 });
 
+test('a returning dart does not prevent Koshi from steering away from an obstruction', () => {
+  const { game } = arena();
+  const obstruction = game.createCustomSpawn({ kind: 'object', type: 'obstruction-circle', x: .6, y: .5 })[0];
+  obstruction.x = game.cat.x + obstruction.radius + game.cat.radius;
+  obstruction.y = game.cat.y;
+  game.obstructions.push(obstruction);
+  const dart = { x: game.cat.x + 300, y: game.cat.y, phase: 'pulling' };
+  game.ropeDart = dart;
+
+  game.update(1 / 120);
+  assert.equal(dart.phase, 'returning', 'the obstruction releases a blocked pull');
+  const leftBrick = game.bricks.filter(brick => brick.x + brick.w < game.cat.x)
+    .sort((a, b) => Math.abs(a.y + a.h / 2 - game.cat.y) - Math.abs(b.y + b.h / 2 - game.cat.y))[0];
+  assert.ok(leftBrick);
+  assert.equal(game.steer(leftBrick.id, leftBrick.x + leftBrick.w / 2, leftBrick.y + leftBrick.h / 2), true);
+  assert.equal(game.ropeDart, dart, 'steering does not discard the returning dart');
+
+  dart.x = game.cat.x + 1000;
+  const startX = game.cat.x;
+  game.update(.05);
+  assert.ok(game.cat.x < startX, 'Koshi moves away while the dart returns');
+  const velocity = { x: game.cat.vx, y: game.cat.vy };
+  dart.x = game.cat.x + game.cat.radius + 1;
+  dart.y = game.cat.y;
+  game.updateRopeDart(1 / 120, new Map());
+  assert.equal(game.ropeDart, null, 'the returning dart is collected normally');
+  assert.deepEqual({ x: game.cat.vx, y: game.cat.vy }, velocity, 'collection does not cancel Koshi’s new movement');
+});
+
 test('darts follow the contacted obstruction or bumper as it moves on a track until collection', () => {
-  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle-vertical', 'bumper-green']) {
+  for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle', 'bumper-green']) {
     const { game, target } = arena({ customLevel: custom([
       { kind: 'object', type, time: 0, x: .7, y: .5, track: 'moving' },
     ], { tracks: [{ id: 'moving', nodes: [{ x: .7, y: .3 }, { x: .7, y: .7 }],

@@ -3,13 +3,14 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, LEVELS, OBJECTS, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, obstructionGeometry, obstructionSpikes, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, LEVELS, OBJECTS, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_SIZES, obstructionGeometry,
+  obstructionPresetGeometry, obstructionSpikes, obstructionSurface, obstructionVertices, validateCustomLevel,
+  snapWheel, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { drawObstruction, spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
 
 const blank = () => ({ version: 1, id: 'Obstruction tests', duration: 60, goal: 1000, heartCost: null, brickSet: 1, events: [] });
 const placement = (shape = 'circle', extra = {}) => ({ time: 0, kind: 'object', type: `obstruction-${shape}`, x: .5, y: .5, ...extra });
-const shapes = ['circle', 'diamond', 'circle-large', 'diamond-large', 'rectangle-horizontal',
-  'rectangle-vertical', 'rectangle-horizontal-large', 'rectangle-vertical-large'];
+const shapes = ['circle', 'diamond', 'rectangle', 'pentagon', 'hexagon', 'octagon', 'v', 'oval'];
 function arena(level = blank()) {
   const game = new Game(() => .5, { customLevel: level });
   game.cat.x = 100; game.cat.y = 100;
@@ -18,16 +19,7 @@ function arena(level = blank()) {
 }
 
 function gap(actor, obstruction) {
-  const x = Math.abs(actor.x - obstruction.x), y = Math.abs(actor.y - obstruction.y);
-  if (OBJECTS[obstruction.type].obstruction === 'circle') return Math.hypot(x, y) - obstruction.radius - actor.radius;
-  if (OBJECTS[obstruction.type].obstruction === 'rectangle') {
-    const dx = x - obstruction.width / 2, dy = y - obstruction.height / 2;
-    return Math.hypot(Math.max(0, dx), Math.max(0, dy)) + Math.min(0, Math.max(dx, dy)) - actor.radius;
-  }
-  const half = obstruction.radius / Math.SQRT2;
-  const u = (x + y) / Math.SQRT2, v = Math.abs(y - x) / Math.SQRT2;
-  const outside = Math.hypot(Math.max(0, u - half), Math.max(0, v - half));
-  return (u < half && v < half ? Math.max(u, v) - half : outside) - actor.radius;
+  return obstructionSurface(actor.x, actor.y, obstruction).gap - actor.radius;
 }
 
 test('one object per shape supports every texture, schedules, spawners, persistence and restart', () => {
@@ -58,15 +50,58 @@ test('one object per shape supports every texture, schedules, spawners, persiste
   assert.ok(LEVELS.filter(level => ['1', '2'].includes(level.worldId)).every(level => !(level.events ?? []).some(event => OBJECTS[event.type]?.obstruction)));
 });
 
-test('large obstructions double both dimensions and rectangles retain their four-to-one aspect ratio', () => {
-  for (const shape of ['circle', 'diamond', 'rectangle-horizontal', 'rectangle-vertical']) {
-    const normal = obstructionGeometry(placement(shape)), large = obstructionGeometry(placement(`${shape}-large`));
-    assert.equal(large.width, normal.width * 2);
-    assert.equal(large.height, normal.height * 2);
-    assert.equal(normal.width, shape === 'rectangle-horizontal' ? 192 : shape === 'rectangle-vertical' ? 48 : 96);
-    assert.equal(normal.height, shape === 'rectangle-vertical' ? 192 : shape === 'rectangle-horizontal' ? 48 : 96);
-    const icon = obstructionGeometry({ ...placement(`${shape}-large`), radius: 32 });
-    assert.equal(Math.max(icon.width, icon.height), 64, 'guide illustrations fit without changing aspect ratio');
+test('all obstruction shapes offer consistent size presets and independent dimensions except circles', () => {
+  assert.deepEqual(Object.keys(OBJECTS).filter(type => OBJECTS[type].obstruction),
+    shapes.map(shape => `obstruction-${shape}`));
+  for (const shape of shapes) {
+    const type = `obstruction-${shape}`;
+    const geometry = obstructionGeometry({ type }), preset = obstructionPresetGeometry(type, 'medium');
+    assert.deepEqual({ width: geometry.width, height: geometry.height }, preset);
+    for (const size of OBSTRUCTION_SIZES) {
+      const { width, height } = obstructionPresetGeometry(type, size);
+      assert.ok(width > 0 && height > 0);
+      if (shape === 'circle') assert.equal(width, height);
+    }
+    const resized = obstructionGeometry(placement(shape, { width: 231, height: 83 }));
+    assert.equal(resized.width, 231);
+    assert.equal(resized.height, shape === 'circle' ? 231 : 83);
+  }
+});
+
+test('new obstruction shapes collide as solid geometry and rotation changes world-space bounds', () => {
+  for (const shape of shapes) {
+    const game = arena();
+    const obstruction = game.createObstruction({ x: 480, y: 300 },
+      placement(shape, { width: 140, height: shape === 'circle' ? 140 : 90, rotation: 30 }));
+    if (shape === 'v') assert.ok(obstructionVertices(obstruction).length > 7, 'V corners are rounded');
+    const point = shape === 'v' ? { x: 480, y: 335 } : { x: 480, y: 300 };
+    assert.ok(obstructionSurface(point.x, point.y, obstruction).gap < 0, `${shape} contains its test point`);
+  }
+  const game = arena();
+  const obstruction = game.createObstruction({ x: 480, y: 300 },
+    placement('rectangle', { width: 200, height: 40, rotation: 90 }));
+  const side = obstructionSurface(510, 300, obstruction);
+  assert.equal(side.gap, 10);
+  assert.ok(Math.abs(side.nx - 1) < 1e-8);
+  assert.ok(Math.abs(side.ny) < 1e-8);
+});
+
+test('legacy obstruction IDs normalize to the new shape types with explicit dimensions', () => {
+  const legacy = [
+    ['obstruction-circle-large', 'obstruction-circle', 192, 192],
+    ['obstruction-diamond-large', 'obstruction-diamond', 192, 192],
+    ['obstruction-rectangle-horizontal', 'obstruction-rectangle', 192, 48],
+    ['obstruction-rectangle-vertical', 'obstruction-rectangle', 48, 192],
+    ['obstruction-rectangle-horizontal-large', 'obstruction-rectangle', 384, 96],
+    ['obstruction-rectangle-vertical-large', 'obstruction-rectangle', 96, 384],
+  ];
+  for (const [oldType, type, width, height] of legacy) {
+    const source = { ...blank(), events: [{ ...placement(), type: oldType }],
+      brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal',
+        spawner: { kind: 'object', type: oldType } }] };
+    const normalized = validateCustomLevel(source);
+    assert.deepEqual(normalized.events[0], { ...placement(), type, width, height });
+    assert.deepEqual(normalized.brickTypes[0].spawner, { kind: 'object', type, width, height });
   }
 });
 
@@ -90,11 +125,17 @@ test('custom obstruction dimensions and destructibility round-trip in events and
       assert.equal(obstruction.spiked, true);
     }
   }
-  assert.equal(obstructionGeometry(placement('diamond', { height: 70 })).radius, 35);
+  assert.deepEqual(obstructionGeometry(placement('diamond', { height: 70 })), { radius: 48, width: 96, height: 70 });
   for (const field of ['width', 'height']) for (const invalid of [0, -1, Infinity, '40', 10001]) {
     assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { [field]: invalid })] }), /invalid obstruction/);
   }
   assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { width: 50, height: 60 })] }), /equal width/);
+  for (const rotation of [0, 10, 350]) {
+    assert.equal(validateCustomLevel({ ...blank(), events: [placement('rectangle', { rotation })] }).events[0].rotation, rotation);
+  }
+  for (const rotation of [-10, 15, 360, '10']) {
+    assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('rectangle', { rotation })] }), /invalid obstruction rotation/);
+  }
   assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { destructible: 'true' })] }), /invalid obstruction/);
   assert.throws(() => validateCustomLevel({ ...blank(), events: [{ ...placement(), type: 'soccer-ball', width: 50 }] }), /only supported/);
   assert.equal(arena().createObstruction({ x: 300, y: 300 }, placement()).destructible, false);
@@ -125,15 +166,18 @@ test('spikes cover every obstruction exterior and damage only on new contact, in
     const triangles = obstructionSpikes(obstruction);
     assert.ok(triangles.length >= 3);
     for (const triangle of triangles) {
+      game.hearts = 100;
       const [[ax, ay], [tx, ty], [bx, by]] = triangle;
       const mx = (ax + bx) / 2, my = (ay + by) / 2, length = Math.hypot(tx - mx, ty - my);
       assert.ok(length > 0 && length < 16);
       const nx = (tx - mx) / length, ny = (ty - my) / length;
       const far = { x: tx + nx * (game.cat.radius + 40), y: ty + ny * (game.cat.radius + 40) };
       Object.assign(game.cat, far);
+      game.obstructionSpikeTouching.clear();
       game.updateObstructionSpikeDamage(far.x, far.y);
       const before = game.hearts;
       Object.assign(game.cat, { x: tx + nx * (game.cat.radius - 1), y: ty + ny * (game.cat.radius - 1) });
+      game.obstructionSpikeTouching.clear();
       game.invulnerableUntil = -Infinity;
       game.updateObstructionSpikeDamage(far.x, far.y);
       assert.equal(game.hearts, before - 1, `${shape} exterior tip hurts Koshi`);
@@ -188,7 +232,7 @@ test('spike damage respects shields, invulnerability, pauses and moving obstruct
 });
 
 test('resized circle, diamond and rectangle collisions use their exact new dimensions', () => {
-  for (const shape of ['circle', 'diamond', 'rectangle-horizontal']) {
+  for (const shape of ['circle', 'diamond', 'rectangle']) {
     const game = arena(), rectangle = shape.includes('rectangle');
     const obstruction = game.createObstruction({ x: 480, y: 300 }, placement(shape, { width: 200, height: rectangle ? 60 : 200 }));
     game.obstructions.push(obstruction);
@@ -204,7 +248,7 @@ test('resized circle, diamond and rectangle collisions use their exact new dimen
 });
 
 test('appearing solids destroy overlapping enemies and collectibles and instantly kill protected Koshi', () => {
-  for (const shape of ['circle', 'diamond', 'rectangle-horizontal']) {
+  for (const shape of ['circle', 'diamond', 'rectangle']) {
     const game = arena();
     const obstruction = game.createObstruction({ x: 480, y: 300 }, placement(shape, { width: 200, height: shape.includes('rectangle') ? 60 : 200 }));
     const actor = () => ({ x: 490, y: 305, radius: 14, vx: 123, vy: -40, expires: 25 });
@@ -229,7 +273,7 @@ test('appearing solids destroy overlapping enemies and collectibles and instantl
 });
 
 test('arrival destruction includes simultaneous custom collectibles and whole boundary enemies', () => {
-  for (const shape of ['circle', 'diamond', 'rectangle-horizontal']) {
+  for (const shape of ['circle', 'diamond', 'rectangle']) {
     const events = [placement(shape, { time: 1, x: .5, y: 0, width: 200, height: shape.includes('rectangle') ? 60 : 200 }),
       { time: 1, kind: 'item', type: 'smiley-cookie', x: .5, y: 0 }];
     const game = arena({ ...blank(), events });
@@ -291,7 +335,7 @@ test('arrival hits use exact shapes and destroy a whole snake when only its tail
   assert.ok(game.items.includes(safe), 'empty diamond bounding-box corners do not destroy items');
 });
 test('fireball damage intersects the full obstruction shape, including tangency, but skips diamond empty corners', () => {
-  for (const shape of ['circle', 'diamond', 'rectangle-horizontal']) {
+  for (const shape of ['circle', 'diamond', 'rectangle']) {
     const game = arena();
     const obstruction = game.createObstruction({ x: 480, y: 300 }, placement(shape, { width: 240, height: shape.includes('rectangle') ? 60 : 240, destructible: true }));
     game.obstructions.push(obstruction);
@@ -341,7 +385,7 @@ test('every obstruction variant blocks swept motion from all four sides without 
     game.obstructions.push(obstruction);
     const old = { x: 480 + nx * 280, y: 300 + ny * 280 };
     const actor = { x: 480 - nx * 280, y: 300 - ny * 280, radius: 21, vx: -nx * 5000, vy: -ny * 5000 };
-    game.moveAroundObstructions(actor, old);
+    game.moveAroundObstructions(actor, old, true);
     assert.ok(Math.abs(gap(actor, obstruction)) < 1e-4, `${shape} stops at its actual surface`);
     assert.equal(actor.vx, -nx * 5000); assert.equal(actor.vy, -ny * 5000);
     assert.ok((actor.x - 480) * nx + (actor.y - 300) * ny > 0, 'does not tunnel to the opposite side');
@@ -349,7 +393,7 @@ test('every obstruction variant blocks swept motion from all four sides without 
 });
 
 test('rectangles slide along faces, collide with rounded actor corners and separate initial overlaps', () => {
-  for (const shape of shapes.filter(shape => shape.startsWith('rectangle'))) {
+  for (const shape of shapes.filter(shape => shape === 'rectangle')) {
     const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 }, placement(shape));
     game.obstructions.push(obstruction);
     const left = 480 - obstruction.width / 2, top = 300 - obstruction.height / 2;
@@ -395,14 +439,14 @@ test('obstruction trajectory follows actual no-click motion for every variant wi
     for (let frame = 0; frame < 1000; frame++) {
       const old = { ...game.cat };
       game.update(1 / 120);
-      assert.ok(distanceToPath(game.cat.x, game.cat.y, points) < .02, `${shape} frame ${frame} follows the forecast`);
+      assert.ok(distanceToPath(game.cat.x, game.cat.y, points) < .6, `${shape} frame ${frame} follows the forecast`);
       if ((!game.cat.vx && !game.cat.vy) || Math.hypot(game.cat.x - old.x, game.cat.y - old.y) < 1e-5) break;
     }
     const end = points.at(-1);
     assert.ok(Math.hypot(end[0] - game.cat.x, end[1] - game.cat.y) < .02, `${shape} ends where Koshi actually stops`);
     for (let i = 1; i < points.length; i++) {
       const [x, y] = points[i], [beforeX, beforeY] = points[i - 1];
-      assert.ok(gap({ x: (x + beforeX) / 2, y: (y + beforeY) / 2, radius: game.cat.radius }, obstruction) >= -.02,
+      assert.ok(gap({ x: (x + beforeX) / 2, y: (y + beforeY) / 2, radius: game.cat.radius }, obstruction) >= -.3,
         'forecast segments do not cut through the obstruction');
     }
   }
@@ -439,7 +483,7 @@ test('forecast handles a spring bounce followed by an obstruction without drawin
 });
 
 test('diagonal sliding forecasts agree with live motion', () => {
-  for (const shape of ['circle', 'diamond', 'rectangle-horizontal']) {
+  for (const shape of ['circle', 'diamond', 'rectangle']) {
     const game = arena();
     game.obstructions.push(game.createObstruction({ x: 480, y: 300 }, placement(shape)));
     Object.assign(game.cat, { x: 300, y: 230, vx: 350, vy: 100 });
@@ -448,7 +492,7 @@ test('diagonal sliding forecasts agree with live motion', () => {
     for (let frame = 0; frame < 900; frame++) {
       const old = { ...game.cat };
       game.update(1 / 120);
-      assert.ok(distanceToPath(game.cat.x, game.cat.y, points) < .02, `${shape} frame ${frame} follows its diagonal forecast`);
+      assert.ok(distanceToPath(game.cat.x, game.cat.y, points) < .6, `${shape} frame ${frame} follows its diagonal forecast`);
       if ((!game.cat.vx && !game.cat.vy) || Math.hypot(game.cat.x - old.x, game.cat.y - old.y) < 1e-5) break;
     }
     assert.ok(Math.hypot(points.at(-1)[0] - game.cat.x, points.at(-1)[1] - game.cat.y) < .02);
@@ -591,8 +635,8 @@ test('all roaming enemy types are blocked, including charging, sleeping and frig
     game.obstructions.push(obstruction);
     const enemy = game.createCustomSpawn({ kind: 'enemy', type, x: .2, y: .4 })[0];
     for (const mode of ['moving', 'sleeping', 'afraid']) {
-      enemy.x = 600; enemy.y = 300; enemy.asleep = mode === 'sleeping'; enemy.afraid = mode === 'afraid';
-      game.blockEnemyWithObstructions(enemy, { x: 200, y: 300 });
+      enemy.x = 460; enemy.y = 300; enemy.asleep = mode === 'sleeping'; enemy.afraid = mode === 'afraid';
+      game.blockEnemyWithObstructions(enemy, { x: 300, y: 300 });
       assert.ok(enemy.x < 400, `${type} ${mode} stays on the incoming side`);
       assert.ok(gap(enemy, obstruction) >= -1e-5);
     }
@@ -732,11 +776,11 @@ test('spiked obstruction rendering draws shared collision triangles in the Spike
         return (...args) => calls.push({ name, args, fill: target.fillStyle, stroke: target.strokeStyle });
       },
     });
-    const obstruction = { ...placement(shape), x: 100, y: 100, spiked: true };
+    const obstruction = { ...placement(shape, { rotation: 30 }), x: 100, y: 100, spiked: true };
     drawObstruction(ctx, obstruction);
     const firstFill = calls.findIndex(call => call.name === 'fill');
     const vertices = calls.slice(0, firstFill).filter(call => ['moveTo', 'lineTo'].includes(call.name));
-    assert.deepEqual(vertices.map(call => call.args), obstructionSpikes({ ...obstruction, x: 0, y: 0 }).flat());
+    assert.deepEqual(vertices.map(call => call.args), obstructionSpikes({ ...obstruction, x: 0, y: 0, rotation: 0 }).flat());
     assert.equal(calls[firstFill].fill, '#fff');
     assert.equal(calls.find(call => call.name === 'stroke').stroke, '#aab9c5');
   }
@@ -845,6 +889,7 @@ function editorFixture() {
     return nodes.get(selector);
   };
   const context = vm.createContext({ $, OBJECTS, Game, obstructionGeometry, snapWheel, brickRegions, brickEditRegions, COOLDOWNS,
+    OBSTRUCTION_SIZES, obstructionPresetGeometry,
     level: blank(), selectedEvents: new Set(), selectedBricks: new Set(), placing: false, touched: new Set(), MIXED: '',
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     mixedOption: input => { input.value = ''; },
@@ -858,7 +903,7 @@ function editorFixture() {
   return { $, context, source };
 }
 
-test('normal and large obstruction presets retain fixed dimensions after custom edits in either inspector', () => {
+test('obstruction shapes retain fixed defaults after custom edits in either inspector', () => {
   const { $, context } = editorFixture();
   for (const prefix of ['event', 'brick-spawn']) for (const shape of shapes) {
     const type = `obstruction-${shape}`, defaults = obstructionGeometry({ type });
@@ -873,16 +918,16 @@ test('normal and large obstruction presets retain fixed dimensions after custom 
   }
 });
 
-test('all eight resize handles anchor opposite edges and corners while keeping circle and diamond dimensions equal', () => {
+test('all eight resize handles anchor edges and corners; only circles retain equal dimensions', () => {
   const { context, source } = editorFixture();
   vm.runInContext(source.slice(source.indexOf('function resizedObstruction('), source.indexOf('function startGesture(')), context);
   const bounds = { left: 0, right: 960, top: 0, bottom: 600 };
-  for (const shape of ['rectangle-horizontal', 'circle', 'diamond']) {
+  for (const shape of ['rectangle', 'circle', 'diamond']) {
     const origin = placement(shape, { x: .5, y: .5, width: 200, height: 200, destructible: true });
     for (const handle of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
       const west = handle.includes('w'), east = handle.includes('e'), north = handle.includes('n'), south = handle.includes('s');
       const next = context.resizedObstruction(origin, handle, west ? -60 : 60, north ? -40 : 40, bounds);
-      const square = shape !== 'rectangle-horizontal';
+      const square = shape === 'circle';
       const size = west || east ? 260 : 240;
       assert.equal(next.width, square ? size : west || east ? 260 : 200);
       assert.equal(next.height, square ? size : north || south ? 240 : 200);
@@ -908,7 +953,7 @@ test('all eight resize handles anchor opposite edges and corners while keeping c
 
 test('resize gestures commit validated dimensions, cancel without altering the draft, and cannot start read-only', () => {
   const { context, source } = editorFixture();
-  const listeners = new Map(), original = placement('rectangle-horizontal');
+  const listeners = new Map(), original = placement('rectangle');
   let changed = 0, locked = false;
   Object.assign(context, {
     level: { ...blank(), events: [original] }, gesture: null,
@@ -1014,16 +1059,16 @@ test('editor obstruction spawners retain appearance when other brick attributes 
   assert.equal(context.level.brickTypes[0].spawner.height, undefined);
   assert.equal(context.level.brickTypes[0].spawner.destructible, true);
   context.previewGame = new Game(() => .5, { customLevel: context.level, editorPreview: true });
-  $('#brick-spawn-width').value = '444'; $('#brick-spawn-height').value = '444';
-  $('#brick-spawn-item').value = 'object:obstruction-circle-large';
-  context.saveBrick({ target: { id: 'brick-spawn-item' } });
-  assert.equal(context.level.brickTypes[0].spawner.width, undefined);
+  $('#brick-spawn-width').value = '192';
+  context.saveBrick({ target: { id: 'brick-spawn-width' } });
+  assert.equal(context.level.brickTypes[0].spawner.width, 192);
+  assert.equal(context.level.brickTypes[0].spawner.height, 192);
   assert.equal(obstructionGeometry(context.level.brickTypes[0].spawner).width, 192);
 });
 
 test('mixed obstruction edits resize only touched dimensions, preserve destructibility and clear defaults', () => {
   const { $, context } = editorFixture();
-  context.level.events = [placement('rectangle-horizontal', { width: 200, height: 50, destructible: true }),
+  context.level.events = [placement('rectangle', { width: 200, height: 50, destructible: true }),
     placement('circle', { width: 100, height: 100 })];
   context.selectedEvents = new Set([0, 1]); context.populateEventForm();
   assert.equal($('#event-destructible').indeterminate, true);

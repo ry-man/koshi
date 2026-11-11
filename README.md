@@ -669,6 +669,8 @@ the board; phones keep compact controls above it without scrolling away from pla
   flight, then is pulled directly toward the stopped dart to collect it.
   Obstructions and bumpers already touching Koshi at launch do not catch the
   dart until it clears them. The pull still cannot pass through solid objects.
+  After retrieving a dart against any obstruction shape, Koshi can fire and pull
+  away from that surface without dropping or exhausting the weapon.
   Retrieval stops the pull's momentum. Contact effects still apply normally:
   obstructions stop Koshi, while bumpers bounce him away.
   During the pull, the dotted trajectory ends at the dart or first blocking
@@ -678,8 +680,10 @@ the board; phones keep compact controls above it without scrolling away from pla
   Collision clearance can stop Koshi short on angled approaches; the dart then
   reels back along the remaining rope for collection without dealing extra damage.
   Normal contact effects still apply, including spikes, slime, springs, portals and
-  bumpers. Moving clicks steer normally without firing; clicks during deployment
-  cannot redirect the pull or launch another dart. The final shot completes its
+  bumpers. Moving clicks steer normally without firing; clicks during flight or
+  pulling cannot redirect the pull or launch another dart. Koshi can steer while
+  a blocked dart reels back, and collecting it preserves that new movement.
+  The final shot completes its
   pull before the weapon fades. Rope Darts do not auto-attack on body contact,
   damage Love Bugs or Tom, or spend extra shots for hitting multiple enemies.
   Ground pickups show a grey-white coiled rope and a wide, faceted metal dart;
@@ -1614,27 +1618,36 @@ Cat Circles (`cat-circle`) are dark-green, semi-transparent rest spots with a
 cat-head icon, the same size as bubbles. Contact smoothly pulls Koshi to the
 center, after which he can be redirected immediately. Cat Circles remain in
 place after use; bricks and bumpers take priority if they block the route.
-Circle and diamond obstructions (`obstruction-circle`, `obstruction-diamond`)
-are fixed solids, each 96 units wide and tall (twice a bumper's diameter).
-Their large variants (`obstruction-circle-large`, `obstruction-diamond-large`)
-are 192 units wide and tall. Long rectangles come in four variants:
-`obstruction-rectangle-horizontal` (192 by 48 units),
-`obstruction-rectangle-vertical` (48 by 192),
-`obstruction-rectangle-horizontal-large` (384 by 96), and
-`obstruction-rectangle-vertical-large` (96 by 384).
-All variants have shaded boundary bevels for depth, with a light upper-left
+Obstructions include circles, diamonds, rectangles, regular pentagons, hexagons,
+octagons, rounded V shapes, and ovals. Each shape has Small, Medium, Large, and
+Huge size presets; the editor's size menu applies consistent dimensions while
+numeric controls and resize handles remain available for custom sizing. Circle
+diameters always stay equal; every other shape can be adjusted independently in
+width and height. Obstructions can rotate in 10-degree steps. Older horizontal
+and vertical rectangle IDs are converted to the single rectangle shape while
+preserving their dimensions.
+
+| Shape | Small | Medium | Large | Huge |
+|---|---:|---:|---:|---:|
+| Circle, diamond, pentagon, hexagon, octagon | 48×48 | 96×96 | 192×192 | 384×384 |
+| Rectangle | 96×24 | 192×48 | 384×96 | 768×192 |
+| Rounded V | 96×48 | 192×96 | 384×192 | 768×384 |
+| Oval | 72×48 | 144×96 | 288×192 | 576×384 |
+
+Dimensions are in board units; the circle's values are diameters.
+
+Obstructions have shaded boundary bevels for depth, with a light upper-left
 edge and dark lower-right edge, without changing their collision shapes.
 Optional `width` and `height` resize obstructions in board units (1–10000).
-Circles and diamonds keep equal dimensions; specifying either dimension sets
-their diameter. Rectangles allow independent width and height. Omitted dimensions
-retain the selected variant's defaults. The editor offers numeric size controls
-for placements and obstruction-spawning bricks; blank fields restore defaults.
-Choosing a normal/large shape starts with its fixed default size, never the
-previously edited shape's dimensions. Select a placed obstruction to reveal
+Omitted dimensions retain the selected shape's Medium size. Choosing a shape
+starts with its fixed default size, never the previously edited shape's
+dimensions. Select a placed obstruction to reveal
 its tight bounding rectangle, then drag any corner or side handle to resize.
-Rectangles resize independently; circles and diamonds stay square. The opposite
-side/corner stays anchored until the center reaches the playable area's boundary.
+All shapes except circles resize independently; the opposite side/corner stays
+anchored until the center reaches the playable area's boundary.
 Numeric controls and exported dimensions reflect the resulting size.
+The eyedropper and paint-can tools above the board sample and apply an obstruction's
+base color, pattern, and pattern color.
 Optional `spiked: true` covers the entire exterior with white spikes like Spikes
 Bricks. The editor's **Spiked** checkbox toggles this for placements and
 obstruction-spawning bricks, including multi-selection. Touching a spike costs

@@ -98,7 +98,7 @@
       </details>
       <div class="editor-workspace">
         <section class="editor-panel stage-panel" aria-label="Placement board">
-          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><label class="inline-label"><input id="discretize-xy" type="checkbox" checked> Discretize X, Y</label><label class="inline-label"><input id="full-grid" type="checkbox"> Full grid lines</label><label class="inline-label"><input id="dynamic-view" type="checkbox" disabled> Dynamic View</label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div></div>
+          <div class="stage-toolbar"><label>Preview <select id="orientation"><option value="landscape">Desktop</option><option value="portrait">Phone portrait</option></select></label><label class="inline-label"><input id="discretize-xy" type="checkbox" checked> Discretize X, Y</label><label class="inline-label"><input id="full-grid" type="checkbox"> Full grid lines</label><label class="inline-label"><input id="dynamic-view" type="checkbox" disabled> Dynamic View</label><div class="tool-group" role="group" aria-label="Board tool"><button id="place-mode" type="button" aria-pressed="true">Place</button><button id="select-mode" type="button" aria-pressed="false">Select</button></div><div class="tool-group obstruction-tools" role="group" aria-label="Obstruction texture tools"><button id="obstruction-eyedropper" type="button" aria-pressed="false" title="Sample an obstruction's texture">Eyedropper</button><canvas id="obstruction-texture-swatch" width="48" height="28" role="img" aria-label="No obstruction texture stored"></canvas><button id="obstruction-paint" type="button" aria-pressed="false" disabled title="Apply the stored texture to obstructions">Paint can</button></div></div>
           <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
           <section class="point-reference" aria-labelledby="point-reference-heading">
             <h2 id="point-reference-heading">Available points reference</h2>
@@ -244,7 +244,9 @@
             <label hidden>Spawned crab direction<select id="brick-spawn-crab-direction" disabled><option value="random">Random</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label>
             <fieldset id="brick-spawn-obstruction" hidden disabled>
               <legend>Obstruction</legend>
+              <label>Size preset<select id="brick-spawn-size-preset"><option value="custom">Custom</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="huge">Huge</option></select></label>
               <div class="input-pair"><label>Width (board units)<input id="brick-spawn-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="brick-spawn-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
+              <label>Rotation (degrees, 10° steps)<input id="brick-spawn-rotation" type="number" min="0" max="350" step="10" value="0"></label>
               <label><input id="brick-spawn-destructible" type="checkbox"> Destructible by fireball turrets</label>
               <label><input id="brick-spawn-spiked" type="checkbox"> Spiked (damages Koshi on contact)</label>
               <label>Base color<input id="brick-spawn-color" type="color" value="#718596"></label>
@@ -270,7 +272,9 @@
             <label id="event-contains-label" hidden>Item inside case<select id="event-contains-item" disabled></select></label>
             <fieldset id="event-obstruction" hidden disabled>
               <legend>Obstruction</legend>
+              <label>Size preset<select id="event-size-preset"><option value="custom">Custom</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="huge">Huge</option></select></label>
               <div class="input-pair"><label>Width (board units)<input id="event-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="event-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
+              <label>Rotation (degrees, 10° steps)<input id="event-rotation" type="number" min="0" max="350" step="10" value="0"></label>
               <label class="inline-label"><input id="event-destructible" type="checkbox"> Destructible by fireball turrets</label>
               <label class="inline-label"><input id="event-spiked" type="checkbox"> Spiked (damages Koshi on contact)</label>
               <label>Base color<input id="event-color" type="color" value="#718596"></label>

@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
@@ -76,6 +76,8 @@ let trackDrawing = false;
 let trackDrawNodes = [];
 let selectedTrackNode = -1;
 let trackNodeGesture = null;
+let obstructionTool = null;
+let obstructionTexture = null;
 const readOnly = () => campaignIndex !== null;
 const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access', '#camera-access'];
 const writeButtons = ['#place-mode', '#new-level'];
@@ -581,15 +583,26 @@ function typeOptions(type, showLifetime) {
 }
 
 function syncObstructionSize(prefix, item) {
-  const rectangle = OBJECTS[item.type]?.obstruction === 'rectangle';
+  const circle = OBJECTS[item.type]?.obstruction === 'circle';
   const geometry = obstructionGeometry({ type: item.type });
   $(`#${prefix}-width`).placeholder = String(geometry.width);
   $(`#${prefix}-height`).placeholder = String(geometry.height);
-  $(`#${prefix}-height`).parentElement.hidden = !rectangle;
+  $(`#${prefix}-height`).parentElement.hidden = circle;
+  $(`#${prefix}-rotation`).placeholder = '0';
+}
+
+function obstructionPresetFor(item) {
+  const geometry = obstructionGeometry(item);
+  return OBSTRUCTION_SIZES.find(size => {
+    const preset = obstructionPresetGeometry(item.type, size);
+    return preset.width === geometry.width && preset.height === geometry.height;
+  }) ?? 'custom';
 }
 
 function resetObstructionSize(prefix) {
   for (const field of ['width', 'height']) $(`#${prefix}-${field}`).value = '';
+  $(`#${prefix}-rotation`).value = '0';
+  $(`#${prefix}-size-preset`).value = 'medium';
 }
 
 function populateObstructionFields(prefix, items) {
@@ -605,9 +618,14 @@ function populateObstructionFields(prefix, items) {
   }
   for (const field of ['width', 'height']) {
     const input = $(`#${prefix}-${field}`);
-    const value = common(items.map(item => item[field] ?? (field === 'width' && OBJECTS[item.type].obstruction !== 'rectangle' ? item.height : undefined) ?? ''));
+    const value = common(items.map(item => item[field] ?? ''));
     input.value = value === MIXED ? '' : value;
   }
+  const rotations = common(items.map(item => item.rotation ?? 0));
+  $(`#${prefix}-rotation`).value = rotations === MIXED ? '' : rotations;
+  $(`#${prefix}-rotation`).placeholder = rotations === MIXED ? 'Mixed' : '0';
+  const sizes = common(items.map(obstructionPresetFor));
+  $(`#${prefix}-size-preset`).value = sizes === MIXED ? 'custom' : sizes;
   for (const field of ['destructible', 'spiked']) {
     const input = $(`#${prefix}-${field}`);
     input.checked = items.every(item => item[field]);
@@ -623,10 +641,12 @@ function readObstructionFields(prefix) {
     if (value !== '') fields[field] = Number(value);
   }
   const type = prefix === 'event' ? $('#event-type').value : $('#brick-spawn-item').value.split(':')[1];
-  if (OBJECTS[type]?.obstruction !== 'rectangle') {
+  if (OBJECTS[type]?.obstruction === 'circle') {
     if (fields.width !== undefined) fields.height = fields.width;
-    else delete fields.height;
+    else if (fields.height !== undefined) fields.width = fields.height;
   }
+  const rotation = Number($(`#${prefix}-rotation`).value);
+  if (rotation) fields.rotation = rotation;
   for (const field of ['destructible', 'spiked']) {
     if ($(`#${prefix}-${field}`).checked) fields[field] = true;
   }
@@ -1298,9 +1318,12 @@ function renderBoard() {
       marker.append(image, label);
     } else if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
       const { width, height } = obstructionGeometry(event);
+      const angle = (event.rotation ?? 0) * Math.PI / 180;
       const padding = event.spiked ? 32 : 4;
-      const frameWidth = Math.max(width + padding, event.destructible ? 40 : 0);
-      const frameHeight = Math.max(height + padding, event.destructible ? 30 : 0);
+      const frameWidth = Math.max(Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * height + padding,
+        event.destructible ? 40 : 0);
+      const frameHeight = Math.max(Math.abs(Math.sin(angle)) * width + Math.abs(Math.cos(angle)) * height + padding,
+        event.destructible ? 30 : 0);
       marker.classList.add('obstruction-marker');
       marker.style.width = `${frameWidth / previewGame.width * 100}%`;
       marker.style.height = `${frameHeight / previewGame.height * 100}%`;
@@ -1315,7 +1338,7 @@ function renderBoard() {
       if (selected && !readOnly() && !trackObjectAction && connectingSpawn === null && !event.random && !event.group) {
         const outline = document.createElement('span');
         outline.className = 'obstruction-resize-box';
-        outline.style.cssText = `width:${width / frameWidth * 100}%;height:${height / frameHeight * 100}%`;
+        outline.style.cssText = `width:${width / frameWidth * 100}%;height:${height / frameHeight * 100}%;transform:translate(-50%, -50%) rotate(${event.rotation ?? 0}deg)`;
         for (const handle of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
           const grip = document.createElement('span');
           grip.className = `obstruction-resize-handle resize-${handle}`;
@@ -1333,6 +1356,11 @@ function renderBoard() {
     } else marker.append(icon(event), label);
     marker.addEventListener('click', click => {
       click.stopPropagation();
+      if (obstructionTool) {
+        click.preventDefault();
+        handleObstructionTool(index, spawnKey, event);
+        return;
+      }
       if (click.detail !== 0 && !readOnly()) return;
       if (trackObjectAction && !spawnKey) { updateTrackObject(index); return; }
       if (!readOnly() && connectingSpawn !== null && !spawnKey) { attempt(() => connectSpawn(index)); return; }
@@ -1341,6 +1369,7 @@ function renderBoard() {
       focusMarker(index);
     });
     marker.addEventListener('pointerdown', down => {
+      if (obstructionTool) { down.preventDefault(); down.stopPropagation(); return; }
       if (readOnly()) { down.stopPropagation(); return; }
       if (down.button !== 0 || gesture) return;
       down.preventDefault(); down.stopPropagation();
@@ -1907,9 +1936,12 @@ function resizedObstruction(origin, handle, dx, dy, bounds) {
   const geometry = obstructionGeometry(origin);
   const west = handle.includes('w'), east = handle.includes('e');
   const north = handle.includes('n'), south = handle.includes('s');
-  let width = Math.max(1, Math.min(10000, geometry.width + (west ? -dx : east ? dx : 0)));
-  let height = Math.max(1, Math.min(10000, geometry.height + (north ? -dy : south ? dy : 0)));
-  if (OBJECTS[origin.type].obstruction !== 'rectangle') {
+  const angle = (origin.rotation ?? 0) * Math.PI / 180;
+  const localDx = dx * Math.cos(angle) + dy * Math.sin(angle);
+  const localDy = -dx * Math.sin(angle) + dy * Math.cos(angle);
+  let width = Math.max(1, Math.min(10000, geometry.width + (west ? -localDx : east ? localDx : 0)));
+  let height = Math.max(1, Math.min(10000, geometry.height + (north ? -localDy : south ? localDy : 0)));
+  if (OBJECTS[origin.type].obstruction === 'circle') {
     const horizontal = west || east, vertical = north || south;
     const changeX = width - geometry.width, changeY = height - geometry.height;
     const size = horizontal && (!vertical || Math.abs(changeX) >= Math.abs(changeY)) ? width : height;
@@ -1917,9 +1949,11 @@ function resizedObstruction(origin, handle, dx, dy, bounds) {
   }
   const offsetX = (east ? 1 : west ? -1 : 0) * (width - geometry.width) / 2;
   const offsetY = (south ? 1 : north ? -1 : 0) * (height - geometry.height) / 2;
+  const worldOffsetX = offsetX * Math.cos(angle) - offsetY * Math.sin(angle);
+  const worldOffsetY = offsetX * Math.sin(angle) + offsetY * Math.cos(angle);
   return { ...origin, width, height,
-    x: Math.max(0, Math.min(1, origin.x + offsetX / (bounds.right - bounds.left))),
-    y: Math.max(0, Math.min(1, origin.y + offsetY / (bounds.bottom - bounds.top))) };
+    x: Math.max(0, Math.min(1, origin.x + worldOffsetX / (bounds.right - bounds.left))),
+    y: Math.max(0, Math.min(1, origin.y + worldOffsetY / (bounds.bottom - bounds.top))) };
 }
 
 function startGesture(event, target) {
@@ -2123,14 +2157,19 @@ board.addEventListener('pointercancel', () => {
   gesture = null; $('#selection-box').hidden = true; markChanged(); render();
 });
 board.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { connectingSpawn = null; trackObjectAction = null; setSelection([], []); board.focus({ preventScroll: true }); }
+  if (event.key === 'Escape') {
+    connectingSpawn = null; trackObjectAction = null; obstructionTool = null; syncObstructionTool();
+    setSelection([], []); board.focus({ preventScroll: true });
+  }
   else if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); deleteSelected(); board.focus({ preventScroll: true }); }
   else if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); selectAll(); }
 });
 document.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || !trackObjectAction) return;
+  if (event.key !== 'Escape' || (!trackObjectAction && !obstructionTool)) return;
   event.preventDefault();
-  trackObjectAction = null; render(); message('Track object picking cancelled.');
+  const cancelledTrack = Boolean(trackObjectAction);
+  trackObjectAction = null; obstructionTool = null; syncObstructionTool(); render();
+  message(cancelledTrack ? 'Track object picking cancelled.' : 'Obstruction texture tool cancelled.');
 });
 function startPlacement() {
   if (readOnly()) return;
@@ -2140,7 +2179,83 @@ function syncTool() {
   board.dataset.tool = placing ? 'place' : 'select';
   $('#place-mode').setAttribute('aria-pressed', String(placing));
   $('#select-mode').setAttribute('aria-pressed', String(!placing));
+  syncObstructionTool();
 }
+function syncObstructionTool() {
+  board.dataset.obstructionTool = obstructionTool ?? '';
+  $('#obstruction-eyedropper').setAttribute('aria-pressed', String(obstructionTool === 'sample'));
+  $('#obstruction-paint').setAttribute('aria-pressed', String(obstructionTool === 'paint'));
+  $('#obstruction-eyedropper').disabled = readOnly();
+  $('#obstruction-paint').disabled = readOnly() || !obstructionTexture;
+  const swatch = $('#obstruction-texture-swatch');
+  const context = swatch.getContext('2d');
+  if (!context) throw new Error('Could not draw the obstruction texture preview.');
+  context.clearRect(0, 0, swatch.width, swatch.height);
+  context.fillStyle = obstructionTexture?.color ?? '#263844';
+  context.fillRect(0, 0, swatch.width, swatch.height);
+  if (obstructionTexture && obstructionTexture.pattern !== 'solid') {
+    context.fillStyle = obstructionTexture.patternColor;
+    if (obstructionTexture.pattern === 'polka-dots') {
+      for (let y = 4; y < swatch.height; y += 9) for (let x = 4; x < swatch.width; x += 9) {
+        context.beginPath(); context.arc(x, y, 2, 0, Math.PI * 2); context.fill();
+      }
+    } else if (obstructionTexture.pattern === 'stripes') {
+      context.save(); context.rotate(-Math.PI / 4);
+      for (let x = -swatch.height; x < swatch.width + swatch.height; x += 9) context.fillRect(x, -swatch.height, 4, swatch.height * 3);
+      context.restore();
+    } else if (obstructionTexture.pattern === 'checkered') {
+      for (let y = 0; y < swatch.height; y += 7) for (let x = 0; x < swatch.width; x += 7) {
+        if ((x + y) % 14 === 0) context.fillRect(x, y, 7, 7);
+      }
+    }
+  }
+  context.strokeStyle = '#ffffffbb'; context.lineWidth = 1; context.strokeRect(.5, .5, swatch.width - 1, swatch.height - 1);
+  swatch.setAttribute('aria-label', obstructionTexture
+    ? `Stored ${obstructionTexture.pattern} obstruction texture, ${obstructionTexture.color} base, ${obstructionTexture.patternColor} pattern`
+    : 'No obstruction texture stored');
+}
+function handleObstructionTool(index, spawnKey, event) {
+  if (!event || event.kind !== 'object' || !OBJECTS[event.type]?.obstruction) {
+    message('Choose an obstruction to sample or paint.', true);
+    return true;
+  }
+  if (obstructionTool === 'sample') {
+    obstructionTexture = {
+      color: event.color ?? OBJECTS[event.type].color,
+      pattern: event.pattern ?? 'solid',
+      patternColor: event.patternColor ?? '#dbe6ed',
+    };
+    obstructionTool = null;
+    syncObstructionTool();
+    message('Obstruction texture sampled. Select the paint can to apply it.');
+    return true;
+  }
+  if (obstructionTool === 'paint' && obstructionTexture) attempt(() => {
+    const updated = { ...event, ...obstructionTexture };
+    if (spawnKey) saveSpawnTemplate(spawnKey, updated);
+    else {
+      const events = level.events.map((item, itemIndex) => itemIndex === index ? updated : item);
+      level = validateDraft({ ...level, events });
+      markChanged();
+      setSelection([index], []);
+    }
+    renderBoard();
+    message('Obstruction texture applied.');
+  });
+  return true;
+}
+$('#obstruction-eyedropper').addEventListener('click', () => {
+  if (readOnly()) return;
+  obstructionTool = obstructionTool === 'sample' ? null : 'sample';
+  placing = false; syncTool();
+  message(obstructionTool ? 'Click an obstruction to sample its texture. Escape cancels.' : 'Texture sampling cancelled.');
+});
+$('#obstruction-paint').addEventListener('click', () => {
+  if (readOnly() || !obstructionTexture) return;
+  obstructionTool = obstructionTool === 'paint' ? null : 'paint';
+  placing = false; syncTool();
+  message(obstructionTool ? 'Click obstructions to apply the stored texture. Escape cancels.' : 'Texture painting cancelled.');
+});
 $('#inspector-access').addEventListener('change', () => {
   if (readOnly()) return;
   if (selectedEvents.size) return;
@@ -2264,15 +2379,23 @@ function saveBrick(event) {
       }
       if (entry.spawner?.kind === 'object' && OBJECTS[entry.spawner.type]?.obstruction) {
         if (id === 'brick-spawn-item' || id === 'brick-spawner') Object.assign(entry.spawner, readObstructionFields('brick-spawn'));
+        if (id === 'brick-spawn-size-preset' && $('#brick-spawn-size-preset').value !== 'custom') {
+          Object.assign(entry.spawner, obstructionPresetGeometry(entry.spawner.type, $('#brick-spawn-size-preset').value));
+        }
         for (const field of ['color', 'pattern', 'patternColor']) {
           if (id === `brick-spawn-${field}` && $(`#${id}`).value !== MIXED) entry.spawner[field] = $(`#${id}`).value;
         }
         for (const field of ['width', 'height']) if (id === `brick-spawn-${field}`) {
-          const fields = OBJECTS[entry.spawner.type].obstruction === 'rectangle' ? [field] : ['width', 'height'];
+          const fields = OBJECTS[entry.spawner.type].obstruction === 'circle' ? ['width', 'height'] : [field];
           for (const dimension of fields) {
             if ($(`#${id}`).value === '') delete entry.spawner[dimension];
             else entry.spawner[dimension] = Number($(`#${id}`).value);
           }
+        }
+        if (id === 'brick-spawn-rotation') {
+          const rotation = Number($('#brick-spawn-rotation').value);
+          if (rotation) entry.spawner.rotation = rotation;
+          else delete entry.spawner.rotation;
         }
         for (const field of ['destructible', 'spiked']) {
           if (id === `brick-spawn-${field}`) entry.spawner[field] = $(`#${id}`).checked;
@@ -2361,9 +2484,22 @@ for (const field of ['color', 'pattern', 'patternColor']) {
   $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
   $(`#brick-spawn-${field}`).addEventListener('change', event => attempt(() => saveBrick(event)));
 }
-for (const field of ['width', 'height', 'destructible', 'spiked']) {
+for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked']) {
   $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
   $(`#brick-spawn-${field}`).addEventListener('change', saveBrick);
+}
+for (const prefix of ['event', 'brick-spawn']) {
+  $(`#${prefix}-size-preset`).addEventListener('change', event => {
+    if (event.target.value === 'custom') return;
+    const type = prefix === 'event' ? $('#event-type').value : $('#brick-spawn-item').value.split(':')[1];
+    if (!OBJECTS[type]?.obstruction) return;
+    const dimensions = obstructionPresetGeometry(type, event.target.value);
+    $(`#${prefix}-width`).value = dimensions.width;
+    $(`#${prefix}-height`).value = dimensions.height;
+    if (prefix === 'event') {
+      touched.add('#event-width'); touched.add('#event-height');
+    } else saveBrick({ target: { id: 'brick-spawn-size-preset' } });
+  });
 }
 $('#brick-spawn-shield').addEventListener('change', event => attempt(() => saveBrick(event)));
 $('#brick-spawn-crab-direction').addEventListener('change', event => attempt(() => saveBrick(event)));
@@ -2396,10 +2532,11 @@ function applyToSelected() {
   const keysChanged = touched.has('#event-keys-required') && !$('#event-keys-required').disabled;
   const textureFields = ['color', 'pattern', 'patternColor'].filter(field => touched.has(`#event-${field}`) && value(`#event-${field}`) !== MIXED);
   const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
+  const rotationChanged = touched.has('#event-rotation');
   const destructibleChanged = touched.has('#event-destructible');
   const spikedChanged = touched.has('#event-spiked');
   const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle', '#event-random-count'].some(selector => touched.has(selector));
-  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !contentChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !contentChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !rotationChanged && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -2466,18 +2603,25 @@ function applyToSelected() {
       else if (textureFields.includes(field)) next[field] = value(`#event-${field}`);
     }
     if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) {
-      for (const field of ['width', 'height', 'destructible', 'spiked']) delete next[field];
+      for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked']) delete next[field];
     } else {
       for (const field of sizeFields) {
-        const dimensions = OBJECTS[next.type].obstruction === 'rectangle' ? [field] : ['width', 'height'];
-        for (const dimension of dimensions) {
-          if (value(`#event-${field}`) === '') delete next[dimension];
-          else next[dimension] = Number(value(`#event-${field}`));
-        }
+        if (value(`#event-${field}`) === '') delete next[field];
+        else next[field] = Number(value(`#event-${field}`));
+      }
+      if (OBJECTS[next.type].obstruction === 'circle' && sizeFields.length) {
+        const cleared = sizeFields.some(field => value(`#event-${field}`) === '');
+        const size = next.width ?? next.height;
+        if (cleared || size === undefined) { delete next.width; delete next.height; }
+        else next.width = next.height = size;
+      }
+      if (rotationChanged) {
+        if (value('#event-rotation') === '') delete next.rotation;
+        else next.rotation = Number(value('#event-rotation'));
       }
       if (destructibleChanged) next.destructible = $('#event-destructible').checked;
       if (spikedChanged) next.spiked = $('#event-spiked').checked;
-      if (type && OBJECTS[next.type].obstruction !== 'rectangle') {
+      if (type && OBJECTS[next.type].obstruction === 'circle') {
         const size = next.width ?? next.height;
         if (size !== undefined) next.width = next.height = size;
       }

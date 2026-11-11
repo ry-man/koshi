@@ -185,7 +185,7 @@ test('overlapping moving bumpers block only approaching relative motion', () => 
 });
 
 test('a moving obstruction resolves adjacent bumper overlaps without changing either path', () => {
-  for (const type of ['obstruction-circle', 'obstruction-rectangle-horizontal', 'obstruction-diamond']) {
+  for (const type of ['obstruction-circle', 'obstruction-rectangle', 'obstruction-diamond']) {
     const game = arena({ ...blank(), tracks: [track({ nodes: [{ x: .3, y: .5 }, { x: .8, y: .5 }] })],
       events: [object(type, { x: .3, y: .5, width: 40, height: 40 })] });
     const solid = game.obstructions[0], start = { x: solid.x, y: solid.y };

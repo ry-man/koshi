@@ -55,6 +55,10 @@
 .stage-toolbar label { flex-direction: row; align-items: center; }
 .stage-toolbar select { width: auto; }
 .tool-group { display: inline-flex; gap: 4px; }
+.obstruction-tools { align-items: center; }
+#obstruction-texture-swatch { display: block; width: 48px; height: 28px; border: 1px solid #ffffff80; border-radius: 4px; image-rendering: pixelated; }
+#editor-board[data-obstruction-tool="sample"] .obstruction-marker { cursor: crosshair; }
+#editor-board[data-obstruction-tool="paint"] .obstruction-marker { cursor: cell; }
 .selection-toolbar { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 10px; }
 .selection-toolbar output { font-weight: 700; margin-right: auto; }
 .selection-toolbar label { flex-direction: row; align-items: center; }
