@@ -1547,7 +1547,8 @@ at most 2000 elements across all events. All copies inherit the event's timing,
 lifetime, shield, carrier flags and object attributes.
 
 Lines accept an angle in degrees (0 is horizontal, 90 points downward). Optional
-**Length (%)** / **Diameter (%)** uses the shorter playable dimension; blank
+**Length (%)** / **Diameter (%)** uses the shorter single-screen playable dimension
+(not the full length of an autoscrolling board); blank
 uses automatic sizing (55 units between line members, or a 176-unit circle
 diameter, capped to fit). Fixed formations remain centered on their authored
 point and shrink uniformly if necessary to fit near an edge. Their centers must
@@ -1556,8 +1557,12 @@ choose a center that keeps the whole formation inside the playable area.
 Random Saw Blade, Ditto Stamp and Paintbrush formations also shrink as necessary
 to preserve their required clearance from boundary bricks.
 Wheel, Snake and Robo Cow members each snap to the nearest edge, which can
-change the formation's shape. The editor shows representative random locations
-at the center; actual random locations are selected once per spawn warning and
+change the formation's shape. On autoscrolling levels, all random placements,
+including enemies and independent copies, use the viewport at their spawn time
+and stay visible for at least one second. Perimeter enemies snap only to visible
+board edges, and random formations shrink uniformly to fit that viewport.
+The editor shows representative random locations at the center of the available
+spawn area; actual random locations are selected once per spawn warning and
 reused when the event appears. Dragging or nudging a random marker changes its
 event to a fixed location. Only single fixed events can connect to brick spawners.
 

@@ -4425,6 +4425,11 @@ class Game {
   }
 
   spawnRadius(event) {
+    if (event.kind === 'enemy') {
+      if (event.type === 'boss') return 48;
+      if (event.type === 'robo-cow') return 26;
+      return event.type === 'goalie' ? 23 : 19;
+    }
     if (event.kind !== 'object') return event.type === 'ditto-stamp' ? DITTO_STAMP_RADIUS : 18;
     if (OBJECTS[event.type].bumper) return 48;
     if (OBJECTS[event.type].catCircle) return OBJECTS[event.type].radius;
@@ -4591,18 +4596,46 @@ class Game {
   customEventPoints(event, { preview = false } = {}) {
     if (event.track) return [this.trackEventPoint(event)];
     const b = this.bounds(), width = b.right - b.left, height = b.bottom - b.top;
+    const randomBounds = event.random
+      ? this.randomSpawnBounds(event.time, needsBrickSpawnClearance(event.type) ? DITTO_STAMP_RADIUS : this.spawnRadius(event))
+      : b;
+    const relativeRandomPoint = (x, y) => ({
+      x: randomBounds.left + x * (randomBounds.right - randomBounds.left),
+      y: randomBounds.top + y * (randomBounds.bottom - randomBounds.top),
+    });
     const edge = event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type);
     const snap = point => {
       if (!edge) return point;
+      if (event.random && this.level.autoscroll) {
+        const candidates = [];
+        for (const x of [b.left, b.right]) {
+          if (x >= randomBounds.left && x <= randomBounds.right) {
+            candidates.push({ x, y: Math.max(randomBounds.top, Math.min(randomBounds.bottom, point.y)) });
+          }
+        }
+        for (const y of [b.top, b.bottom]) {
+          if (y >= randomBounds.top && y <= randomBounds.bottom) {
+            candidates.push({ x: Math.max(randomBounds.left, Math.min(randomBounds.right, point.x)), y });
+          }
+        }
+        if (!candidates.length) throw new RangeError('No visible perimeter enemy spawn location is available.');
+        return candidates.reduce((nearest, candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y)
+          < Math.hypot(nearest.x - point.x, nearest.y - point.y) ? candidate : nearest);
+      }
       const relative = snapWheel((point.x - b.left) / width, (point.y - b.top) / height);
       return this.pointFromRelative(relative.x, relative.y);
+    };
+    const enemyClear = point => {
+      const position = snap(point);
+      return this.enemySpawnClear({ type: event.type, radius: this.spawnRadius(event), ...position,
+        ...(edge ? { distance: this.perimeterPosition(position) } : {}) });
     };
     if (event.randomCount > 1) {
       if (preview) {
         const columns = Math.ceil(Math.sqrt(event.randomCount)), rows = Math.ceil(event.randomCount / columns);
         return Array.from({ length: event.randomCount }, (_, index) => {
           const column = index % columns, row = Math.floor(index / columns);
-          return snap(this.pointFromRelative((column + .5) / columns, (row + .5) / rows));
+          return snap(relativeRandomPoint((column + .5) / columns, (row + .5) / rows));
         });
       }
       const pickup = ['food', 'item', 'weapon'].includes(event.kind);
@@ -4615,28 +4648,27 @@ class Game {
             point => (!pickup || this.pickupClear(point))
               && (!needsBrickSpawnClearance(event.type) || this.stampSpawnClear(point))));
         } else {
-          const radius = event.type === 'robo-cow' ? 26 : 19;
           const occupied = [...existing, ...points];
-          points.push(this.findRandomSpawnPoint(b, occupied, 0,
+          points.push(this.findRandomSpawnPoint(randomBounds, occupied, 0,
             point => nearestGap(snap(point), occupied) > 1
-              && this.enemySpawnClear({ type: event.type, radius, ...snap(point) })));
+              && enemyClear(point)));
         }
       }
       return points.map(snap);
     }
     if (!event.group) {
       const point = event.random
-        ? preview ? this.pointFromRelative(.5, .5)
+        ? preview ? relativeRandomPoint(.5, .5)
           : needsBrickSpawnClearance(event.type) ? this.randomStampPoint(SPAWN_SPACING, event.time)
             : ['food', 'item', 'weapon'].includes(event.kind) ? this.randomPickupPoint(event.time)
-              : event.kind === 'object' ? this.randomSpawnPoint(event.time, this.spawnRadius(event)) : this.randomPoint()
+              : event.kind === 'object' ? this.randomSpawnPoint(event.time, this.spawnRadius(event))
+                : this.level.autoscroll ? this.findRandomSpawnPoint(randomBounds, [], 0, enemyClear) : this.randomPoint()
         : this.campaignEventPoint(event.x, event.y);
       return [snap(point)];
     }
     const { shape, count, angle = 0 } = event.group;
-    const short = Math.min(width, height);
-    const areaBounds = event.random && this.level.autoscroll && event.kind !== 'enemy'
-      ? this.randomSpawnBounds(event.time, this.spawnRadius(event)) : { ...b };
+    const short = Math.min(width, height, this.viewportWidth - 2 * b.left, this.viewportHeight - 2 * b.top);
+    const areaBounds = { ...randomBounds };
     if (event.random && needsBrickSpawnClearance(event.type)) {
       const clearance = DITTO_STAMP_RADIUS + this.cat.radius * 4;
       for (const part of this.brickParts()) {
@@ -4665,13 +4697,15 @@ class Game {
         ? point => offsets.every(offset => {
           const position = { x: point.x + offset.x, y: point.y + offset.y };
           return this.pickupClear(position) && (!needsBrickSpawnClearance(event.type) || this.stampSpawnClear(position));
-        }) : null;
+        }) : event.kind === 'enemy' && this.level.autoscroll
+          ? point => offsets.every(offset => enemyClear({ x: point.x + offset.x, y: point.y + offset.y })) : null;
       center = this.findRandomSpawnPoint(area, this.collectiblePoints(), SPAWN_SPACING + size / 2, safe);
-    } else center = event.random ? this.pointFromRelative(.5, .5) : this.campaignEventPoint(event.x, event.y);
+    } else center = event.random ? { x: (areaBounds.left + areaBounds.right) / 2,
+      y: (areaBounds.top + areaBounds.bottom) / 2 } : this.campaignEventPoint(event.x, event.y);
     // Keep an explicitly centered formation intact when space near an edge is limited.
     const fit = Math.max(0, Math.min(1,
-      reachX > 1e-9 ? Math.min(center.x - b.left, b.right - center.x) / reachX : 1,
-      reachY > 1e-9 ? Math.min(center.y - b.top, b.bottom - center.y) / reachY : 1));
+      reachX > 1e-9 ? Math.min(center.x - areaBounds.left, areaBounds.right - center.x) / reachX : 1,
+      reachY > 1e-9 ? Math.min(center.y - areaBounds.top, areaBounds.bottom - center.y) / reachY : 1));
     return offsets.map(offset => snap({ x: center.x + offset.x * fit, y: center.y + offset.y * fit }));
   }
 
@@ -4729,7 +4763,10 @@ class Game {
     if (event.type === 'robo-cow') this.initializeRoboCow(enemy);
     if (event.type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
     if (event.type === 'robo-trash-bin') this.initializeTrashBin(enemy);
-    if (event.type === 'boss') this.initializeBoss(enemy);
+    if (event.type === 'boss') {
+      this.initializeBoss(enemy);
+      if (event.random && this.level.autoscroll) Object.assign(enemy, point);
+    }
     return [enemy];
   }
 
@@ -5185,6 +5222,15 @@ class Game {
 
   ensureEnemySpawnClear(enemy) {
     if (this.enemySpawnClear(enemy)) return;
+    if (this.level.autoscroll) {
+      Object.assign(enemy, this.customEventPoints({ kind: 'enemy', type: enemy.type, random: true, time: this.elapsed })[0]);
+      if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) {
+        enemy.distance = this.perimeterPosition(enemy);
+        this.placeWheel(enemy);
+      }
+      if (enemy.type === 'goalie') enemy.goaliePushPriority = enemy.y;
+      return;
+    }
     if (!['wheel', 'snake', 'robo-cow'].includes(enemy.type)) {
       Object.assign(enemy, this.randomPoint(point => this.enemySpawnClear({ ...enemy, ...point })));
       if (enemy.type === 'goalie') enemy.goaliePushPriority = enemy.y;
@@ -5199,7 +5245,7 @@ class Game {
     throw new RangeError('No safe perimeter enemy spawn location is available.');
   }
 
-  createEnemies([, type, count, shield, options]) {
+  createEnemies([time, type, count, shield, options]) {
     const items = [];
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
     for (let i = 0; i < count; i++) {
@@ -5207,7 +5253,9 @@ class Game {
         .filter(item => !this.catBlockCollected || item !== 'cat-block') : [];
       const carriedItem = options?.carriesItem && carriedItems.includes(options.carriesItem)
         ? options.carriesItem : carriedItems.length === 1 ? carriedItems[0] : null;
-      const enemy = { ...this.randomPoint(), type, radius: type === 'robo-cow' ? 26 : 19,
+      const point = this.level.autoscroll
+        ? this.customEventPoints({ kind: 'enemy', type, random: true, time })[0] : this.randomPoint();
+      const enemy = { ...point, type, radius: type === 'robo-cow' ? 26 : 19,
         ...(carriedItem ? { carriesItem: carriedItem } : {}),
         carriesCatBlock: carriedItems.includes('cat-block'),
         ...(carriedItems.includes('key') ? { carriesKey: true } : {}),
@@ -5219,13 +5267,19 @@ class Game {
       if (type === 'goalie') this.initializeGoalie(enemy);
       if (type === 'robo-crab') this.initializeRoboCrab(enemy,
         this.campaignEventAppearance({ type, crabDirection: options?.crabDirection }).crabDirection);
-      if (['wheel', 'snake', 'robo-cow'].includes(type)) this.placeWheel(enemy);
+      if (['wheel', 'snake', 'robo-cow'].includes(type)) {
+        if (this.level.autoscroll) enemy.distance = this.perimeterPosition(point);
+        this.placeWheel(enemy);
+      }
       this.ensureEnemySpawnClear(enemy);
       if (type === 'robo-cow') this.initializeRoboCow(enemy);
       if (type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
       if (type === 'robo-trash-bin') this.initializeTrashBin(enemy);
       this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
-      if (type === 'boss') this.initializeBoss(enemy);
+      if (type === 'boss') {
+        this.initializeBoss(enemy);
+        if (this.level.autoscroll) Object.assign(enemy, point);
+      }
       items.push(enemy);
     }
     return items;

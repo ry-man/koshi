@@ -14,8 +14,10 @@ const level = (events = [], autoscroll = { length: 56, speed: 2, events: [] }) =
 const assertVisible = (game, point, time, radius = 18) => {
   for (const moment of [time, time + 1]) {
     const camera = game.camera(moment);
-    assert.ok(point.x - radius >= camera.x - 1e-7 && point.x + radius <= camera.x + camera.width + 1e-7);
-    assert.ok(point.y - radius >= camera.y - 1e-7 && point.y + radius <= camera.y + camera.height + 1e-7);
+    assert.ok(point.x - radius >= camera.x - 1e-7 && point.x + radius <= camera.x + camera.width + 1e-7,
+      `${point.type ?? 'point'} x=${point.x}, radius=${radius}, camera x=${camera.x} at ${moment}s`);
+    assert.ok(point.y - radius >= camera.y - 1e-7 && point.y + radius <= camera.y + camera.height + 1e-7,
+      `${point.type ?? 'point'} y=${point.y}, radius=${radius}, camera y=${camera.y} at ${moment}s`);
   }
 };
 
@@ -53,6 +55,83 @@ test('random spawn clearance integrates speed changes, pauses and the endpoint w
   assert.deepEqual(game.customEventPoints(fixed), [game.campaignEventPoint(0, .5)]);
   const fast = new Game(() => 0, { customLevel: level([], { length: 1000, speed: 100, events: [] }) });
   assert.throws(() => fast.randomPickupPoint(), /remain on screen for one second/);
+});
+
+test('editor random previews and generated copies use the spawn-time viewport for every category', () => {
+  for (const options of [{}, { portrait: true, scale: .5 }]) {
+    for (const random of [0, .5, 1]) {
+      const game = new Game(() => random, { customLevel: level(), ...options });
+      game.elapsed = 1;
+      for (const [kind, type] of [
+        ...['mouse', 'wheel', 'snake', 'robo-cow', 'ram', 'bucket', 'ball', 'jackolantern',
+          'goalie', 'robo-koshi', 'robo-snail', 'robo-unicorn', 'robo-crab',
+          'robo-love-bug', 'robo-trash-bin', 'boss'].map(type => ['enemy', type]),
+        ['item', 'battery'], ['item', 'ditto-stamp'], ['weapon', 'wood'], ['food', 'H'],
+        ['object', 'bumper-red'], ['object', 'soccer-ball'],
+      ]) {
+        for (const placement of [{}, { randomCount: 4 },
+          { group: { shape: 'line', count: 4, size: 1, angle: 45 } },
+          { group: { shape: 'circle', count: 4, size: 1 } }]) {
+          if (type === 'boss' && (placement.group || placement.randomCount)) continue;
+          const event = { kind, type, time: 5, random: true, ...placement };
+          const radius = game.spawnRadius(event);
+          for (const preview of [false, true]) {
+            const points = game.customEventPoints(event, { preview });
+            assert.equal(points.length, placement.group?.count ?? placement.randomCount ?? 1);
+            for (const point of points) assertVisible(game, point, event.time, radius);
+          }
+          for (const enemy of kind === 'enemy' ? game.createCustomSpawn(event) : []) {
+            assertVisible(game, enemy, event.time, enemy.radius);
+          }
+        }
+      }
+    }
+  }
+});
+
+test('scheduled and brick-spawner random enemies use visible perimeter segments and retain safe retries', () => {
+  for (const options of [{}, { portrait: true, scale: .5 }]) {
+    const game = new Game(() => 0, { customLevel: level(), ...options });
+    for (const type of ['mouse', 'wheel', 'snake', 'robo-cow', 'boss']) {
+      const [enemy] = game.createEnemies([5, type, 1]);
+      assertVisible(game, enemy, 5, enemy.radius);
+      if (type !== 'boss') {
+        game.elapsed = 5;
+        Object.assign(game.cat, { x: enemy.x, y: enemy.y });
+        game.ensureEnemySpawnClear(enemy);
+        assertVisible(game, enemy, 5, enemy.radius);
+        assert.equal(game.enemySpawnClear(enemy), true);
+      }
+    }
+    const brick = game.bricks[0];
+    brick.spawner = { kind: 'enemy', type: 'wheel' };
+    game.spawnFromBrick(brick);
+    assertVisible(game, game.robots.at(-1), game.elapsed, 19);
+  }
+});
+
+test('line lengths and circle diameters do not scale with autoscroll board length', () => {
+  for (const options of [{}, { portrait: true, scale: .5 }]) {
+    for (const shape of ['line', 'circle']) for (const size of [undefined, .6]) {
+      const baseline = new Game(() => .5, { customLevel: level([], { length: 8, speed: 0, events: [] }), ...options });
+      const bounds = baseline.bounds();
+      const short = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top);
+      const expected = size === undefined ? shape === 'line' ? 165 : 176 : size * short;
+      for (const length of [8, 56, 1000]) {
+        const game = new Game(() => .5, { customLevel: level([], { length, speed: 0, events: [] }), ...options });
+        for (const random of [false, true]) {
+          const event = { kind: 'item', type: 'battery', time: 5, x: .5, y: .5,
+            random, group: { shape, count: 4, ...(size === undefined ? {} : { size }) } };
+          for (const preview of [false, true]) {
+            const points = game.customEventPoints(event, { preview });
+            const last = shape === 'line' ? 3 : 2;
+            const actual = Math.hypot(points[last].x - points[0].x, points[last].y - points[0].y);
+            assert.ok(Math.abs(actual - expected) < 1e-7, `${shape}: ${actual} != ${expected}`);
+          }
+        }
+      }
+    }
+  }
 });
 
 test('bumper warnings use obstruction timing, dotted outlines and matching concentric rings', () => {
