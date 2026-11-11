@@ -1806,7 +1806,7 @@ const levels = [
     "level": {
       "version": 1,
       "id": "Slime Time",
-      "duration": 60,
+      "duration": 70,
       "goal": 20,
       "heartCost": 12,
       "brickSet": 1,
@@ -1844,22 +1844,11 @@ const levels = [
           "random": true,
           "group": {
             "shape": "line",
-            "count": 3,
+            "count": 2,
             "size": 0.85,
             "angle": 0
           },
           "shield": null
-        },
-        {
-          "time": 15,
-          "kind": "weapon",
-          "type": "wood",
-          "random": true,
-          "group": {
-            "shape": "circle",
-            "count": 3,
-            "size": 0.8
-          }
         },
         {
           "time": 20,
@@ -1891,7 +1880,7 @@ const levels = [
           "y": 0.49877532843464706,
           "group": {
             "shape": "circle",
-            "count": 3,
+            "count": 2,
             "size": 0.75
           },
           "shield": null
@@ -1921,6 +1910,24 @@ const levels = [
           "random": true,
           "shield": null,
           "carriesItem": "cat-block"
+        },
+        {
+          "time": 15,
+          "kind": "weapon",
+          "type": "bronze",
+          "random": true
+        },
+        {
+          "time": 55,
+          "kind": "food",
+          "type": "S",
+          "random": true,
+          "group": {
+            "shape": "circle",
+            "count": 5,
+            "size": 0.6
+          },
+          "lifetime": 8
         }
       ],
       "bossLevel": false,
