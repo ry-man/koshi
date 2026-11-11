@@ -162,7 +162,7 @@ test('turret drawing keeps crossing beams and overlapping blasts but skips dista
 
 test('offscreen brick DOM updates sleep and refresh immediately when the camera reaches them', () => {
   const start = source.indexOf('  for (const item of buttons) {', source.indexOf('function syncUI('));
-  const loop = source.slice(start, source.indexOf('    button.dataset.sunglassesGlow', start));
+  const loop = source.slice(start, source.indexOf('    syncSunglassesGlow(item);', start));
   const buttons = [0, 1].map(id => ({ brick: { id }, button: {}, members: [],
     spring: { style: {} }, spikes: { style: {} }, conveyor: { style: {} },
     special: { info: { style: {} }, cloud: { style: {} } } }));

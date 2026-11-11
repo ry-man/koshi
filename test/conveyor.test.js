@@ -344,8 +344,9 @@ test('UI updates conveyor teeth without requiring Springs, freezes on pause, and
       timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
       weaponStatus: node(), shieldStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
       displayedStuck: false, displayedState: 'playing', displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
+      sunglassesGlowCanvas: {},
     });
-    vm.runInContext(synchronization, context);
+    vm.runInContext(source.slice(source.indexOf('function syncSunglassesGlow('), start) + synchronization, context);
     context.syncUI();
     const initial = teeth.getAttribute('d');
     game.update(.013);

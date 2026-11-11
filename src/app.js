@@ -22,12 +22,15 @@ let infoPage = 0;
 let game;
 const canvas = document.querySelector('#canvas');
 const actorCanvas = document.querySelector('#actors');
+const sunglassesGlowCanvas = document.querySelector('#sunglasses-glow');
 const boardCtx = canvas.getContext('2d');
 // Koshi is drawn on a canvas layered above the brick buttons so he is never hidden by them.
 const actorCtx = actorCanvas.getContext('2d');
 let ctx = boardCtx;
 const FOOD_COLORS = { S: '#ff2d55', P: '#ff9f0a', B: '#ffd60a', C: '#ffcc00', L: '#ff6b2c', F: '#0a84ff', H: '#34c759' };
 const foodBadgeCache = new Map();
+let sunglassesRibbonCache = null;
+let sunglassesGlowCache = null;
 document.fonts.ready.then(() => foodBadgeCache.clear());
 document.fonts.addEventListener('loadingdone', () => foodBadgeCache.clear());
 document.fonts.addEventListener('loadingerror', () => foodBadgeCache.clear());
@@ -672,7 +675,7 @@ function makeBrickButtons() {
       brick.portal ? game.portalExit(brick) : null);
     exposePortalCloud(special, container);
     exposeBrickInfo(special, container, brick, game.width, game.height);
-    return { brick, button, members, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
+    return { brick, button, members, bounds: part, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
   });
   for (const ghost of destructionVisuals.values()) container.append(ghost);
 }
@@ -861,6 +864,87 @@ function syncLevelRewards() {
   document.querySelector('#level-rewards').replaceChildren(...badges);
 }
 
+function syncSunglassesGlow(item) {
+  const { button, members, bounds } = item;
+  const active = game.sunglassesActive;
+  if (button.dataset.sunglassesGlow !== String(active)) button.dataset.sunglassesGlow = String(active);
+  if (!active) return;
+  const scaleX = board.clientWidth / game.viewportWidth, scaleY = board.clientHeight / game.viewportHeight;
+  const width = bounds.w * scaleX, height = bounds.h * scaleY;
+  if (width <= 0 || height <= 0) return;
+  const resolution = Math.min(window.devicePixelRatio || 1, 2048 / width, 2048 / height);
+  const pixelsX = Math.max(1, Math.ceil(width * resolution)), pixelsY = Math.max(1, Math.ceil(height * resolution));
+  if (item.sunglassesGlow?.width === pixelsX && item.sunglassesGlow.height === pixelsY
+    && item.sunglassesGlowUses === item.brick.usesLeft) return;
+  const glow = item.sunglassesGlow ?? document.createElement('canvas');
+  item.sunglassesGlow = glow;
+  item.sunglassesGlowUses = item.brick.usesLeft;
+  item.sunglassesGlowRevision = (item.sunglassesGlowRevision ?? 0) + 1;
+  glow.width = pixelsX; glow.height = pixelsY;
+  const paint = glow.getContext('2d');
+  const brick = item.brick, merged = button.classList.contains('brick-merged');
+  if (merged || brick.crumbler || brick.spikes) {
+    const wear = brick.crumbler ? 1 - brick.usesLeft / brick.crumbler : 0;
+    const shape = brick.spikes ? brickSpikes(members, game.width, game.height, Boolean(brick.crumbler), wear).body
+      : brickShape(members, Boolean(brick.crumbler), wear);
+    paint.setTransform(pixelsX, 0, 0, pixelsY, 0, 0);
+    paint.clip(new Path2D(shape.roundedPath));
+  } else {
+    paint.setTransform(pixelsX / width, 0, 0, pixelsY / height, 0, 0);
+    paint.beginPath(); paint.roundRect(0, 0, width, height, 4); paint.clip();
+  }
+  paint.setTransform(pixelsX / width, 0, 0, pixelsY / height, 0, 0);
+  const surfaces = merged ? members : [bounds];
+  for (const part of surfaces) {
+    const x = (part.x - bounds.x) * scaleX, y = (part.y - bounds.y) * scaleY;
+    const w = part.w * scaleX, h = part.h * scaleY;
+    paint.fillStyle = 'rgba(244,113,113,.25)';
+    paint.fillRect(x, y, w, h);
+    for (const [fromX, fromY, toX, toY] of [[x, y, x + 16, y], [x + w, y, x + w - 16, y],
+      [x, y, x, y + 16], [x, y + h, x, y + h - 16]]) {
+      const gradient = paint.createLinearGradient(fromX, fromY, toX, toY);
+      gradient.addColorStop(0, 'rgba(244,113,113,.85)');
+      gradient.addColorStop(.25, 'rgba(244,113,113,.6)');
+      gradient.addColorStop(1, 'rgba(244,113,113,0)');
+      paint.fillStyle = gradient;
+      paint.fillRect(x, y, w, h);
+    }
+  }
+}
+
+function syncSunglassesOverlay() {
+  const active = game.sunglassesActive;
+  sunglassesGlowCanvas.hidden = !active;
+  if (!active) return;
+  const camera = game.camera();
+  const visible = buttons.filter(item => item.visible && item.sunglassesGlow);
+  const cache = sunglassesGlowCache;
+  const changed = !cache || cache.game !== game || cache.width !== canvas.width || cache.height !== canvas.height
+    || cache.x !== camera.x || cache.y !== camera.y || cache.cameraWidth !== camera.width || cache.cameraHeight !== camera.height
+    || cache.revision !== game.brickRevision
+    || cache.tiles.length !== visible.length || visible.some((item, index) =>
+      cache.tiles[index].image !== item.sunglassesGlow || cache.tiles[index].revision !== item.sunglassesGlowRevision);
+  if (changed) {
+    sunglassesGlowCanvas.width = canvas.width; sunglassesGlowCanvas.height = canvas.height;
+    const paint = sunglassesGlowCanvas.getContext('2d');
+    const scaleX = canvas.width / camera.width, scaleY = canvas.height / camera.height;
+    for (const item of visible) {
+      const { bounds } = item;
+      paint.drawImage(item.sunglassesGlow, (bounds.x - camera.x) * scaleX, (bounds.y - camera.y) * scaleY,
+        bounds.w * scaleX, bounds.h * scaleY);
+    }
+    sunglassesGlowCache = { game, width: canvas.width, height: canvas.height, x: camera.x, y: camera.y,
+      cameraWidth: camera.width, cameraHeight: camera.height, revision: game.brickRevision,
+      tiles: visible.map(item => ({ image: item.sunglassesGlow, revision: item.sunglassesGlowRevision })),
+      hue: null };
+  }
+  const hue = `${game.elapsed * 140 % 360}deg`;
+  if (sunglassesGlowCache.hue !== hue) {
+    sunglassesGlowCanvas.style.filter = `hue-rotate(${hue})`;
+    sunglassesGlowCache.hue = hue;
+  }
+}
+
 function syncUI() {
   syncLevelRewards();
   levelInfoReplay.hidden = game.state !== 'ready' || !game.level.levelInfo;
@@ -997,8 +1081,7 @@ function syncUI() {
       }
     }
     if (!visible) continue;
-    button.dataset.sunglassesGlow = String(game.sunglassesActive);
-    button.style.setProperty('--sunglasses-color', `hsl(${game.elapsed * 140 % 360}, 85%, 70%)`);
+    syncSunglassesGlow(item);
     if (brick.crumbler && item.usesLeft !== brick.usesLeft) {
       item.usesLeft = brick.usesLeft;
       const wear = 1 - brick.usesLeft / brick.crumbler;
@@ -1039,6 +1122,7 @@ function syncUI() {
     button.classList.toggle('tutorial-target', Boolean(tutorial && tutorial.target.id === brick.id));
     button.style.setProperty('--cooldown-fill', `${['cinder', 'goal'].includes(brick.kind) || game.sunglassesActive ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
   }
+  syncSunglassesOverlay();
   if (ending?.game !== game || ending?.state !== game.state) ending = null;
   if (['won', 'lost'].includes(game.state) && !ending) {
     ending = { game, state: game.state, elapsed: 0, duration: game.state === 'won' ? 2.4 : 1.8 };
@@ -3365,39 +3449,75 @@ function drawMagicSunglasses(time, sparkles = true) {
   ctx.restore();
 }
 
+function sunglassesRibbonPattern(game, color) {
+  const scale = Math.max(canvas.width / game.viewportWidth, canvas.height / game.viewportHeight);
+  if (!sunglassesRibbonCache || sunglassesRibbonCache.scale !== scale) {
+    const mask = document.createElement('canvas'), tinted = document.createElement('canvas');
+    mask.width = tinted.width = Math.max(1, Math.ceil(96 * scale));
+    mask.height = tinted.height = Math.max(1, Math.ceil(56 * scale));
+    const paint = mask.getContext('2d');
+    paint.setTransform(mask.width / 96, 0, 0, mask.height / 56, 0, mask.height / 2);
+    paint.strokeStyle = '#fff'; paint.fillStyle = '#fff'; paint.lineWidth = 1.4;
+    paintSunglassesRibbon(paint);
+    sunglassesRibbonCache = { mask, tinted, scale, color: null, pattern: null };
+  }
+  const cache = sunglassesRibbonCache;
+  if (cache.color !== color) {
+    const paint = cache.tinted.getContext('2d');
+    paint.clearRect(0, 0, cache.tinted.width, cache.tinted.height);
+    paint.globalCompositeOperation = 'source-over';
+    paint.drawImage(cache.mask, 0, 0);
+    paint.globalCompositeOperation = 'source-in';
+    paint.fillStyle = color;
+    paint.fillRect(0, 0, cache.tinted.width, cache.tinted.height);
+    paint.globalCompositeOperation = 'source-over';
+    cache.pattern = ctx.createPattern(cache.tinted, 'repeat-x');
+    if (!cache.pattern) throw new Error('Could not create the sunglasses ribbon pattern.');
+    cache.pattern.setTransform({ a: 96 / cache.tinted.width, d: 56 / cache.tinted.height });
+    cache.color = color;
+  }
+  return cache.pattern;
+}
+
+function paintSunglassesRibbon(paint) {
+  for (let index = 0; index < 2; index++) {
+    paint.save(); paint.translate(20 + index * 48, 0);
+    if (index % 2 === 0) {
+      paint.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const angle = -Math.PI / 2 + i * Math.PI / 5, radius = i % 2 ? 5 : 12;
+        if (i === 0) paint.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+        else paint.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+      }
+      paint.closePath(); paint.stroke();
+    } else {
+      paint.beginPath(); paint.moveTo(-11, -4); paint.lineTo(-12, -17); paint.lineTo(-3, -10);
+      paint.lineTo(3, -10); paint.lineTo(12, -17); paint.lineTo(11, -4);
+      paint.arc(0, 0, 12, -.35, Math.PI + .35); paint.closePath(); paint.stroke();
+      for (const eye of [-5, 5]) {
+        paint.beginPath(); paint.arc(eye, -2, 1.3, 0, Math.PI * 2); paint.fill();
+      }
+      paint.beginPath(); paint.moveTo(-5, 3); paint.quadraticCurveTo(0, 10, 5, 3); paint.stroke();
+    }
+    paint.restore();
+  }
+}
+
 function drawSunglassesStream(game, y = Math.min(game.width, game.height) / 2) {
   const elapsed = ['won', 'lost'].includes(game.state)
     ? game.sunglassesStart + (game.sunglassesPickup?.age ?? (game.sunglassesUntil - game.sunglassesStart)) : game.elapsed;
-  if (game.sunglassesStart === null || elapsed >= game.sunglassesUntil) return;
+  if (game.sunglassesStart === null || elapsed >= game.sunglassesUntil - 1e-9) return;
   const duration = game.sunglassesUntil - game.sunglassesStart;
   if (duration <= 0) return;
   const progress = Math.max(0, Math.min(1, (elapsed - game.sunglassesStart) / duration));
+  const color = `hsl(${game.elapsed * 70 % 360}, 80%, 80%)`;
+  const pattern = sunglassesRibbonPattern(game, color);
   ctx.save(); ctx.globalAlpha = .25;
   const length = ribbonTransform(game, progress, y);
-  ctx.strokeStyle = `hsl(${game.elapsed * 70 % 360}, 80%, 80%)`;
-  ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.4;
+  ctx.strokeStyle = color; ctx.lineWidth = 1.4;
   ctx.strokeRect(-18, -26, length + 36, 52);
-  for (let index = 0, x = 20; x < length + 20; index++, x += 48) {
-    ctx.save(); ctx.translate(x, 0);
-    if (index % 2 === 0) {
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const angle = -Math.PI / 2 + i * Math.PI / 5, radius = i % 2 ? 5 : 12;
-        if (i === 0) ctx.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-        else ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-      }
-      ctx.closePath(); ctx.stroke();
-    } else {
-      ctx.beginPath(); ctx.moveTo(-11, -4); ctx.lineTo(-12, -17); ctx.lineTo(-3, -10);
-      ctx.lineTo(3, -10); ctx.lineTo(12, -17); ctx.lineTo(11, -4);
-      ctx.arc(0, 0, 12, -.35, Math.PI + .35); ctx.closePath(); ctx.stroke();
-      for (const eye of [-5, 5]) {
-        ctx.beginPath(); ctx.arc(eye, -2, 1.3, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.beginPath(); ctx.moveTo(-5, 3); ctx.quadraticCurveTo(0, 10, 5, 3); ctx.stroke();
-    }
-    ctx.restore();
-  }
+  ctx.translate(0, -28); ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, Math.ceil(length / 48) * 48, 56);
   ctx.restore();
 }
 

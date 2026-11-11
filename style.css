@@ -297,8 +297,9 @@ canvas { display: block; width: 100%; height: 100%; }
 .brick-label { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .brick-label .brick-counter { max-width: 100%; padding: 1px 2px; border-radius: 2px; background: #111d25d9; text-align: center; }
 .brick:focus-visible { outline-offset: 1px; z-index: 2; }
-.brick[data-sunglasses-glow="true"]:not(.brick-merged)::after,
-.brick[data-sunglasses-glow="true"] .brick-surface::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: color-mix(in srgb, var(--sunglasses-color) 25%, transparent); box-shadow: inset 0 0 12px 4px var(--sunglasses-color); }
+#sunglasses-glow { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+#sunglasses-glow:not([hidden]) { will-change: filter; }
+#sunglasses-glow[hidden] { display: none; }
 .overlay { position: absolute; inset: 0; display: grid; place-items: center; background: #101b24b8; backdrop-filter: blur(5px); z-index: 5; padding: 16px; }
 .overlay[hidden] { display: none; }
 .dialog { text-align: center; max-width: 410px; padding: 25px; }

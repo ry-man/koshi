@@ -204,6 +204,10 @@ banners use separate, vertically spaced rows, including Music Box, Magical
 Sunglasses, Kitty Cape and Spooky Mask. Pause freezes all timers and graphics;
 restart clears them. Magical Sunglasses make all bricks glow in the same
 cycling colors as the frames, without changing cinder or goal selection rules.
+Their star/cat banner reuses a cached repeating tile. Soft brick glows reuse
+cached bitmaps in one viewport-sized, color-cycling overlay rather than
+repainting blurred shadows on every brick each frame. Resizing, scrolling and
+changed brick shapes update the cache; pause and ten-second expiry remain unchanged.
 
 **Robo Goalie** (`goalie`) is an egg-shaped mechanical robot with three hair
 antennas, a long metal nose, and a colorful striped soccer jersey with badges.

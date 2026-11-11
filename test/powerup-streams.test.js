@@ -27,6 +27,7 @@ function drawingContext() {
   const context = vm.createContext({ ctx });
   vm.runInContext(source.slice(source.indexOf('function powerupStreamRows('), source.indexOf('function render(')), context);
   vm.runInContext(source.slice(source.indexOf('function drawKittyCape('), source.indexOf('function drawRobot(')), context);
+  context.sunglassesRibbonPattern = () => ({});
   return { context, operations };
 }
 

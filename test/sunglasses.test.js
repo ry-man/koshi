@@ -151,7 +151,10 @@ function drawingContext(game = arena()) {
       return (...args) => operations.push({ name, args, alpha: target.globalAlpha, color: target.strokeStyle });
     },
   });
-  const context = vm.createContext({ ctx, game });
+  ctx.createPattern = () => ({ setTransform() {} });
+  const context = vm.createContext({ ctx, game, sunglassesRibbonCache: null,
+    canvas: { width: game.viewportWidth, height: game.viewportHeight },
+    document: { createElement: () => ({ getContext: () => ctx }) } });
   vm.runInContext(source.slice(source.indexOf('function ribbonTransform('), source.indexOf('function drawCapeStream('))
     + source.slice(source.indexOf('function drawMagicSunglasses('), source.indexOf('function drawRobot(')), context);
   vm.runInContext(source.slice(source.indexOf('function drawWornSunglasses('), source.indexOf('function drawBrickDestructionSmoke(')), context);
@@ -214,12 +217,14 @@ test('rectangular star/cat banner matches music dimensions but exits after ten s
   assert.deepEqual(frame.args, [-18, -26, game.width + 36, 52]);
   assert.equal(frame.alpha, .25);
   assert.ok(operations.some(op => op.name === 'quadraticCurveTo'), 'cat smiles');
-  assert.ok(operations.filter(op => op.name === 'lineTo').length > 40, 'stars and ears');
+  assert.equal(operations.filter(op => op.name === 'lineTo').length, 14, 'one cached star and cat tile');
+  assert.ok(operations.some(op => op.name === 'fillRect' && op.args[2] === Math.ceil(game.width / 48) * 48), 'cached tile repeats along the banner');
   operations.length = 0; context.drawMusicStream(game);
   assert.deepEqual(operations.find(op => op.name === 'strokeRect').args, frame.args);
   game.elapsed = 5;
   operations.length = 0; context.drawSunglassesStream(game);
   assert.deepEqual(operations.find(op => op.name === 'translate').args, [-(game.width + 36) / 2, game.height / 2]);
+  assert.equal(operations.filter(op => op.name === 'lineTo').length, 0, 'later frames do not redraw the shapes');
   game.elapsed = 10;
   operations.length = 0; context.drawSunglassesStream(game);
   assert.equal(operations.length, 0, 'banner exits when power ends');
@@ -229,7 +234,8 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
   const game = arena(), [brick] = game.bricks;
   brick.crumbler = 4; brick.usesLeft = 0; brick.toggle = 2; brick.toggleRemaining = 2; brick.readyAt = 10;
   const node = () => ({
-    attributes: {}, dataset: {}, textContent: '', children: new Map(), classList: { toggle() {} },
+    attributes: {}, dataset: {}, textContent: '', children: new Map(), classList: { toggle() {}, contains() { return false; } },
+    append() {},
     style: { properties: {}, setProperty(key, value) { this.properties[key] = value; } },
     setAttribute(key, value) { this.attributes[key] = value; },
     getAttribute(key) { return this.attributes[key]; },
@@ -240,10 +246,18 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
   const cinder = game.bricks[1], goal = game.bricks[2];
   cinder.kind = 'cinder'; goal.kind = 'goal';
   const special = { button, knob, count };
+  const glowCanvas = { ...node(), getContext: () => ({ drawImage() {} }) };
   const context = vm.createContext({
-    ...engine, ...visuals, game, WORLDS: require('../src/worlds.js').WORLDS, document: { querySelector: () => node() },
-    buttons: [{ brick, members: game.brickParts().filter(part => part.id === brick.id), button, special, usesLeft: brick.usesLeft },
-      { brick: cinder, members: [cinder], button: cinderButton }, { brick: goal, members: [goal], button: goalButton }],
+    ...engine, ...visuals, game, WORLDS: require('../src/worlds.js').WORLDS,
+    board: { clientWidth: game.viewportWidth, clientHeight: game.viewportHeight }, window: { devicePixelRatio: 1 },
+    canvas: { width: game.viewportWidth, height: game.viewportHeight }, sunglassesGlowCanvas: glowCanvas,
+    sunglassesGlowCache: null, Path2D: class {},
+    document: { querySelector: () => node(),
+      createElement: () => ({ ...node(), getContext: () => ({
+        setTransform() {}, fillRect() {}, beginPath() {}, roundRect() {}, clip() {}, createLinearGradient: () => ({ addColorStop() {} }),
+      }) }) },
+    buttons: [{ brick, members: game.brickParts().filter(part => part.id === brick.id), bounds: brick, button, special, usesLeft: brick.usesLeft },
+      { brick: cinder, bounds: cinder, members: [cinder], button: cinderButton }, { brick: goal, bounds: goal, members: [goal], button: goalButton }],
     timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
     weaponStatus: node(), shieldStatus: node(), weaponRemaining: node(), weaponIcon: node(), pause: node(),
     displayedStuck: false, displayedState: 'playing', displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
@@ -251,7 +265,8 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
     showDialog() {}, status: node(), overlay: node(),
   });
   const start = source.indexOf('function syncUI()');
-  vm.runInContext(source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
+  vm.runInContext(source.slice(source.indexOf('function syncSunglassesGlow('), start)
+    + source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
   game.collectItem({ type: 'magic-sunglasses' });
   context.syncUI();
   assert.equal(button.getAttribute('aria-disabled'), 'false');
@@ -259,7 +274,8 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
   assert.equal(button.dataset.toggleDisabled, 'false');
   assert.equal(button.style.properties['--cooldown-fill'], '100%');
   assert.equal(button.dataset.sunglassesGlow, 'true');
-  assert.equal(button.style.properties['--sunglasses-color'], 'hsl(0, 85%, 70%)');
+  assert.equal(glowCanvas.style.filter, 'hue-rotate(0deg)');
+  assert.ok(context.buttons.every(item => item.sunglassesGlow), 'every brick receives cached glow artwork');
   for (const immutable of [cinderButton, goalButton]) {
     assert.equal(immutable.dataset.sunglassesGlow, 'true');
     assert.equal(immutable.getAttribute('aria-disabled'), 'true', 'glow does not make immutable bricks selectable');
@@ -268,13 +284,14 @@ test('brick UI shows full recharge and unlocked Toggle during power and restores
   assert.equal(count.textContent, '0');
   game.update(2); context.syncUI();
   for (const glowing of [button, cinderButton, goalButton]) {
-    assert.equal(glowing.style.properties['--sunglasses-color'], `hsl(${game.elapsed * 140 % 360}, 85%, 70%)`);
+    assert.equal(glowing.style.properties['--sunglasses-color'], undefined, 'per-brick colors are no longer mutated');
   }
-  const pausedColor = button.style.properties['--sunglasses-color'];
+  const pausedColor = glowCanvas.style.filter;
   game.pause(); game.update(20); context.syncUI();
-  assert.equal(button.style.properties['--sunglasses-color'], pausedColor);
+  assert.equal(glowCanvas.style.filter, pausedColor);
   game.resume();
   game.update(8); context.syncUI();
+  assert.equal(glowCanvas.hidden, true, 'overlay disappears at expiry');
   assert.equal(button.getAttribute('aria-disabled'), 'true');
   assert.equal(button.dataset.deactivated, 'true');
   assert.equal(button.dataset.toggleDisabled, 'true');

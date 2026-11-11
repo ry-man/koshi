@@ -123,8 +123,10 @@ test('partially recharged bricks keep their displayed progress frozen for the en
       weaponStatus: node(), shieldStatus: node(), pause: node(), displayedStuck: false, displayedState: 'playing',
       displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
       syncBrickDestructions() {}, syncLevelRewards() {}, levelInfoReplay: node(),
+      sunglassesGlowCanvas: {},
     });
-    vm.runInContext(source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
+    vm.runInContext(source.slice(source.indexOf('function syncSunglassesGlow('), start)
+      + source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
     const fill = () => {
       context.syncUI();
       return parseFloat(button.style.properties['--cooldown-fill']);

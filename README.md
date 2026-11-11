@@ -1810,6 +1810,11 @@ A translucent, rectangular star-and-smiling-cat banner slides behind gameplay,
 using the same width and ten-second duration as the music-box score.
 All bricks glow in the same cycling colors as the glasses, including cinder
 and goals; their selection rules and contact properties remain unchanged.
+The star/cat artwork is cached as a small repeating tile instead of redrawing
+its paths each frame. Soft brick-glow bitmaps are cached and combined into one
+viewport-sized overlay; only its tint changes during stationary gameplay.
+Scrolling, resizing, worn Crumblers and changed brick geometry refresh the
+affected artwork without allocating a full scrolling-board image.
 The glasses fade from Koshi's face after expiry. Another pickup restarts the
 ten seconds rather than stacking them; pause freezes the effect and visuals.
 They are available in the editor and spawn bricks, and introduced in Level 2–18.
