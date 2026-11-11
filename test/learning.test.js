@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 62);
+  assert.equal(LESSONS.length, 63);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -88,6 +88,7 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
     const id = type.startsWith('bumper-') ? 'bumper'
       : type.startsWith('bubble-') ? 'bubble'
         : type === 'cat-circle' ? 'cat-circle'
+        : type === 'item-case' ? 'item-case'
         : type.startsWith('obstruction-') ? 'obstruction'
           : type === 'soccer-ball' ? 'soccer' : null;
     assert.ok(id && LESSONS.some(lesson => lesson.id === id), `missing tutorial for object: ${type}`);

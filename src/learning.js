@@ -62,6 +62,7 @@ const GUIDE = [
       ['Cinder blocks', 'Grey concrete blocks with two recessed holes are permanently solid. Koshi stops when he runs into one, but you cannot click it to aim. They have no modifiers or contact effects, do not advance Toggle counters, and cannot be absorbed by Warped bricks.', 'special:cinder'],
       ['Soccer goals', 'A goal replaces a boundary brick with white netting and a silver metal frame seen from above. It cannot be selected or changed by power-ups, and cannot be absorbed. Koshi still stops against it. Kick a soccer ball through its board-facing opening to score: the ball disappears in a sparking cloud.', 'special:goal'],
       ['Soccer Ball', 'A normal black-and-white soccer ball is a neutral object, not a pickup or enemy. Bump it while moving to kick it; off-center contact changes its direction. It rolls, bounces off bricks, enemies, Barrier fences, obstructions, bumpers, bubbles and other soccer balls, and gradually slows to a complete stop. Swords, sleep and fear do not affect it.', 'object:soccer-ball'],
+      ['Item Case', 'A square glass case holds an item or weapon. Koshi and enemies pass through it without collision. A sword, hammer or axe automatically strikes the glass in range, using one strike; a fired Rope Dart can also shatter it. The glass breaks into fading chunks and the released pickup can then be collected. Walking through unarmed or using Boost does not break it.', 'object:item-case'],
     ],
   },
   {
@@ -259,6 +260,7 @@ const LESSONS = [
   { id: 'keys', title: 'Keys, chests & Cat Blocks', instruction: 'Collect the key, then touch the chest to spend it and collect the Cat Block. Campaign Cat Blocks are kept only after a win.' },
   { id: 'anvil', title: 'Anvil', instruction: 'Choose a weapon, then collect the anvil. Your partially used weapon returns to its full strike count, shot count or full axe timer. Anvils do nothing when unarmed.' },
   { id: 'rope-dart', title: 'Rope Dart', instruction: 'While resting, select the outlined brick to fire the Silver Rope Dart through both robots. Koshi waits for the dart to stop, then follows the rope and collects it. One click spends one shot, even when it hits multiple enemies.' },
+  { id: 'item-case', title: 'Item Case', instruction: 'Aim at the outlined brick to collect a sword, then strike the glass case automatically. Watch the glass chunks fade and collect the key released from inside.' },
 ];
 
 class Tutorial {
@@ -398,6 +400,10 @@ class Tutorial {
       y: (along(.52).y - game.bounds().top) / (game.bounds().bottom - game.bounds().top),
     })[0]);
     if (id === 'cat-circle') game.catCircles.push(game.createCatCircle(along(.52), 'cat-circle'));
+    if (id === 'item-case') {
+      addSword();
+      game.itemCases.push(game.createItemCase(along(.7), { containsItem: 'key' }));
+    }
     if (id === 'obstruction') game.obstructions.push(game.createCustomSpawn({
       kind: 'object', type: 'obstruction-circle', x: (along(.58).x - game.bounds().left) / (game.bounds().right - game.bounds().left),
       y: (along(.58).y - game.bounds().top) / (game.bounds().bottom - game.bounds().top),
@@ -573,6 +579,7 @@ class Tutorial {
       jackolantern: game.enemies >= 1,
       snake: game.enemies >= 1,
       soccer: game.goals >= 1,
+      'item-case': game.keys >= 1 && game.itemCases.length === 0,
       'cat-circle': this.circleRestSeen && this.actions > 1 && game.catCircleTrap === null && game.catCircleIgnore === null,
       healing: game.hearts === 3 && game.score >= 10,
       warnings: this.previewSeen && game.score > 0,

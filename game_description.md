@@ -616,6 +616,22 @@ restart clears scores and restores placements. The guide and tutorial include
 soccer. Level 2-19 requires three goals and supplies five balls; the original
 19 levels remain unchanged.
 
+### Item Cases
+
+Custom levels can place **Item Cases** under Objects, including as spawning-brick
+templates. Each is a square glass case with a visible item or weapon inside,
+selected using **Item inside case** (`containsItem` in JSON). Cases have no
+collision with Koshi or enemies. A melee weapon automatically strikes a case in
+range, spending one use; timed axes keep their normal timer. A fired Rope Dart
+also breaks glass without spending an extra shot. Unarmed contact, passive
+power-ups and Boost alone do not shatter cases.
+
+Breaking a case scatters twelve glass chunks that fade over 0.8 seconds and
+releases its normal collectible at that location. Collection still requires
+pickup range; contained treasure chests require one key. Pause freezes the
+fragments, and restarting restores the authored cases. The guide and a standalone
+practice cover Item Cases; existing campaign levels are unchanged.
+
 ### Cat Tracks
 
 Custom levels can define fixed, semi-transparent dotted Cat Tracks as connected

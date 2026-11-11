@@ -4,7 +4,7 @@
 const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, obstructionGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
-const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : '');
 const board = $('#editor-board');
@@ -49,6 +49,13 @@ $('#event-carries-item').append(...Object.entries({ ...ITEMS, ...WEAPONS }).map(
   option.value = value; option.textContent = item.name;
   return option;
 }));
+for (const selector of ['#event-contains-item', '#brick-spawn-contains-item']) {
+  $(selector).append(...Object.entries({ ...ITEMS, ...WEAPONS }).map(([value, item]) => {
+    const option = document.createElement('option');
+    option.value = value; option.textContent = item.name;
+    return option;
+  }));
+}
 let level = blank();
 let selectedEvents = new Set();
 let selectedBricks = new Set();
@@ -509,6 +516,10 @@ function typeOptions(type, showLifetime) {
   $('#event-crab-direction').disabled = !crab;
   $('#event-carrier-label').hidden = kind !== 'enemy' && kind !== MIXED;
   $('#event-carries-item').disabled = kind !== 'enemy' && kind !== MIXED;
+  const itemCase = kind === 'object' && $('#event-type').value === 'item-case'
+    || (type === MIXED && [...selectedEvents].some(index => level.events[index].kind === 'object' && level.events[index].type === 'item-case'));
+  $('#event-contains-label').hidden = !itemCase;
+  $('#event-contains-item').disabled = !itemCase;
   const chest = kind === 'item' && $('#event-type').value === 'treasure-chest';
   $('#chest-keys-label').hidden = !chest;
   $('#event-keys-required').disabled = !chest;
@@ -601,7 +612,7 @@ function description(event) {
   return event.kind === 'food' ? `${FOODS[event.type].icon} ${FOODS[event.type].name}`
     : event.kind === 'weapon' ? WEAPONS[event.type].name
       : event.kind === 'item' ? ITEMS[event.type].name
-        : event.kind === 'object' ? OBJECTS[event.type].name
+        : event.kind === 'object' ? `${OBJECTS[event.type].name}${event.type === 'item-case' ? ` · ${ITEMS[event.containsItem]?.name ?? WEAPONS[event.containsItem]?.name}` : ''}`
         : `${CHARACTERS[event.type]}${event.shield ? ` · ${event.shield} shield (${SHIELDS[event.shield].hits} points)` : ''}${carriedItem(event) ? ` · carries ${ITEMS[carriedItem(event)]?.name ?? WEAPONS[carriedItem(event)]?.name ?? carriedItem(event)}` : ''}`;
 }
 
@@ -628,6 +639,7 @@ function readEvent() {
   if (event.kind === 'enemy' && event.type === 'robo-crab'
     && ['horizontal', 'vertical'].includes($('#event-crab-direction').value)) event.crabDirection = $('#event-crab-direction').value;
   if (event.kind === 'enemy' && $('#event-carries-item').value) event.carriesItem = $('#event-carries-item').value;
+  if (event.kind === 'object' && event.type === 'item-case') event.containsItem = $('#event-contains-item').value;
   if (event.kind === 'item' && event.type === 'treasure-chest') {
     event.keysRequired = Number($('#event-keys-required').value || $('#event-keys-required').placeholder || 1);
   }
@@ -692,6 +704,10 @@ function populateEventForm() {
     $('#event-carries-item').value = '__mixed-carried-item__';
   }
   else $('#event-carries-item').value = carriers[0] ?? '';
+  const contents = items.filter(event => event.kind === 'object' && event.type === 'item-case').map(event => event.containsItem);
+  $('#event-contains-item').querySelector('option[value=""]')?.remove();
+  if (contents.length && common(contents) === MIXED) mixedOption($('#event-contains-item'));
+  else if (contents.length) $('#event-contains-item').value = contents[0];
   const chestRequirements = items.filter(event => event.kind === 'item' && event.type === 'treasure-chest')
     .map(event => event.keysRequired ?? 1);
   $('#event-keys-required').value = chestRequirements.length && common(chestRequirements) !== MIXED
@@ -885,6 +901,13 @@ function renderBrickInspector(bricks) {
   $('#brick-spawn-crab-direction').disabled = inert || !directions.length;
   if (directions.length && common(directions) === MIXED) mixedOption($('#brick-spawn-crab-direction'));
   else $('#brick-spawn-crab-direction').value = directions[0] ?? 'random';
+  const contents = chosen.map(brick => brick.spawner)
+    .filter(spawn => spawn?.kind === 'object' && spawn.type === 'item-case').map(spawn => spawn.containsItem);
+  $('#brick-spawn-contains-label').hidden = inert || !contents.length;
+  $('#brick-spawn-contains-item').disabled = inert || !contents.length;
+  $('#brick-spawn-contains-item').querySelector('option[value=""]')?.remove();
+  if (contents.length && common(contents) === MIXED) mixedOption($('#brick-spawn-contains-item'));
+  else if (contents.length) $('#brick-spawn-contains-item').value = contents[0];
   const obstructions = chosen.map(brick => brick.spawner).filter(spawn => spawn?.kind === 'object' && OBJECTS[spawn.type]?.obstruction);
   $('#brick-spawn-obstruction').hidden = inert || !obstructions.length;
   $('#brick-spawn-obstruction').disabled = inert || !obstructions.length;
@@ -1206,6 +1229,16 @@ function renderBoard() {
       image.setAttribute('aria-hidden', 'true');
       drawCatCircle(image.getContext('2d'), { x: frameSize / 2, y: frameSize / 2, radius: OBJECTS[event.type].radius });
       marker.append(image, label);
+    } else if (event.kind === 'object' && event.type === 'item-case') {
+      const frameSize = OBJECTS[event.type].radius * 2 + 6;
+      marker.classList.add('item-case-marker');
+      marker.style.width = `${frameSize / previewGame.width * 100}%`;
+      marker.style.height = `${frameSize / previewGame.height * 100}%`;
+      const image = document.createElement('canvas');
+      image.width = frameSize; image.height = frameSize;
+      image.setAttribute('aria-hidden', 'true');
+      drawItemCase(image.getContext('2d'), { ...event, x: frameSize / 2, y: frameSize / 2 });
+      marker.append(image, label);
     } else if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
       const { width, height } = obstructionGeometry(event);
       const padding = event.spiked ? 32 : 4;
@@ -1349,13 +1382,18 @@ function pointReference(events, bricks) {
       if (Object.hasOwn(WEAPONS, source.carriesItem ?? '')) addWeapon(source.carriesItem, count, 'drop');
     }
     if (source.kind === 'weapon') addWeapon(source.type, count, origin);
+    if (source.kind === 'object' && source.type === 'item-case' && Object.hasOwn(WEAPONS, source.containsItem)) {
+      addWeapon(source.containsItem, count, origin);
+    }
     if (source.kind === 'object' && source.type === 'soccer-ball') totals.soccer += count;
   }
   const scoringSpawner = spawns.some(source => ['food', 'enemy', 'weapon'].includes(source.kind)
-    || (source.kind === 'object' && source.type === 'soccer-ball'));
+    || (source.kind === 'object' && (source.type === 'soccer-ball'
+      || source.type === 'item-case' && Object.hasOwn(WEAPONS, source.containsItem))));
   const extra = scoringSpawner && [...events, ...spawns].some(source =>
     (source.kind === 'item' && ['battery', 'ditto-stamp'].includes(source.type))
-    || (source.kind === 'enemy' && ['battery', 'ditto-stamp'].includes(source.carriesItem)));
+    || (source.kind === 'enemy' && ['battery', 'ditto-stamp'].includes(source.carriesItem))
+    || (source.kind === 'object' && source.type === 'item-case' && ['battery', 'ditto-stamp'].includes(source.containsItem)));
   return { ...totals, extra };
 }
 
@@ -2088,6 +2126,11 @@ function saveBrick(event) {
         && ['horizontal', 'vertical'].includes($('#brick-spawn-crab-direction').value)) {
         entry.spawner.crabDirection = $('#brick-spawn-crab-direction').value;
       }
+      if (entry.spawner?.kind === 'object' && entry.spawner.type === 'item-case'
+        && ['brick-spawn-item', 'brick-spawner', 'brick-spawn-contains-item'].includes(id)) {
+        const content = $('#brick-spawn-contains-item').value;
+        if (content !== MIXED) entry.spawner.containsItem = content;
+      }
       if (entry.spawner?.kind === 'object' && OBJECTS[entry.spawner.type]?.obstruction) {
         if (id === 'brick-spawn-item' || id === 'brick-spawner') Object.assign(entry.spawner, readObstructionFields('brick-spawn'));
         for (const field of ['color', 'pattern', 'patternColor']) {
@@ -2193,9 +2236,11 @@ for (const field of ['width', 'height', 'destructible', 'spiked']) {
 }
 $('#brick-spawn-shield').addEventListener('change', event => attempt(() => saveBrick(event)));
 $('#brick-spawn-crab-direction').addEventListener('change', event => attempt(() => saveBrick(event)));
+$('#brick-spawn-contains-item').addEventListener('change', event => attempt(() => saveBrick(event)));
 $('#event-shield').addEventListener('change', () => touched.add('#event-shield'));
 $('#event-crab-direction').addEventListener('change', () => touched.add('#event-crab-direction'));
 $('#event-carries-item').addEventListener('change', () => touched.add('#event-carries-item'));
+$('#event-contains-item').addEventListener('change', () => touched.add('#event-contains-item'));
 for (const selector of ['#event-time', '#event-lifetime', '#event-x', '#event-y', '#event-keys-required']) {
   $(selector).addEventListener('input', () => touched.add(selector));
 }
@@ -2216,13 +2261,14 @@ function applyToSelected() {
   const shieldChanged = touched.has('#event-shield') && value('#event-shield') !== MIXED;
   const directionChanged = touched.has('#event-crab-direction') && value('#event-crab-direction') !== MIXED;
   const carrierChanged = touched.has('#event-carries-item') && value('#event-carries-item') !== '__mixed-carried-item__';
+  const contentChanged = touched.has('#event-contains-item') && value('#event-contains-item') !== MIXED;
   const keysChanged = touched.has('#event-keys-required') && !$('#event-keys-required').disabled;
   const textureFields = ['color', 'pattern', 'patternColor'].filter(field => touched.has(`#event-${field}`) && value(`#event-${field}`) !== MIXED);
   const sizeFields = ['width', 'height'].filter(field => touched.has(`#event-${field}`));
   const destructibleChanged = touched.has('#event-destructible');
   const spikedChanged = touched.has('#event-spiked');
   const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle', '#event-random-count'].some(selector => touched.has(selector));
-  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !contentChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -2281,6 +2327,8 @@ function applyToSelected() {
     }
     if (next.kind !== 'item' || next.type !== 'treasure-chest') delete next.keysRequired;
     else if (keysChanged) next.keysRequired = Number(value('#event-keys-required'));
+    if (next.kind !== 'object' || next.type !== 'item-case') delete next.containsItem;
+    else if (contentChanged || !next.containsItem) next.containsItem = value('#event-contains-item');
     if (!next.random || next.group) delete next.randomCount;
     for (const field of ['color', 'pattern', 'patternColor']) {
       if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) delete next[field];

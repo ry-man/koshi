@@ -925,7 +925,7 @@ test('enemy editor exposes one carried-item selector and resolves legacy carrier
   const setup = source.slice(source.indexOf("$('#event-carries-item').append"), source.indexOf('let level = blank();'));
   const optionContext = vm.createContext({
     ITEMS, WEAPONS, document: { createElement: () => ({}) },
-    $: () => ({ append: (...items) => options.push(...items) }),
+    $: selector => ({ append: (...items) => { if (selector === '#event-carries-item') options.push(...items); } }),
   });
   vm.runInContext(setup, optionContext);
   assert.deepEqual(options.map(option => option.value), Object.keys({ ...ITEMS, ...WEAPONS }));

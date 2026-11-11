@@ -129,6 +129,7 @@ for (const [brush, name, paintUses] of [['pencil', 'Thin Paintbrush', 1], ['wide
 }
 const OBJECTS = {
   'soccer-ball': { name: 'Soccer Ball', icon: '⚽', color: '#f1f3f2' },
+  'item-case': { name: 'Item Case', icon: '\u25a1', color: '#bce8f4', itemCase: true, radius: 26 },
   'bumper-red': { name: 'Red Bumper', icon: '🔴', color: '#d94a4a', bumper: true, speedMultiplier: 1.25 },
   'bumper-green': { name: 'Green Bumper', icon: '🟢', color: '#399d4a', bumper: true, speedMultiplier: 1 },
   'bumper-blue': { name: 'Blue Bumper', icon: '🔵', color: '#287dcc', bumper: true, speedMultiplier: .75 },
@@ -1842,6 +1843,15 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       result.carriesItem = event.carriesItem;
     }
   };
+  const containedItem = (item, result, name) => {
+    if (item.kind === 'object' && item.type === 'item-case') {
+      if (typeof item.containsItem !== 'string'
+        || (!Object.hasOwn(ITEMS, item.containsItem) && !Object.hasOwn(WEAPONS, item.containsItem))) {
+        fail(`${name} must select a valid item or weapon inside its Item Case.`);
+      }
+      result.containsItem = item.containsItem;
+    } else if (item.containsItem !== undefined) fail(`${name}: containsItem is only supported for Item Cases.`);
+  };
   const obstructionAppearance = (item, result, name) => {
     const obstruction = item.kind === 'object' && OBJECTS[item.type]?.obstruction;
     for (const field of ['color', 'patternColor', 'pattern']) {
@@ -1940,6 +1950,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     crabDirection(event, result, name);
     if (event.type === 'boss' && (group || randomCount || event.shield)) fail(`${name}: a boss must be a single, unshielded enemy.`);
     obstructionAppearance(event, result, name);
+    containedItem(event, result, name);
     if (event.track !== undefined) {
       if (event.kind !== 'object' || !(OBJECTS[event.type].bumper || OBJECTS[event.type].obstruction)
         || random || group) fail(`${name}: Cat Tracks require a single fixed obstruction or bumper.`);
@@ -2114,6 +2125,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
           crabDirection(spawn, override.spawner, `Brick override ${i + 1}`);
           carriedItems(spawn, override.spawner, `Brick override ${i + 1}`);
           obstructionAppearance(spawn, override.spawner, `Brick override ${i + 1}`);
+          containedItem(spawn, override.spawner, `Brick override ${i + 1}`);
           if (spawn.kind === 'object' && spawn.lifetime != null) fail(`Brick override ${i + 1}: objects cannot have a lifetime.`);
           if (spawn.kind === 'food') override.spawner.lifetime = number(spawn.lifetime, .1, 3600, `Brick override ${i + 1} spawn food lifetime`);
           else if (['item', 'weapon'].includes(spawn.kind) && spawn.lifetime != null) {
@@ -2156,6 +2168,8 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   const spawners = bricks.filter(brick => brick.absorbedBy == null && brick.spawner).map(brick => brick.spawner);
   const sources = [...result.events, ...spawners];
   const sourceType = source => source.kind === 'enemy' && carriedItemType(source) === 'cat-block' ? 'carrier'
+    : source.kind === 'object' && source.type === 'item-case'
+      ? source.containsItem === 'cat-block' ? 'spawn' : source.containsItem === 'treasure-chest' ? 'chest' : null
     : source.kind === 'item' && source.type === 'cat-block' ? 'spawn'
       : source.kind === 'item' && source.type === 'treasure-chest' ? 'chest' : null;
   const catSources = sources.filter(source => sourceType(source));
@@ -2181,8 +2195,10 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     const chests = catSources.filter(source => sourceType(source) === 'chest');
     if (chests.length) {
         const isKey = source => source.kind === 'item' && source.type === 'key'
+          || source.kind === 'object' && source.type === 'item-case' && source.containsItem === 'key'
           || source.kind === 'enemy' && carriedItemTypes(source).includes('key');
-      const isBattery = source => source.kind === 'item' && source.type === 'battery';
+      const isBattery = source => source.kind === 'item' && source.type === 'battery'
+        || source.kind === 'object' && source.type === 'item-case' && source.containsItem === 'battery';
       const keySpawners = spawners.filter(isKey).length;
       const count = entries => entries.reduce((sum, source) => sum + (source.group?.count ?? source.randomCount ?? 1), 0);
       const batteries = count(sources.filter(isBattery));
@@ -3111,6 +3127,8 @@ class Game {
     this.enemies = 0;
     this.goals = 0;
     this.soccerBalls = [];
+    this.itemCases = [];
+    this.glassBreaks = [];
     this.bubbles = [];
     this.catCircles = [];
     this.bubblePops = [];
@@ -3581,7 +3599,8 @@ class Game {
         const target = spawn.kind === 'enemy' ? this.robots : spawn.kind === 'food' ? this.food
           : spawn.kind === 'weapon' ? this.weapons : spawn.kind === 'item' ? this.items : spawn.kind === 'heart' ? this.healing
             : OBJECTS[spawn.type].bumper ? this.bumpers : OBJECTS[spawn.type].bubble ? this.bubbles
-              : OBJECTS[spawn.type].catCircle ? this.catCircles : this.soccerBalls;
+              : OBJECTS[spawn.type].catCircle ? this.catCircles
+                : OBJECTS[spawn.type].itemCase ? this.itemCases : this.soccerBalls;
         target.push(...items);
         this.clearBlockedPickups();
       }
@@ -3604,6 +3623,7 @@ class Game {
       }
       else if (OBJECTS[spawn.type].bubble) this.bubbles.push(this.createBubble(point, spawn.type));
       else if (OBJECTS[spawn.type].catCircle) this.catCircles.push(this.createCatCircle(point, spawn.type));
+      else if (OBJECTS[spawn.type].itemCase) this.itemCases.push(this.createItemCase(point, spawn));
       else if (OBJECTS[spawn.type].obstruction) {
         const obstruction = this.createObstruction(point, spawn);
         this.pendingSpawns.set({}, { kind: 'obstruction', time: this.elapsed + 2, duration: 2, items: [obstruction] });
@@ -4302,6 +4322,7 @@ class Game {
     if (event.kind !== 'object') return event.type === 'ditto-stamp' ? DITTO_STAMP_RADIUS : 18;
     if (OBJECTS[event.type].bumper) return 48;
     if (OBJECTS[event.type].catCircle) return OBJECTS[event.type].radius;
+    if (OBJECTS[event.type].itemCase) return OBJECTS[event.type].radius;
     if (OBJECTS[event.type].obstruction) {
       const geometry = obstructionGeometry(event);
       return Math.max(geometry.width, geometry.height) / 2;
@@ -4433,7 +4454,8 @@ class Game {
       const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items
         : event.kind === 'object' ? OBJECTS[event.type].bumper ? this.bumpers
           : OBJECTS[event.type].bubble ? this.bubbles : OBJECTS[event.type].catCircle ? this.catCircles
-            : OBJECTS[event.type].obstruction ? this.obstructions : this.soccerBalls : this.robots;
+            : OBJECTS[event.type].itemCase ? this.itemCases
+              : OBJECTS[event.type].obstruction ? this.obstructions : this.soccerBalls : this.robots;
       const items = this.takeSpawn(event, entry => this.createCustomSpawn(entry));
       if (event.kind === 'enemy') {
         const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
@@ -4548,8 +4570,9 @@ class Game {
       const object = OBJECTS[event.type].bumper
         ? this.createBumper(point, event.type) : OBJECTS[event.type].bubble
           ? this.createBubble(point, event.type) : OBJECTS[event.type].catCircle
-            ? this.createCatCircle(point, event.type) : OBJECTS[event.type].obstruction
-              ? this.createObstruction(point, event) : this.createSoccerBall(point);
+            ? this.createCatCircle(point, event.type) : OBJECTS[event.type].itemCase
+              ? this.createItemCase(point, event) : OBJECTS[event.type].obstruction
+                ? this.createObstruction(point, event) : this.createSoccerBall(point);
       if (event.track) {
         Object.assign(object, { track: event.track, trackBorn: event.time,
           trackDistance: catTrackProjection(this.catTracksById.get(event.track).path, point).distance });
@@ -4593,6 +4616,31 @@ class Game {
 
   createSoccerBall(point) {
     return { ...point, type: 'soccer-ball', radius: 16, vx: 0, vy: 0, angle: 0 };
+  }
+
+  createItemCase(point, event) {
+    return { ...point, type: 'item-case', radius: OBJECTS['item-case'].radius, containsItem: event.containsItem };
+  }
+
+  breakItemCase(itemCase) {
+    this.itemCases = this.itemCases.filter(item => item !== itemCase);
+    this.glassBreaks.push({ x: itemCase.x, y: itemCase.y, age: 0, duration: .8 });
+    const type = itemCase.containsItem;
+    if (this.catBlockCollected && this.isCatBlockSource({ type })) return;
+    const item = this.createCollectible(this.elapsed, type, undefined, { x: itemCase.x, y: itemCase.y });
+    if (type === 'treasure-chest') item.keysRequired = 1;
+    (Object.hasOwn(WEAPONS, type) ? this.weapons : this.items).push(item);
+  }
+
+  strikeItemCases(startX, startY) {
+    for (const item of [...this.itemCases]) {
+      if (!this.weapon || WEAPONS[this.weapon.type].ropeDart || this.activeTurret) return;
+      const distance = distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y);
+      if (distance > this.cat.radius + item.radius + 18) continue;
+      this.weaponAttacks.push({ x: item.x, y: item.y, type: this.weapon.type, age: 0 });
+      if (!WEAPONS[this.weapon.type].seconds && --this.weapon.uses === 0) this.dropWeapon(true);
+      this.breakItemCase(item);
+    }
   }
 
   createBubble(point, type) {
@@ -6568,6 +6616,10 @@ class Game {
       dy > 0 ? (this.height - ROPE_DART_RADIUS - dart.y) / dy : dy < 0 ? (ROPE_DART_RADIUS - dart.y) / dy : Infinity);
     const stop = Math.max(0, Math.min(edge, this.hazardObstacleTime(dart, dx, dy, ROPE_DART_RADIUS, this.brickParts())));
     const fraction = Math.min(1, stop);
+    for (const item of [...this.itemCases]) {
+      const time = circleContact(dart.x - item.x, dart.y - item.y, dx, dy, ROPE_DART_RADIUS + item.radius);
+      if (time <= fraction) this.breakItemCase(item);
+    }
     for (const enemy of [...this.robots]) {
       const old = previous.get(enemy) ?? enemy;
       const time = circleContact(dart.x - old.x, dart.y - old.y,
@@ -6612,6 +6664,7 @@ class Game {
   combat(dt, startX, startY) {
     this.clearBlockedPickups();
     if (this.weapon && this.weapon.expires <= this.elapsed + 1e-9) this.dropWeapon(true);
+    this.strikeItemCases(startX, startY);
     const collected = [];
     const dx = this.cat.x - startX, dy = this.cat.y - startY, length = Math.hypot(dx, dy);
     const reach = this.cat.radius + 14;
@@ -7232,6 +7285,13 @@ class Game {
     });
   }
 
+  updateGlassBreaks(seconds) {
+    this.glassBreaks = this.glassBreaks.filter(effect => {
+      effect.age += seconds;
+      return effect.age < effect.duration - 1e-9;
+    });
+  }
+
   updateWeaponDrops(seconds) {
     this.weaponDrops = this.weaponDrops.filter(drop => {
       drop.age += seconds;
@@ -7251,6 +7311,7 @@ class Game {
     if (this.state === 'playing' && this.bossDefeated) {
       this.updateEnemyDeaths(seconds);
       this.updateWeaponAttacks(seconds);
+      this.updateGlassBreaks(seconds);
       this.updateWeaponDrops(seconds);
       this.updatePaintEffects(seconds);
       this.updateBrickDestructions(seconds);
@@ -7264,6 +7325,7 @@ class Game {
       this.updateEnemyDeaths(seconds);
       this.updateGoalEffects(seconds);
       this.updateWeaponAttacks(seconds);
+      this.updateGlassBreaks(seconds);
       this.updateWeaponDrops(seconds);
       this.updatePaintEffects(seconds);
       this.updatePickups(seconds);
@@ -7293,6 +7355,7 @@ class Game {
     this.updateEnemyDeaths(dt);
     this.updateGoalEffects(dt);
     this.updateWeaponAttacks(dt);
+    this.updateGlassBreaks(dt);
     this.updateWeaponDrops(dt);
     this.updatePaintEffects(dt);
     this.updatePickups(dt);

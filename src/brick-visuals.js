@@ -26,6 +26,7 @@ function traceSawBlade(ctx, radius, growth = 1) {
   ctx.closePath();
 }
 const SYMBOLS = {
+  'item-case': 'M-25 -25 H25 V25 H-25 Z M-19 -13 L-10 -22 M-19 -3 L0 -22 M-7 0 L0 -7 L7 0 L0 7 Z',
   'obstruction-circle': 'M20 0 A20 20 0 1 1 -20 0 A20 20 0 1 1 20 0 Z',
   'obstruction-diamond': 'M0 -23 L23 0 L0 23 L-23 0 Z',
   'obstruction-circle-large': 'M24 0 A24 24 0 1 1 -24 0 A24 24 0 1 1 24 0 Z',
@@ -872,6 +873,47 @@ function drawFlameHazard(ctx, parts, time = 0) {
   ctx.restore();
 }
 
+function drawItemCase(ctx, item, drawContent) {
+  const radius = item.radius ?? OBJECTS['item-case'].radius;
+  ctx.save(); ctx.translate(item.x, item.y);
+  ctx.fillStyle = '#a8dcec22';
+  ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+  ctx.save(); ctx.scale(.65, .65);
+  if (drawContent) drawContent(item.containsItem);
+  else {
+    const type = item.containsItem;
+    const spawn = { kind: Object.hasOwn(WEAPONS, type) ? 'weapon' : 'item', type };
+    ctx.strokeStyle = spawnColor(spawn); ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.stroke(new Path2D(spawnSymbol(spawn)));
+  }
+  ctx.restore();
+  ctx.fillStyle = '#bce8f41c'; ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+  ctx.strokeStyle = '#8bc5d6'; ctx.lineWidth = 3;
+  ctx.strokeRect(-radius, -radius, radius * 2, radius * 2);
+  ctx.strokeStyle = '#e9fcff'; ctx.lineWidth = 1;
+  ctx.strokeRect(-radius + 2, -radius + 2, radius * 2 - 4, radius * 2 - 4);
+  ctx.strokeStyle = '#ffffff88'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-radius + 6, -radius + 15); ctx.lineTo(-radius + 15, -radius + 6);
+  ctx.moveTo(-radius + 6, -radius + 25); ctx.lineTo(-radius + 25, -radius + 6); ctx.stroke();
+  ctx.restore();
+}
+
+function drawGlassBreak(ctx, effect) {
+  const progress = Math.min(1, effect.age / effect.duration);
+  ctx.save(); ctx.translate(effect.x, effect.y);
+  ctx.globalAlpha *= 1 - progress;
+  ctx.fillStyle = '#bce8f4aa'; ctx.strokeStyle = '#ecfcff'; ctx.lineWidth = 1;
+  for (let i = 0; i < 12; i++) {
+    const angle = i * Math.PI / 6;
+    const distance = 16 + effect.age * (65 + i % 3 * 30);
+    ctx.save(); ctx.translate(Math.cos(angle) * distance, Math.sin(angle) * distance + effect.age ** 2 * 90);
+    ctx.rotate(angle + effect.age * (i % 2 ? 5 : -5));
+    ctx.beginPath(); ctx.moveTo(-5, -7); ctx.lineTo(7, -3); ctx.lineTo(2, 8);
+    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  ctx.restore();
+}
+
 function drawBumper(ctx, bumper, time = 0) {
   const radius = bumper.radius ?? 48;
   const color = OBJECTS[bumper.type]?.color ?? '#399d4a';
@@ -894,7 +936,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, drawCatTrack, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, drawCatTrack, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

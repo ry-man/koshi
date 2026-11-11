@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = globalThis.KoshiCollectibles;
@@ -2341,6 +2341,14 @@ function render(now) {
     }
   }
   for (const ball of game.soccerBalls ?? []) if (visible(ball)) drawSoccerBall(ctx, ball);
+  for (const item of game.itemCases) if (visible(item)) {
+    drawItemCase(ctx, item, type => {
+      if (WEAPONS[type]?.ropeDart) drawRopeDart(0, 0, WEAPONS[type].color, undefined, true);
+      else if (Object.hasOwn(WEAPONS, type)) drawWeapon(0, 0, type);
+      else drawGameItem({ x: 0, y: 0, type, keysRequired: 1 });
+    });
+  }
+  for (const effect of game.glassBreaks) if (visible(effect, 180)) drawGlassBreak(ctx, effect);
   for (const effect of game.paintEffects) if (visible(effect, 150)) drawPaintSplash(ctx, effect);
   for (const bumper of game.bumpers ?? []) if (visible(bumper)) {
     drawEmergingShot(bumper, OBJECTS[bumper.type]?.color ?? '#ffffff', shot => drawBumper(ctx, shot, game.elapsed));

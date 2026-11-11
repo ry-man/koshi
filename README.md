@@ -1315,11 +1315,20 @@ tracks his health; his death animation finishes before Koshi celebrates.
    The **Available points reference** displays only totals for food points,
    shield-weighted enemy points, weapons, weapon hits, and soccer goals.
    Totals include scheduled placements, one spawn per spawning brick, groups,
-   independently random placements, and enemy weapon drops.
+   independently random placements, enemy weapon drops, and weapons in Item Cases.
    For custom levels, **Carried item or weapon** lets enemies drop any item, sword,
    or hammer at their defeat location. Weapons stay until collected and equip with
    their normal hit count. JSON uses `carriesItem` for either item or weapon IDs.
    Connecting such an enemy to a spawning brick preserves its carried pickup.
+   **Objects > Item Case** places a square glass case. Set **Item inside case**
+   to any item or weapon; JSON uses `containsItem` on an `object` / `item-case`
+   event or spawning-brick template. Cases do not block Koshi or enemies.
+   Swords, hammers and axes automatically strike cases in weapon range, spending
+   one strike (timed weapons keep their normal timer). A fired Rope Dart also
+   breaks glass. Unarmed contact, other power-ups and Boost alone do not break it.
+   Shattering releases the normal collectible at the case's position and scatters
+   fading glass chunks. A contained Treasure Chest requires one key as usual.
+   Existing campaign levels are unchanged.
    **Discretize X, Y** snaps board placements and marker moves to the visible
    dots, including spawn templates and arrow-key moves. It defaults to checked;
    uncheck it for free placement. New board placements use the current preview

@@ -232,6 +232,7 @@
             </fieldset>
             <label>Spawned object lifetime (seconds)<input id="brick-spawn-lifetime" type="number" min="0.1" max="3600" step="any" placeholder="Until level ends" disabled></label>
             <label>Spawned enemy shield<select id="brick-spawn-shield" disabled><option value="none">None (1 point)</option><option value="red">Red (2 points)</option><option value="green">Green (3 points)</option><option value="blue">Blue (4 points)</option></select></label>
+            <label id="brick-spawn-contains-label" hidden>Item inside case<select id="brick-spawn-contains-item" disabled></select></label>
             <label hidden>Spawned crab direction<select id="brick-spawn-crab-direction" disabled><option value="random">Random</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label>
             <fieldset id="brick-spawn-obstruction" hidden disabled>
               <legend>Obstruction</legend>
@@ -258,6 +259,7 @@
           <form id="event-form">
             <label hidden>Category <select id="event-kind"><option value="food">Food</option><option value="enemy">Enemy</option><option value="weapon">Weapon</option><option value="item">Item</option><option value="object">Object</option></select></label>
             <label>Object <select id="event-type"></select></label>
+            <label id="event-contains-label" hidden>Item inside case<select id="event-contains-item" disabled></select></label>
             <fieldset id="event-obstruction" hidden disabled>
               <legend>Obstruction</legend>
               <div class="input-pair"><label>Width (board units)<input id="event-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="event-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
