@@ -1317,8 +1317,9 @@ function renderBoard() {
       drawItemCase(image.getContext('2d'), { ...event, x: frameSize / 2, y: frameSize / 2 });
       marker.append(image, label);
     } else if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
-      const { width, height } = obstructionGeometry(event);
-      const angle = (event.rotation ?? 0) * Math.PI / 180;
+      const appearance = previewGame.campaignEventAppearance(event);
+      const { width, height } = obstructionGeometry(appearance);
+      const angle = (appearance.rotation ?? 0) * Math.PI / 180;
       const padding = event.spiked ? 32 : 4;
       const frameWidth = Math.max(Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * height + padding,
         event.destructible ? 40 : 0);
@@ -1333,7 +1334,7 @@ function renderBoard() {
       image.setAttribute('aria-hidden', 'true');
       const context = image.getContext('2d');
       context.scale(image.width / frameWidth, image.height / frameHeight);
-      drawObstruction(context, { ...event, x: frameWidth / 2, y: frameHeight / 2 });
+      drawObstruction(context, { ...appearance, x: frameWidth / 2, y: frameHeight / 2 });
       marker.append(image, label);
       if (selected && !readOnly() && !trackObjectAction && connectingSpawn === null && !event.random && !event.group) {
         const outline = document.createElement('span');

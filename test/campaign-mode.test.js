@@ -228,7 +228,8 @@ test('Official authored levels faithfully import their JSON and manifest identit
     assert.equal(name, source.id);
     assert.equal(worldId, entry.worldId);
     assert.equal(number, entry.number);
-    assert.deepEqual(content, { ...source, id: entry.id, heartCost: source.heartCost ?? Infinity });
+    assert.deepEqual(content, { ...source, id: entry.id, coordinateOrientation: 'landscape',
+      heartCost: source.heartCost ?? Infinity });
     assert.deepEqual([food, enemies, weapons, items], [[], [], [], []]);
     assert.equal(OFFICIAL_WORLDS.find(world => world.id === worldId).levels[number], name);
     const preview = context.campaignPreview(index);

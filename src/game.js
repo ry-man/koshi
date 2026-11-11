@@ -3730,7 +3730,7 @@ class Game {
       else if (OBJECTS[spawn.type].catCircle) this.catCircles.push(this.createCatCircle(point, spawn.type));
       else if (OBJECTS[spawn.type].itemCase) this.itemCases.push(this.createItemCase(point, spawn));
       else if (OBJECTS[spawn.type].obstruction) {
-        const obstruction = this.createObstruction(point, spawn);
+        const obstruction = this.createObstruction(point, this.campaignEventAppearance(spawn));
         this.pendingSpawns.set({}, { kind: 'obstruction', time: this.elapsed + 2, duration: 2, items: [obstruction] });
       }
       else this.soccerBalls.push(this.createSoccerBall(point));
@@ -4517,6 +4517,9 @@ class Game {
   }
 
   campaignEventCoordinates(x, y) {
+    if (this.level.coordinateOrientation === 'landscape') {
+      return this.portrait ? { x: y, y: 1 - x } : { x, y };
+    }
     if (this.levelIndex < 0 || this.portrait) return { x, y };
     // Scrolling campaign placements keep forward progress from the top/left start in both layouts.
     return this.level.autoscroll ? { x: y, y: 1 - x } : { x: 1 - y, y: x };
@@ -4525,6 +4528,17 @@ class Game {
   campaignEventPoint(x, y) {
     const position = this.campaignEventCoordinates(x, y);
     return this.pointFromRelative(position.x, position.y);
+  }
+
+  campaignEventAppearance(event) {
+    if (this.level.coordinateOrientation !== 'landscape' || !this.portrait) return event;
+    if (event.kind === 'object' && OBJECTS[event.type].obstruction) {
+      return { ...event, rotation: ((event.rotation ?? 0) + 270) % 360 };
+    }
+    if (event.type === 'robo-crab' && event.crabDirection) {
+      return { ...event, crabDirection: event.crabDirection === 'horizontal' ? 'vertical' : 'horizontal' };
+    }
+    return event;
   }
 
   catTrackEnabled(track) {
@@ -4635,8 +4649,9 @@ class Game {
     const requestedSize = event.group.size === undefined
       ? Math.min(short, shape === 'line' ? (count - 1) * 55 : 176) : event.group.size * short;
     const size = Math.min(requestedSize, areaBounds.right - areaBounds.left, areaBounds.bottom - areaBounds.top);
+    const rotation = this.level.coordinateOrientation === 'landscape' && this.portrait ? -Math.PI / 2 : 0;
     const offsets = Array.from({ length: count }, (_, i) => {
-      const theta = shape === 'line' ? angle * Math.PI / 180 : i * Math.PI * 2 / count;
+      const theta = (shape === 'line' ? angle * Math.PI / 180 : i * Math.PI * 2 / count) + rotation;
       const radius = shape === 'line' ? size * (i / (count - 1) - .5) : size / 2;
       return { x: Math.cos(theta) * radius, y: Math.sin(theta) * radius };
     });
@@ -4666,6 +4681,7 @@ class Game {
   }
 
   createCustomEntity(event, point) {
+    event = this.campaignEventAppearance(event);
     if (event.kind === 'food') return [{ ...point, id: this.foodId++, type: event.type, born: event.time, expires: event.time + event.lifetime, lifetime: event.lifetime }];
     if (event.kind === 'weapon' || event.kind === 'item') {
       const collectible = this.createCollectible(event.time, event.type, event.lifetime, point);
@@ -5201,7 +5217,8 @@ class Game {
       if (type === 'bucket') this.initializeBucket(enemy);
       if (type === 'jackolantern') this.initializeJackolantern(enemy);
       if (type === 'goalie') this.initializeGoalie(enemy);
-      if (type === 'robo-crab') this.initializeRoboCrab(enemy, options?.crabDirection);
+      if (type === 'robo-crab') this.initializeRoboCrab(enemy,
+        this.campaignEventAppearance({ type, crabDirection: options?.crabDirection }).crabDirection);
       if (['wheel', 'snake', 'robo-cow'].includes(type)) this.placeWheel(enemy);
       this.ensureEnemySpawnClear(enemy);
       if (type === 'robo-cow') this.initializeRoboCow(enemy);

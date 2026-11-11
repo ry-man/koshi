@@ -142,6 +142,13 @@ and update only `file` when moving its JSON. Level names, permanent IDs, source
 files, and world/number pairs must be unique. Numeric level numbers sort
 numerically within a world; other number strings follow manifest order.
 
+Official JSON placements use the wide desktop/editor **Landscape** board as their
+coordinate reference. On the tall phone board, positions rotate counterclockwise
+with the bricks: `(x, y)` becomes `(y, 1 - x)`. Formation angles, obstruction
+rotations, Cat Tracks, Koshi's starting position, and placed spawning-brick
+templates follow the same rotation. The read-only Official editor preview uses
+the same mapping as gameplay; source JSON is not rewritten.
+
 The first published level in a world replaces that world's temporary starter;
 worlds without authored levels retain their existing starters. Preserve a
 starter's `official-<worldId>-1` ID when replacing its first level to retain
@@ -2426,8 +2433,9 @@ Edits map one-to-one between desktop and phone by stable brick IDs, not by
 the currently displayed edge. The editor keeps the same brick selected when
 switching previews and labels it with its displayed edge. Existing saved
 edge overrides retain their phone placement; desktop now shows those same
-bricks at their rotated positions. Fixed placements in built-in campaign levels
-rotate with the desktop board; custom-level event coordinates remain relative
+bricks at their rotated positions. Fixed placements in Beta campaign levels
+rotate with the desktop board. Official JSON placements use desktop coordinates
+and rotate with the phone board; custom-level event coordinates remain relative
 to the playable area in both orientations. Older exports from the variable-count
 editor continue to use their saved edge segments and may affect more than
 one current brick. Up to 2000 overrides are

@@ -8,6 +8,91 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { buildOfficialLevels } = require('../tools/build-official-levels.js');
 const { createServer } = require('../tools/serve.js');
+const { Game, validateCustomLevel } = require('../src/game.js');
+const { OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS, assembleCampaign } = require('../src/campaign.js');
+
+const officialCampaign = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-6, `${actual} != ${expected}`);
+const relative = (game, point) => {
+  const b = game.bounds();
+  return { x: (point.x - b.left) / (b.right - b.left), y: (point.y - b.top) / (b.bottom - b.top) };
+};
+
+test('all authored Official placements preserve desktop coordinates and rotate with bricks on phones', () => {
+  const manifest = require('../levels/official/campaign.json');
+  for (const entry of manifest.levels) {
+    const source = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'levels', 'official', ...entry.file.split('/')), 'utf8'));
+    const before = JSON.stringify(source);
+    const level = officialCampaign.findIndex(level => level.id === entry.id);
+    const desktop = new Game(() => .5, { levels: officialCampaign, level });
+    assert.equal(desktop.level.coordinateOrientation, 'landscape');
+    for (const scale of [1, .5]) {
+      const phone = new Game(() => .5, { levels: officialCampaign, level, portrait: true, scale });
+      for (const event of source.events.filter(event => !event.random)) {
+        const position = relative(desktop, desktop.campaignEventPoint(event.x, event.y));
+        close(position.x, event.x); close(position.y, event.y);
+        const rotated = relative(phone, phone.campaignEventPoint(event.x, event.y));
+        close(rotated.x, event.y); close(rotated.y, 1 - event.x);
+        if (scale !== 1) continue;
+        const points = desktop.customEventPoints(event, { preview: true });
+        const rotatedPoints = phone.customEventPoints(event, { preview: true });
+        assert.equal(points.length, rotatedPoints.length);
+        for (let i = 0; i < points.length; i++) {
+          const original = relative(desktop, points[i]), rotated = relative(phone, rotatedPoints[i]);
+          close(rotated.x, original.y); close(rotated.y, 1 - original.x);
+        }
+      }
+    }
+    assert.equal(JSON.stringify(source), before);
+  }
+});
+
+test('Official geometry, tracks, starting position and spawning templates use the same phone rotation', () => {
+  const source = validateCustomLevel({
+    version: 1, id: 'Orientation fixture', duration: 60, goal: 1000, heartCost: null, brickSet: 1,
+    koshiStart: { x: .3, y: .6 },
+    tracks: [{ id: 'track', nodes: [{ x: .2, y: .3 }, { x: .8, y: .3 }], speed: 30, closed: false }],
+    events: [{ time: 0, kind: 'object', type: 'obstruction-rectangle', x: .2, y: .3,
+      width: 120, height: 30, rotation: 20, track: 'track' }],
+    brickTypes: [{ edge: 'top', start: 0, end: .2, kind: 'normal',
+      spawner: { kind: 'weapon', type: 'wood', x: .3, y: .6 } }],
+  });
+  const before = JSON.stringify(source);
+  const levels = [{ ...source, id: 'official-fixture', coordinateOrientation: 'landscape', food: [], enemies: [], weapons: [], items: [] }];
+  const desktop = new Game(() => .5, { levels });
+  const phone = new Game(() => .5, { levels, portrait: true });
+  const event = source.events[0];
+  const original = desktop.createCustomSpawn(event)[0], rotated = phone.createCustomSpawn(event)[0];
+  assert.equal(original.rotation, 20);
+  assert.equal(rotated.rotation, 290);
+  assert.equal(rotated.width, 120); assert.equal(rotated.height, 30);
+  close(phone.cat.x, phone.campaignEventPoint(.3, .6).x);
+  close(phone.cat.y, phone.campaignEventPoint(.3, .6).y);
+  close(relative(phone, rotated).x, .3); close(relative(phone, rotated).y, .8);
+  close(desktop.catTracks[0].path.length, phone.catTracks[0].path.length);
+  const brick = phone.bricks.find(brick => brick.spawner);
+  phone.spawnFromBrick(brick);
+  close(relative(phone, phone.weapons[0]).x, .6); close(relative(phone, phone.weapons[0]).y, .7);
+  const crab = { time: 1, kind: 'enemy', type: 'robo-crab', x: .5, y: .5, crabDirection: 'horizontal' };
+  assert.equal(desktop.createCustomSpawn(crab)[0].crabAxis, 'x');
+  assert.equal(phone.createCustomSpawn(crab)[0].crabAxis, 'y');
+  assert.equal(phone.createEnemies([1, 'robo-crab', 1, null, crab])[0].crabAxis, 'y');
+  assert.equal(JSON.stringify(source), before);
+});
+
+test('Official orientation handling does not change Beta or editable custom placements', () => {
+  for (const portrait of [false, true]) {
+    const beta = new Game(() => .5, { portrait });
+    assert.deepEqual(beta.campaignEventCoordinates(.2, .3), portrait ? { x: .2, y: .3 } : { x: .7, y: .2 });
+    const source = { version: 1, id: 'Custom coordinates', duration: 60, goal: 1000,
+      heartCost: null, brickSet: 1, events: [] };
+    const custom = new Game(() => .5, { customLevel: source, portrait });
+    assert.deepEqual(custom.campaignEventCoordinates(.2, .3), { x: .2, y: .3 });
+    const event = { kind: 'object', type: 'obstruction-rectangle', rotation: 20 };
+    assert.equal(beta.campaignEventAppearance(event), event);
+    assert.equal(custom.campaignEventAppearance(event), event);
+  }
+});
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'koshi-official-build-'));

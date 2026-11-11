@@ -167,7 +167,7 @@ for (const { worldId, number, id, level } of officialLevels) {
   }
   Object.defineProperty(world.levels, number, { value: name, enumerable: true, configurable: true, writable: true });
   Object.defineProperty(OFFICIAL_LEVEL_DATA, name, { enumerable: true, configurable: true, writable: true, value: {
-    ...level, id, name, heartCost: level.heartCost ?? Infinity,
+    ...level, id, name, coordinateOrientation: 'landscape', heartCost: level.heartCost ?? Infinity,
     food: [], enemies: [], weapons: [], items: [],
   } });
 }
