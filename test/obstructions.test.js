@@ -845,7 +845,7 @@ function editorFixture() {
     return nodes.get(selector);
   };
   const context = vm.createContext({ $, OBJECTS, Game, obstructionGeometry, snapWheel, brickRegions, brickEditRegions, COOLDOWNS,
-    level: blank(), selectedEvents: new Set(), touched: new Set(), MIXED: '',
+    level: blank(), selectedEvents: new Set(), selectedBricks: new Set(), placing: false, touched: new Set(), MIXED: '',
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     mixedOption: input => { input.value = ''; },
     document: { createElement: () => ({}) }, selectedList: () => [...context.selectedEvents],

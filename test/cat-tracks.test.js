@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, validateCustomLevel, validateCatTracks, catTrackPath, catTrackPoint, catTrackProjection } = require('../src/game.js');
+const { Game, OBJECTS, validateCustomLevel, validateCatTracks, catTrackPath, catTrackPoint, catTrackProjection } = require('../src/game.js');
 const { drawCatTrack } = require('../src/brick-visuals.js');
 
 const blank = () => ({ version: 1, id: 'Cat Tracks', duration: 60, goal: 1000, heartCost: null, brickSet: 1, events: [] });
@@ -255,25 +255,43 @@ test('editor authors, attaches, detaches and deletes tracks transactionally, pre
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map(), errors = [];
   const $ = selector => {
-    if (!nodes.has(selector)) nodes.set(selector, { value: '', checked: false, listeners: {},
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', checked: false, listeners: {}, dataset: {},
+      replaceChildren() {}, setAttribute() {},
       addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);
   };
   let locked = false;
   const context = vm.createContext({ $, level: { ...blank(), events: [{ ...object(), track: undefined }] },
     selectedTrackId: '', trackDrawing: false, trackDrawNodes: [], selectedEvents: new Set([0]),
+    selectedBricks: new Set(), placing: true, connectingSpawn: null, trackObjectAction: null, OBJECTS,
+    activeCategory: 'tracks', previewGame: { width: 960, height: 600, catTracks: [] },
+    document: { createElement: () => ({}) },
     readOnly: () => locked, selectedList: () => [0], validateDraft: validateCustomLevel,
     attempt: action => { try { action(); } catch (error) { errors.push(error.message); } },
     markChanged() {}, render() {}, renderBoard() {}, populateEventForm() {}, message() {},
   });
   vm.runInContext(source.slice(source.indexOf('function populateTrackForm('), source.indexOf('function focusMarker(')), context);
+  vm.runInContext(source.slice(source.indexOf('function choose('), source.indexOf('function selectAll(')), context);
   context.populateTrackForm();
   context.trackDrawNodes = track().nodes;
   $('#track-form').listeners.submit({ preventDefault() {} });
   assert.equal(context.level.tracks[0].id, 'track-1');
   assert.equal(context.level.tracks[0].speed, 60);
   $('#track-attach').listeners.click();
+  assert.equal(context.level.events[0].track, undefined, 'attachment starts by picking a track, not by consuming preselection');
+  context.choose('event', 0, false);
   assert.equal(context.level.events[0].track, 'track-1');
+  context.renderCatTracks();
+  assert.equal($('#track-attachments').textContent, 'Linked event IDs: 1');
+  context.level.events.push({ kind: 'object', type: 'soccer-ball', time: 0, x: .5, y: .5 });
+  $('#track-attach').listeners.click();
+  const beforeInvalidPick = JSON.stringify(context.level);
+  context.choose('event', 1, false);
+  assert.equal(JSON.stringify(context.level), beforeInvalidPick);
+  assert.equal(context.trackObjectAction, 'attach', 'invalid choices leave picking active');
+  assert.match(errors.at(-1), /fixed, single/);
+  $('#track-attach').listeners.click();
+  assert.equal(context.trackObjectAction, null, 'the same button cancels picking');
   const snapshot = JSON.stringify(context.level);
   context.trackDrawNodes = [{ x: .2, y: .2 }, { x: .2, y: .2 }];
   $('#track-form').listeners.submit({ preventDefault() {} });
@@ -284,8 +302,26 @@ test('editor authors, attaches, detaches and deletes tracks transactionally, pre
   assert.equal(JSON.stringify(context.level), snapshot);
   locked = false;
   $('#track-detach').listeners.click();
-  assert.equal(context.level.events[0].track, undefined);
+  assert.equal(context.level.events[0].track, 'track-1', 'detach waits for an object pick');
+  assert.equal(context.trackObjectAction, 'detach');
+  context.choose('event', 1, false);
+  assert.match(errors.at(-1), /linked to the selected/);
+  assert.equal(context.trackObjectAction, 'detach', 'invalid detach picks allow retry');
   $('#track-attach').listeners.click();
+  assert.equal(context.trackObjectAction, 'attach', 'changing buttons replaces the pending action');
+  $('#track-detach').listeners.click();
+  assert.equal(context.trackObjectAction, 'detach');
+  $('#track-detach').listeners.click();
+  assert.equal(context.trackObjectAction, null, 'detach picking can be cancelled');
+  $('#track-detach').listeners.click();
+  context.choose('event', 0, false);
+  assert.equal(context.level.events[0].track, undefined);
+  assert.equal(context.trackObjectAction, null);
+  context.renderCatTracks();
+  assert.equal($('#track-detach').disabled, true, 'no detach picks when the selected track has no objects');
+  assert.equal($('#track-attachments').textContent, '');
+  $('#track-attach').listeners.click();
+  context.updateTrackObject(0);
   $('#track-delete').listeners.click();
   assert.equal(context.level.tracks.length, 0);
   assert.equal(context.level.events[0].track, undefined);
@@ -302,7 +338,7 @@ test('editor moves individual saved nodes transactionally and rejects self-inter
     trackDrawNodes: track().nodes, trackNodeGesture: null,
     validateDraft: validateCustomLevel, markChanged() { changes++; },
     attempt(action) { try { action(); } catch (error) { errors.push(error.message); } },
-    readOnly: () => false, activeCategory: 'tracks', gesture: null,
+    readOnly: () => false, activeCategory: 'tracks', gesture: null, trackObjectAction: null,
     pausePreview() {}, renderCatTracks() {}, renderBoard() {},
     board: { setPointerCapture() {}, hasPointerCapture: () => true, releasePointerCapture() {} },
     pointerPosition: event => event.point, placementPosition: (x, y) => ({ x, y }),

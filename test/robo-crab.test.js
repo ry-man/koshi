@@ -86,7 +86,7 @@ test('editor Crab direction supports creation, mixed selection, preservation, ex
   };
   const game = arena();
   const context = vm.createContext({ ...engine, $, MIXED: '', document: { createElement: () => ({}) },
-    level: game.customLevel, selectedEvents: new Set(), touched: new Set(),
+    level: game.customLevel, selectedEvents: new Set(), selectedBricks: new Set(), placing: false, touched: new Set(),
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     selectedList: () => [...context.selectedEvents], mixedOption: input => { input.value = ''; },
     syncPalettes() {}, readOnly: () => false, validateDraft: validateCustomLevel,

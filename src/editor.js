@@ -71,6 +71,7 @@ let committed = JSON.stringify(level);
 let campaignIndex = null;
 let customWorkspace = null;
 let selectedTrackId = '';
+let trackObjectAction = null;
 let trackDrawing = false;
 let trackDrawNodes = [];
 let selectedTrackNode = -1;
@@ -128,6 +129,7 @@ function syncAccess() {
 }
 
 function selectEditorLevel() {
+  trackObjectAction = null;
   const value = $('#editor-level').value;
   if (value !== 'custom' && !readOnly()) {
     customWorkspace = { level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks,
@@ -237,6 +239,11 @@ function picture(value, control) {
     canvas.width = 56; canvas.height = 56; canvas.setAttribute('aria-hidden', 'true');
     drawBumper(canvas.getContext('2d'), { x: 28, y: 28, radius: 25, type: item.type });
     image.append(canvas);
+  } else if (item?.kind === 'object' && OBJECTS[item.type]?.catCircle) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64; canvas.setAttribute('aria-hidden', 'true');
+    drawCatCircle(canvas.getContext('2d'), { x: 32, y: 32, radius: OBJECTS[item.type].radius });
+    image.append(canvas);
   } else if (control === 'info-slime' || control === 'info-steering') {
     const brick = { x: 0, y: 0, w: 88, h: 52,
       kind: control === 'info-steering' ? value : 'normal',
@@ -339,6 +346,7 @@ function choiceButton(value, name, control, action) {
   button.append(picture(value, control), caption);
   button.addEventListener('click', event => {
     if (readOnly()) return;
+    for (const menu of document.querySelectorAll('.variant-menu[open]')) menu.open = false;
     placing = true;
     action(event);
     syncTool();
@@ -393,6 +401,7 @@ function setupPalettes() {
 }
 
 function showCategory(category) {
+  if (category !== 'tracks') trackObjectAction = null;
   activeCategory = category;
   $('#brick-panel').hidden = category !== 'brick';
   $('#event-panel').hidden = category === 'brick' || category === 'tracks' || category === 'koshi';
@@ -405,6 +414,21 @@ function showCategory(category) {
 }
 
 function syncPalettes() {
+  const families = [
+    ['Stopwatch', 'stopwatch', 'stopwatch-green', 'stopwatch-blue'],
+    ['Cat Shield', 'cat-shield-red', 'cat-shield-green', 'cat-shield-blue'],
+    ['Boom Time', 'boom-time-red', 'boom-time-green', 'boom-time-blue'],
+    ...['pencil', 'wide', 'roller'].map(brush => [
+      { pencil: 'Thin Paintbrush', wide: 'Wide Paintbrush', roller: 'Paint Roller' }[brush],
+      ...['red', 'green', 'blue'].map(color => `paint-${brush}-${color}`),
+    ]),
+    ['Bubble', 'bubble-blue', 'bubble-green', 'bubble-red'],
+    ['Bumper', 'bumper-red', 'bumper-green', 'bumper-blue'],
+    ['Sword', 'wood', 'bronze', 'silver', 'gold'],
+    ['Hammer', 'hammer-bronze', 'hammer-silver', 'hammer-gold'],
+    ['Axe', 'axe-silver', 'axe-gold'],
+    ['Rope Dart', 'rope-dart-bronze', 'rope-dart-silver', 'rope-dart-gold'],
+  ];
   for (const [id, entry] of palettes) {
     const { select, palette } = entry, options = [...select.options];
     const signature = JSON.stringify(options.map(option => [option.value, option.textContent])) + (id === 'event-type' ? $('#event-kind').value : '');
@@ -418,6 +442,27 @@ function syncPalettes() {
         return button;
       });
       palette.replaceChildren(...entry.buttons);
+      if (id === 'event-type' || id === 'brick-spawn-item') {
+        for (const [name, ...types] of families) {
+          const variants = entry.buttons.filter(button => types.includes(
+            id === 'brick-spawn-item' ? button.dataset.value.split(':')[1] : button.dataset.value));
+          if (variants.length < 2) continue;
+          const menu = document.createElement('details'), summary = document.createElement('summary');
+          menu.className = 'variant-menu';
+          summary.append(picture(variants[0].dataset.value, id), name);
+          const choices = document.createElement('div');
+          choices.className = 'visual-palette variant-choices';
+          choices.setAttribute('role', 'group'); choices.setAttribute('aria-label', `${name} colors`);
+          variants[0].before(menu);
+          choices.append(...variants); menu.append(summary, choices);
+          summary.addEventListener('click', event => {
+            if (readOnly() || select.disabled) { event.preventDefault(); return; }
+            for (const other of palette.querySelectorAll('.variant-menu')) if (other !== menu) other.open = false;
+            if (id === 'event-type') startPlacement();
+          });
+          for (const button of variants) button.addEventListener('click', () => { menu.open = false; });
+        }
+      }
       if (id === 'event-type' && $('#event-kind').value === 'enemy') {
         const bosses = entry.buttons.filter(button => button.dataset.value === 'boss');
         if (bosses.length) {
@@ -439,6 +484,12 @@ function syncPalettes() {
     for (const button of entry.buttons) {
       button.disabled = select.disabled;
       button.setAttribute('aria-pressed', String(select.value === button.dataset.value));
+    }
+    for (const menu of palette.querySelectorAll('.variant-menu')) {
+      const selected = [...menu.querySelectorAll('button')].some(button => button.dataset.value === select.value);
+      menu.dataset.selected = String(selected);
+      menu.querySelector('summary').setAttribute('aria-disabled', String(select.disabled || readOnly()));
+      if (select.disabled || readOnly()) menu.open = false;
     }
   }
   for (const button of document.querySelectorAll('[data-attribute]')) {
@@ -775,10 +826,10 @@ function populateEventForm() {
   syncPalettes();
 }
 
-function setSelection(events = selectedEvents, bricks = selectedBricks) {
+function setSelection(events = selectedEvents, bricks = selectedBricks, keepPlacement = false) {
   selectedEvents = new Set(events);
   selectedBricks = new Set(bricks);
-  if (selectedEvents.size) placing = false;
+  if (selectedEvents.size && !keepPlacement) placing = false;
   if (selectedBricks.size && !selectedEvents.size) showCategory('brick');
   else if (selectedEvents.size) showCategory(common(selectedList().map(index => level.events[index].kind)));
   populateEventForm(); render();
@@ -791,6 +842,7 @@ function toggled(set, value) {
 }
 
 function choose(kind, value, additive) {
+  if (trackObjectAction && kind === 'event') { updateTrackObject(value); return; }
   if (kind === 'event') setSelection(additive ? toggled(selectedEvents, value) : [value], additive ? selectedBricks : []);
   else setSelection(additive ? selectedEvents : [], additive ? toggled(selectedBricks, value) : [value]);
 }
@@ -811,6 +863,9 @@ function renderList() {
     const li = document.createElement('li'), button = document.createElement('button');
     button.type = 'button'; button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
     button.dataset.kind = event.kind;
+    const id = document.createElement('span');
+    id.className = 'event-id'; id.textContent = String(index + 1);
+    id.setAttribute('aria-label', `Event ID ${index + 1}`);
     const time = document.createElement('span'); time.className = 'event-time'; time.textContent = `${event.time}s`;
     const location = document.createElement('span'); location.className = 'event-location';
     location.textContent = `${event.random ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''} · #${index + 1}`;
@@ -824,11 +879,11 @@ function renderList() {
       button.append(artwork);
     }
     button.append(description(event), location);
+    button.append(id);
     if (['food', 'enemy', 'weapon'].includes(event.kind)) {
       const totals = pointReference([event], []);
       const amount = event.kind === 'weapon' ? totals.weaponHits : totals[event.kind];
-      const label = event.kind === 'weapon' && WEAPONS[event.type].ropeDart ? 'weapon shots'
-        : { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
+      const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
       const badge = document.createElement('span');
       badge.className = 'event-points';
       const strikes = amount === Infinity ? 'Unlimited (timed)' : String(amount);
@@ -1199,6 +1254,8 @@ function renderBoard() {
     marker.style.color = event.kind === 'weapon' ? WEAPONS[event.type].color : '';
     if (event.shield) marker.style.boxShadow = `0 0 0 3px ${SHIELDS[event.shield].color}`;
     const selected = spawnKey ? selectedBricks.has(spawnKey) : selectedEvents.has(index);
+    marker.classList.toggle('track-linked-highlight',
+      !spawnKey && activeCategory === 'tracks' && Boolean(selectedTrackId) && event.track === selectedTrackId);
     if (!selected && movingPoints.length) {
       const axes = alignmentAxes(point, movingPoints, 3 * previewGame.width / board.clientWidth,
         3 * previewGame.height / board.clientHeight);
@@ -1255,7 +1312,7 @@ function renderBoard() {
       context.scale(image.width / frameWidth, image.height / frameHeight);
       drawObstruction(context, { ...event, x: frameWidth / 2, y: frameHeight / 2 });
       marker.append(image, label);
-      if (selected && !readOnly() && connectingSpawn === null && !event.random && !event.group) {
+      if (selected && !readOnly() && !trackObjectAction && connectingSpawn === null && !event.random && !event.group) {
         const outline = document.createElement('span');
         outline.className = 'obstruction-resize-box';
         outline.style.cssText = `width:${width / frameWidth * 100}%;height:${height / frameHeight * 100}%`;
@@ -1277,6 +1334,7 @@ function renderBoard() {
     marker.addEventListener('click', click => {
       click.stopPropagation();
       if (click.detail !== 0 && !readOnly()) return;
+      if (trackObjectAction && !spawnKey) { updateTrackObject(index); return; }
       if (!readOnly() && connectingSpawn !== null && !spawnKey) { attempt(() => connectSpawn(index)); return; }
       if (spawnKey) { choose('brick', spawnKey, isAdditive(click)); focusSpawnTemplate(spawnKey); return; }
       choose('event', index, isAdditive(click));
@@ -1286,6 +1344,11 @@ function renderBoard() {
       if (readOnly()) { down.stopPropagation(); return; }
       if (down.button !== 0 || gesture) return;
       down.preventDefault(); down.stopPropagation();
+      if (trackObjectAction) {
+        if (spawnKey) message('Spawn templates cannot be linked to Cat Tracks. Choose a placed object event.', true);
+        else updateTrackObject(index);
+        return;
+      }
       if (connectingSpawn !== null && !spawnKey) { attempt(() => connectSpawn(index)); return; }
       startGesture(down, spawnKey ? { type: 'spawn-template', spawnKey } : { type: 'marker', index });
     });
@@ -1366,7 +1429,7 @@ function pointReference(events, bricks) {
     shields: { none: 0, red: 0, green: 0, blue: 0 },
     weaponSources: { scheduled: { count: 0, hits: 0 }, spawner: { count: 0, hits: 0 }, drop: { count: 0, hits: 0 } } };
   const addWeapon = (type, count, origin) => {
-    const hits = WEAPONS[type].seconds ? Infinity : WEAPONS[type].uses * count;
+    const hits = (WEAPONS[type].seconds ?? WEAPONS[type].uses) * count;
     totals.weapons += count; totals.weaponHits += hits;
     totals.weaponSources[origin].count += count; totals.weaponSources[origin].hits += hits;
   };
@@ -1397,14 +1460,47 @@ function pointReference(events, bricks) {
   return { ...totals, extra };
 }
 
+function pointTargets(level) {
+  const trigger = level.catBlock?.trigger;
+  const scored = !level.survive && !level.bossLevel;
+  return {
+    food: Math.max(scored ? level.goal ?? 0 : 0, trigger?.type === 'food' ? trigger.amount : 0),
+    enemy: Math.max(scored ? level.killGoal ?? 0 : 0,
+      ['enemyPoints', 'enemyMin'].includes(trigger?.type) ? trigger.amount : 0),
+    soccer: Math.max(scored ? level.goalsGoal ?? 0 : 0, trigger?.type === 'goals' ? trigger.amount : 0),
+  };
+}
+
+function pointWarnings(totals, targets) {
+  return [
+    [totals.food < targets.food, 'red', 'Not sufficient food in level to reach food target'],
+    [totals.enemy < targets.enemy, 'red', 'Not sufficient enemies in level to reach enemy target'],
+    [totals.weaponHits < targets.enemy, 'red', 'Not sufficient weapons in level to reach enemy target'],
+    [totals.weaponHits < totals.enemy, 'yellow', 'Not sufficient weapons in level to reach defeat all enemies'],
+    [totals.soccer < targets.soccer, 'red', 'Not sufficient soccer balls in level to reach soccer goal target'],
+  ].filter(([active]) => active).map(([, color, text]) => ({ color, text }));
+}
+
 function renderPointReference(events, bricks) {
   const totals = pointReference(events, bricks);
+  const targets = pointTargets(level);
   for (const kind of ['food', 'enemy', 'soccer']) {
     const output = $(`#available-${kind}`), value = String(totals[kind]);
     if (output.textContent !== value) output.textContent = value;
+    const target = $(`#target-${kind}`), targetValue = String(targets[kind]);
+    if (target.textContent !== targetValue) target.textContent = targetValue;
   }
-  $('#available-weapons').textContent = String(totals.weapons);
-  $('#available-weapon-hits').textContent = totals.weaponHits === Infinity ? 'Unlimited (timed)' : String(totals.weaponHits);
+  $('#available-weapon-hits').textContent = String(totals.weaponHits);
+  const warnings = $('#point-warnings');
+  const entries = pointWarnings(totals, targets);
+  if (warnings.textContent !== entries.map(entry => entry.text).join('')) {
+    warnings.replaceChildren(...entries.map(({ color, text }) => {
+      const warning = document.createElement('p');
+      warning.dataset.color = color; warning.textContent = text;
+      return warning;
+    }));
+  }
+  warnings.hidden = !entries.length;
 }
 
 function render() {
@@ -1472,6 +1568,7 @@ $('#koshi-start-marker').addEventListener('keydown', event => {
 });
 
 function populateTrackForm() {
+  trackObjectAction = null;
   trackDrawing = false;
   selectedTrackNode = -1;
   trackNodeGesture = null;
@@ -1495,15 +1592,19 @@ function renderCatTracks() {
   choice.value = selectedTrackId;
   $('#tracks-access').disabled = readOnly();
   $('#track-delete').disabled = !selectedTrackId;
-  $('#track-attach').disabled = !selectedTrackId || !selectedEvents.size;
-  $('#track-detach').disabled = !selectedList().some(index => level.events[index].track);
+  $('#track-attach').disabled = !selectedTrackId;
+  $('#track-attach').textContent = trackObjectAction === 'attach' ? 'Cancel attachment' : 'Attach object';
+  $('#track-attach').setAttribute('aria-pressed', String(trackObjectAction === 'attach'));
+  $('#track-detach').disabled = !selectedTrackId
+    || !level.events.some(event => event.track === selectedTrackId);
+  $('#track-detach').textContent = trackObjectAction === 'detach' ? 'Cancel detachment' : 'Detach object';
+  $('#track-detach').setAttribute('aria-pressed', String(trackObjectAction === 'detach'));
   $('#track-draw').setAttribute('aria-pressed', String(trackDrawing));
   $('#track-draw').textContent = trackDrawing ? 'Done drawing nodes' : 'Draw replacement nodes';
-  const attached = selectedList().filter(index => level.events[index].track)
-    .map(index => `Event ${index + 1}: ${level.events[index].track}`);
-  $('#track-attachments').textContent = attached.join('; ');
+  const attached = level.events.flatMap((event, index) => event.track === selectedTrackId && selectedTrackId ? [index + 1] : []);
+  $('#track-attachments').textContent = attached.length ? `Linked event IDs: ${attached.join(', ')}` : '';
   const svg = $('#cat-tracks'), ns = 'http://www.w3.org/2000/svg';
-  svg.dataset.editable = String(activeCategory === 'tracks' && !readOnly());
+  svg.dataset.editable = String(activeCategory === 'tracks' && !readOnly() && !trackObjectAction);
   svg.replaceChildren();
   svg.setAttribute('viewBox', `0 0 ${previewGame.width} ${previewGame.height}`);
   const draw = (track, nodes) => {
@@ -1515,6 +1616,7 @@ function renderCatTracks() {
     path.setAttribute('stroke-width', '3'); path.setAttribute('stroke-dasharray', '1 8');
     path.setAttribute('stroke-linecap', 'round'); path.setAttribute('opacity', '.65');
     path.setAttribute('class', 'track-path');
+    path.setAttribute('data-selected', String(activeCategory === 'tracks' && Boolean(track.id) && track.id === selectedTrackId));
     path.addEventListener('pointerdown', event => {
       if (readOnly() || activeCategory !== 'tracks' || trackDrawing || !track.id || event.button !== 0) return;
       event.preventDefault(); event.stopPropagation();
@@ -1530,7 +1632,7 @@ function renderCatTracks() {
       circle.setAttribute('role', 'button');
       circle.setAttribute('aria-label', `${track.id || 'New track'} node ${i + 1}`);
       circle.setAttribute('aria-pressed', String(selectedTrackNode === i));
-      if (!readOnly() && activeCategory === 'tracks') circle.setAttribute('tabindex', '0');
+      if (!readOnly() && activeCategory === 'tracks' && !trackObjectAction) circle.setAttribute('tabindex', '0');
       circle.addEventListener('pointerdown', event => startTrackNodeDrag(event, i));
       circle.addEventListener('keydown', event => moveTrackNodeWithKeyboard(event, i));
       svg.append(circle);
@@ -1563,7 +1665,7 @@ function focusTrackNode(index) {
 }
 
 function startTrackNodeDrag(event, index) {
-  if (readOnly() || activeCategory !== 'tracks' || event.button !== 0 || gesture || trackNodeGesture) return;
+  if (readOnly() || activeCategory !== 'tracks' || trackObjectAction || event.button !== 0 || gesture || trackNodeGesture) return;
   event.preventDefault(); event.stopPropagation();
   pausePreview();
   selectedTrackNode = index;
@@ -1614,6 +1716,7 @@ $('#track-choice').addEventListener('change', () => {
 $('#track-reset').addEventListener('click', () => { populateTrackForm(); renderBoard(); });
 $('#track-draw').addEventListener('click', () => {
   if (readOnly()) return;
+  trackObjectAction = null;
   if (!trackDrawing) { trackDrawNodes = []; selectedTrackNode = -1; }
   trackDrawing = !trackDrawing;
   renderBoard();
@@ -1645,7 +1748,7 @@ $('#track-form').addEventListener('submit', event => {
     const tracks = [...(level.tracks ?? []).filter(track => track.id !== id), track];
     level = validateDraft({ ...level, tracks });
     selectedTrackId = id; populateTrackForm(); markChanged(); render();
-    message(`Applied ${id}. Select obstructions or bumpers, then Attach selected objects.`);
+    message(`Applied ${id}. Choose Attach object, then click a fixed, single obstruction or bumper on the board or timeline.`);
   });
 });
 $('#track-delete').addEventListener('click', () => {
@@ -1661,19 +1764,42 @@ $('#track-delete').addEventListener('click', () => {
     message('Cat Track deleted; its objects are now stationary.');
   });
 });
-for (const attach of [true, false]) $(`#track-${attach ? 'attach' : 'detach'}`).addEventListener('click', () => {
+function updateTrackObject(index) {
   if (readOnly()) return;
   attempt(() => {
-    if (attach && !selectedTrackId) throw new Error('Apply or select a Cat Track first.');
-    const events = level.events.map((event, index) => {
-      if (!selectedEvents.has(index)) return event;
+    if (!trackObjectAction || !selectedTrackId) throw new Error('Select a Cat Track, then choose Attach object or Detach object first.');
+    const object = level.events[index];
+    const attaching = trackObjectAction === 'attach';
+    if (!attaching && object.track !== selectedTrackId) {
+      throw new Error('Choose an object linked to the selected Cat Track, or cancel detachment.');
+    }
+    if (attaching && (object.kind !== 'object' || !(OBJECTS[object.type]?.obstruction || OBJECTS[object.type]?.bumper)
+      || object.random || object.group || object.randomCount)) {
+      throw new Error('Cat Tracks accept only fixed, single obstructions or bumpers. Choose another event, or cancel attachment to edit it.');
+    }
+    const events = level.events.map((event, i) => {
+      if (i !== index) return event;
       const { track, ...detached } = event;
-      return attach ? { ...detached, track: selectedTrackId } : detached;
+      return attaching ? { ...detached, track: selectedTrackId } : detached;
     });
     level = validateDraft({ ...level, events });
+    trackObjectAction = null;
+    selectedEvents = new Set([index]); selectedBricks = new Set();
     markChanged(); populateEventForm(); render();
-    message(attach ? 'Selected objects attached at their nearest track points.' : 'Selected objects detached.');
+    message(attaching ? `Event ${index + 1} attached to ${selectedTrackId} at its nearest track point.`
+      : `Event ${index + 1} detached from ${selectedTrackId}.`);
   });
+}
+for (const action of ['attach', 'detach']) $(`#track-${action}`).addEventListener('click', () => {
+  if (readOnly() || !selectedTrackId
+    || action === 'detach' && !level.events.some(event => event.track === selectedTrackId)) return;
+  trackObjectAction = trackObjectAction === action ? null : action;
+  trackDrawing = false; connectingSpawn = null; placing = false;
+  render();
+  message(trackObjectAction ? action === 'attach'
+    ? 'Click a fixed, single obstruction or bumper on the board or timeline. Escape cancels.'
+    : 'Click an object linked to the selected Cat Track on the board or timeline. Escape cancels.'
+    : action === 'attach' ? 'Attachment cancelled.' : 'Detachment cancelled.');
 });
 
 function focusMarker(index) { board.querySelector(`.marker[data-index="${index}"]`)?.focus({ preventScroll: true }); }
@@ -1888,8 +2014,8 @@ function placeAt(event) {
       ...placementPosition(point.x, point.y) };
     if (!item.random && !item.group && item.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(item.type)) Object.assign(item, snapWheel(item.x, item.y));
     level = validateDraft({ ...level, events: [...level.events, item] });
-    markChanged(); setSelection([level.events.length - 1], []);
-    message(`Placed ${description(item)} at ${item.time}s. Edit it in the inspector, or choose Place to add another.`);
+    markChanged(); setSelection([level.events.length - 1], [], true);
+    message(`Placed ${description(item)} at ${item.time}s. Click again to place another, or edit this object's details in the inspector.`);
   });
 }
 
@@ -1997,9 +2123,14 @@ board.addEventListener('pointercancel', () => {
   gesture = null; $('#selection-box').hidden = true; markChanged(); render();
 });
 board.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { connectingSpawn = null; setSelection([], []); board.focus({ preventScroll: true }); }
+  if (event.key === 'Escape') { connectingSpawn = null; trackObjectAction = null; setSelection([], []); board.focus({ preventScroll: true }); }
   else if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); deleteSelected(); board.focus({ preventScroll: true }); }
   else if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); selectAll(); }
+});
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !trackObjectAction) return;
+  event.preventDefault();
+  trackObjectAction = null; render(); message('Track object picking cancelled.');
 });
 function startPlacement() {
   if (readOnly()) return;
@@ -2355,7 +2486,7 @@ function applyToSelected() {
     return next;
   });
   level = validateDraft({ ...level, events });
-  markChanged(); setSelection(); message(`Updated ${plural(selectedEvents.size, 'event')}.`);
+  markChanged(); setSelection(selectedEvents, selectedBricks, placing); message(`Updated ${plural(selectedEvents.size, 'event')}.`);
 }
 
 function applyEventChanges() {

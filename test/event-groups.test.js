@@ -275,7 +275,7 @@ function editorContext() {
       addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);
   };
-  const context = vm.createContext({ ...api, $, MIXED: '', selectedEvents: new Set(), selectedBricks: new Set(),
+  const context = vm.createContext({ ...api, $, MIXED: '', selectedEvents: new Set(), selectedBricks: new Set(), placing: false,
     level: blank([]), touched: new Set(), readOnly: () => false,
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     selectedList: () => [...context.selectedEvents], mixedOption() {}, syncPalettes() {},

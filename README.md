@@ -650,8 +650,9 @@ the board; phones keep compact controls above it without scrolling away from pla
   hit per contact, including shields. Pause freezes the timer. Their minimalist
   double blades match the silver/gold sword colors and use the same handle width.
   The held axe shows only the number of seconds remaining (no suffix); weapon status
-  announces seconds remaining. The editor reports axe
-  strike capacity as **Unlimited (timed)** rather than a fixed hit count.
+  announces seconds remaining. The editor estimates axe strike capacity at one
+  successful strike per active second (6 for silver, 12 for gold); actual capacity
+  depends on enemy contact during the timer.
   The axe handle is also a continuous timer meter: it starts fully brown and
   turns white from the top end above the blade, across the blade, and toward the
   butt, becoming completely white at expiry. The upper end is part of the meter,
@@ -1290,13 +1291,20 @@ tracks his health; his death animation finishes before Koshi celebrates.
    inspector. Choosing a category or palette option automatically activates **Place**.
    Event category and object choices start a new placement instead of changing
    a selected event; brick options still apply immediately to selected boundary bricks.
+   Color variants share one palette tile (including stopwatches, bubbles, bumpers,
+   shields, Boom Time, each paint tool and each weapon family). Open the tile to
+   choose the specific color/metal; each variant retains its normal attributes.
+   Choosing another object type or category closes any open color menu.
    Set its appearance time
    and on-screen lifetime (required for food, optional for items and weapons).
    Leave an item or weapon lifetime blank to keep it until the level ends.
    With the **Place** tool, click/tap the dotted
-   playable area to add an object. Each placement is automatically selected,
-   switching to **Select** so inspector changes edit the object just placed.
-   Choose **Place**, **New event**, or a palette option to place another object.
+   playable area to add an object. Each placement is automatically selected while
+   **Place** stays active: click three times to place three objects, then change
+   details to edit only the third. Detail edits also retain **Place**.
+   Choose a new category/object tile, **Place**, or **New event** to configure a
+   fresh placement without editing the latest object. Explicitly selecting a
+   marker or timeline event switches to **Select** as before.
 3. Select a marker or event in the chronological list to edit it. Drag a marker,
    or expand **Exact position** and enter X/Y percentages. Changes to selected
    events apply automatically when a control changes (numeric fields commit when
@@ -1311,13 +1319,31 @@ tracks his health; his death animation finishes before Koshi celebrates.
    borders and richer, dark-tinted full-card backgrounds. Item, weapon, enemy, and object icons use the editor's
    palette artwork alongside the existing food icons. Selected events have a thick,
    glowing white border.
+   A bold category-colored band on each card's left shows its integer event ID,
+   matching the track attachment listing. IDs are one-based event-array positions,
+   not chronological row numbers; deleting events renumbers later IDs.
    Food, enemy, and weapon events have a light top-right badge showing their
    total food points, shield-weighted enemy points, or weapon strikes, including
    every grouped or independently random copy.
-   The **Available points reference** displays only totals for food points,
-   shield-weighted enemy points, weapons, weapon hits, and soccer goals.
+   The **Available points reference** table compares food points, shield-weighted
+   enemy points and soccer balls in the level against their targets, with estimated
+   weapon strikes below the enemy column. Targets use the greater of the win goal
+   and the applicable Cat Brick target, not their sum; minimum-enemy Cat Brick
+   targets contribute at least one point per required enemy. Score win goals are
+   disabled for survival/boss levels, but Cat Brick targets still apply.
    Totals include scheduled placements, one spawn per spawning brick, groups,
    independently random placements, enemy weapon drops, and weapons in Item Cases.
+   Swords/hammers count their charges. Axes assume one strike per active second
+   (silver: 6, gold: 12); Rope Darts assume one strike per shot (bronze: 3, silver: 5,
+   gold: 10). Actual axe/dart hits vary. The budget assumes every weapon is collected
+   and fully used, without accounting for misses, overwritten weapons, glass-breaking
+   costs, timing, recharge/duplication or non-weapon attacks. These assumptions also
+   appear under the collapsed **See assumptions** link below the table.
+   Table cells show only the numeric totals, without variable labels.
+   Red warnings to the table's right report food/enemy/ball totals below their
+   targets or weapon strikes below the enemy target. A yellow warning reports
+   weapon strikes below all enemy points. Equal values do not warn; these are
+   planning estimates, not impossibility checks.
    For custom levels, **Carried item or weapon** lets enemies drop any item, sword,
    or hammer at their defeat location. Weapons stay until collected and equip with
    their normal hit count. JSON uses `carriesItem` for either item or weapon IDs.
@@ -1673,7 +1699,9 @@ Choose **Draw replacement nodes**, then click the board to add connected straigh
 segments in order (respecting **Discretize X, Y**). Set its speed,
 power color, and optional **Closed loop**, then choose **Apply track**.
 Select an existing track from the menu or click its dotted path to show numbered
-nodes. Drag individual nodes to reposition them, or focus a node and use the
+nodes. The selected track and all of its linked objects glow on the board while
+the Tracks category is active, without adding those objects to the edit selection.
+Drag individual nodes to reposition them, or focus a node and use the
 arrow keys. Saved tracks update when a drag ends; invalid moves are reported and
 reverted, and cancelled drags leave the track unchanged. Nodes are placed and
 edited visually, without a coordinate-entry text box.
@@ -1681,13 +1709,21 @@ Open paths reverse at each endpoint; loops close automatically, so do not repeat
 the first node. A track cannot intersect, touch, or overlap itself except at
 adjacent segment endpoints. Different tracks may cross without joining.
 
-Select one or more single, fixed obstructions or bumpers, choose an existing
-track, then **Attach selected objects**. Each object's center starts at the
+Choose an existing track, click **Attach object**, then click a single, fixed
+obstruction or bumper on the board or in the event timeline. No prior object
+selection is needed. Invalid picks report an error and let you try again;
+**Cancel attachment** or Escape cancels picking. Repeat to attach more objects.
+The track menu lists only the linked event IDs below its controls, matching
+the timeline's colored ID bands.
+Each object's center starts at the
 nearest track point and moves continuously at the track's speed, independent of
 other attached objects. Its scheduled appearance time and existing attributes
 remain intact. Random placements and formations must be changed to single fixed
 placements before attachment. Detach objects before converting them to spawning
-brick templates. **Detach selected objects** removes their track assignment;
+brick templates. Choose **Detach object**, then click an object linked to the
+selected track on the board or timeline to remove its assignment. Invalid picks
+leave picking active; **Cancel detachment** or Escape cancels. Switching between
+Attach and Detach changes the pending action without editing anything;
 deleting a track detaches all its objects. Neither action deletes the objects.
 
 Yellow and dark grey tracks use the shared Power Brick switch: yellow moves while

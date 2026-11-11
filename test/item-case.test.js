@@ -253,6 +253,7 @@ test('editor offers case contents, reads them and applies mixed-selection change
     return nodes.get(selector);
   };
   const context = vm.createContext({ $, OBJECTS, MIXED: '', selectedEvents: new Set([0, 1, 2]),
+    selectedBricks: new Set(), placing: false,
     touched: new Set(['#event-contains-item']), level: level([placement('key'), placement('battery'),
       { ...placement(), type: 'soccer-ball', containsItem: undefined }]),
     validateDraft: validateCustomLevel, markChanged() {}, setSelection() {}, message() {}, plural() {} });

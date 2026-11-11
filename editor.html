@@ -102,13 +102,22 @@
           <div class="selection-toolbar"><output id="selection-summary" aria-live="polite">Nothing selected</output><label class="inline-label"><input id="additive-select" type="checkbox"> Add to selection</label><button id="select-all" type="button">Select all</button><button id="clear-selection" type="button" disabled>Clear</button></div>
           <section class="point-reference" aria-labelledby="point-reference-heading">
             <h2 id="point-reference-heading">Available points reference</h2>
-            <dl aria-live="polite">
-              <div><dt>Food points</dt><dd id="available-food">0</dd></div>
-              <div><dt>Enemy points</dt><dd id="available-enemy">0</dd></div>
-              <div><dt>Weapons</dt><dd id="available-weapons">0</dd></div>
-              <div><dt>Weapon hits</dt><dd id="available-weapon-hits">0</dd></div>
-              <div><dt>Soccer goals</dt><dd id="available-soccer">0</dd></div>
-            </dl>
+            <div class="point-reference-grid">
+              <table aria-label="Level points and targets" aria-live="polite">
+                <thead><tr><th scope="col"></th><th scope="col">Food</th><th scope="col">Enemies</th><th scope="col">Soccer Balls</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Target</th><td><output id="target-food">0</output></td><td><output id="target-enemy">0</output></td><td><output id="target-soccer">0</output></td></tr>
+                  <tr><th scope="row">In Level</th><td><output id="available-food">0</output></td><td><output id="available-enemy">0</output></td><td><output id="available-soccer">0</output></td></tr>
+                  <tr><th scope="row">Weapons</th><td class="not-applicable" aria-label="Not applicable"></td><td><output id="available-weapon-hits">0</output></td><td class="not-applicable" aria-label="Not applicable"></td></tr>
+                </tbody>
+              </table>
+              <div id="point-warnings" role="status" aria-label="Point budget warnings" hidden></div>
+            </div>
+            <details class="point-assumptions">
+              <summary>See assumptions</summary>
+              <p>Targets use the larger of the level win target and any Cat Brick food, enemy-point, minimum-enemy or soccer target (not their sum). Minimum-enemy targets count at least one point per required enemy. Enemy totals are shield-weighted points; soccer totals count balls.</p>
+              <p>Weapon estimate: swords and hammers use their charges; axes assume one successful strike per active second (silver: 6, gold: 12); Rope Darts assume one successful strike per shot (bronze: 3, silver: 5, gold: 10). Axes and darts may hit more or fewer enemies. Totals include every scheduled/grouped/random copy, one spawn per spawning brick, enemy weapon drops and weapons inside Item Cases. Assume every pickup is collected and used fully; misses, replacement losses, case-breaking costs, timing, recharges, duplication and non-weapon attacks are not simulated. Warnings are planning estimates, not proof a level is impossible.</p>
+            </details>
           </section>
           <div id="editor-board-scroll" tabindex="0" role="region" aria-label="Scrollable level board">
           <div id="editor-board" data-orientation="landscape" tabindex="-1">
@@ -183,12 +192,11 @@
                   <button id="track-delete" type="button">Delete track</button>
                 </div>
                 <div class="tool-group">
-                  <button id="track-attach" type="button">Attach selected objects</button>
-                  <button id="track-detach" type="button">Detach selected objects</button>
+                  <button id="track-attach" type="button" aria-pressed="false">Attach object</button>
+                  <button id="track-detach" type="button" aria-pressed="false">Detach object</button>
                 </div>
               </form>
             </fieldset>
-            <p>Click Draw, then click the board to add nodes in order. Apply to save. Select a track, then drag its numbered nodes to move them, or focus a node and use the arrow keys. Invalid moves are reverted. Open tracks reverse at endpoints; loops close automatically. Different tracks may cross. Select fixed, single obstructions or bumpers to attach them. Timeline previews use the starting power color.</p>
             <output id="track-attachments" aria-live="polite"></output>
           </section>
           <section id="brick-panel" class="brick-inspector" aria-label="Brick inspector" hidden>

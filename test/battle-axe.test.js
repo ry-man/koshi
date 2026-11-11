@@ -125,8 +125,9 @@ test('axe spawns validate, and on-screen lifetime does not shorten the equipped 
 test('editor strike totals handle timed scheduled axes, spawners and enemy drops without NaN', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ WEAPONS, FOODS, SHIELDS, $: selector => {
-    if (!nodes.has(selector)) nodes.set(selector, {});
+  const context = vm.createContext({ WEAPONS, FOODS, SHIELDS, level: {},
+    document: { createElement: () => ({ dataset: {} }) }, $: selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.childElementCount = children.length; } });
     return nodes.get(selector);
   } });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
@@ -137,9 +138,9 @@ test('editor strike totals handle timed scheduled axes, spawners and enemy drops
       [[{ kind: 'enemy', type: 'mouse', carriesItem: type }], []],
     ]) {
       const totals = context.pointReference(events, bricks);
-      assert.equal(totals.weaponHits, Infinity);
+      assert.equal(totals.weaponHits, WEAPONS[type].seconds * (events[0]?.group?.count ?? 1));
       context.renderPointReference(events, bricks);
-      assert.equal(nodes.get('#available-weapon-hits').textContent, 'Unlimited (timed)');
+      assert.equal(nodes.get('#available-weapon-hits').textContent, String(totals.weaponHits));
     }
   }
 });

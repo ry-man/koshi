@@ -21,6 +21,7 @@ test('enemy palette separates bosses without changing category, selection, or re
     },
     replaceChildren(...children) { this.children = []; this.append(...children); },
     setAttribute(name, value) { this.attributes[name] = value; },
+    querySelectorAll() { return []; },
   });
   const palette = node();
   const select = { value: 'boss', disabled: false, parentElement: {},
@@ -28,6 +29,7 @@ test('enemy palette separates bosses without changing category, selection, or re
   const entry = { select, palette, signature: null, buttons: [] };
   const context = vm.createContext({
     palettes: new Map([['event-type', entry]]), MIXED: '',
+    readOnly: () => false,
     $: () => ({ value: 'enemy', parentElement: {} }),
     document: { createElement: node, querySelectorAll: () => [] },
     choiceButton: (value, name, control, action) => Object.assign(node(), { action }),
@@ -73,6 +75,114 @@ test('event inspector applies edits automatically while preserving validation an
   assert.equal(applied, 1);
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   assert.doesNotMatch(html, /id="apply-event"/);
+});
+
+test('choosing another palette object or category closes open color menus before applying the choice', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  for (const control of ['event-type', 'event-kind', 'brick-spawn-item']) {
+    const menus = [{ open: true }, { open: true }];
+    let click, applied = 0, synced = 0, locked = false;
+    const context = vm.createContext({
+      document: {
+        createElement: () => ({ setAttribute() {}, append() {}, addEventListener(type, handler) { click = handler; } }),
+        querySelectorAll(selector) { assert.equal(selector, '.variant-menu[open]'); return menus; },
+      },
+      picture() {}, readOnly: () => locked, placing: false, syncTool() { synced++; },
+    });
+    vm.runInContext(source.slice(source.indexOf('function choiceButton('), source.indexOf('function setupPalettes(')), context);
+    context.choiceButton('battery', 'Battery', control, () => {
+      assert.ok(menus.every(menu => !menu.open), 'menus close before changing object settings');
+      applied++;
+    });
+    click({});
+    assert.equal(applied, 1);
+    assert.equal(synced, 1);
+    assert.equal(context.placing, true);
+    locked = true;
+    menus[0].open = true;
+    click({});
+    assert.equal(applied, 1, 'read-only choices remain blocked');
+    assert.equal(menus[0].open, true);
+  }
+});
+
+test('color variants share a tile, preserve their types and start a fresh placement', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const node = tag => ({
+    tag, children: [], dataset: {}, attributes: {}, listeners: {},
+    append(...children) {
+      for (const child of children) {
+        if (child && typeof child === 'object') {
+          if (child.parent) child.parent.children = child.parent.children.filter(item => item !== child);
+          child.parent = this;
+        }
+        this.children.push(child);
+      }
+    },
+    before(child) { const index = this.parent.children.indexOf(this); child.parent = this.parent; this.parent.children.splice(index, 0, child); },
+    replaceChildren(...children) { this.children = []; this.append(...children); },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(type, action) { (this.listeners[type] ??= []).push(action); },
+    querySelectorAll(selector) {
+      return this.children.filter(child => child && typeof child === 'object').flatMap(child => [
+        ...(selector === '.variant-menu' ? child.className === 'variant-menu' ? [child] : [] : child.tag === selector ? [child] : []),
+        ...child.querySelectorAll(selector),
+      ]);
+    },
+    querySelector(selector) { return this.querySelectorAll(selector)[0]; },
+  });
+  for (const id of ['event-type', 'brick-spawn-item']) {
+    const values = ['stopwatch', 'stopwatch-green', 'stopwatch-blue'].map(type => id === 'event-type' ? type : `item:${type}`);
+    const select = { value: values[1], disabled: false, parentElement: {},
+      options: values.map(value => ({ value, textContent: value })), dispatchEvent() { this.dispatched = this.value; } };
+    const palette = node('div'), entry = { select, palette, signature: null, buttons: [] };
+    let placements = 0, locked = false;
+    const context = vm.createContext({
+      palettes: new Map([[id, entry]]), MIXED: '', readOnly: () => locked,
+      $: () => ({ value: 'item', disabled: false, parentElement: {} }),
+      document: { createElement: node, querySelectorAll: () => [] }, Event: class {},
+      picture: () => node('span'), startPlacement: () => placements++,
+      choiceButton: (value, name, control, action) => Object.assign(node('button'), { action }),
+    });
+    vm.runInContext(source.slice(source.indexOf('function syncPalettes('), source.indexOf('function message(')), context);
+    context.syncPalettes();
+    assert.equal(palette.children.length, 1);
+    const menu = palette.children[0], summary = menu.children[0];
+    assert.equal(menu.className, 'variant-menu');
+    assert.equal(menu.dataset.selected, 'true');
+    assert.equal(menu.children[1].children.length, 3);
+    summary.listeners.click[0]({ preventDefault() { throw new Error('Unexpected block'); } });
+    assert.equal(placements, id === 'event-type' ? 1 : 0);
+    entry.buttons[2].action();
+    assert.equal(select.dispatched, values[2], 'the actual colored type is dispatched');
+    entry.buttons[2].listeners.click[0]();
+    assert.equal(menu.open, false);
+    locked = true; menu.open = true; context.syncPalettes();
+    assert.equal(menu.open, false);
+    let prevented = false;
+    summary.listeners.click[0]({ preventDefault() { prevented = true; } });
+    assert.equal(prevented, true, 'campaign palettes cannot start a placement');
+  }
+});
+
+test('Cat Circle palette and timeline artwork use the shared circle renderer', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const canvases = [], calls = [];
+  const context = vm.createContext({
+    $: () => ({ value: 'object' }), OBJECTS,
+    document: { createElement(tag) {
+      const node = { className: '', append(child) { this.child = child; }, setAttribute() {}, getContext: () => 'context' };
+      if (tag === 'canvas') canvases.push(node);
+      return node;
+    } },
+    drawCatCircle: (ctx, circle) => calls.push([ctx, circle]),
+  });
+  vm.runInContext(source.slice(source.indexOf('function picture('), source.indexOf('function choiceButton(')), context);
+  context.picture('cat-circle', 'event-type');
+  context.picture('object:cat-circle', 'brick-spawn-item');
+  assert.equal(canvases.length, 2);
+  assert.ok(canvases.every(canvas => canvas.width === 64 && canvas.height === 64));
+  assert.ok(calls.every(([ctx, circle]) => ctx === 'context' && circle.radius === OBJECTS['cat-circle'].radius));
 });
 
 test('board placement selects the new event and inspector changes edit it instead of a future placement', () => {
@@ -125,7 +235,7 @@ test('board placement selects the new event and inspector changes edit it instea
     assert.equal(context.level.events.length, 2);
     assert.deepEqual([...context.selectedEvents], [1]);
     assert.equal(context.selectedBricks.size, 0);
-    assert.equal(context.placing, false);
+    assert.equal(context.placing, true);
     assert.equal(context.activeCategory, kind);
     assert.equal(context.$('#event-time').value, '7');
     assert.equal(context.$('#event-x').value, '35');
@@ -142,16 +252,28 @@ test('board placement selects the new event and inspector changes edit it instea
     assert.equal(context.level.events[1].x, .8);
     assert.deepEqual(context.level.events[0], original);
     assert.deepEqual([...context.selectedEvents], [1]);
+    assert.equal(context.placing, true, 'detail edits retain placement mode');
+
+    context.placeAt({});
+    context.placeAt({});
+    assert.equal(context.level.events.length, 4);
+    assert.deepEqual([...context.selectedEvents], [3]);
+    context.$('#event-x').value = '90';
+    context.touched.add('#event-x');
+    listeners.change();
+    assert.equal(context.level.events[3].x, .9);
+    assert.equal(context.level.events[2].x, .35, 'only the newest placement receives detail changes');
+    assert.equal(context.placing, true);
 
     const before = JSON.stringify(context.level);
     reject = true;
     context.placeAt({});
     assert.match(failure.message, /Rejected placement/);
     assert.equal(JSON.stringify(context.level), before);
-    assert.deepEqual([...context.selectedEvents], [1], 'failed placements preserve selection');
-    assert.equal(populated, 2);
-    assert.equal(rendered, 2);
-    assert.equal(changed, 2);
+    assert.deepEqual([...context.selectedEvents], [3], 'failed placements preserve selection');
+    assert.equal(populated, 5);
+    assert.equal(rendered, 5);
+    assert.equal(changed, 5);
   }
 });
 
@@ -401,9 +523,17 @@ test('settings and introductions share a collapsible frame, and points sit direc
   assert.match(settings, /aria-label="Level settings" open>/);
   for (const id of ['settings-form', 'cutscene-form', 'level-info-form']) assert.ok(settings.includes(`id="${id}"`));
   assert.doesNotMatch(settings, /Apply settings|point-reference/);
-  assert.match(html, /id="available-soccer"[^]*?<\/dl>\s*<\/section>\s*<div id="editor-board-scroll"/);
+  assert.match(html, /id="available-soccer"[^]*?<\/table>[^]*?<\/section>\s*<div id="editor-board-scroll"/);
   const reference = html.match(/<section class="point-reference"[\s\S]*?<\/section>/)[0];
-  assert.doesNotMatch(reference, /<p\b/);
+  assert.match(reference, /axes assume one successful strike per active second/);
+  assert.match(reference, /id="point-warnings"/);
+  const assumptions = reference.match(/<details class="point-assumptions">([\s\S]*?)<\/details>/);
+  assert.ok(assumptions, 'assumptions are collapsed by default');
+  assert.match(assumptions[1], /<summary>See assumptions<\/summary>/);
+  assert.equal((assumptions[1].match(/<p>/g) ?? []).length, 2, 'both assumption paragraphs are preserved');
+  const table = reference.match(/<table[\s\S]*?<\/table>/)[0];
+  assert.doesNotMatch(table, /<small>|\b[ FES]_[tlw]\b/);
+  assert.equal((table.match(/<output\b/g) ?? []).length, 7, 'all numeric totals remain');
   assert.match(html, /id="show-random" type="checkbox" checked/);
 });
 
@@ -499,8 +629,9 @@ test('random-spawn visibility filters random groups, multi-count events, and cam
 test('point reference counts event groups, independent random events, shield values and spawners', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, $: selector => {
-    if (!nodes.has(selector)) nodes.set(selector, {});
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, level: blank(),
+    document: { createElement: () => ({ dataset: {} }) }, $: selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.children = children; this.childElementCount = children.length; } });
     return nodes.get(selector);
   } });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
@@ -535,8 +666,9 @@ test('point reference counts event groups, independent random events, shield val
 test('weapon budget includes grouped pickups, hammers, enemy drops and active spawning bricks without mutating levels', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, $: selector => {
-    if (!nodes.has(selector)) nodes.set(selector, {});
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, level: blank(),
+    document: { createElement: () => ({ dataset: {} }) }, $: selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.children = children; this.childElementCount = children.length; } });
     return nodes.get(selector);
   } });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
@@ -566,15 +698,42 @@ test('weapon budget includes grouped pickups, hammers, enemy drops and active sp
   assert.deepEqual(JSON.parse(JSON.stringify(totals.shields)), { none: 2, red: 4, green: 1, blue: 2 });
   assert.equal(totals.extra, true, 'dropped batteries can recharge weapon sources');
   context.renderPointReference(events, bricks);
-  assert.equal(nodes.get('#available-weapons').textContent, '9');
   assert.equal(nodes.get('#available-weapon-hits').textContent, '43');
-  assert.equal(nodes.size, 5, 'only numeric totals are rendered');
+  assert.equal(nodes.size, 8, 'level totals, target totals and warnings are rendered');
   context.renderPointReference([{ kind: 'enemy', type: 'mouse', shield: 'blue' }], []);
   assert.equal(nodes.get('#available-enemy').textContent, '4');
   context.renderPointReference([], []);
-  assert.equal(nodes.get('#available-weapons').textContent, '0');
   assert.equal(nodes.get('#available-weapon-hits').textContent, '0');
   assert.equal(JSON.stringify({ events, bricks }), before);
+});
+
+test('point targets include Cat Brick goals and warnings use strict thresholds and exact messages', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const context = vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('function pointTargets('), source.indexOf('function renderPointReference(')), context);
+  const parse = value => JSON.parse(JSON.stringify(value));
+  const level = { goal: 10, killGoal: 5, goalsGoal: 3 };
+  assert.deepEqual(parse(context.pointTargets(level)), { food: 10, enemy: 5, soccer: 3 });
+  for (const [type, kind] of [['food', 'food'], ['enemyPoints', 'enemy'], ['enemyMin', 'enemy'], ['goals', 'soccer']]) {
+    const withTarget = { ...level, catBlock: { trigger: { type, amount: 20 } } };
+    assert.equal(context.pointTargets(withTarget)[kind], 20);
+    assert.equal(context.pointTargets({ ...withTarget, survive: true })[kind], 20);
+    assert.equal(context.pointTargets({ ...withTarget, bossLevel: true })[kind], 20);
+    assert.equal(context.pointTargets({ ...level, catBlock: { trigger: { type, amount: 1 } } })[kind], level[{ food: 'goal', enemy: 'killGoal', soccer: 'goalsGoal' }[kind]]);
+  }
+  assert.deepEqual(parse(context.pointTargets({ ...level, survive: true })), { food: 0, enemy: 0, soccer: 0 });
+  const targets = { food: 10, enemy: 5, soccer: 3 };
+  assert.deepEqual(parse(context.pointWarnings({ food: 10, enemy: 5, soccer: 3, weaponHits: 5 }, targets)), []);
+  assert.deepEqual(parse(context.pointWarnings({ food: 9, enemy: 4, soccer: 2, weaponHits: 3 }, targets)), [
+    { color: 'red', text: 'Not sufficient food in level to reach food target' },
+    { color: 'red', text: 'Not sufficient enemies in level to reach enemy target' },
+    { color: 'red', text: 'Not sufficient weapons in level to reach enemy target' },
+    { color: 'yellow', text: 'Not sufficient weapons in level to reach defeat all enemies' },
+    { color: 'red', text: 'Not sufficient soccer balls in level to reach soccer goal target' },
+  ]);
+  assert.deepEqual(parse(context.pointWarnings({ food: 10, enemy: 6, soccer: 3, weaponHits: 5 }, targets)), [
+    { color: 'yellow', text: 'Not sufficient weapons in level to reach defeat all enemies' },
+  ]);
 });
 
 test('timeline categories have subdued card colors and artwork while retaining sorting and selection', () => {
@@ -607,6 +766,9 @@ test('timeline categories have subdued card colors and artwork while retaining s
   const colors = new Set();
   for (const [index, li] of list.children.entries()) {
     const button = li.children[0], kind = button.dataset.kind;
+    const id = button.children.find(child => child.className === 'event-id');
+    assert.equal(id.textContent, String(5 - index), 'ID follows original event index rather than sorted position');
+    assert.equal(id.attributes['aria-label'], `Event ID ${5 - index}`);
     assert.equal(button.children[1].textContent, kind);
     assert.equal(button.children[0].textContent, `${index + 1}s`);
     assert.equal(button.attributes['aria-pressed'], String(kind === 'weapon'));
@@ -640,8 +802,9 @@ test('timeline categories have subdued card colors and artwork while retaining s
     { kind: 'enemy', type: 'boss', expected: 1 },
     { kind: 'weapon', type: 'silver', group: { count: 4 }, expected: 20 },
     { kind: 'weapon', type: 'hammer-gold', randomCount: 100, expected: 1000 },
-    { kind: 'weapon', type: 'axe-silver', expected: 'Unlimited (timed)' },
-    { kind: 'weapon', type: 'axe-gold', group: { count: 3 }, expected: 'Unlimited (timed)' },
+    { kind: 'weapon', type: 'axe-silver', expected: 6 },
+    { kind: 'weapon', type: 'axe-gold', group: { count: 3 }, expected: 36 },
+    { kind: 'weapon', type: 'rope-dart-silver', randomCount: 2, expected: 10 },
   ];
   context.level.events = examples.map((example, time) => ({ ...example, time, x: .5, y: .5 }));
   context.renderList();
@@ -690,7 +853,7 @@ test('palette choices activate Place mode before applying their action and respe
   const context = vm.createContext({
     placing: false, readOnly: () => locked, picture: () => ({}),
     syncTool() { synced++; },
-    document: { createElement: () => ({
+    document: { querySelectorAll: () => [], createElement: () => ({
       setAttribute() {}, append() {}, addEventListener(type, handler) { this[type] = handler; },
     }) },
   });
@@ -1570,7 +1733,7 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
     CARRIED_ITEM_MIXED: '__mixed-carried-item__',
     snapWheel,
     document: { createElement: () => ({}) }, MIXED: '',
-    level: blank(), selectedEvents: new Set(), touched: new Set(),
+    level: blank(), selectedEvents: new Set(), selectedBricks: new Set(), placing: false, touched: new Set(),
     common: values => values.every(value => value === values[0]) ? values[0] : '',
     selectedList: () => [...context.selectedEvents],
     mixedOption: () => {}, syncPalettes() {}, readOnly: () => false,
