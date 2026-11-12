@@ -3251,41 +3251,6 @@ const levels = [
           "keysRequired": 5
         },
         {
-          "time": 0,
-          "kind": "item",
-          "type": "key",
-          "x": 0.058688098302564655,
-          "y": 0.24226230238254287
-        },
-        {
-          "time": 0,
-          "kind": "item",
-          "type": "key",
-          "x": 0.06246090462201524,
-          "y": 0.370518815408595
-        },
-        {
-          "time": 0,
-          "kind": "item",
-          "type": "key",
-          "x": 0.06246090462201524,
-          "y": 0.46671120017813406
-        },
-        {
-          "time": 0,
-          "kind": "item",
-          "type": "key",
-          "x": 0.05114248566366349,
-          "y": 0.5308394566911601
-        },
-        {
-          "time": 0,
-          "kind": "item",
-          "type": "key",
-          "x": 0.0473696793442129,
-          "y": 0.370518815408595
-        },
-        {
           "time": 3,
           "kind": "food",
           "type": "S",
@@ -3325,7 +3290,7 @@ const levels = [
           "type": "P",
           "x": 0.2963748964279515,
           "y": 0.49877532843464706,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 18,
@@ -3333,7 +3298,7 @@ const levels = [
           "type": "P",
           "x": 0.2511012205945445,
           "y": 0.11400578935649076,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 18,
@@ -3341,7 +3306,7 @@ const levels = [
           "type": "P",
           "x": 0.2058275447611375,
           "y": 0.49877532843464706,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 18,
@@ -3349,14 +3314,14 @@ const levels = [
           "type": "P",
           "x": 0.2511012205945445,
           "y": 0.8835448675128034,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 20,
           "kind": "enemy",
           "type": "mouse",
           "random": true,
-          "randomCount": 3,
+          "randomCount": 2,
           "shield": null
         },
         {
@@ -3367,10 +3332,10 @@ const levels = [
           "y": 0.11400578935649076
         },
         {
-          "time": 25,
+          "time": 10,
           "kind": "weapon",
           "type": "wood",
-          "x": 0.2963748964279515,
+          "x": 0.2058275447611375,
           "y": 0.8835448675128034
         },
         {
@@ -3414,6 +3379,113 @@ const levels = [
           "pattern": "stripes",
           "width": 304.3203863956534,
           "height": 165.56521739130437
+        },
+        {
+          "time": 10,
+          "kind": "weapon",
+          "type": "wood",
+          "x": 0.2058275447611375,
+          "y": 0.11400578935649076
+        },
+        {
+          "time": 47,
+          "kind": "enemy",
+          "type": "mouse",
+          "x": 0.4321959239281726,
+          "y": 0.21019817412602984,
+          "group": {
+            "shape": "line",
+            "count": 4,
+            "size": 0.75,
+            "angle": 0
+          },
+          "shield": null,
+          "carriesItem": "key"
+        },
+        {
+          "time": 47,
+          "kind": "weapon",
+          "type": "bronze",
+          "x": 0.4321959239281726,
+          "y": 0.6911600979737252,
+          "group": {
+            "shape": "line",
+            "count": 2,
+            "size": 0.75,
+            "angle": 0
+          }
+        },
+        {
+          "time": 47,
+          "kind": "food",
+          "type": "S",
+          "x": 0.428423117608722,
+          "y": 0.8514807392562903,
+          "group": {
+            "shape": "line",
+            "count": 7,
+            "size": 1,
+            "angle": 0
+          },
+          "lifetime": 15
+        },
+        {
+          "time": 96,
+          "kind": "item",
+          "type": "key",
+          "x": 0.6321546588590536,
+          "y": 0.1781340458695168
+        },
+        {
+          "time": 96,
+          "kind": "food",
+          "type": "P",
+          "x": 0.5680169514283936,
+          "y": 0.49877532843464706,
+          "group": {
+            "shape": "line",
+            "count": 3,
+            "size": 0.75,
+            "angle": 90
+          },
+          "lifetime": 10
+        },
+        {
+          "time": 96,
+          "kind": "food",
+          "type": "P",
+          "x": 0.7000651726091641,
+          "y": 0.49877532843464706,
+          "group": {
+            "shape": "line",
+            "count": 3,
+            "size": 0.75,
+            "angle": 90
+          },
+          "lifetime": 10
+        },
+        {
+          "time": 96,
+          "kind": "enemy",
+          "type": "mouse",
+          "random": true,
+          "randomCount": 4,
+          "shield": null
+        },
+        {
+          "time": 90,
+          "kind": "weapon",
+          "type": "silver",
+          "x": 0.6321546588590536,
+          "y": 0.8835448675128034
+        },
+        {
+          "time": 111,
+          "kind": "enemy",
+          "type": "mouse",
+          "random": true,
+          "randomCount": 3,
+          "shield": null
         }
       ],
       "bossLevel": false,
@@ -4288,27 +4360,6 @@ const levels = [
         },
         {
           "edge": "left",
-          "start": 0.5555555555555556,
-          "end": 0.5833333333333334,
-          "kind": "normal",
-          "crumbler": null,
-          "warped": null,
-          "slimeColor": "blue",
-          "conveyorDirection": "clockwise",
-          "slimed": true,
-          "springs": false,
-          "spikes": false,
-          "conveyor": false,
-          "power": false,
-          "portal": null,
-          "turret": null,
-          "hazard": null,
-          "toggle": null,
-          "boost": false,
-          "spawner": null
-        },
-        {
-          "edge": "left",
           "start": 0.3611111111111111,
           "end": 0.3888888888888889,
           "kind": "normal",
@@ -4407,6 +4458,27 @@ const levels = [
           "spikes": false,
           "conveyor": false,
           "barrier": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0.5555555555555556,
+          "end": 0.5833333333333334,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "red",
+          "conveyorDirection": "clockwise",
+          "slimed": true,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
           "power": false,
           "portal": null,
           "turret": null,
