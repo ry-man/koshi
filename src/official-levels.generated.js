@@ -3403,16 +3403,16 @@ const levels = [
           "carriesItem": "key"
         },
         {
-          "time": 47,
+          "time": 30,
           "kind": "weapon",
           "type": "bronze",
-          "x": 0.4321959239281726,
-          "y": 0.6911600979737252,
+          "x": 0.33787576594190794,
+          "y": 0.49877532843464706,
           "group": {
             "shape": "line",
             "count": 2,
             "size": 0.75,
-            "angle": 0
+            "angle": 90
           }
         },
         {
@@ -3430,14 +3430,14 @@ const levels = [
           "lifetime": 15
         },
         {
-          "time": 96,
+          "time": 82,
           "kind": "item",
           "type": "key",
           "x": 0.6321546588590536,
           "y": 0.1781340458695168
         },
         {
-          "time": 96,
+          "time": 78,
           "kind": "food",
           "type": "P",
           "x": 0.5680169514283936,
@@ -3451,7 +3451,7 @@ const levels = [
           "lifetime": 10
         },
         {
-          "time": 96,
+          "time": 79,
           "kind": "food",
           "type": "P",
           "x": 0.7000651726091641,
@@ -3465,7 +3465,7 @@ const levels = [
           "lifetime": 10
         },
         {
-          "time": 96,
+          "time": 81,
           "kind": "enemy",
           "type": "mouse",
           "random": true,
@@ -3473,7 +3473,7 @@ const levels = [
           "shield": null
         },
         {
-          "time": 90,
+          "time": 80,
           "kind": "weapon",
           "type": "silver",
           "x": 0.6321546588590536,
@@ -3485,6 +3485,14 @@ const levels = [
           "type": "mouse",
           "random": true,
           "randomCount": 3,
+          "shield": null
+        },
+        {
+          "time": 35,
+          "kind": "enemy",
+          "type": "mouse",
+          "x": 0.36051260385861145,
+          "y": 0.49877532843464706,
           "shield": null
         }
       ],
@@ -3501,10 +3509,10 @@ const levels = [
           },
           {
             "time": 60,
-            "speed": 0.25
+            "speed": 0.5
           },
           {
-            "time": 90,
+            "time": 75,
             "speed": 0
           },
           {
@@ -3524,6 +3532,44 @@ const levels = [
         "trigger": {
           "type": "chest"
         }
+      },
+      "cutscene": {
+        "theme": "happy-meadows",
+        "lines": [
+          {
+            "speaker": "koshi",
+            "text": "Hey! Where did everyone go? Did I already win? Wow, what a boring game.",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "koshi",
+            "text": "I guess I'll go for a walk now like I had planned before I was so rudely interrupted.",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "mouse",
+            "text": "Hero cat detected! Let's go get him, guys!",
+            "actors": [
+              {
+                "character": "mouse",
+                "x": 0.67,
+                "y": 0.65
+              }
+            ]
+          }
+        ]
       },
       "levelInfo": {
         "pages": [
