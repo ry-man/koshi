@@ -271,7 +271,7 @@ function drawOfficialBackground(ctx, theme) {
   }
 }
 
-function drawTom(ctx, time, speaking) {
+function drawTom(ctx, time, speaking, walking = false) {
   const talking = speaking && Math.floor(time * 8) % 2 === 0;
   ctx.save();
   ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 2;
@@ -284,11 +284,14 @@ function drawTom(ctx, time, speaking) {
   ctx.lineTo(39, 0); ctx.lineTo(28, 6); ctx.lineTo(34, 12); ctx.lineTo(14, 14);
   ctx.closePath(); ctx.fill(); ctx.stroke();
   for (const x of [-10, 10]) {
+    ctx.save();
+    if (walking) ctx.translate(Math.sin(time * 14 + (x < 0 ? 0 : Math.PI)) * 6, 0);
     ctx.fillStyle = '#84939e'; ctx.fillRect(x - 3, 20, 6, 17); ctx.strokeRect(x - 3, 20, 6, 17);
     ctx.beginPath();
     ctx.moveTo(x + 5, 34); ctx.lineTo(x - 20, 34); ctx.lineTo(x - 15, 38);
     ctx.lineTo(x - 21, 42); ctx.lineTo(x - 14, 46); ctx.lineTo(x + 6, 44);
     ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
   }
   ctx.fillStyle = metal;
   ctx.beginPath();
@@ -622,6 +625,8 @@ class CutscenePlayer {
     this.playback = new Cutscene(scene, this.motion.matches);
     this.paused = document.hidden;
     this.positions = new Map();
+    this.actorLine = null;
+    this.animationTime = 0;
     this.displayedIndex = -1;
     document.querySelector('#cutscene-heading').textContent = openingFinish ? "Koshi's Quest / Prologue"
       : `Level ${level} / ${sceneNames[scene.theme]}`;
@@ -648,7 +653,10 @@ class CutscenePlayer {
   update(seconds) {
     if (!this.active) return;
     this.playback.reducedMotion = this.motion.matches;
-    if (!this.paused) this.playback.update(Math.min(seconds, .1));
+    if (!this.paused) {
+      this.playback.update(Math.min(seconds, .1));
+      if (Number.isFinite(seconds) && seconds > 0) this.animationTime += Math.min(seconds, .1);
+    }
     const { line, index } = this.playback;
     if (index !== this.displayedIndex) {
       this.displayedIndex = index;
@@ -763,27 +771,79 @@ class CutscenePlayer {
         horizontalPositions.set(actor, x);
       });
     }
-    line.actors.forEach((actor, i) => {
-      const key = `${actor.character}:${i}`;
+    const animationTime = this.animationTime ?? 0;
+    const changedLine = this.actorLine !== line;
+    const initialLine = !this.actorLine;
+    const occurrences = new Map();
+    const present = new Set();
+    const offscreenX = (actor, scale) => {
+      const margin = 100 * scale * height / width * 960 / 540;
+      return actor.x < .5 ? -margin : 960 + margin;
+    };
+    line.actors.forEach(actor => {
+      const occurrence = occurrences.get(actor.character) ?? 0;
+      occurrences.set(actor.character, occurrence + 1);
+      const key = `${actor.character}:${occurrence}`;
+      present.add(key);
       const target = { x: horizontalPositions.get(actor) ?? actor.x * 960, y: actor.y * 540 };
-      const previous = this.positions.get(key) ?? target;
-      const position = reducedMotion ? target : this.paused ? previous : {
-        x: previous.x + (target.x - previous.x) * .12, y: previous.y + (target.y - previous.y) * .12,
-      };
-      // Apply phone spacing immediately, including when the cast or orientation changes.
-      if (mobile) position.x = target.x;
+      let position = this.positions.get(key);
+      if (changedLine || !position) {
+        const entering = !initialLine && (!position || position.entering || position.leaving);
+        const from = initialLine || reducedMotion ? target : position ? { x: position.x, y: position.y }
+          : { x: offscreenX(actor, actorScale), y: target.y };
+        position = {
+          ...from, actor, target, from, start: animationTime,
+          duration: entering ? Math.abs(target.x - from.x) / 720 : .25,
+          entering, leaving: false, scale: actorScale,
+        };
+      }
+      position.target = target;
+      position.actor = actor;
+      position.scale = actorScale;
+      // Preserve immediate phone spacing for the cast already on stage, not arrivals.
+      if (mobile && !position.entering) position.from.x = target.x;
       this.positions.set(key, position);
-      const speaking = actor.character === line.speaker;
+    });
+    for (const [key, position] of this.positions) {
+      if (!present.has(key)) {
+        if (reducedMotion) { this.positions.delete(key); continue; }
+        if (!position.leaving) {
+          position.from = { x: position.x, y: position.y };
+          position.target = { x: offscreenX(position.actor, position.scale), y: position.y };
+          position.start = animationTime;
+          position.duration = Math.abs(position.target.x - position.x) / 720;
+          position.leaving = true;
+          position.entering = false;
+        }
+      }
+      const progress = reducedMotion ? 1 : Math.min(1,
+        Math.max(0, animationTime - position.start) / Math.max(.001, position.duration));
+      position.x = progress === 1 ? position.target.x : position.from.x + (position.target.x - position.from.x) * progress;
+      position.y = progress === 1 ? position.target.y : position.from.y + (position.target.y - position.from.y) * progress;
+      if (position.leaving && progress === 1) { this.positions.delete(key); continue; }
+      if (progress === 1) {
+        position.entering = false;
+        position.from = { ...position.target };
+      }
+      const actor = position.actor;
+      const walking = !reducedMotion && progress < 1 && (position.entering || position.leaving);
+      const speaking = !position.leaving && actor.character === line.speaker;
       const snake = actor.character === 'snake';
       ctx.save();
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
-      ctx.scale(actorScale * height / width * 960 / 540, actorScale);
+      ctx.scale(position.scale * height / width * 960 / 540, position.scale);
       const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, 'robo-trash-bin': 23, boss: 40 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.translate(0, speaking ? Math.sin(time * 6) * 3 / actorScale : 0);
-      if (actor.character === 'tom') drawTom(ctx, time, speaking);
+      ctx.translate(0, walking ? -Math.abs(Math.sin(animationTime * 14)) * 4
+        : speaking ? Math.sin(time * 6) * 3 / position.scale : 0);
+      if (walking) {
+        const right = position.target.x > position.from.x;
+        ctx.scale(actor.character === 'tom' ? right ? -1 : 1 : right ? 1 : -1, 1);
+        ctx.rotate(Math.sin(animationTime * 14) * .04);
+      }
+      if (actor.character === 'tom') drawTom(ctx, walking ? animationTime : time, speaking, walking);
       else if (snake) {
         const scale = .32;
         ctx.save();
@@ -794,7 +854,8 @@ class CutscenePlayer {
         ctx.restore();
       } else this.drawCharacter(ctx, actor.character, time, speaking);
       ctx.restore();
-    });
+    }
+    this.actorLine = line;
     drawPortrait(this.portrait.getContext('2d'), line.speaker, typing && !this.paused && !reducedMotion, time);
   }
 }

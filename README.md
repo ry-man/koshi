@@ -1307,7 +1307,12 @@ a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
 axis. Official backgrounds keep their ground line at the same relative stage
 height in portrait and landscape; `y: 0.8` places Koshi on the foreground path.
-Per-line positions animate between dialogue beats. Old level JSON without
+Per-line positions animate between dialogue beats. Characters added to or removed
+from a line's `actors` walk on or off the nearest screen edge, using their authored
+`x` position to choose the side and preserving their height. Characters that remain
+on stage are matched by character ID (and occurrence for repeated actors), not
+their array index. The initial cast appears in place; reduced-motion mode changes
+the cast immediately. Old level JSON without
 `cutscene` remains compatible. Scenes are included in printed/loaded JSON,
 playtest links, direct-file play, and the offline app.
 

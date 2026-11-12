@@ -14,6 +14,14 @@ const scene = () => ({
   ],
 });
 const level = () => ({ version: 1, id: 'Story test', duration: 30, goal: 20, heartCost: null, brickSet: 1, events: [], cutscene: scene() });
+const actorKeys = actors => {
+  const counts = new Map();
+  return actors.map(actor => {
+    const occurrence = counts.get(actor.character) ?? 0;
+    counts.set(actor.character, occurrence + 1);
+    return `${actor.character}:${occurrence}`;
+  });
+};
 
 test('editor playtests show cutscenes before briefing and replay them even when skip is checked', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
@@ -181,12 +189,12 @@ test('phone cutscenes space the cast evenly with a wider gap beside Koshi withou
         scales.length = 0;
         const player = {
           positions: new Map(line.actors.map((actor, i) =>
-            [`${actor.character}:${i}`, { x: 480, y: actor.y * 540 }])),
+            [actorKeys(line.actors)[i], { x: 480, y: actor.y * 540 }])),
           paused, drawCharacter() {},
         };
         context.stage.call(player, line);
         const ordered = line.actors.map((actor, i) => ({
-          actor, position: player.positions.get(`${actor.character}:${i}`),
+          actor, position: player.positions.get(actorKeys(line.actors)[i]),
         })).sort((a, b) => a.actor.x - b.actor.x);
         for (const { actor, position } of ordered) {
           assert.equal(position.y, actor.y * 540, 'authored height stays unchanged');
@@ -294,7 +302,7 @@ test('Tom has a distinct full-body drawing and pixel portrait with animated bill
   assert.match(talking, /#ea7070/);
   assert.match(still, /gradient/);
   assert.notEqual(draw(false, true), draw(true, true));
-  assert.match(source, /if \(actor\.character === 'tom'\) drawTom\(ctx, time, speaking\)/);
+  assert.match(source, /if \(actor\.character === 'tom'\) drawTom\(ctx, walking \? animationTime : time, speaking, walking\)/);
 });
 
 test('optional cutscenes survive custom-level round trips independently of source data', () => {
@@ -361,6 +369,99 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
   assert.deepEqual(teeth('mouse', false), []);
   assert.deepEqual(teeth('wheel', true), []);
 });
+
+  test('cast changes walk actors across authored screen edges without replacing retained actors', () => {
+    const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+    const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
+    for (const [width, height] of [[1440, 600], [390, 560]]) {
+      const drawings = [];
+      const ctx = new Proxy({}, { get: (_, name) => (...args) => drawings.push([name, ...args]) });
+      const context = vm.createContext({ ctx, width, height, time: .2, reducedMotion: false, drawTom() {} });
+      vm.runInContext(`function stage(line) { ${loop} }`, context);
+      const player = {
+        positions: new Map(), animationTime: 0, paused: false,
+        drawCharacter: (_, character, time, speaking) => drawings.push(['draw', character, speaking]),
+      };
+      const actor = (character, x, y = .65) => ({ character, x, y });
+      const first = { speaker: 'koshi', actors: [actor('mouse', .2), actor('koshi', .5), actor('wheel', .8)] };
+      const second = { speaker: 'koshi', actors: [actor('koshi', .5), actor('ram', .8), actor('bucket', .2)] };
+      const before = JSON.stringify([first, second]);
+      const render = line => { drawings.length = 0; context.stage.call(player, line); };
+      render(first);
+      const koshiX = player.positions.get('koshi:0').x;
+      assert.equal(player.positions.size, 3, 'initial cast is already on stage');
+      render(second);
+      assert.equal(player.positions.size, 5, 'departures remain visible while walking out');
+      assert.equal(player.positions.get('koshi:0').x, koshiX, 'array index changes do not restart retained actors');
+      assert.ok(player.positions.get('ram:0').x > 960, 'right-side actor enters from beyond the stage');
+      assert.ok(player.positions.get('bucket:0').x < 0, 'left-side actor enters from beyond the stage');
+      assert.ok(player.positions.get('mouse:0').target.x < 0, 'departure uses its previous authored side');
+      assert.ok(player.positions.get('wheel:0').target.x > 960);
+      assert.ok(drawings.some(op => op[0] === 'draw' && op[1] === 'mouse' && !op[2]),
+        'departing characters no longer speak');
+      const start = new Map([...player.positions].map(([key, value]) => [key, { x: value.x, y: value.y }]));
+      render(second);
+      for (const [key, value] of start) {
+        assert.equal(player.positions.get(key).x, value.x, 'redraws do not advance movement');
+      }
+      player.animationTime += .1;
+      render(second);
+      for (const key of ['ram:0', 'mouse:0']) assert.ok(player.positions.get(key).x < start.get(key).x);
+      for (const key of ['bucket:0', 'wheel:0']) assert.ok(player.positions.get(key).x > start.get(key).x);
+      for (const [key, value] of start) assert.equal(player.positions.get(key).y, value.y, 'walking preserves authored height');
+      assert.ok(drawings.some(op => op[0] === 'rotate' && op[1] !== 0), 'walking has a visible gait');
+      const continuing = { ...second, actors: [...second.actors].reverse() };
+      const arrivalX = player.positions.get('bucket:0').x;
+      render(continuing);
+      assert.equal(player.positions.get('bucket:0').x, arrivalX, 'advancing during an arrival does not teleport it');
+      assert.equal(player.positions.get('bucket:0').entering, true, 'arrival continues across dialogue lines');
+      player.animationTime += 2;
+      render(continuing);
+      assert.equal(player.positions.size, 3, 'off-screen departures are removed');
+      for (const position of player.positions.values()) {
+        assert.equal(position.x, position.target.x, 'arrivals settle exactly at their stage positions');
+        assert.equal(position.entering, false);
+      }
+      assert.equal(JSON.stringify([first, second]), before, 'level data stays unchanged');
+      render(first);
+      context.reducedMotion = true;
+      render(first);
+      assert.equal(player.positions.size, 3, 'enabling reduced motion removes departures immediately');
+      assert.ok([...player.positions.values()].every(position => position.x === position.target.x));
+      context.reducedMotion = false;
+      render(first);
+      assert.ok([...player.positions.values()].every(position => position.x === position.target.x),
+        'disabling reduced motion does not rewind completed arrivals');
+    }
+  });
+
+  test('repeated actors keep occurrence identities and can return during an unfinished exit', () => {
+    const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+    const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
+    const ctx = new Proxy({}, { get: () => () => {} });
+    const context = vm.createContext({ ctx, width: 1440, height: 600, time: 0, reducedMotion: false, drawTom() {} });
+    vm.runInContext(`function stage(line) { ${loop} }`, context);
+    const player = { positions: new Map(), animationTime: 0, paused: false, drawCharacter() {} };
+    const first = { speaker: 'koshi', actors: [
+      { character: 'mouse', x: .2, y: .6 }, { character: 'koshi', x: .5, y: .65 },
+      { character: 'mouse', x: .8, y: .7 },
+    ] };
+    const second = { speaker: 'koshi', actors: [first.actors[1], first.actors[0]] };
+    context.stage.call(player, first);
+    context.stage.call(player, second);
+    assert.equal(player.positions.get('mouse:0').leaving, false);
+    assert.equal(player.positions.get('mouse:1').leaving, true);
+    player.animationTime = .1;
+    context.stage.call(player, second);
+    const exitX = player.positions.get('mouse:1').x;
+    context.stage.call(player, first);
+    assert.equal(player.positions.get('mouse:1').x, exitX, 'return starts at its current exit position');
+    assert.equal(player.positions.get('mouse:1').leaving, false);
+    assert.equal(player.positions.size, 3, 'no duplicate or stale actors are created');
+    player.animationTime = 2;
+    context.stage.call(player, first);
+    assert.equal(player.positions.get('mouse:1').x, .8 * 960);
+  });
 
 test('stage shadows align with each character base and stay grounded while speakers bob', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
@@ -565,6 +666,16 @@ test('cutscene rendering reserves full dialogue and reveals Unicode letters in p
   player.advance();
   assert.equal(visibleText(), data.lines[1].text);
   player.open(data, 1);
+  player.update(.1);
+  const animationTime = player.animationTime;
+  player.paused = true;
+  player.update(.1);
+  assert.equal(player.animationTime, animationTime, 'hidden scenes freeze cast transitions');
+  player.paused = false;
+  player.update(.1);
+  assert.ok(player.animationTime > animationTime, 'cast transitions resume with the scene');
+  player.open(data, 1);
+  assert.equal(player.animationTime, 0, 'replaying starts with a fresh animation clock');
   motion.matches = true;
   player.update(0);
   assert.equal(visibleText(), data.lines[0].text);
