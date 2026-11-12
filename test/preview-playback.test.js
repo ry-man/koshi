@@ -61,7 +61,7 @@ function fixture({ duration = 20, time = 2, speed = 1 } = {}) {
 
 test('Dynamic View follows camera position only when enabled for an autoscrolling level', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
-  assert.match(html, /<input id="dynamic-view" type="checkbox" disabled> Dynamic View/);
+  assert.match(html, /<input id="dynamic-view" type="checkbox" checked disabled> Dynamic View/);
   const css = fs.readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
   assert.match(css, /#editor-board-scroll\[data-dynamic-view="true"\] \{ overflow: hidden; max-height: none; \}/);
   assert.match(css, /#editor-board-scroll\[data-dynamic-view="true"\]\[data-orientation="portrait"\] \{ width: min\(100%, 340px\);/);

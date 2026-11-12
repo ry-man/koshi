@@ -1197,7 +1197,9 @@ Cat Block artwork fits its palette icon without covering neighboring menu choice
 Enable **Autoscrolling level** in level settings; changes apply automatically. Length
 is the number of bricks along each long edge: 8 is a traditional single screen,
 with up to 1000 supported. The board extends horizontally on desktop and
-vertically in portrait without shrinking bricks or objects. With Dynamic View
+vertically in portrait without shrinking bricks or objects. **Dynamic View** is
+selected by default on editor startup and whenever you create a new level; it
+becomes available when autoscrolling is enabled. With Dynamic View
 off, the placement area fits the board's full height, including space for the
 horizontal scrollbar, so it never needs its own vertical scrollbar. Scroll
 horizontally on desktop, or scroll the page for a tall portrait board, to reach
@@ -1504,6 +1506,8 @@ tracks his health; his death animation finishes before Koshi celebrates.
    schedule examples) while retaining fixed placements. This preview-only toggle
    does not remove events or change available-point totals.
    Selecting a board marker preserves the current view and preview time.
+   The event timeline automatically grows to show every event without an internal
+   scrollbar, and reflows as the window changes size.
    Selecting an event in the timeline centers the editor view on its displayed
    icon (or formation center), regardless of its spawn time. Selected events
    remain visible when **Show all spawn locations** is off. **Dynamic View**

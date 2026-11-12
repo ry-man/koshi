@@ -365,6 +365,41 @@ test('full grid toggle shows alignment guides and highlights markers sharing an 
   assert.match(css, /\.marker\.alignment-highlight\s*\{[^}]*drop-shadow/);
 });
 
+test('the event timeline grows with its contents without changing overlap-dialog scrolling', () => {
+  const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
+  assert.match(css, /#event-list\s*\{[^}]*max-height: none;[^}]*overflow: visible;/);
+  assert.match(css, /\.event-timeline\s*\{[^}]*grid-template-columns: repeat\(auto-fill,/);
+  assert.match(css, /\.overlap-picker\s*\{[^}]*max-height: calc\(100dvh - 24px\);[^}]*overflow-y: auto;/);
+});
+
+test('new levels reset Dynamic View only after confirming unsaved changes', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const toggle = { checked: false };
+  let create, replacements = 0;
+  const context = vm.createContext({
+    $: selector => selector === '#dynamic-view' ? toggle : {
+      addEventListener: (_, callback) => { create = callback; },
+    },
+    dirty: true, confirm: () => false, blank: () => blank(),
+    replaceLevel: () => { replacements++; assert.equal(toggle.checked, true); },
+    message() {},
+  });
+  vm.runInContext(source.slice(source.indexOf("$('#new-level').addEventListener"),
+    source.indexOf("$('#playtest').addEventListener")), context);
+  create();
+  assert.equal(toggle.checked, false);
+  assert.equal(replacements, 0);
+  context.confirm = () => true;
+  create();
+  assert.equal(toggle.checked, true);
+  assert.equal(replacements, 1);
+  toggle.checked = false;
+  context.dirty = false;
+  create();
+  assert.equal(toggle.checked, true);
+  assert.equal(replacements, 2);
+});
+
 test('Print, paste, and open JSON files use validated level import without draft controls', async () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();

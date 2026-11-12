@@ -3206,6 +3206,7 @@ $('#import-file').addEventListener('change', async () => {
 });
 $('#new-level').addEventListener('click', () => {
   if (dirty && !confirm('Discard this unsaved level and start a new one?')) return;
+  $('#dynamic-view').checked = true;
   replaceLevel(blank()); message('New level created.');
 });
 $('#playtest').addEventListener('click', event => {
