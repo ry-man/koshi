@@ -1519,11 +1519,30 @@ tracks his health; his death animation finishes before Koshi celebrates.
    The event timeline automatically grows to show every event without an internal
    scrollbar, and reflows as the window changes size. Gold outlines mark events
    scheduled at or before the current preview time, including during playback.
-   Selected timeline events pulse from white to dark gray (or stay white when
-   reduced motion is enabled). Selecting an event in the timeline centers the
-   editor view on its displayed icon (or formation center), regardless of its spawn time. Selected events
-   remain visible when **Show all spawn locations** is off. **Dynamic View**
-   resumes following the game camera when you scrub or play the preview.
+   Selected timeline events and their board markers pulse from white to dark
+   gray (or stay white when reduced motion is enabled). Selecting an event in
+   the timeline does not scroll to the board. Selected events remain visible
+   when **Show all spawn locations** is off. **Dynamic View** resumes following
+   the game camera when you scrub or play the preview.
+   Choose **Time Plot** under **Timeline view** to plot events along a
+   horizontally scrollable time axis, or **Detailed** for the original cards.
+   Time Plot boxes show their event ID, category color, icon, and lifetime in
+   seconds; infinity means no scheduled removal. Timed boxes span their exact
+   scheduled lifetime, even beyond the level end, and the scale expands as
+   needed to fit short events. A gold arrow and dotted line track the preview
+   time. Overlapping boxes occupy separate rows, and the selected event's full
+   details appear beside the view selector. Drag its center to move
+   its time window, its left edge to change its start while keeping the end,
+   or its right edge to change its end. Events without a scheduled removal have
+   no right-edge handle. Dragging a selected event applies the same time change
+   to all selected events; end-edge changes skip events without an end. The
+   shared change is limited by the allowed event times and lifetimes. Press
+   **Escape** to cancel a drag. Dragging is disabled for read-only levels.
+   The preview time **Discretization** also snaps the dragged start or end to
+   the nearest permitted interval; **None** allows continuous movement.
+   Multi-event edits preserve their relative offsets, so only the dragged
+   event's edge is snapped. If no interval fits the shared limits, the events
+   remain unchanged.
    Clicking overlapping markers opens an element picker with the same event
    IDs, timing, category, artwork, descriptions, placement details and point
    totals as the timeline. Choose a row to select that event (or spawning brick);

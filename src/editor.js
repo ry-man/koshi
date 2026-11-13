@@ -78,6 +78,8 @@ let selectedTrackNode = -1;
 let trackNodeGesture = null;
 let obstructionTool = null;
 let obstructionTexture = null;
+let timelineDetailIndex = null;
+let timelineGesture = null;
 const readOnly = () => campaignIndex !== null;
 const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access', '#camera-access'];
 const writeButtons = ['#place-mode', '#new-level'];
@@ -862,12 +864,90 @@ function toggled(set, value) {
 
 function choose(kind, value, additive) {
   if (trackObjectAction && kind === 'event') { updateTrackObject(value); return; }
-  if (kind === 'event') setSelection(additive ? toggled(selectedEvents, value) : [value], additive ? selectedBricks : []);
+  if (kind === 'event') {
+    timelineDetailIndex = value;
+    setSelection(additive ? toggled(selectedEvents, value) : [value], additive ? selectedBricks : []);
+  }
   else setSelection(additive ? selectedEvents : [], additive ? toggled(selectedBricks, value) : [value]);
 }
 
 function selectAll() {
   setSelection(level.events.map((_, index) => index), previewGame.bricks.filter(brick => brick.absorbedBy === null).map(brick => regionKey(brick.region)));
+}
+
+function relativeTimelineLayout(events, duration) {
+  const entries = events.map((event, index) => {
+    const lifetime = event.lifetime ?? null;
+    const durationLabel = lifetime === null ? '∞' : String(lifetime);
+    const idWidth = Math.max(24, String(index + 1).length * 9 + 8);
+    const minimumWidth = idWidth + 26 + Math.max(16, durationLabel.length * 8) + 12;
+    return { event, index, lifetime, durationLabel, idWidth, minimumWidth };
+  }).sort((a, b) => a.event.time - b.event.time || a.index - b.index);
+  const scale = entries.reduce((value, entry) => entry.lifetime === null
+    ? value : Math.max(value, entry.minimumWidth / entry.lifetime), 20);
+  const rowEnds = [];
+  let width = duration * scale;
+  for (const entry of entries) {
+    entry.left = entry.event.time * scale;
+    entry.width = entry.lifetime === null ? entry.minimumWidth : entry.lifetime * scale;
+    let row = rowEnds.findIndex(end => end + 12 <= entry.left);
+    if (row === -1) { row = rowEnds.length; rowEnds.push(0); }
+    entry.row = row;
+    rowEnds[row] = entry.left + entry.width;
+    width = Math.max(width, rowEnds[row]);
+  }
+  return { entries, scale, width: Math.max(width, 1), rows: rowEnds.length };
+}
+
+function relativeTimelineButton(entry, onChoose) {
+  const { event, index, durationLabel, idWidth } = entry;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.kind = event.kind;
+  button.dataset.editable = String(!readOnly());
+  button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
+  const name = event.kind === 'heart' ? 'Heart' : description(event);
+  const lifetime = entry.lifetime === null ? 'no scheduled removal' : `${durationLabel} seconds`;
+  button.setAttribute('aria-label', `Event ${index + 1}: ${event.kind}, ${name}, at ${event.time} seconds, ${lifetime}`);
+  button.title = `#${index + 1} ${name} · ${event.time}s · ${lifetime}`;
+  button.style.setProperty('--relative-icon-left', `${idWidth + 4}px`);
+  const id = document.createElement('span');
+  id.className = 'event-id'; id.textContent = String(index + 1);
+  id.setAttribute('aria-hidden', 'true');
+  const artwork = event.kind === 'food' ? document.createElement('span') : picture(`${event.kind}:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'food') artwork.textContent = FOODS[event.type].icon;
+  artwork.classList.add('relative-event-icon');
+  artwork.setAttribute('aria-hidden', 'true');
+  const badge = document.createElement('span');
+  badge.className = 'relative-event-duration'; badge.textContent = durationLabel;
+  badge.setAttribute('aria-hidden', 'true');
+  button.append(id, artwork, badge);
+  if (!readOnly()) {
+    for (const edge of entry.lifetime === null ? ['start'] : ['start', 'end']) {
+      const handle = document.createElement('span');
+      handle.className = 'relative-event-handle'; handle.dataset.edge = edge;
+      handle.setAttribute('aria-hidden', 'true');
+      button.append(handle);
+    }
+  }
+  button.addEventListener('click', onChoose);
+  return button;
+}
+
+function renderRelativeAxis(axis, layout) {
+  axis.replaceChildren();
+  axis.style.width = `${layout.width}px`;
+  const rawStep = Math.max(80 / layout.scale, layout.width / layout.scale / 150);
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = [1, 2, 5, 10].find(value => value * magnitude >= rawStep) * magnitude;
+  const count = Math.floor(layout.width / layout.scale / step);
+  for (let i = 0; i <= count; i++) {
+    const tick = document.createElement('span');
+    tick.className = 'event-axis-tick';
+    tick.style.left = `${i * step * layout.scale}px`;
+    tick.textContent = `${Number((i * step).toPrecision(12))}s`;
+    axis.append(tick);
+  }
 }
 
 function eventTimelineButton(event, index, onChoose, spawnKey = null) {
@@ -909,22 +989,158 @@ function eventTimelineButton(event, index, onChoose, spawnKey = null) {
 
 function renderList() {
   const list = $('#event-list');
+  const relative = $('#event-timeline-view').value === 'relative';
+  const axis = $('#event-timeline-axis');
+  const viewport = $('#event-timeline-viewport');
+  viewport.dataset.view = relative ? 'relative' : 'compact';
+  list.dataset.view = relative ? 'relative' : 'compact';
+  axis.hidden = !relative;
+  $('#event-timeline-cursor').hidden = !relative;
+  $('#event-timeline-plot').style.width = '';
+  list.style.width = ''; list.style.height = '';
   list.replaceChildren();
   $('#event-count').textContent = plural(level.events.length, 'event');
   if (!level.events.length) {
     const li = document.createElement('li'); li.className = 'empty-state';
     li.textContent = 'No events yet. Place your first object on the board.'; list.append(li);
   }
-  level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time).forEach(({ event, index }) => {
+  const layout = relative ? relativeTimelineLayout(level.events, level.duration) : null;
+  if (relative) {
+    renderRelativeAxis(axis, layout);
+    viewport.dataset.scale = layout.scale;
+    $('#event-timeline-plot').style.width = `${layout.width}px`;
+    $('#event-timeline-cursor').style.left = `${Number($('#timeline').value) * layout.scale}px`;
+    list.style.width = `${layout.width}px`;
+    if (layout.rows) list.style.height = `${layout.rows * 56 - 12}px`;
+  }
+  const entries = relative ? layout.entries : level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time);
+  entries.forEach(entry => {
+    const { event, index } = entry;
     const li = document.createElement('li');
+    li.dataset.eventIndex = index;
     li.dataset.eventTime = event.time;
     li.dataset.previewReached = String(event.time <= Number($('#timeline').value));
-    const button = eventTimelineButton(event, index, click => {
+    if (relative) {
+      li.style.left = `${entry.left}px`; li.style.top = `${entry.row * 56}px`; li.style.width = `${entry.width}px`;
+    }
+    const onChoose = click => {
+      if (relative) timelineDetailIndex = index;
       choose('event', index, isAdditive(click));
-      if (selectedEvents.has(index)) centerEventMarker(index);
-    });
+    };
+    const button = relative ? relativeTimelineButton(entry, onChoose) : eventTimelineButton(event, index, onChoose);
+    if (relative) button.addEventListener('pointerdown', event => startTimelineGesture(event, entry, layout.scale));
     li.append(button); list.append(li);
   });
+  renderTimelineDetails();
+}
+
+function renderTimelineDetails() {
+  const panel = $('#relative-event-details');
+  if (!selectedEvents.has(timelineDetailIndex)) {
+    timelineDetailIndex = [...selectedEvents].at(-1) ?? null;
+  }
+  const visible = $('#event-timeline-view').value === 'relative'
+    && timelineDetailIndex !== null && selectedEvents.has(timelineDetailIndex) && level.events[timelineDetailIndex];
+  panel.hidden = !visible;
+  if (!visible) return;
+  const index = timelineDetailIndex, li = document.createElement('li');
+  li.append(eventTimelineButton(level.events[index], index, click => choose('event', index, isAdditive(click))));
+  $('#relative-event-details-list').replaceChildren(li);
+}
+
+function timelineDragDelta(origins, mode, delta, duration, anchorIndex, step) {
+  let min = -Infinity, max = Infinity;
+  for (const event of origins.values()) {
+    if (mode !== 'end') {
+      min = Math.max(min, -event.time);
+      max = Math.min(max, duration - event.time);
+    }
+    if (event.lifetime != null) {
+      if (mode === 'start') {
+        min = Math.max(min, event.lifetime - 3600);
+        max = Math.min(max, event.lifetime - .1);
+      } else if (mode === 'end') {
+        min = Math.max(min, .1 - event.lifetime);
+        max = Math.min(max, 3600 - event.lifetime);
+      }
+    }
+  }
+  if (step) {
+    const anchor = origins.get(anchorIndex);
+    const time = anchor.time + (mode === 'end' ? anchor.lifetime : 0);
+    const first = Math.ceil((time + min) / step - 1e-10);
+    const last = Math.floor((time + max) / step + 1e-10);
+    if (first > last) return 0;
+    const tick = Math.max(first, Math.min(last, Math.round((time + delta) / step)));
+    return Number((tick * step - time).toPrecision(12)) || 0;
+  }
+  return Math.max(min, Math.min(max, Math.round(delta * 1000) / 1000)) || 0;
+}
+
+function timelineDragEvents(events, origins, mode, delta) {
+  return events.map((event, index) => {
+    const origin = origins.get(index);
+    if (!origin || (mode === 'end' && origin.lifetime == null)) return event;
+    const result = { ...origin };
+    if (mode !== 'end') result.time = Number((origin.time + delta).toPrecision(12));
+    if (origin.lifetime != null && mode !== 'move') {
+      result.lifetime = Number((origin.lifetime + (mode === 'start' ? -delta : delta)).toPrecision(12));
+    }
+    return result;
+  });
+}
+
+function startTimelineGesture(event, entry, scale) {
+  if (readOnly() || event.button !== 0 || timelineGesture || trackObjectAction || obstructionTool) return;
+  const index = entry.index;
+  const selected = selectedEvents.has(index) ? [...selectedEvents]
+    : isAdditive(event) ? [...selectedEvents, index] : [index];
+  const edge = event.target.closest('.relative-event-handle')?.dataset.edge;
+  const mode = edge ?? 'move';
+  const origins = new Map(selected.map(i => [i, { ...level.events[i] }]));
+  timelineGesture = { index, selected, origins, mode, scale, pointerId: event.pointerId,
+    startX: event.clientX, scrollLeft: $('#event-timeline-viewport').scrollLeft, moved: false, delta: 0,
+    button: event.currentTarget };
+  event.currentTarget.setPointerCapture(event.pointerId);
+}
+
+function moveTimelineGesture(event) {
+  if (!timelineGesture || event.pointerId !== timelineGesture.pointerId) return;
+  const current = timelineGesture, viewport = $('#event-timeline-viewport');
+  const distance = event.clientX - current.startX + viewport.scrollLeft - current.scrollLeft;
+  if (!current.moved && Math.abs(distance) < 5) return;
+  current.moved = true;
+  current.delta = timelineDragDelta(current.origins, current.mode, distance / current.scale, level.duration,
+    current.index, Number($('#timeline-discretization').value));
+  const draft = timelineDragEvents(level.events, current.origins, current.mode, current.delta);
+  for (const li of $('#event-list').querySelectorAll('[data-event-index]')) {
+    const index = Number(li.dataset.eventIndex), origin = current.origins.get(index);
+    if (!origin) continue;
+    const changed = draft[index];
+    li.style.left = `${changed.time * current.scale}px`;
+    if (changed.lifetime != null) li.style.width = `${changed.lifetime * current.scale}px`;
+    li.dataset.previewReached = String(changed.time <= Number($('#timeline').value));
+    li.querySelector('.relative-event-duration').textContent = changed.lifetime == null ? '∞' : String(changed.lifetime);
+  }
+}
+
+function finishTimelineGesture(event, cancelled = false) {
+  if (!timelineGesture || event.pointerId !== timelineGesture.pointerId) return;
+  const current = timelineGesture;
+  timelineGesture = null;
+  if (current.button.hasPointerCapture(event.pointerId)) current.button.releasePointerCapture(event.pointerId);
+  if (!current.moved) return;
+  if (cancelled) { renderList(); return; }
+  attempt(() => {
+    if (current.delta) {
+      level = validateDraft({ ...level, events: timelineDragEvents(level.events, current.origins, current.mode, current.delta) });
+      markChanged();
+    }
+    timelineDetailIndex = current.index;
+    setSelection(current.selected, []);
+    message(current.delta ? `Updated timing for ${plural(current.selected.filter(index => current.mode !== 'end' || current.origins.get(index).lifetime != null).length, 'event')}.`
+      : 'Event timing is at its allowed limit.');
+  }, () => render());
 }
 
 function overlappingMarkers(x, y) {
@@ -939,18 +1155,6 @@ function overlappingMarkers(x, y) {
     if (!found.has(key)) found.set(key, { index, spawnKey });
   }
   return [...found.values()];
-}
-
-function centerEventMarker(index) {
-  const markers = [...$('#markers').querySelectorAll(`.marker[data-index="${index}"]`)];
-  if (!markers.length) return;
-  markers[0].scrollIntoView({ block: 'center', inline: 'nearest' });
-  const viewport = $('#editor-board-scroll'), viewportRect = viewport.getBoundingClientRect();
-  const rectangles = markers.map(marker => marker.getBoundingClientRect());
-  const x = rectangles.reduce((sum, rect) => sum + rect.left + rect.width / 2, 0) / rectangles.length;
-  const y = rectangles.reduce((sum, rect) => sum + rect.top + rect.height / 2, 0) / rectangles.length;
-  viewport.scrollLeft += x - viewportRect.left - viewport.clientLeft - viewport.clientWidth / 2;
-  viewport.scrollTop += y - viewportRect.top - viewport.clientTop - viewport.clientHeight / 2;
 }
 
 function pickOverlappingMarker(input, marker = null, additive = isAdditive(input), previousSelection = null) {
@@ -1474,6 +1678,10 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
   $('#time-label').textContent = `${time.toFixed(1)}s`;
   if (followTime) $('#event-time').value = Math.min(time, Number($('#event-time').max));
   $('#preview-speed-label').textContent = `${$('#preview-speed').value}x`;
+  const timelineViewport = $('#event-timeline-viewport');
+  if (timelineViewport.dataset.view === 'relative') {
+    $('#event-timeline-cursor').style.left = `${time * Number(timelineViewport.dataset.scale)}px`;
+  }
   for (const entry of $('#event-list').querySelectorAll('[data-event-time]')) {
     entry.dataset.previewReached = String(Number(entry.dataset.eventTime) <= time);
   }
@@ -2221,6 +2429,7 @@ board.addEventListener('pointerup', event => {
   if (current.type === 'marker') {
     gesture = null;
     if (!current.moved && pickOverlappingMarker(event, null, current.additive, current.previousSelection)) return;
+    timelineDetailIndex = current.index;
     if (current.moved) { markChanged(); setSelection(); message(`Moved ${plural(current.origins.size, 'event')}.`); }
     else if (current.added || !current.additive) setSelection(current.additive ? selectedEvents : [current.index], current.additive ? selectedBricks : []);
     else setSelection(toggled(selectedEvents, current.index));
@@ -3174,6 +3383,16 @@ for (const type of ['pointerdown', 'keydown']) document.addEventListener(type, e
   if (event.target.closest('#editor-board, #event-list, #inspector-access')) pausePreview();
 }, true);
 $('#show-all').addEventListener('change', renderBoard);
+$('#event-timeline-view').addEventListener('change', renderList);
+$('#event-list').addEventListener('pointermove', moveTimelineGesture);
+$('#event-list').addEventListener('pointerup', event => finishTimelineGesture(event));
+$('#event-list').addEventListener('pointercancel', event => finishTimelineGesture(event, true));
+$('#event-list').addEventListener('lostpointercapture', event => finishTimelineGesture(event, true));
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !timelineGesture) return;
+  event.preventDefault();
+  finishTimelineGesture({ pointerId: timelineGesture.pointerId }, true);
+});
 $('#show-random').addEventListener('change', renderBoard);
 $('#dynamic-view').addEventListener('change', () => renderPreviewTime());
 $('#orientation').addEventListener('change', renderBoard);

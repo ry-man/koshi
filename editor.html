@@ -329,8 +329,22 @@
       </div>
       <section class="editor-panel" aria-label="Scheduled events">
         <div class="section-heading"><h2>Event timeline <span id="event-count">0 events</span></h2><button id="new-level">New level</button></div>
-        <p>Gold outlines mark events at or before the preview time.</p>
-        <ol id="event-list" class="event-timeline"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
+        <div class="event-timeline-toolbar">
+          <label class="event-timeline-view-label" for="event-timeline-view">Timeline view
+            <select id="event-timeline-view"><option value="compact">Detailed</option><option value="relative">Time Plot</option></select>
+          </label>
+          <section id="relative-event-details" aria-label="Selected event details" hidden>
+            <span>Selected Event:</span>
+            <ol id="relative-event-details-list" class="event-timeline"></ol>
+          </section>
+        </div>
+        <div id="event-timeline-viewport">
+          <div id="event-timeline-plot">
+            <div id="event-timeline-cursor" aria-hidden="true" hidden></div>
+            <div id="event-timeline-axis" aria-label="Time in seconds" hidden></div>
+            <ol id="event-list" class="event-timeline"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
+          </div>
+        </div>
       </section>
       <section class="editor-panel" aria-label="Import and export">
         <fieldset id="files-access" class="access-fields">

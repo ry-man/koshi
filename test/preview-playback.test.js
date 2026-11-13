@@ -221,28 +221,36 @@ test('time-only rendering updates exact spawn and expiration boundaries and came
 
 test('event timeline outlines follow exact preview time while scrubbing and playing', () => {
   const f = fixture({ time: 0 });
+  f.$('#event-timeline-viewport').dataset = { view: 'relative', scale: '100' };
   const entries = [0, 3, 3, 3.05].map(time => ({ dataset: { eventTime: String(time) } }));
   f.$('#event-list').children = entries;
   const reached = () => entries.map(entry => entry.dataset.previewReached);
   f.context.renderPreviewTime(0);
+  assert.equal(f.$('#event-timeline-cursor').style.left, '0px');
   assert.deepEqual(reached(), ['true', 'false', 'false', 'false']);
   f.$('#timeline').value = 3;
   f.$('#timeline').listeners.input();
+  assert.equal(f.$('#event-timeline-cursor').style.left, '300px');
   assert.deepEqual(reached(), ['true', 'true', 'true', 'false']);
   f.play(); f.tick(50);
+  assert.equal(f.$('#event-timeline-cursor').style.left, '305px');
   assert.deepEqual(reached(), ['true', 'true', 'true', 'true']);
   f.play();
   f.$('#timeline').value = 2.99;
   f.$('#timeline').listeners.input();
+  assert.equal(f.$('#event-timeline-cursor').style.left, '299px');
   assert.deepEqual(reached(), ['true', 'false', 'false', 'false']);
 });
 
 test('event timeline initializes outlines on render in time order', () => {
-  const list = { children: [], replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } };
-  const nodes = { '#event-list': list, '#event-count': {}, '#timeline': { value: '3' } };
+  const list = { children: [], dataset: {}, style: {}, replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } };
+  const nodes = { '#event-list': list, '#event-count': {}, '#timeline': { value: '3' },
+    '#event-timeline-view': { value: 'compact' }, '#event-timeline-axis': {}, '#event-timeline-viewport': { dataset: {} },
+    '#relative-event-details': {}, '#event-timeline-cursor': { style: {} }, '#event-timeline-plot': { style: {} } };
   const level = { events: [{ time: 4 }, { time: 0 }, { time: 3 }, { time: 3 }] };
   const context = vm.createContext({
     $, level,
+    timelineDetailIndex: null, selectedEvents: new Set(), renderTimelineDetails() {},
     document: { createElement: () => ({ dataset: {}, append(child) { this.child = child; } }) },
     plural: count => `${count} events`,
     eventTimelineButton: (event, index) => ({ index }),
@@ -255,7 +263,7 @@ test('event timeline initializes outlines on render in time order', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   assert.match(css, /#event-list > \[data-preview-reached="true"\]\s*\{[^}]*outline: 3px solid #b28b37/);
-  assert.match(html, /Gold outlines mark events at or before the preview time/);
+  assert.doesNotMatch(html, /Gold outlines mark events at or before the preview time/);
 });
 
 test('hiding or leaving the page and interacting with the board or inspector pause the preview', () => {
