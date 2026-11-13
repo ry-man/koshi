@@ -169,9 +169,10 @@
 .editor-panel .event-timeline-view-label { width: 180px; }
 #event-timeline-viewport[data-view="relative"] { overflow-x: auto; padding: 8px; }
 #event-timeline-plot { position: relative; display: flow-root; }
-#event-timeline-cursor { position: absolute; z-index: 0; top: 0; bottom: 0; width: 1px; pointer-events: none; }
-#event-timeline-cursor::before { content: ''; position: absolute; top: 18px; left: -5px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid #b28b37; }
-#event-timeline-cursor::after { content: ''; position: absolute; top: 26px; bottom: 0; border-left: 1px dotted #b28b37; }
+#event-timeline-cursor { position: absolute; z-index: 3; top: 0; bottom: 0; left: 0; width: 24px; min-height: 0; margin-left: -12px; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: ew-resize; touch-action: none; }
+#event-timeline-cursor:hover, #event-timeline-cursor:focus-visible { background: #b28b3718; outline: 2px solid #b28b37; outline-offset: -2px; }
+#event-timeline-cursor::before { content: ''; position: absolute; top: 15px; left: 4px; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 14px solid #b28b37; filter: drop-shadow(0 1px 2px #111); }
+#event-timeline-cursor::after { content: ''; position: absolute; top: 28px; bottom: 0; left: 11px; border-left: 2px dotted #b28b37; }
 #event-timeline-axis { position: relative; z-index: 1; height: 28px; border-bottom: 1px solid #b7c8cc; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none; }
 .event-axis-tick { position: absolute; bottom: 0; border-left: 1px solid #b7c8cc; padding: 0 0 7px 3px; white-space: nowrap; }
 .event-timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 12px; list-style: none; padding: 8px; max-height: 350px; overflow-y: auto; }
@@ -186,12 +187,13 @@
 #event-list[data-view="relative"] .relative-event-handle[data-edge="start"] { left: 0; }
 #event-list[data-view="relative"] .relative-event-handle[data-edge="end"] { right: 0; }
 #event-list[data-view="relative"] .relative-event-duration { pointer-events: none; }
+#event-list[data-view="relative"] .relative-event-duration { position: absolute; right: 12px; bottom: 2px; font-size: 11px; font-variant-numeric: tabular-nums; }
+#event-list[data-view="relative"] .event-points { top: 2px; right: 12px; min-width: 20px; padding: 1px 3px; font-size: 10px; }
 #relative-event-details:not([hidden]) { display: flex; align-items: center; gap: 8px; flex: 1 1 300px; min-width: 0; }
 #relative-event-details > span { white-space: nowrap; font-size: 12px; color: var(--muted); }
 #relative-event-details-list { flex: 1 1 240px; min-width: 0; max-width: 500px; max-height: none; overflow: visible; padding: 0; margin: 0; }
 #event-list[data-view="relative"] .event-id { width: auto; min-width: 24px; padding: 0 4px; font-size: 13px; }
 #event-list[data-view="relative"] .relative-event-icon { position: absolute; left: var(--relative-icon-left); top: 8px; width: 26px; height: 26px; line-height: 26px; font-size: 21px; }
-#event-list[data-view="relative"] .relative-event-duration { position: absolute; top: 3px; right: 4px; font-size: 11px; font-variant-numeric: tabular-nums; }
 .event-timeline button { position: relative; width: 100%; text-align: left; padding-left: 52px; padding-right: 64px; overflow: hidden; }
 .event-id { position: absolute; inset: 0 auto 0 0; width: 40px; display: flex; align-items: center; justify-content: center; background: var(--event-color); color: #101d25; font-weight: 900; font-size: 17px; font-variant-numeric: tabular-nums; }
 .event-timeline [data-kind="enemy"] { --event-color: #ffaba2; }
@@ -219,7 +221,22 @@
 .overlap-picker::backdrop { background: #050a0dcc; }
 .overlap-picker .event-timeline { max-height: none; }
 .event-icon.palette-picture { display: inline-block; width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
-.event-points { position: absolute; top: 8px; right: 8px; min-width: 32px; padding: 4px 6px; border-radius: 4px; background: color-mix(in srgb, var(--event-color) 75%, #fff); color: #17232c; font-size: 13px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.event-points { position: absolute; top: 8px; right: 8px; min-width: 32px; padding: 4px 6px; border-radius: 4px; background: color-mix(in srgb, var(--event-color) 75%, #fff); color: #17232c; font-size: 13px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.weapon-balance-section { margin-top: 16px; border-top: 1px solid #ffffff24; padding-top: 12px; }
+.weapon-balance-section h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.weapon-balance-section > p { margin: 5px 0; color: var(--muted); font-size: 12px; }
+#weapon-balance-viewport { overflow-x: auto; margin: 8px 0; }
+#weapon-balance-chart { display: block; max-width: none; }
+.weapon-balance-axis { stroke: #b7c8cc; stroke-width: 1; }
+.weapon-balance-zero { stroke: #f0c967; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.weapon-balance-value, .weapon-balance-time { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.weapon-balance-segment { stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.weapon-balance-segment.positive { stroke: #8ed8a8; }
+.weapon-balance-segment.negative { stroke: #ffaba2; }
+.weapon-balance-segment.zero { stroke: #b7c8cc; }
+.weapon-balance-point.positive { fill: #8ed8a8; }
+.weapon-balance-point.negative { fill: #ffaba2; }
+.weapon-balance-point.zero { fill: #b7c8cc; }
 .event-category { display: inline-block; color: var(--event-color); text-transform: capitalize; margin-right: 10px; font-size: 10px; font-weight: 700; }
 .event-time { color: var(--accent); margin-right: 10px; font-variant-numeric: tabular-nums; }
 .event-location { display: block; color: var(--muted); margin-top: 5px; font-size: 10px; }

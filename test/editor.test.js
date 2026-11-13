@@ -8,6 +8,22 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('built-in level choices start with their world-level number', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const { LEVELS } = require('../src/game.js');
+  const select = { options: [], append(option) { this.options.push(option); } };
+  const context = vm.createContext({
+    LEVELS,
+    document: { createElement: () => ({}) },
+    $: selector => { assert.equal(selector, '#editor-level'); return select; },
+  });
+  vm.runInContext(source.slice(source.indexOf('for (const [index, campaign] of LEVELS.entries())'),
+    source.indexOf('function campaignPreview(')), context);
+  assert.deepEqual(select.options.map(({ value, textContent }) => [value, textContent]),
+    LEVELS.map((campaign, index) => [String(index),
+      `${campaign.worldId}-${campaign.number} - ${campaign.name} (read-only)`]));
+});
+
 test('obstruction rotation controls accept 5-degree increments', () => {
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   for (const id of ['brick-spawn-rotation', 'event-rotation']) {
@@ -827,7 +843,7 @@ test('overlap picker deduplicates visible events, shares timeline details and se
     setSelection: (...args) => selections.push(args),
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
-  vm.runInContext(source.slice(source.indexOf('function eventTimelineButton('), source.indexOf('function renderBrickInspector(')), context);
+  vm.runInContext(source.slice(source.indexOf('function appendEventPoints('), source.indexOf('function renderBrickInspector(')), context);
   assert.equal(context.overlappingMarkers(25, 25).length, 3);
   assert.equal(context.pickOverlappingMarker({ clientX: 90, clientY: 25 }), false);
   assert.equal(dialog.open, false);
@@ -901,7 +917,7 @@ test('timeline categories have subdued card colors and artwork while retaining s
     choose: (...args) => choices.push(args), centerEventMarker() {},
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
-  vm.runInContext(source.slice(source.indexOf('function eventTimelineButton('), source.indexOf('function overlappingMarkers(')), context);
+  vm.runInContext(source.slice(source.indexOf('function appendEventPoints('), source.indexOf('function overlappingMarkers(')), context);
   list.style = {};
   context.renderList();
   assert.equal(count.textContent, '5 events');
@@ -925,6 +941,13 @@ test('timeline categories have subdued card colors and artwork while retaining s
       assert.equal(badge.textContent, '1');
       assert.equal(badge.attributes['aria-label'], `1 ${{ food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[kind]}`);
     } else assert.equal(badge, undefined);
+    if (kind === 'item') {
+      assert.equal(button.children.find(child => child.className === 'event-location').textContent.includes('#'), false,
+        'item event ID appears only in the left-hand ID block');
+      assert.equal(id.textContent, '4');
+    }
+    assert.doesNotMatch(button.children.find(child => child.className === 'event-location').textContent, /#\d+/,
+      'detailed event text never repeats the event ID');
     button.listeners.click({ shiftKey: true });
     const color = css.match(new RegExp(`\\[data-kind="${kind}"\\] \\{ --event-color: (#[a-f0-9]+);`));
     assert.ok(color, `${kind} has a category color`);

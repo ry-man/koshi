@@ -80,13 +80,14 @@ let obstructionTool = null;
 let obstructionTexture = null;
 let timelineDetailIndex = null;
 let timelineGesture = null;
+let timelineCursorPointerId = null;
 const readOnly = () => campaignIndex !== null;
 const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access', '#camera-access'];
 const writeButtons = ['#place-mode', '#new-level'];
 for (const [index, campaign] of LEVELS.entries()) {
   const option = document.createElement('option');
   option.value = String(index);
-  option.textContent = `${campaign.number} - ${campaign.name} (read-only)`;
+  option.textContent = `${campaign.worldId}-${campaign.number} - ${campaign.name} (read-only)`;
   $('#editor-level').append(option);
 }
 
@@ -880,7 +881,12 @@ function relativeTimelineLayout(events, duration) {
     const lifetime = event.lifetime ?? null;
     const durationLabel = lifetime === null ? '∞' : String(lifetime);
     const idWidth = Math.max(24, String(index + 1).length * 9 + 8);
-    const minimumWidth = idWidth + 26 + Math.max(16, durationLabel.length * 8) + 12;
+    const points = ['food', 'enemy', 'weapon'].includes(event.kind) ? pointReference([event], []) : null;
+    const amount = event.kind === 'weapon' ? points?.weaponHits : points?.[event.kind];
+    const pointLabel = amount === Infinity ? 'Unlimited (timed)' : String(amount ?? '');
+    const pointWidth = pointLabel ? pointLabel.length * 6 + 6 : 0;
+    const durationWidth = (durationLabel.length + 1) * 7 + 4;
+    const minimumWidth = idWidth + 50 + Math.max(durationWidth, pointWidth);
     return { event, index, lifetime, durationLabel, idWidth, minimumWidth };
   }).sort((a, b) => a.event.time - b.event.time || a.index - b.index);
   const scale = entries.reduce((value, entry) => entry.lifetime === null
@@ -899,6 +905,20 @@ function relativeTimelineLayout(events, duration) {
   return { entries, scale, width: Math.max(width, 1), rows: rowEnds.length };
 }
 
+function appendEventPoints(button, event) {
+  if (!['food', 'enemy', 'weapon'].includes(event.kind)) return;
+  const totals = pointReference([event], []);
+  const amount = event.kind === 'weapon' ? totals.weaponHits : totals[event.kind];
+  const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
+  const badge = document.createElement('span');
+  badge.className = 'event-points';
+  const strikes = amount === Infinity ? 'Unlimited (timed)' : String(amount);
+  badge.textContent = strikes;
+  badge.setAttribute('aria-label', `${strikes} ${label}`);
+  badge.title = `${strikes} ${label}`;
+  button.append(badge);
+}
+
 function relativeTimelineButton(entry, onChoose) {
   const { event, index, durationLabel, idWidth } = entry;
   const button = document.createElement('button');
@@ -909,7 +929,7 @@ function relativeTimelineButton(entry, onChoose) {
   const name = event.kind === 'heart' ? 'Heart' : description(event);
   const lifetime = entry.lifetime === null ? 'no scheduled removal' : `${durationLabel} seconds`;
   button.setAttribute('aria-label', `Event ${index + 1}: ${event.kind}, ${name}, at ${event.time} seconds, ${lifetime}`);
-  button.title = `#${index + 1} ${name} · ${event.time}s · ${lifetime}`;
+  button.title = `${name} · ${event.time}s · ${lifetime}`;
   button.style.setProperty('--relative-icon-left', `${idWidth + 4}px`);
   const id = document.createElement('span');
   id.className = 'event-id'; id.textContent = String(index + 1);
@@ -919,7 +939,7 @@ function relativeTimelineButton(entry, onChoose) {
   artwork.classList.add('relative-event-icon');
   artwork.setAttribute('aria-hidden', 'true');
   const badge = document.createElement('span');
-  badge.className = 'relative-event-duration'; badge.textContent = durationLabel;
+  badge.className = 'relative-event-duration'; badge.textContent = `${durationLabel}s`;
   badge.setAttribute('aria-hidden', 'true');
   button.append(id, artwork, badge);
   if (!readOnly()) {
@@ -930,6 +950,7 @@ function relativeTimelineButton(entry, onChoose) {
       button.append(handle);
     }
   }
+  appendEventPoints(button, event);
   button.addEventListener('click', onChoose);
   return button;
 }
@@ -959,7 +980,7 @@ function eventTimelineButton(event, index, onChoose, spawnKey = null) {
   id.setAttribute('aria-label', spawnKey ? `Spawning brick ${spawnKey}` : `Event ID ${index + 1}`);
   const time = document.createElement('span'); time.className = 'event-time'; time.textContent = spawnKey ? 'Spawn only' : `${event.time}s`;
   const location = document.createElement('span'); location.className = 'event-location';
-  location.textContent = `${event.random || event.previewRandom ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''}${spawnKey ? ` · spawning brick ${spawnKey}` : ` · #${index + 1}`}`;
+  location.textContent = `${event.random || event.previewRandom ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''}${spawnKey ? ` · spawning brick ${spawnKey}` : ''}`;
   const category = document.createElement('span'); category.className = 'event-category';
   category.textContent = event.kind;
   button.append(time, category);
@@ -971,18 +992,7 @@ function eventTimelineButton(event, index, onChoose, spawnKey = null) {
   }
   button.append(event.kind === 'heart' ? 'Heart' : description(event), location);
   button.append(id);
-  if (['food', 'enemy', 'weapon'].includes(event.kind)) {
-    const totals = pointReference([event], []);
-    const amount = event.kind === 'weapon' ? totals.weaponHits : totals[event.kind];
-    const label = { food: 'food points', enemy: 'enemy points', weapon: 'weapon strikes' }[event.kind];
-    const badge = document.createElement('span');
-    badge.className = 'event-points';
-    const strikes = amount === Infinity ? 'Unlimited (timed)' : String(amount);
-    badge.textContent = strikes;
-    badge.setAttribute('aria-label', `${strikes} ${label}`);
-    badge.title = `${strikes} ${label}`;
-    button.append(badge);
-  }
+  appendEventPoints(button, event);
   button.addEventListener('click', onChoose);
   return button;
 }
@@ -992,8 +1002,10 @@ function renderList() {
   const relative = $('#event-timeline-view').value === 'relative';
   const axis = $('#event-timeline-axis');
   const viewport = $('#event-timeline-viewport');
+  const balanceSection = $('#weapon-balance-section');
   viewport.dataset.view = relative ? 'relative' : 'compact';
   list.dataset.view = relative ? 'relative' : 'compact';
+  balanceSection.hidden = !relative;
   axis.hidden = !relative;
   $('#event-timeline-cursor').hidden = !relative;
   $('#event-timeline-plot').style.width = '';
@@ -1009,9 +1021,12 @@ function renderList() {
     renderRelativeAxis(axis, layout);
     viewport.dataset.scale = layout.scale;
     $('#event-timeline-plot').style.width = `${layout.width}px`;
-    $('#event-timeline-cursor').style.left = `${Number($('#timeline').value) * layout.scale}px`;
+    const cursor = $('#event-timeline-cursor');
+    cursor.style.left = `${Number($('#timeline').value) * layout.scale}px`;
+    cursor.setAttribute('aria-valuemax', String(level.duration));
     list.style.width = `${layout.width}px`;
     if (layout.rows) list.style.height = `${layout.rows * 56 - 12}px`;
+    renderWeaponBalanceChart(layout, previewGame);
   }
   const entries = relative ? layout.entries : level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time);
   entries.forEach(entry => {
@@ -1680,7 +1695,11 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
   $('#preview-speed-label').textContent = `${$('#preview-speed').value}x`;
   const timelineViewport = $('#event-timeline-viewport');
   if (timelineViewport.dataset.view === 'relative') {
-    $('#event-timeline-cursor').style.left = `${time * Number(timelineViewport.dataset.scale)}px`;
+    const cursor = $('#event-timeline-cursor');
+    cursor.style.left = `${time * Number(timelineViewport.dataset.scale)}px`;
+    cursor.setAttribute('aria-valuenow', String(time));
+    cursor.setAttribute('aria-valuemax', String(level.duration));
+    cursor.setAttribute('aria-valuetext', `${time.toFixed(1)} seconds`);
   }
   for (const entry of $('#event-list').querySelectorAll('[data-event-time]')) {
     entry.dataset.previewReached = String(Number(entry.dataset.eventTime) <= time);
@@ -1763,6 +1782,67 @@ function pointReference(events, bricks) {
   return { ...totals, extra };
 }
 
+function firstSpawnerAppearanceTime(brick, bricks, game, duration) {
+  const visible = time => {
+    const camera = game.camera(time);
+    return bricks.some(part => (part.id === brick.id || part.absorbedBy === brick.id)
+      && part.x < camera.x + camera.width && part.x + part.w > camera.x
+      && part.y < camera.y + camera.height && part.y + part.h > camera.y);
+  };
+  if (visible(0)) return 0;
+  if (!game.level.autoscroll) return null;
+  const axis = game.portrait ? 'y' : 'x';
+  const size = game.portrait ? 'height' : 'width';
+  const dimension = game.portrait ? 'h' : 'w';
+  const initialCamera = game.camera(0), finalCamera = game.camera(duration);
+  const direction = Math.sign(finalCamera[axis] - initialCamera[axis]);
+  if (!direction) return null;
+  let first = null;
+  for (const part of bricks.filter(part => part.id === brick.id || part.absorbedBy === brick.id)) {
+    const start = part[axis], end = start + part[dimension];
+    if (direction > 0) {
+      if (end <= initialCamera[axis] || start < initialCamera[axis] + initialCamera[size]
+        || finalCamera[axis] + finalCamera[size] <= start) continue;
+    } else if (start >= initialCamera[axis] + initialCamera[size] || end > initialCamera[axis]
+      || finalCamera[axis] >= end) continue;
+    let low = 0, high = duration;
+    for (let iteration = 0; iteration < 40; iteration++) {
+      const middle = (low + high) / 2;
+      const camera = game.camera(middle);
+      const entered = direction > 0 ? camera[axis] + camera[size] > start : camera[axis] < end;
+      if (entered) high = middle;
+      else low = middle;
+    }
+    if (visible(high) && (first === null || high < first)) first = high;
+  }
+  return first === null ? null : Number(first.toFixed(6));
+}
+
+function weaponBalanceSeries(events, bricks, game, duration) {
+  const changes = new Map();
+  const addChange = (time, source) => {
+    const balanceEvent = source.kind === 'enemy' || source.kind === 'weapon'
+      || source.kind === 'object' && source.type === 'item-case' && Object.hasOwn(WEAPONS, source.containsItem);
+    if (!balanceEvent) return;
+    const totals = pointReference([source], []);
+    const change = totals.weaponHits - totals.enemy;
+    changes.set(time, (changes.get(time) ?? 0) + change);
+  };
+  for (const event of events) addChange(event.time, event);
+  for (const brick of bricks.filter(brick => brick.absorbedBy === null && brick.spawner)) {
+    const time = firstSpawnerAppearanceTime(brick, bricks, game, duration);
+    if (time !== null) addChange(time, brick.spawner);
+  }
+
+  const points = [{ time: 0, value: 0 }];
+  let value = 0;
+  for (const [time, change] of [...changes].sort(([a], [b]) => a - b)) {
+    value += change;
+    points.push({ time, value });
+  }
+  return points;
+}
+
 function pointTargets(level) {
   const trigger = level.catBlock?.trigger;
   const scored = !level.survive && !level.bossLevel;
@@ -1804,6 +1884,79 @@ function renderPointReference(events, bricks) {
     }));
   }
   warnings.hidden = !entries.length;
+}
+
+function renderWeaponBalanceChart(layout, game) {
+  const svg = $('#weapon-balance-chart');
+  const points = weaponBalanceSeries(level.events, game.bricks, game, level.duration);
+  const width = Math.ceil(layout.width + 48), height = 172;
+  const left = 42, right = width - 8, top = 12, bottom = height - 27;
+  const endTime = layout.width / layout.scale;
+  const values = points.map(point => point.value);
+  const span = Math.max(...values) - Math.min(...values);
+  const padding = span ? span * .1 : 1;
+  const min = Math.min(0, ...values) - padding, max = Math.max(0, ...values) + padding;
+  const x = time => left + time * layout.scale;
+  const y = value => bottom - (value - min) / (max - min) * (bottom - top);
+  const make = (name, attributes = {}) => {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+    for (const [attribute, value] of Object.entries(attributes)) element.setAttribute(attribute, String(value));
+    return element;
+  };
+  const label = value => String(Number(value.toPrecision(4)));
+  svg.replaceChildren();
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('width', String(width));
+  svg.setAttribute('height', String(height));
+  svg.setAttribute('aria-label', 'Cumulative estimated weapon strikes minus enemy points over time. Positive values indicate sufficient estimated strikes for the enemies scheduled by that time.');
+  const title = make('title');
+  title.textContent = 'Weapon strike surplus over enemy points';
+  const description = make('desc');
+  description.textContent = 'A step chart of cumulative estimated weapon strikes minus cumulative enemy points. Values above zero indicate sufficient estimated strikes for all enemies scheduled by that time.';
+  svg.append(title, description);
+  const zero = y(0);
+  svg.append(make('line', { x1: left, y1: zero, x2: right, y2: zero, class: 'weapon-balance-zero' }));
+  svg.append(make('line', { x1: left, y1: top, x2: left, y2: bottom, class: 'weapon-balance-axis' }));
+  svg.append(make('line', { x1: left, y1: bottom, x2: right, y2: bottom, class: 'weapon-balance-axis' }));
+  for (const value of [...new Set([max - padding, 0, min + padding])]) {
+    const tickY = y(value);
+    svg.append(make('line', { x1: left - 4, y1: tickY, x2: left, y2: tickY, class: 'weapon-balance-axis' }));
+    const tick = make('text', { x: left - 7, y: tickY + 4, 'text-anchor': 'end', class: 'weapon-balance-value' });
+    tick.textContent = label(value);
+    svg.append(tick);
+  }
+
+  const rawStep = Math.max(80 / layout.scale, endTime / 150);
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = [1, 2, 5, 10].find(candidate => candidate * magnitude >= rawStep) * magnitude;
+  for (let time = 0, count = Math.floor(endTime / step); time <= count; time++) {
+    const tickTime = time * step, tickX = x(tickTime);
+    svg.append(make('line', { x1: tickX, y1: bottom, x2: tickX, y2: bottom + 4, class: 'weapon-balance-axis' }));
+    const tick = make('text', { x: tickX, y: height - 5, class: 'weapon-balance-time' });
+    tick.textContent = `${Number(tickTime.toPrecision(12))}s`;
+    svg.append(tick);
+  }
+
+  const drawLine = (x1, y1, x2, y2, value) => {
+    if (x1 === x2 && y1 === y2) return;
+    svg.append(make('line', { x1, y1, x2, y2,
+      class: `weapon-balance-segment ${value > 0 ? 'positive' : value < 0 ? 'negative' : 'zero'}` }));
+  };
+  let current = points[0];
+  for (const next of points.slice(1)) {
+    drawLine(x(current.time), y(current.value), x(next.time), y(current.value), current.value);
+    drawLine(x(next.time), y(current.value), x(next.time), y(next.value), next.value);
+    current = next;
+  }
+  drawLine(x(current.time), y(current.value), x(endTime), y(current.value), current.value);
+  for (const point of points.slice(1)) {
+    const marker = make('circle', { cx: x(point.time), cy: y(point.value), r: 3,
+      class: `weapon-balance-point ${point.value > 0 ? 'positive' : point.value < 0 ? 'negative' : 'zero'}` });
+    const markerTitle = make('title');
+    markerTitle.textContent = `${label(point.value)} net strikes at ${Number(point.time.toPrecision(4))}s`;
+    marker.append(markerTitle);
+    svg.append(marker);
+  }
 }
 
 function render() {
@@ -3388,6 +3541,39 @@ $('#event-list').addEventListener('pointermove', moveTimelineGesture);
 $('#event-list').addEventListener('pointerup', event => finishTimelineGesture(event));
 $('#event-list').addEventListener('pointercancel', event => finishTimelineGesture(event, true));
 $('#event-list').addEventListener('lostpointercapture', event => finishTimelineGesture(event, true));
+function moveTimelineCursorFromPointer(event) {
+  if (timelineCursorPointerId !== event.pointerId) return;
+  const scale = Number($('#event-timeline-viewport').dataset.scale);
+  const left = $('#event-timeline-plot').getBoundingClientRect().left;
+  pausePreview();
+  renderPreviewTime(discretePreviewTime((event.clientX - left) / scale), true);
+}
+$('#event-timeline-cursor').addEventListener('pointerdown', event => {
+  if (event.button !== 0 || $('#event-timeline-viewport').dataset.view !== 'relative') return;
+  event.preventDefault();
+  timelineCursorPointerId = event.pointerId;
+  event.currentTarget.setPointerCapture(event.pointerId);
+  moveTimelineCursorFromPointer(event);
+});
+$('#event-timeline-cursor').addEventListener('pointermove', moveTimelineCursorFromPointer);
+$('#event-timeline-cursor').addEventListener('pointerup', event => {
+  if (timelineCursorPointerId !== event.pointerId) return;
+  moveTimelineCursorFromPointer(event);
+  timelineCursorPointerId = null;
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+});
+$('#event-timeline-cursor').addEventListener('pointercancel', () => { timelineCursorPointerId = null; });
+$('#event-timeline-cursor').addEventListener('lostpointercapture', () => { timelineCursorPointerId = null; });
+$('#event-timeline-cursor').addEventListener('keydown', event => {
+  const step = Number($('#timeline-discretization').value) || 1;
+  const direction = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -10, PageUp: 10 }[event.key];
+  if (!direction && !['Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  pausePreview();
+  const time = Number($('#timeline').value);
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? level.duration : time + direction * step;
+  renderPreviewTime(discretePreviewTime(next), true);
+});
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape' || !timelineGesture) return;
   event.preventDefault();

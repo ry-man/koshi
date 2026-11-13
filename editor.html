@@ -340,11 +340,22 @@
         </div>
         <div id="event-timeline-viewport">
           <div id="event-timeline-plot">
-            <div id="event-timeline-cursor" aria-hidden="true" hidden></div>
+            <button id="event-timeline-cursor" type="button" role="slider" aria-label="Preview time on event timeline" aria-valuemin="0" aria-valuemax="60" aria-valuenow="0" hidden></button>
             <div id="event-timeline-axis" aria-label="Time in seconds" hidden></div>
             <ol id="event-list" class="event-timeline"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
           </div>
         </div>
+        <section id="weapon-balance-section" class="weapon-balance-section" aria-label="Weapon balance over time" hidden>
+          <h3>Weapon strikes minus enemy points</h3>
+          <p>Positive values indicate sufficient estimated strikes for the enemies scheduled by that time.</p>
+          <div id="weapon-balance-viewport" aria-label="Scrollable weapon balance chart">
+            <svg id="weapon-balance-chart" role="img"></svg>
+          </div>
+          <details class="point-assumptions">
+            <summary>See assumptions</summary>
+            <p>This cumulative estimate adds each event's displayed weapon-strike or enemy-point total at its scheduled time. Weapons carried by enemies and stored in Item Cases are added when those events appear; each active spawning brick contributes its weapon or enemy total when the brick first enters the screen. Grouped and independent random events are counted in full. Assume every pickup is collected and used fully; misses, combat timing, replacement losses, case-breaking costs, recharges, duplication and non-weapon attacks are not simulated. Positive balance is an estimate, not proof that enemies can be defeated in practice.</p>
+          </details>
+        </section>
       </section>
       <section class="editor-panel" aria-label="Import and export">
         <fieldset id="files-access" class="access-fields">
