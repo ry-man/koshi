@@ -341,8 +341,10 @@ equally sized icons. Icon sizing is independent of the smaller food/enemy text.
 Each icon has a non-shrinking reserved area and a fixed gap before its value;
 values that exceed the available space are ellipsized rather than overlapping
 icons or adjacent counters. Accessible counter labels retain the full values.
-Food and enemy counters use compact, responsive numeric rows
-so three-digit totals and targets fit even on phones. The **Level** heading sits
+Food, enemy, and goal objectives show the current amount above the target with
+a horizontal division bar, using larger responsive numbers. Fractions and
+untargeted single numbers are vertically centered beside their icons.
+Three-digit totals and targets fit even on phones. The **Level** heading sits
 above the world-level number (for example, **1-9**) in a reserved, single-line
 area; long custom names are ellipsized without resizing the HUD, with the full
 value available on hover. An equipped sword appears beside Koshi with its remaining hit count.

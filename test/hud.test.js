@@ -56,8 +56,8 @@ test('custom names remain intact for accessible reading and hover even when visu
 
 test('food and enemy counters retain full three-digit progress and accessible targets', () => {
   const { node, context } = hud({ id: 'test' });
-  assert.match(node('#food-count').innerHTML, /class="counter-value">123 \/ 999<\/span>/);
-  assert.match(node('#enemy-count').innerHTML, /class="counter-value">456 \/ 999<\/span>/);
+  assert.match(node('#food-count').innerHTML, /class="counter-numerator">123<\/span><span class="counter-denominator">999<\/span>/);
+  assert.match(node('#enemy-count').innerHTML, /class="counter-numerator">456<\/span><span class="counter-denominator">999<\/span>/);
   assert.equal(node('#food-count').attributes['aria-label'], '123 of 999 food collected');
   assert.equal(node('#enemy-count').attributes['aria-label'], '456 of 999 enemy points earned');
   assert.equal(node('#heart-cost-numbers').textContent, '123/999');
@@ -66,6 +66,21 @@ test('food and enemy counters retain full three-digit progress and accessible ta
   context.syncUI();
   assert.match(node('#food-count').innerHTML, /class="counter-value">123<\/span>/);
   assert.match(node('#enemy-count').innerHTML, /class="counter-value">456<\/span>/);
+});
+
+test('only active food, enemy, and soccer objectives render stacked fractions', () => {
+  for (const patch of [{}, { survive: true }, { bossLevel: true }, { goal: 0, killGoal: 0, goalsGoal: 0 },
+    { goal: Infinity, killGoal: Infinity, goalsGoal: Infinity }]) {
+    const { node } = hud({ id: 'fractions', goalsGoal: 999, ...patch });
+    const active = Object.keys(patch).length === 0;
+    for (const id of ['food', 'enemy', 'goal']) {
+      assert.equal(node(`#${id}-count`).innerHTML.includes('counter-fraction'), active);
+      assert.equal(node(`#${id}-count`).innerHTML.includes('counter-denominator'), active);
+      assert.ok(!node(`#${id}-count`).innerHTML.includes(' / '));
+    }
+    assert.equal(node('#goal-count').attributes['aria-label'], active ? '0 of 999 goals scored' : '0 goals scored');
+  }
+  assert.match(styles, /\.hud \.counter-stat \.counter-denominator \{ border-top: 1px solid currentColor;/);
 });
 
 test('food and enemy values sit beside their icons in a centered responsive row', () => {

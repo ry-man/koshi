@@ -207,10 +207,14 @@ h1 em { font-style: normal; color: var(--accent); }
 .stat strong.win-target, .stat strong.win-target span, .briefing-conditions { color: #ffd36a; }
 .hud { --counter-icon-size: 24px; --counter-icon-slot: calc(var(--counter-icon-size) * 1.25); --counter-gap: 4px; }
 .hud .counter-stat { container-type: inline-size; }
-.hud .counter-stat strong { display: flex; align-items: center; justify-content: center; gap: var(--counter-gap); max-width: 100%; overflow: hidden; font-variant-numeric: tabular-nums; }
+.hud .counter-stat strong { display: flex; align-items: center; justify-content: center; gap: var(--counter-gap); max-width: 100%; min-height: 48px; overflow: hidden; font-variant-numeric: tabular-nums; }
 .hud .counter-stat .counter-icon { flex: 0 0 var(--counter-icon-slot); width: var(--counter-icon-slot); overflow: hidden; font-size: var(--counter-icon-size); line-height: 1.2; }
 .hud .counter-stat .counter-value { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; font: inherit; color: inherit; }
-.hud .target-stat strong { font-size: clamp(5px, calc((100cqw - var(--counter-icon-slot) - var(--counter-gap)) / 4.8), 16px); }
+.hud .counter-stat .counter-fraction { display: grid; text-align: center; line-height: 1.1; }
+.hud .counter-stat .counter-fraction > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: inherit; color: inherit; }
+.hud .counter-stat .counter-numerator { padding-bottom: 2px; }
+.hud .counter-stat .counter-denominator { border-top: 1px solid currentColor; padding-top: 2px; }
+.hud .target-stat strong { font-size: clamp(8px, calc((100cqw - var(--counter-icon-slot) - var(--counter-gap)) / 1.9), 20px); }
 .stat.lives { border: 0; padding: 0; min-width: 0; }
 .lives strong { color: var(--fast); letter-spacing: 4px; }
 .heart-cost { max-width: 150px; margin: 6px auto 0; color: #efb6c4; font-size: 10px; }

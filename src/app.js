@@ -969,7 +969,7 @@ function syncUI() {
   timer.innerHTML = Number.isFinite(DURATION) ? `🕒 ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '🕒 ∞';
   timer.setAttribute('aria-label', Number.isFinite(DURATION)
     ? `${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))} seconds remaining` : 'Unlimited time');
-  foodCount.innerHTML = `<span class="counter-icon" aria-hidden="true">🍗</span><span class="counter-value">${game.score}${foodTarget ? ` / ${GOAL}` : ''}</span>`;
+  foodCount.innerHTML = `<span class="counter-icon" aria-hidden="true">🍗</span><span class="counter-value${foodTarget ? ' counter-fraction' : ''}">${foodTarget ? `<span class="counter-numerator">${game.score}</span><span class="counter-denominator">${GOAL}</span>` : game.score}</span>`;
   timer.classList.toggle('win-target', survive);
   foodCount.classList.toggle('win-target', foodTarget);
   foodCount.setAttribute('aria-label', foodTarget ? `${game.score} of ${GOAL} food collected` : `${game.score} food collected`);
@@ -1011,11 +1011,11 @@ function syncUI() {
   document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.level.name?.toUpperCase() ?? (game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS');
   document.querySelector('.objective strong').textContent = levelObjective(game.level);
   const enemyCount = document.querySelector('#enemy-count');
-  enemyCount.innerHTML = `<span class="counter-icon" aria-hidden="true">👾</span><span class="counter-value">${game.enemies}${enemyTarget ? ` / ${killGoal}` : ''}</span>`;
+  enemyCount.innerHTML = `<span class="counter-icon" aria-hidden="true">👾</span><span class="counter-value${enemyTarget ? ' counter-fraction' : ''}">${enemyTarget ? `<span class="counter-numerator">${game.enemies}</span><span class="counter-denominator">${killGoal}</span>` : game.enemies}</span>`;
   enemyCount.classList.toggle('win-target', enemyTarget);
   enemyCount.setAttribute('aria-label', enemyTarget ? `${game.enemies} of ${killGoal} enemy points earned` : `${game.enemies} enemy points earned`);
   const goalCount = document.querySelector('#goal-count');
-  goalCount.innerHTML = `<span class="counter-icon" aria-hidden="true">⚽</span><span class="counter-value">${soccerGoals}${soccerGoalTarget ? ` / ${goalsGoal}` : ''}</span>`;
+  goalCount.innerHTML = `<span class="counter-icon" aria-hidden="true">⚽</span><span class="counter-value${soccerGoalTarget ? ' counter-fraction' : ''}">${soccerGoalTarget ? `<span class="counter-numerator">${soccerGoals}</span><span class="counter-denominator">${goalsGoal}</span>` : soccerGoals}</span>`;
   goalCount.classList.toggle('win-target', soccerGoalTarget);
   goalCount.setAttribute('aria-label', soccerGoalTarget
     ? `${soccerGoals} of ${goalsGoal} goals scored` : `${soccerGoals} goals scored`);
