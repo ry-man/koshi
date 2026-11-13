@@ -90,7 +90,15 @@ Options are forwarded after `--`, for example:
 npm run perf -- --cpu 4 --headed
 npm run perf -- --seconds 5 --warmup 1 --repeats 1 --soak-seconds 10 --restarts 2 --profile-seconds 3
 npm run perf -- --baseline performance-results/<previous-run>/report.json
+npm run perf -- --scenario oval --seconds 10 --warmup 2 --repeats 2 --soak-seconds 10 --restarts 2 --profile-seconds 5
 ```
+
+`--scenario oval` replaces the campaign scenarios with an isolated custom arena
+containing one oval. Real pointer clicks alternate between side bricks to
+exercise curved previews and sliding repeatedly, including restart/soak and
+CPU/trace replay. Each segment must include both curved previews and actual
+surface contact. Reports also include trajectory calculation p95/max and
+coverage counts. No authored level is modified. The default is `--scenario campaign`.
 
 Other options: `--output <directory>` and positive durations/counts for the
 flags shown above. A baseline must have the same browser version, platform,
@@ -1806,6 +1814,12 @@ no-click motion, curving along obstruction surfaces or ending where he becomes
 stuck instead of continuing through the shape toward the original target.
 The forecast uses gameplay's collision substeps without changing live state,
 and still accounts for one spring reflection or bumper deflection.
+Local obstruction vertices and collision edge data are cached and rebuilt only
+when the shape or dimensions change; moving or rotating an obstruction reuses
+that geometry without reducing collision or forecast precision.
+Polygon collision sweeps test offset edges and rounded vertices directly rather
+than iteratively searching for contact. The forecast still uses the same sliding
+substeps and collision geometry as live movement.
 
 The editor lists each shape, size and orientation once. Its **Obstruction texture**
 controls offer the same fixed **100 color presets** for base and pattern colors

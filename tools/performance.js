@@ -6,11 +6,12 @@ const path = require('node:path');
 const { once } = require('node:events');
 const { createServer } = require('./serve.js');
 const { requireChromium } = require('./smoke-official-levels.js');
+const { summarize } = require('../src/performance.js');
 
 function optionsFrom(argv) {
   const options = {
     seconds: 30, warmup: 5, repeats: 2, soakSeconds: 120, restarts: 5,
-    profileSeconds: null, cpu: 1, headed: false, baseline: null,
+    profileSeconds: null, cpu: 1, headed: false, baseline: null, scenario: 'campaign',
     output: path.resolve(__dirname, '..', 'performance-results', new Date().toISOString().replace(/[:.]/g, '-')),
   };
   const numeric = { '--seconds': 'seconds', '--warmup': 'warmup', '--repeats': 'repeats',
@@ -22,6 +23,10 @@ function optionsFrom(argv) {
       const value = Number(argv[++i]);
       if (!Number.isFinite(value) || value <= 0) throw new Error(`${arg} requires a positive number.`);
       options[numeric[arg]] = value;
+    } else if (arg === '--scenario') {
+      const value = argv[++i];
+      if (!['campaign', 'oval'].includes(value)) throw new Error('--scenario requires campaign or oval.');
+      options.scenario = value;
     } else if (arg === '--output' || arg === '--baseline') {
       const value = argv[++i];
       if (!value || value.startsWith('--')) throw new Error(`${arg} requires a path.`);
@@ -45,6 +50,7 @@ function compareBaseline(report, baseline) {
   for (const key of ['seconds', 'warmup', 'repeats', 'soakSeconds', 'restarts']) {
     assert.equal(baseline.options[key], report.options[key], `Baseline workload differs: ${key}`);
   }
+  assert.equal(baseline.options.scenario ?? 'campaign', report.options.scenario ?? 'campaign', 'Baseline scenario differs.');
   return report.runs.filter(run => !run.diagnostic).flatMap(run => {
     const previous = baseline.runs.find(candidate => candidate.name === run.name && !candidate.diagnostic);
     assert.ok(previous, `Baseline has no run named ${run.name}`);
@@ -99,7 +105,7 @@ async function memorySample(cdp, label) {
   };
 }
 
-async function drive(page, cdp, seconds, memory, run = 'warmup') {
+async function drive(page, cdp, seconds, memory, run = 'warmup', oval = false) {
   const initial = await page.evaluate(() => globalThis.KoshiPerformance.progress().activeMs);
   const deadline = Date.now() + seconds * 5000 + 30000;
   let step = 0, inputs = 0, lastMemory = 0, recoveries = 0;
@@ -122,7 +128,16 @@ async function drive(page, cdp, seconds, memory, run = 'warmup') {
       }).filter(point => point.width > 0 && point.height > 0 && point.x >= 0
         && point.x < innerWidth && point.y >= 0 && point.y < innerHeight));
     if (points.length) {
-      const point = points[(step * 7 + 3) % points.length];
+      let point = points[(step * 7 + 3) % points.length];
+      if (oval) {
+        const bounds = await page.locator('#board').boundingBox();
+        assert.ok(bounds, 'Oval board must be visible.');
+        const target = { x: bounds.x + bounds.width * (Math.floor(step / 6) % 2 ? .03 : .97),
+          y: bounds.y + bounds.height * .45 };
+        point = points.reduce((best, candidate) =>
+          Math.hypot(candidate.x - target.x, candidate.y - target.y)
+            < Math.hypot(best.x - target.x, best.y - target.y) ? candidate : best);
+      }
       await page.mouse.click(point.x, point.y);
       inputs++;
     }
@@ -180,6 +195,7 @@ function summaryText(report) {
     const m = run.measurement.metrics;
     const f = value => value?.toFixed(2) ?? '-';
     lines.push(`${run.name} | ${run.measurement.totalFrames} | ${f(m.interval?.p95)} / ${f(m.interval?.p99)} / ${f(m.interval?.max)} | ${m.interval?.over33 ?? 0} / ${m.interval?.over50 ?? 0} | ${['simulation', 'ui', 'render', 'work'].map(key => f(m[key]?.p95)).join(' / ')}`);
+    if (run.trajectory) lines.push(`  Trajectory p95 / max: ${f(run.trajectory.timing?.p95)} / ${f(run.trajectory.timing?.max)} ms; curved previews: ${run.trajectory.curvedFrames}; sliding frames: ${run.trajectory.slidingFrames}`);
   }
   if (report.retainedMemory.length > 1) {
     const first = report.retainedMemory[0], last = report.retainedMemory.at(-1);
@@ -251,7 +267,13 @@ async function runPerformance(options) {
     const scrolling = beta.filter(level => level.scroll).sort((a, b) => b.density - a.density)[0];
     const busy = beta.filter(level => !level.scroll).sort((a, b) => b.density - a.density)[0];
     assert.ok(scrolling && busy, 'Expected scrolling and busy Beta scenarios.');
-    const scenarios = [
+    const scenarios = options.scenario === 'oval' ? [{
+      name: 'oval', campaign: 'beta', level: 'Oval trajectory performance',
+      customLevel: { version: 1, id: 'Oval trajectory performance', duration: 600, goal: 10000,
+        heartCost: null, brickSet: 1, events: [
+          { time: 0, kind: 'object', type: 'obstruction-oval', x: .65, y: .5, width: 144, height: 96 },
+        ] },
+    }] : [
       { name: 'official', campaign: 'official', level: 'official-1-2' },
       { name: 'scrolling', campaign: 'beta', level: scrolling.id },
       { name: 'busy', campaign: 'beta', level: busy.id },
@@ -260,18 +282,48 @@ async function runPerformance(options) {
     let navigation = 0;
     async function load(scenario) {
       // A fragment-only navigation does not rerun startup campaign selection.
-      await page.goto(`${base}/?game=${scenario.campaign}&perf=1&run=${++navigation}#campaign=${encodeURIComponent(scenario.level)}`);
+      const fragment = scenario.customLevel ? `level=${encodeURIComponent(JSON.stringify(scenario.customLevel))}`
+        : `campaign=${encodeURIComponent(scenario.level)}`;
+      await page.goto(`${base}/?game=${scenario.campaign}&perf=1&run=${++navigation}#${fragment}`);
       await ready(page);
       assert.equal(await page.evaluate(() => globalThis.KoshiPerformance.state().level), scenario.level, 'Wrong performance level loaded');
       await page.evaluate(() => globalThis.KoshiPerformance.setOverlay(false));
+      if (scenario.customLevel) {
+        await page.evaluate(() => {
+          const original = globalThis.KoshiGame.Game.prototype.trajectory;
+          globalThis.ovalTrajectorySamples = [];
+          globalThis.KoshiGame.Game.prototype.trajectory = function (...args) {
+            const start = performance.now();
+            const points = original.apply(this, args);
+            if (this.state === 'playing') {
+              const samples = globalThis.ovalTrajectorySamples;
+              if (samples.length < 18000) samples.push({
+                ms: performance.now() - start, curved: points.length > 2,
+                sliding: this.obstructions.some(object =>
+                  globalThis.KoshiGame.obstructionSurface(this.cat.x, this.cat.y, object).gap <= this.cat.radius + .01),
+              });
+            }
+            return points;
+          };
+        });
+      }
     }
     async function measure(name, scenario, seconds, diagnostic = false) {
       await page.evaluate(() => globalThis.KoshiPerformance.start());
-      const activity = await drive(page, cdp, seconds, report.memory, name);
+      if (scenario.customLevel) await page.evaluate(() => { globalThis.ovalTrajectorySamples = []; });
+      const activity = await drive(page, cdp, seconds, report.memory, name, Boolean(scenario.customLevel));
       const measurement = await page.evaluate(() => globalThis.KoshiPerformance.stop());
       assert.ok(measurement.totalFrames >= 2 && measurement.activeMs >= seconds * 1000, `${name}: insufficient active gameplay`);
       assert.ok(activity.inputs > 0, `${name}: no scripted inputs`);
       const run = { name, level: scenario.level, diagnostic, activity, measurement };
+      if (scenario.customLevel) {
+        const samples = await page.evaluate(() => globalThis.ovalTrajectorySamples);
+        run.trajectory = { timing: summarize(samples.map(sample => sample.ms)),
+          curvedFrames: samples.filter(sample => sample.curved).length,
+          slidingFrames: samples.filter(sample => sample.sliding).length };
+        assert.ok(run.trajectory.curvedFrames > 0 && run.trajectory.slidingFrames > 0,
+          `${name}: oval sliding and curved trajectory coverage required`);
+      }
       report.runs.push(run);
       console.log(`${name}: ${measurement.totalFrames} frames, p95 ${measurement.metrics.interval.p95.toFixed(2)} ms`);
       return run;
@@ -279,15 +331,15 @@ async function runPerformance(options) {
     for (const scenario of scenarios) {
       for (let repeat = 1; repeat <= options.repeats; repeat++) {
         await load(scenario);
-        await drive(page, cdp, options.warmup, []);
+        await drive(page, cdp, options.warmup, [], 'warmup', Boolean(scenario.customLevel));
         await page.evaluate(() => globalThis.resetPerformanceSeed());
         await restart(page);
         await measure(`${scenario.name}-${repeat}`, scenario, options.seconds);
       }
     }
-    const soak = scenarios[2];
+    const soak = scenarios.at(-1);
     await load(soak);
-    await drive(page, cdp, options.warmup, []);
+    await drive(page, cdp, options.warmup, [], 'warmup', Boolean(soak.customLevel));
     await page.evaluate(() => globalThis.KoshiPerformance.stop());
     async function retained(label) {
       // Forced GC is only between measured segments, never during frame timing.
@@ -305,7 +357,7 @@ async function runPerformance(options) {
       .sort((a, b) => b.measurement.metrics.interval.p99 - a.measurement.metrics.interval.p99)[0];
     const diagnostic = scenarios.find(scenario => worst.name.startsWith(scenario.name));
     await load(diagnostic);
-    await drive(page, cdp, options.warmup, []);
+    await drive(page, cdp, options.warmup, [], 'warmup', Boolean(diagnostic.customLevel));
     await page.evaluate(() => globalThis.resetPerformanceSeed());
     await restart(page);
     await captureProfile(cdp, options.output, () => measure('diagnostic-replay', diagnostic, options.profileSeconds, true));

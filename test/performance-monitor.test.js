@@ -143,7 +143,10 @@ test('performance command is explicit-only and rejects invalid options', () => {
   assert.equal(optionsFrom(['--seconds', '5', '--profile-seconds', '2']).profileSeconds, 2);
   assert.equal(optionsFrom(['--cpu', '4', '--headed']).cpu, 4);
   assert.equal(optionsFrom(['--headed']).headed, true);
-  for (const args of [['--seconds'], ['--warmup', '0'], ['--repeats', '1.5'], ['--cpu', '.5'], ['--output'], ['--bogus']]) {
+  assert.equal(optionsFrom([]).scenario, 'campaign');
+  assert.equal(optionsFrom(['--scenario', 'oval']).scenario, 'oval');
+  for (const args of [['--seconds'], ['--warmup', '0'], ['--repeats', '1.5'], ['--cpu', '.5'], ['--output'], ['--bogus'],
+    ['--scenario'], ['--scenario', 'unknown']]) {
     assert.throws(() => optionsFrom(args));
   }
   const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
@@ -166,6 +169,9 @@ test('baseline comparison checks workload, environment, and meaningful p95 regre
   baseline.environment.cpu = 1;
   baseline.options.seconds = 5;
   assert.throws(() => compareBaseline(report, baseline), /workload differs/);
+  baseline.options.seconds = 30;
+  baseline.options.scenario = 'oval';
+  assert.throws(() => compareBaseline(report, baseline), /scenario differs/);
   baseline.error = 'Browser failed';
   assert.throws(() => compareBaseline(report, baseline), /failed run/);
 });
@@ -173,4 +179,13 @@ test('baseline comparison checks workload, environment, and meaningful p95 regre
 test('failure summary can be saved before any browser measurements exist', () => {
   const text = summaryText({ options: { cpu: 1 }, runs: [], retainedMemory: [], error: 'launch failed' });
   assert.match(text, /FAILED: launch failed/);
+});
+
+test('oval performance summaries include trajectory costs and actual sliding coverage', () => {
+  const text = summaryText({ options: { cpu: 1 }, retainedMemory: [], runs: [{
+    name: 'oval-1', measurement: { totalFrames: 100, metrics: {} },
+    trajectory: { timing: { p95: 2, max: 4 }, curvedFrames: 80, slidingFrames: 20 },
+  }] });
+  assert.match(text, /Trajectory p95 \/ max: 2.00 \/ 4.00 ms/);
+  assert.match(text, /curved previews: 80; sliding frames: 20/);
 });

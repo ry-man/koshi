@@ -2978,9 +2978,35 @@ function obstructionPresetGeometry(type, size) {
   return { width: preset[0], height: preset[1] };
 }
 
-function obstructionVertices(obstruction) {
+const obstructionPolygonCache = new WeakMap();
+function obstructionPolygon(obstruction) {
   const { width, height } = obstructionGeometry(obstruction);
   const shape = OBJECTS[obstruction.type].obstruction;
+  const cached = obstructionPolygonCache.get(obstruction);
+  if (cached && cached.shape === shape && cached.width === width && cached.height === height) return cached;
+  const vertices = buildObstructionVertices(width, height, shape);
+  let area = 0;
+  const edges = vertices.map(([ax, ay], i) => {
+    const [bx, by] = vertices[(i + 1) % vertices.length];
+    const ex = bx - ax, ey = by - ay, lengthSquared = ex * ex + ey * ey;
+    area += ax * by - bx * ay;
+    return { ax, ay, bx, by, ex, ey, lengthSquared, length: Math.sqrt(lengthSquared) };
+  });
+  const orientation = area >= 0 ? 1 : -1;
+  for (const edge of edges) {
+    edge.nx = orientation * edge.ey / edge.length;
+    edge.ny = -orientation * edge.ex / edge.length;
+  }
+  const geometry = { shape, width, height, vertices, edges, orientation };
+  obstructionPolygonCache.set(obstruction, geometry);
+  return geometry;
+}
+
+function obstructionVertices(obstruction) {
+  return obstructionPolygon(obstruction).vertices;
+}
+
+function buildObstructionVertices(width, height, shape) {
   let unit;
   if (shape === 'rectangle') unit = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5]];
   else if (shape === 'diamond') unit = [[0, -.5], [.5, 0], [0, .5], [-.5, 0]];
@@ -3040,29 +3066,25 @@ function obstructionSurface(x, y, obstruction) {
     return { gap: distance - radius, nx: distance ? dx / distance : -1, ny: distance ? dy / distance : 0 };
   }
   const localX = dx * cos + dy * sin, localY = -dx * sin + dy * cos;
-  const surface = polygonSurface(localX, localY, obstructionVertices(obstruction));
+  const surface = polygonSurface(localX, localY, obstructionPolygon(obstruction));
   return { ...surface, nx: surface.nx * cos - surface.ny * sin, ny: surface.nx * sin + surface.ny * cos };
 }
 
-function polygonSurface(x, y, vertices) {
-  let inside = false, area = 0;
-  for (let i = 0; i < vertices.length; i++) {
-    const [ax, ay] = vertices[i], [bx, by] = vertices[(i + 1) % vertices.length];
-    area += ax * by - bx * ay;
+function polygonSurface(x, y, { edges, orientation }) {
+  let inside = false;
+  for (let i = 0; i < edges.length; i++) {
+    const { ax, ay, bx, by } = edges[i];
     if ((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) inside = !inside;
   }
   let distance = Infinity, nx = -1, ny = 0;
-  for (let i = 0; i < vertices.length; i++) {
-    const [ax, ay] = vertices[i], [bx, by] = vertices[(i + 1) % vertices.length];
-    const ex = bx - ax, ey = by - ay, lengthSquared = ex * ex + ey * ey;
+  for (let i = 0; i < edges.length; i++) {
+    const { ax, ay, ex, ey, lengthSquared, length } = edges[i];
     const t = Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / lengthSquared));
     const px = ax + t * ex, py = ay + t * ey, gap = Math.hypot(x - px, y - py);
     if (gap < distance) {
       distance = gap;
       if (gap > 1e-9 && !inside) { nx = (x - px) / gap; ny = (y - py) / gap; }
       else {
-        const orientation = area >= 0 ? 1 : -1;
-        const length = Math.sqrt(lengthSquared);
         nx = orientation * ey / length; ny = -orientation * ex / length;
       }
     }
@@ -3106,34 +3128,37 @@ function obstructionContact(x, y, dx, dy, radius, obstruction) {
     return brickContact(x, y, dx, dy, radius, { x: obstruction.x - obstruction.width / 2,
       y: obstruction.y - obstruction.height / 2, w: obstruction.width, h: obstruction.height });
   }
-  const travel = Math.hypot(dx, dy);
-  if (!travel) return Infinity;
+  if (!dx && !dy) return Infinity;
+  const angle = (obstruction.rotation ?? 0) * Math.PI / 180;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const localX = (x - obstruction.x) * cos + (y - obstruction.y) * sin;
+  const localY = -(x - obstruction.x) * sin + (y - obstruction.y) * cos;
+  const localDX = dx * cos + dy * sin, localDY = -dx * sin + dy * cos;
+  const polygon = obstructionPolygon(obstruction);
+  const surface = polygonSurface(localX, localY, polygon);
   const contactTolerance = 1e-7;
-  const gap = t => obstructionSurface(x + dx * t, y + dy * t, obstruction).gap - radius;
-  const initialGap = gap(0);
+  const initialGap = surface.gap - radius;
   if (initialGap < -contactTolerance) return 0;
-  // Use the sweep's stopping tolerance so a previous hit still permits departure.
+  // Keep the contact tolerance shared with sliding so previous hits permit departure.
   if (initialGap <= contactTolerance) {
-    const { nx, ny } = obstructionSurface(x, y, obstruction);
-    if (dx * nx + dy * ny >= -1e-9) return Infinity;
+    if (localDX * surface.nx + localDY * surface.ny >= -1e-9) return Infinity;
     return 0;
   }
-  let t = 0;
-  for (let i = 0; i < 80 && t < 1; i++) {
-    const distance = gap(t);
-    if (distance <= contactTolerance) return t;
-    const previous = t;
-    t = Math.min(1, t + Math.max(distance / travel * .9, 1e-8));
-    if (gap(t) <= 0) {
-      let low = previous, high = t;
-      for (let j = 0; j < 32; j++) {
-        const middle = (low + high) / 2;
-        if (gap(middle) <= 0) high = middle; else low = middle;
+  let contact = Infinity;
+  // A swept circle first meets an offset edge or a radius-sized circle at a vertex.
+  for (const { ax, ay, ex, ey, lengthSquared, nx, ny } of polygon.edges) {
+    const speed = localDX * nx + localDY * ny;
+    if (speed < 0) {
+      const t = (radius - ((localX - ax) * nx + (localY - ay) * ny)) / speed;
+      if (t >= 0 && t <= 1 && t < contact) {
+        const along = ((localX + localDX * t - ax) * ex + (localY + localDY * t - ay) * ey) / lengthSquared;
+        if (along >= 0 && along <= 1) contact = t;
       }
-      return high;
     }
+    const t = circleContact(localX - ax, localY - ay, localDX, localDY, radius);
+    if (t <= 1 && t < contact) contact = t;
   }
-  return gap(1) <= contactTolerance ? 1 : Infinity;
+  return contact;
 }
 
 function spikeContact(x, y, dx, dy, radius, triangle) {

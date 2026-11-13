@@ -86,6 +86,36 @@ test('new obstruction shapes collide as solid geometry and rotation changes worl
   assert.ok(Math.abs(side.ny) < 1e-8);
 });
 
+test('obstruction geometry cache reuses local vertices and invalidates on shape or dimension changes', () => {
+  for (const shape of shapes) {
+    const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 }, placement(shape));
+    const vertices = obstructionVertices(obstruction);
+    assert.strictEqual(obstructionVertices(obstruction), vertices);
+    obstruction.x += 20;
+    obstruction.y -= 30;
+    obstruction.rotation = 37;
+    obstruction.color = '#123456';
+    assert.strictEqual(obstructionVertices(obstruction), vertices, 'world transform and appearance reuse local geometry');
+    for (const change of [{ width: 231 }, { height: 83 }, { type: 'obstruction-v' },
+      { type: 'obstruction-oval' }, { width: undefined, height: undefined }]) {
+      const previous = obstructionVertices(obstruction);
+      const before = obstructionGeometry(obstruction), previousType = obstruction.type;
+      Object.assign(obstruction, change);
+      const next = obstructionVertices(obstruction), after = obstructionGeometry(obstruction);
+      if (before.width !== after.width || before.height !== after.height || previousType !== obstruction.type) {
+        assert.notStrictEqual(next, previous, 'changed geometry is rebuilt');
+      } else assert.strictEqual(next, previous, 'unchanged effective dimensions reuse geometry');
+      assert.deepEqual(next, obstructionVertices({ ...obstruction }), 'matches a fresh object after mutation');
+      for (const [dx, dy] of [[0, 0], [120, 25], [-70, -35]]) {
+        const x = obstruction.x + dx, y = obstruction.y + dy;
+        assert.deepEqual(obstructionSurface(x, y, obstruction), obstructionSurface(x, y, { ...obstruction }),
+          'collision edge data is refreshed with the vertices');
+      }
+    }
+    assert.deepEqual(vertices, obstructionVertices({ type: `obstruction-${shape}` }), 'old cached arrays remain intact');
+  }
+});
+
 test('legacy obstruction IDs normalize to the new shape types with explicit dimensions', () => {
   const legacy = [
     ['obstruction-circle-large', 'obstruction-circle', 192, 192],
@@ -392,6 +422,60 @@ test('every obstruction variant blocks swept motion from all four sides without 
   }
 });
 
+test('direct polygon sweeps match independently sampled surface entry for rotated, resized and concave shapes', () => {
+  for (const shape of shapes.filter(shape => shape !== 'circle')) for (const rotation of [0, 37, 90]) {
+    const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 },
+      placement(shape, { width: 231, height: 83, rotation }));
+    game.obstructions.push(obstruction);
+    for (let offset = -160; offset <= 160; offset += 20) for (const direction of [-1, 1]) {
+      const old = { x: 480 - direction * 220, y: 300 + offset };
+      const dx = direction * 440, dy = -offset * .3, radius = 21;
+      const clearance = t => obstructionSurface(old.x + dx * t, old.y + dy * t, obstruction).gap - radius;
+      let expected = 1;
+      for (let sample = 1; sample <= 512; sample++) {
+        if (clearance(sample / 512) > 0) continue;
+        let low = (sample - 1) / 512, high = sample / 512;
+        for (let iteration = 0; iteration < 40; iteration++) {
+          const middle = (low + high) / 2;
+          if (clearance(middle) <= 0) high = middle; else low = middle;
+        }
+        expected = high;
+        break;
+      }
+      const actor = { x: old.x + dx, y: old.y + dy, radius, vx: dx, vy: dy };
+      game.moveAroundObstructions(actor, old, true);
+      assert.ok(Math.hypot(actor.x - old.x - dx * expected, actor.y - old.y - dy * expected) < 1e-5,
+        `${shape}, rotation ${rotation}, offset ${offset}, direction ${direction}: first surface entry`);
+      assert.ok(gap(actor, obstruction) >= -1e-5, 'does not tunnel through faces or rounded vertices');
+      assert.equal(actor.vx, dx);
+      assert.equal(actor.vy, dy);
+    }
+  }
+});
+
+test('polygon sweeps allow departure from contact and stop inward motion at rotated faces', () => {
+  for (const shape of shapes.filter(shape => shape !== 'circle')) for (const rotation of [0, 37, 90]) {
+    const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 },
+      placement(shape, { width: 231, height: 83, rotation }));
+    game.obstructions.push(obstruction);
+    const [[ax, ay], [bx, by]] = obstructionVertices(obstruction);
+    const length = Math.hypot(bx - ax, by - ay);
+    const angle = rotation * Math.PI / 180, cos = Math.cos(angle), sin = Math.sin(angle);
+    const localNX = (by - ay) / length, localNY = -(bx - ax) / length;
+    const nx = localNX * cos - localNY * sin, ny = localNX * sin + localNY * cos;
+    const radius = 21, localX = (ax + bx) / 2 + localNX * radius, localY = (ay + by) / 2 + localNY * radius;
+    const old = { x: obstruction.x + localX * cos - localY * sin,
+      y: obstruction.y + localX * sin + localY * cos };
+    for (const direction of [-1, 1]) {
+      const actor = { x: old.x + nx * direction * 10, y: old.y + ny * direction * 10, radius };
+      const expected = direction > 0 ? { ...actor } : old;
+      game.moveAroundObstructions(actor, old, true);
+      assert.ok(Math.hypot(actor.x - expected.x, actor.y - expected.y) < 1e-5,
+        `${shape}, rotation ${rotation}: ${direction > 0 ? 'departs' : 'stops'}`);
+    }
+  }
+});
+
 test('rectangles slide along faces, collide with rounded actor corners and separate initial overlaps', () => {
   for (const shape of shapes.filter(shape => shape === 'rectangle')) {
     const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 }, placement(shape));
@@ -449,6 +533,28 @@ test('obstruction trajectory follows actual no-click motion for every variant wi
       assert.ok(gap({ x: (x + beforeX) / 2, y: (y + beforeY) / 2, radius: game.cat.radius }, obstruction) >= -.3,
         'forecast segments do not cut through the obstruction');
     }
+  }
+});
+
+test('resized and rotated polygon forecasts follow live sliding through faces and vertices', () => {
+  for (const shape of shapes.filter(shape => shape !== 'circle')) for (const rotation of [0, 37, 90]) {
+    const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 },
+      placement(shape, { width: 231, height: 83, rotation }));
+    game.obstructions.push(obstruction);
+    Object.assign(game.cat, { x: 200, y: 270, vx: 420, vy: 0 });
+    game.target = { x: 900, y: 270 };
+    const points = game.trajectory();
+    for (let frame = 0; frame < 1000; frame++) {
+      const old = { ...game.cat };
+      game.update(1 / 120);
+      assert.ok(distanceToPath(game.cat.x, game.cat.y, points) < .6,
+        `${shape}, rotation ${rotation}, frame ${frame}: follows forecast`);
+      assert.ok(gap(game.cat, obstruction) >= -1e-5, 'live motion stays outside the obstruction');
+      if ((!game.cat.vx && !game.cat.vy) || Math.hypot(game.cat.x - old.x, game.cat.y - old.y) < 1e-5) break;
+    }
+    const end = points.at(-1);
+    assert.ok(Math.hypot(end[0] - game.cat.x, end[1] - game.cat.y) < .02,
+      `${shape}, rotation ${rotation}: forecast endpoint matches live motion`);
   }
 });
 
