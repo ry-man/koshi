@@ -1552,8 +1552,8 @@ test('HUD marks only required score targets or the survival timer and tracks obj
     ['#timer', '#food-count', '#enemy-count', '#goal-count'].forEach((id, i) => assert.equal(node(id).classList.contains('win-target'), targets[i]));
     assert.equal(node('#progress').style.width, progress);
     assert.equal(node('#food-count').innerHTML.includes(`/ ${patch.goal}`), targets[1]);
-    assert.equal(node('#enemy-count').textContent.includes(`/ ${patch.killGoal}`), targets[2]);
-    assert.equal(node('#goal-count').textContent.includes(`/ ${patch.goalsGoal}`), targets[3]);
+    assert.equal(node('#enemy-count').innerHTML.includes(`/ ${patch.killGoal}`), targets[2]);
+    assert.equal(node('#goal-count').innerHTML.includes(`/ ${patch.goalsGoal}`), targets[3]);
     if (targets[3]) {
       assert.equal(node('#goal-count').attributes['aria-label'], `${game.goals} of ${patch.goalsGoal} goals scored`);
     }

@@ -191,8 +191,9 @@
         <button id="save-retry" class="title-secondary" type="button" hidden>Retry saving progress</button>
         <div class="game-controls">
           <div class="loadout">
+            <div class="level-status"><div class="level-status-details"><span class="stat-label">LEVEL</span><strong id="level-number">1-1</strong></div></div>
             <div class="stat timer-stat"><span class="stat-label">TIME LEFT</span><strong id="timer" aria-label="60 seconds remaining">🕒 60<span>s</span></strong></div>
-            <div class="level-status"><span class="stat-label">LEVEL</span><div class="level-status-details"><strong id="level-number">1–1</strong><span id="level-rewards" aria-label="Level rewards"></span></div></div>
+            <span id="level-rewards" aria-label="Level rewards"></span>
           </div>
           <div class="game-toolbar">
             <a id="back-to-editor" href="./editor.html" aria-label="Back to editor" title="Back to editor" hidden><span class="control-icon" aria-hidden="true">&larr;</span><span class="control-label">Back to editor</span></a>
@@ -212,17 +213,17 @@
         </section>
         <div class="hud">
           <div class="stat lives">
-            <span class="stat-label">KOSHI'S HEALTH</span><strong id="hearts" aria-label="3 of 3 hearts">♥ ♥ ♥</strong>
+            <strong id="hearts" aria-label="3 of 3 hearts">♥ ♥ ♥</strong>
             <div id="heart-cost" class="heart-cost" hidden>
               <span id="heart-cost-label">Next: <span id="heart-cost-numbers"></span></span>
               <div id="heart-cost-meter" class="heart-cost-meter" role="progressbar" aria-label="Food toward the next healing heart" aria-valuemin="0"><div id="heart-cost-fill"></div></div>
             </div>
           </div>
-          <div class="stat"><span class="stat-label">FOOD</span><strong id="food-count">🍗 0 <span>/ 20</span></strong></div>
-          <div class="stat"><span class="stat-label">ENEMIES</span><strong id="enemy-count">👾 0</strong></div>
-          <div class="stat"><span class="stat-label">GOALS</span><strong id="goal-count" aria-label="0 goals scored">⚽ 0</strong></div>
-          <div class="stat" id="key-status" role="status" aria-label="Keys: 0"><span class="stat-label">KEYS</span><strong id="key-count">🗝️ 0</strong></div>
-          <div class="stat" id="battery-status" role="status" aria-label="Batteries: 0"><span class="stat-label">BATTERIES</span><strong id="battery-count">🔋 0</strong></div>
+          <div class="stat counter-stat target-stat"><span class="stat-label">FOOD</span><strong id="food-count"><span class="counter-icon" aria-hidden="true">🍗</span><span class="counter-value">0 / 20</span></strong></div>
+          <div class="stat counter-stat target-stat"><span class="stat-label">ENEMIES</span><strong id="enemy-count"><span class="counter-icon" aria-hidden="true">👾</span><span class="counter-value">0</span></strong></div>
+          <div class="stat counter-stat"><span class="stat-label">GOALS</span><strong id="goal-count" aria-label="0 goals scored"><span class="counter-icon" aria-hidden="true">⚽</span><span class="counter-value">0</span></strong></div>
+          <div class="stat counter-stat" id="key-status" role="status" aria-label="Keys: 0"><span class="stat-label">KEYS</span><strong id="key-count"><span class="counter-icon" aria-hidden="true">🗝️</span><span class="counter-value">0</span></strong></div>
+          <div class="stat counter-stat" id="battery-status" role="status" aria-label="Batteries: 0"><span class="stat-label">BATTERIES</span><strong id="battery-count"><span class="counter-icon" aria-hidden="true">🔋</span><span class="counter-value">0</span></strong></div>
         </div>
         <div id="boss-health" class="boss-health" hidden>
           <span id="boss-health-label">Tom the Toaster's Health: </span>

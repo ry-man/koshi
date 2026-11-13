@@ -395,10 +395,10 @@ test('title screen provides accessible artwork and explicit game entry without e
   const hud = html.slice(html.indexOf('<div class="hud">'), html.indexOf('<div class="objective">'));
   assert.ok(!hud.includes('weapon-status'), 'weapon status is announced without taking up HUD space');
   assert.deepEqual([...hud.matchAll(/<span class="stat-label">([^<]+)<\/span>/g)].map(([, label]) => label),
-    ["KOSHI'S HEALTH", 'FOOD', 'ENEMIES', 'GOALS', 'KEYS', 'BATTERIES']);
+    ['FOOD', 'ENEMIES', 'GOALS', 'KEYS', 'BATTERIES']);
   assert.match(html, /id="weapon-status" class="visually-hidden"[^>]+role="status"/);
   assert.ok(hud.includes('id="goal-count"'));
-  assert.ok(!hud.includes('id="timer"'), 'time is shown in the top-left control row');
+  assert.ok(!hud.includes('id="timer"'), 'time is shown in the top control row');
   assert.match(styles, /\.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   assert.match(styles, /\.timer-stat \{ padding: 6px 0 0; text-align: center;/);
   assert.match(styles, /\.game-controls \{[^}]*grid-template-columns: calc\(\(100% - 5 \* var\(--hud-gap\)\) \/ 6\)[^}]*padding: 4px var\(--hud-inset\);/);
@@ -406,7 +406,13 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.match(styles, /\.tutorial-active \.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   const mobileHud = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
   assert.match(mobileHud, /\.stat-label \{ font-size: 8px;/);
-  assert.match(mobileHud, /\.stat\.lives \.stat-label \{ max-width: 62px;[\s\S]*?font-size: 8px;[\s\S]*?white-space: normal;/);
+  assert.doesNotMatch(hud, /KOSHI'S HEALTH/);
+  assert.ok(controls.indexOf('id="level-number"') < controls.indexOf('id="timer"'));
+  assert.ok(controls.indexOf('id="timer"') < controls.indexOf('id="level-rewards"'));
+  assert.ok(controls.indexOf('id="level-rewards"') < controls.indexOf('id="exit-level"'));
+  assert.match(styles, /\.level-status-details \{[^}]*min-width: 0;[^}]*height: 46px;[^}]*overflow: hidden;/);
+  assert.doesNotMatch(styles, /#level-number \{[^}]*max-width: 100px/);
+  assert.match(styles, /\.loadout \{[^}]*grid-template-columns: var\(--level-column\) repeat\(2, minmax\(0, 1fr\)\)/);
   for (const [id, label] of [['exit-level', 'Exit level'], ['pause', 'Pause'], ['restart', 'Restart']]) {
     assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
   }

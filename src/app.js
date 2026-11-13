@@ -969,7 +969,7 @@ function syncUI() {
   timer.innerHTML = Number.isFinite(DURATION) ? `🕒 ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '🕒 ∞';
   timer.setAttribute('aria-label', Number.isFinite(DURATION)
     ? `${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))} seconds remaining` : 'Unlimited time');
-  foodCount.innerHTML = `🍗 ${game.score}${foodTarget ? ` <span>/ ${GOAL}</span>` : ''}`;
+  foodCount.innerHTML = `<span class="counter-icon" aria-hidden="true">🍗</span><span class="counter-value">${game.score}${foodTarget ? ` / ${GOAL}` : ''}</span>`;
   timer.classList.toggle('win-target', survive);
   foodCount.classList.toggle('win-target', foodTarget);
   foodCount.setAttribute('aria-label', foodTarget ? `${game.score} of ${GOAL} food collected` : `${game.score} food collected`);
@@ -991,9 +991,14 @@ function syncUI() {
   }
   progress.style.width = `${fraction * 100}%`;
   progressLabel.textContent = `${Math.round(fraction * 100)}% complete`;
-  document.querySelector('#level-number').textContent = game.level.number ?? game.level.id;
   document.querySelector('.level-badge strong').textContent = game.level.number ?? game.level.id;
   const world = WORLDS.find(world => world.id === game.level.worldId);
+  const levelNumber = String(game.level.number ?? game.level.id);
+  const levelLabel = world && !game.customLevel && !levelNumber.startsWith(`${world.id}-`)
+    ? `${world.id}-${levelNumber}` : levelNumber;
+  const levelReadout = document.querySelector('#level-number');
+  levelReadout.textContent = levelLabel;
+  levelReadout.title = levelLabel;
   const gameShell = document.querySelector('.game-shell');
   if (gameShell?.dataset) {
     if (world?.theme === 'official' && world.color) {
@@ -1006,11 +1011,11 @@ function syncUI() {
   document.querySelector('.level-badge span').textContent = game.customLevel ? 'CUSTOM LEVEL' : game.level.name?.toUpperCase() ?? (game.levelIndex ? 'ROBO TROUBLE' : 'FIRST STEPS');
   document.querySelector('.objective strong').textContent = levelObjective(game.level);
   const enemyCount = document.querySelector('#enemy-count');
-  enemyCount.textContent = `👾 ${game.enemies}${enemyTarget ? ` / ${killGoal}` : ''}`;
+  enemyCount.innerHTML = `<span class="counter-icon" aria-hidden="true">👾</span><span class="counter-value">${game.enemies}${enemyTarget ? ` / ${killGoal}` : ''}</span>`;
   enemyCount.classList.toggle('win-target', enemyTarget);
   enemyCount.setAttribute('aria-label', enemyTarget ? `${game.enemies} of ${killGoal} enemy points earned` : `${game.enemies} enemy points earned`);
   const goalCount = document.querySelector('#goal-count');
-  goalCount.textContent = `⚽ ${soccerGoals}${soccerGoalTarget ? ` / ${goalsGoal}` : ''}`;
+  goalCount.innerHTML = `<span class="counter-icon" aria-hidden="true">⚽</span><span class="counter-value">${soccerGoals}${soccerGoalTarget ? ` / ${goalsGoal}` : ''}</span>`;
   goalCount.classList.toggle('win-target', soccerGoalTarget);
   goalCount.setAttribute('aria-label', soccerGoalTarget
     ? `${soccerGoals} of ${goalsGoal} goals scored` : `${soccerGoals} goals scored`);
@@ -1028,9 +1033,9 @@ function syncUI() {
     : 'Cat Shield: none';
   if (shieldStatus.textContent !== shieldLabel) shieldStatus.textContent = shieldLabel;
   const batteryLabel = `Batteries: ${game.batteries}`;
-  document.querySelector('#battery-count').textContent = `🔋 ${game.batteries}`;
+  document.querySelector('#battery-count').innerHTML = `<span class="counter-icon" aria-hidden="true">🔋</span><span class="counter-value">${game.batteries}</span>`;
   document.querySelector('#battery-status').setAttribute('aria-label', batteryLabel);
-  document.querySelector('#key-count').textContent = `🗝️ ${game.keys}`;
+  document.querySelector('#key-count').innerHTML = `<span class="counter-icon" aria-hidden="true">🗝️</span><span class="counter-value">${game.keys}</span>`;
   document.querySelector('#key-status').setAttribute('aria-label', `Keys: ${game.keys}`);
   document.querySelector('#boss-health').hidden = !game.level.bossLevel;
   if (game.level.bossLevel) {

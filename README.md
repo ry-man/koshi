@@ -335,10 +335,19 @@ than bypassing selection. Custom-level playtest links and the
 offline and direct-file play.
 Every level opens with a clear objectives popup and a large **Start** button;
 the level clock and objects remain frozen until Start is pressed. The HUD puts
-**Time left** centered above **Koshi's Health**, replacing the in-game logo. The evenly
-spaced tracker row is **Koshi's Health**, **Food**, **Enemies**, **Batteries**,
-**Goals**. An equipped sword appears beside Koshi with its remaining hit count.
-Beside the level number, Gold Star and Cat Block outlines remind players of
+**Level** centered above the hearts and healing-cost meter, with no health
+heading. Food, enemy, goal, key, and battery values appear to the right of their
+equally sized icons. Icon sizing is independent of the smaller food/enemy text.
+Each icon has a non-shrinking reserved area and a fixed gap before its value;
+values that exceed the available space are ellipsized rather than overlapping
+icons or adjacent counters. Accessible counter labels retain the full values.
+Food and enemy counters use compact, responsive numeric rows
+so three-digit totals and targets fit even on phones. The **Level** heading sits
+above the world-level number (for example, **1-9**) in a reserved, single-line
+area; long custom names are ellipsized without resizing the HUD, with the full
+value available on hover. An equipped sword appears beside Koshi with its remaining hit count.
+After Level, Time Left and the Gold Star/Cat Block icons occupy equally sized
+spaces before the Exit level button. Gold Star and Cat Block outlines remind players of
 uncollected rewards; rewards earned on previous winning runs are filled.
 An unowned star glows while the current run remains damage-free, and an unowned
 Cat Block glows after collection or whenever its achievement condition would
@@ -1044,11 +1053,12 @@ close the app. Browser-controlled predictive gesture visuals may still appear,
 especially when the traversal is not cancelable. Device testing is required; guaranteed OS-level blocking requires
 a native Android app. Custom-level playtests do not enable Back protection, so
 Back can return to editing. Normal browser tabs retain native Back and blur pausing.
-The Koshi's Quest logo, level stat, and icon-only Menu, Pause, and Restart buttons
-share one row above the stats. The level is centered in the space between the
-logo and toolbar. Save-status text stays in the menu, not on the gameplay HUD;
-save errors and retry controls remain visible. Time, weapon, food, enemies, and health are centered
-in equally spaced columns. The world map's level selector and **Play Level**
+The level stat, timer, reward icons, and icon-only Exit level, Pause, and Restart buttons
+share one row above the stats, in that order. The timer and reward icons have
+equally sized spaces before the toolbar, with a constrained, centered world-level
+readout beneath its heading. Save-status text stays in the menu, not on the gameplay HUD;
+save errors and retry controls remain visible. Hearts, food, enemies, goals, keys,
+and batteries are centered in equally spaced columns. The world map's level selector and **Play Level**
 button choose levels; **Back to menu** or Escape cancels without
 changing the current level; no dropdown appears on the main menu itself.
 Extra mission copy and footer
