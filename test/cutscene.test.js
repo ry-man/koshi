@@ -435,6 +435,84 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
     }
   });
 
+  test('retained actors reposition at entrance and exit speed without jumping', () => {
+    const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+    const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
+    for (const [width, height] of [[1440, 600], [390, 560]]) {
+      const drawings = [];
+      const ctx = new Proxy({}, { get: (_, name) => (...args) => drawings.push([name, ...args]) });
+      const context = vm.createContext({ ctx, width, height, time: 0, reducedMotion: false, drawTom() {} });
+      vm.runInContext(`function stage(line) { ${loop} }`, context);
+      const player = { positions: new Map(), animationTime: 0, paused: false, drawCharacter() {} };
+      const koshi = { character: 'koshi', x: .3, y: .65 };
+      const mouse = { character: 'mouse', x: .8, y: .65 };
+      const first = { speaker: 'mouse', actors: [koshi, mouse] };
+      const joined = { speaker: 'mouse', actors: [
+        { ...koshi, x: .5, y: .7 }, mouse, { character: 'wheel', x: .1, y: .65 },
+      ] };
+      const before = JSON.stringify([first, joined]);
+      const render = line => { drawings.length = 0; context.stage.call(player, line); };
+      const point = key => {
+        const { x, y } = player.positions.get(key);
+        return { x, y };
+      };
+      const assertSpeed = (key, from) => {
+        const to = point(key);
+        assert.ok(Math.abs(Math.hypot(to.x - from.x, to.y - from.y) - 72) < 1e-9,
+          `${key} moves at 720 stage units per second`);
+      };
+      render(first);
+      const start = point('koshi:0');
+      render(joined);
+      assert.deepEqual(point('koshi:0'), start, 'joining cast does not teleport retained actors');
+      const entering = point('wheel:0');
+      player.animationTime += .1;
+      render(joined);
+      assertSpeed('koshi:0', start);
+      assertSpeed('wheel:0', entering);
+      assert.ok(drawings.filter(op => op[0] === 'rotate' && op[1] !== 0).length >= 2,
+        'retained actors use the same walking gait as arrivals');
+      player.animationTime += .1;
+      render(joined);
+      const interrupted = point('koshi:0');
+      render(first);
+      assert.deepEqual(point('koshi:0'), interrupted, 'leaving cast retargets from the current position');
+      const departing = point('wheel:0');
+      player.animationTime += .1;
+      render(first);
+      assertSpeed('koshi:0', interrupted);
+      assertSpeed('wheel:0', departing);
+      const resumed = point('koshi:0');
+      render({ ...first });
+      assert.deepEqual(point('koshi:0'), resumed, 'a new dialogue line does not jump an unfinished move');
+      player.animationTime += .01;
+      render(player.actorLine);
+      const moved = point('koshi:0');
+      assert.ok(Math.abs(Math.hypot(moved.x - resumed.x, moved.y - resumed.y) - 7.2) < 1e-9);
+      player.animationTime += 2;
+      render(player.actorLine);
+      assert.deepEqual(point('koshi:0'), start, 'retained actors settle exactly into the original layout');
+      assert.equal(player.positions.size, 2);
+      render(joined);
+      player.animationTime += 2;
+      render(joined);
+      const beforeResize = point('wheel:0');
+      context.width = width === 390 ? 1440 : 390;
+      render(joined);
+      assert.deepEqual(point('wheel:0'), beforeResize, 'layout changes retarget without teleporting');
+      player.animationTime += .01;
+      render(joined);
+      const afterResize = point('wheel:0');
+      assert.ok(Math.abs(Math.hypot(afterResize.x - beforeResize.x, afterResize.y - beforeResize.y) - 7.2) < 1e-9,
+        'responsive reflow uses the same walking speed');
+      context.reducedMotion = true;
+      render(joined);
+      assert.ok([...player.positions.values()].every(position => position.x === position.target.x
+        && position.y === position.target.y), 'reduced motion makes all repositioning immediate');
+      assert.equal(JSON.stringify([first, joined]), before, 'authored level content stays unchanged');
+    }
+  });
+
   test('repeated actors keep occurrence identities and can return during an unfinished exit', () => {
     const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
     const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));

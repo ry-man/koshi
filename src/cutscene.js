@@ -787,21 +787,19 @@ class CutscenePlayer {
       present.add(key);
       const target = { x: horizontalPositions.get(actor) ?? actor.x * 960, y: actor.y * 540 };
       let position = this.positions.get(key);
-      if (changedLine || !position) {
+      if (changedLine || !position || position.target.x !== target.x || position.target.y !== target.y) {
         const entering = !initialLine && (!position || position.entering || position.leaving);
         const from = initialLine || reducedMotion ? target : position ? { x: position.x, y: position.y }
           : { x: offscreenX(actor, actorScale), y: target.y };
         position = {
           ...from, actor, target, from, start: animationTime,
-          duration: entering ? Math.abs(target.x - from.x) / 720 : .25,
+          duration: Math.hypot(target.x - from.x, target.y - from.y) / 720,
           entering, leaving: false, scale: actorScale,
         };
       }
       position.target = target;
       position.actor = actor;
       position.scale = actorScale;
-      // Preserve immediate phone spacing for the cast already on stage, not arrivals.
-      if (mobile && !position.entering) position.from.x = target.x;
       this.positions.set(key, position);
     });
     for (const [key, position] of this.positions) {
@@ -826,7 +824,8 @@ class CutscenePlayer {
         position.from = { ...position.target };
       }
       const actor = position.actor;
-      const walking = !reducedMotion && progress < 1 && (position.entering || position.leaving);
+      const walking = !reducedMotion && progress < 1
+        && (position.target.x !== position.from.x || position.target.y !== position.from.y);
       const speaking = !position.leaving && actor.character === line.speaker;
       const snake = actor.character === 'snake';
       ctx.save();

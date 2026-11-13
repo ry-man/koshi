@@ -1943,6 +1943,10 @@ test('editor lifetime fields omit blank values, preserve mixed durations, and ex
   vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf('function applyEventChanges(')), context);
   $('#event-location').value = 'fixed'; $('#event-formation').value = 'single';
   $('#event-time').value = '2'; $('#event-x').value = '20'; $('#event-y').value = '70';
+  $('#event-kind').value = 'food';
+  context.populateEventForm();
+  assert.equal($('#event-lifetime').value, 8, 'food lifetime defaults to eight seconds');
+  $('#event-lifetime').value = '';
   for (const [kind, type] of [['item', 'battery'], ['weapon', 'gold']]) {
     $('#event-kind').value = kind; context.typeOptions(type);
     $('#event-type').value = type;

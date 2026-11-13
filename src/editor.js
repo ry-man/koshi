@@ -754,7 +754,7 @@ function updateEventPlacement() {
 function populateEventForm() {
   const indices = selectedList(), items = indices.map(index => level.events[index]);
   const multi = items.length > 1;
-  const numbers = { '#event-time': 0, '#event-lifetime': 5, '#event-x': 50, '#event-y': 50 };
+  const numbers = { '#event-time': 0, '#event-lifetime': 8, '#event-x': 50, '#event-y': 50 };
   touched.clear();
   $('#event-shield').querySelector('option[value=""]')?.remove();
   const shields = items.filter(event => event.kind === 'enemy').map(event => event.shield ?? 'none');
@@ -2559,7 +2559,7 @@ $('#event-kind').addEventListener('change', () => {
   resetObstructionSize('event');
   const previousKind = $('#event-lifetime').dataset.kind;
   typeOptions();
-  if (previousKind !== $('#event-kind').value) $('#event-lifetime').value = $('#event-kind').value === 'food' ? 5 : '';
+  if (previousKind !== $('#event-kind').value) $('#event-lifetime').value = $('#event-kind').value === 'food' ? 8 : '';
   touched.add('#event-kind'); touched.add('#event-type');
   showCategory($('#event-kind').value);
   startPlacement();
@@ -2665,7 +2665,7 @@ function applyToSelected() {
     }
     if (next.kind === 'food') {
       if (lifetimeChanged && lifetime === null) throw new Error('Food needs a lifetime in seconds.');
-      next.lifetime = lifetime ?? next.lifetime ?? 5;
+      next.lifetime = lifetime ?? next.lifetime ?? 8;
     } else if (['item', 'weapon'].includes(next.kind)) {
       if (lifetimeChanged && lifetime !== null) next.lifetime = lifetime;
       else if (lifetimeChanged || (kind && event.kind !== kind)) delete next.lifetime;
