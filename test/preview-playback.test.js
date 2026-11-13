@@ -219,6 +219,45 @@ test('time-only rendering updates exact spawn and expiration boundaries and came
   assert.ok(f.markers.every(marker => !marker.hidden));
 });
 
+test('event timeline outlines follow exact preview time while scrubbing and playing', () => {
+  const f = fixture({ time: 0 });
+  const entries = [0, 3, 3, 3.05].map(time => ({ dataset: { eventTime: String(time) } }));
+  f.$('#event-list').children = entries;
+  const reached = () => entries.map(entry => entry.dataset.previewReached);
+  f.context.renderPreviewTime(0);
+  assert.deepEqual(reached(), ['true', 'false', 'false', 'false']);
+  f.$('#timeline').value = 3;
+  f.$('#timeline').listeners.input();
+  assert.deepEqual(reached(), ['true', 'true', 'true', 'false']);
+  f.play(); f.tick(50);
+  assert.deepEqual(reached(), ['true', 'true', 'true', 'true']);
+  f.play();
+  f.$('#timeline').value = 2.99;
+  f.$('#timeline').listeners.input();
+  assert.deepEqual(reached(), ['true', 'false', 'false', 'false']);
+});
+
+test('event timeline initializes outlines on render in time order', () => {
+  const list = { children: [], replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } };
+  const nodes = { '#event-list': list, '#event-count': {}, '#timeline': { value: '3' } };
+  const level = { events: [{ time: 4 }, { time: 0 }, { time: 3 }, { time: 3 }] };
+  const context = vm.createContext({
+    $, level,
+    document: { createElement: () => ({ dataset: {}, append(child) { this.child = child; } }) },
+    plural: count => `${count} events`,
+    eventTimelineButton: (event, index) => ({ index }),
+  });
+  function $(selector) { return nodes[selector]; }
+  vm.runInContext(source.slice(source.indexOf('function renderList('), source.indexOf('function overlappingMarkers(')), context);
+  context.renderList();
+  assert.deepEqual(list.children.map(child => [child.dataset.eventTime, child.dataset.previewReached, child.child.index]),
+    [[0, 'true', 1], [3, 'true', 2], [3, 'true', 3], [4, 'false', 0]]);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  assert.match(css, /#event-list > \[data-preview-reached="true"\]\s*\{[^}]*outline: 3px solid #b28b37/);
+  assert.match(html, /Gold outlines mark events at or before the preview time/);
+});
+
 test('hiding or leaving the page and interacting with the board or inspector pause the preview', () => {
   const f = fixture();
   f.play();

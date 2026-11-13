@@ -1517,9 +1517,11 @@ tracks his health; his death animation finishes before Koshi celebrates.
    does not remove events or change available-point totals.
    Selecting a board marker preserves the current view and preview time.
    The event timeline automatically grows to show every event without an internal
-   scrollbar, and reflows as the window changes size.
-   Selecting an event in the timeline centers the editor view on its displayed
-   icon (or formation center), regardless of its spawn time. Selected events
+   scrollbar, and reflows as the window changes size. Gold outlines mark events
+   scheduled at or before the current preview time, including during playback.
+   Selected timeline events pulse from white to dark gray (or stay white when
+   reduced motion is enabled). Selecting an event in the timeline centers the
+   editor view on its displayed icon (or formation center), regardless of its spawn time. Selected events
    remain visible when **Show all spawn locations** is off. **Dynamic View**
    resumes following the game camera when you scrub or play the preview.
    Clicking overlapping markers opens an element picker with the same event

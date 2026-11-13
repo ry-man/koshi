@@ -166,6 +166,7 @@
 #event-count { color: var(--muted); font-size: 12px; margin-left: 10px; }
 .event-timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 12px; list-style: none; padding: 8px; max-height: 350px; overflow-y: auto; }
 #event-list { max-height: none; overflow: visible; }
+#event-list > [data-preview-reached="true"] { outline: 3px solid #b28b37; outline-offset: 3px; border-radius: 6px; }
 .event-timeline button { position: relative; width: 100%; text-align: left; padding-left: 52px; padding-right: 64px; overflow: hidden; }
 .event-id { position: absolute; inset: 0 auto 0 0; width: 40px; display: flex; align-items: center; justify-content: center; background: var(--event-color); color: #101d25; font-weight: 900; font-size: 17px; font-variant-numeric: tabular-nums; }
 .event-timeline [data-kind="enemy"] { --event-color: #ffaba2; }
@@ -177,6 +178,13 @@
 .event-timeline button[data-kind] { border: 2px solid var(--event-color); background: color-mix(in srgb, var(--event-color) 26%, #26373e); }
 .event-timeline button[data-kind]:hover { background: color-mix(in srgb, var(--event-color) 34%, #26373e); }
 .event-timeline button[aria-pressed="true"] { outline: 4px solid #fff; outline-offset: -2px; box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66; }
+@keyframes event-selection-glow {
+  0%, 100% { outline-color: #fff; box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66; }
+  50% { outline-color: #4f4f4f; box-shadow: 0 0 8px 2px #4f4f4fb3, inset 0 0 8px #4f4f4f66; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  #event-list button[aria-pressed="true"] { animation: event-selection-glow 2s ease-in-out infinite; }
+}
 .overlap-picker { width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); color: var(--text); overflow-y: auto; }
 .overlap-picker::backdrop { background: #050a0dcc; }
 .overlap-picker .event-timeline { max-height: none; }

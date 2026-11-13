@@ -951,6 +951,8 @@ test('timeline categories have subdued card colors and artwork while retaining s
   assert.match(css, /\.event-timeline button\[data-kind\]\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 26%, #26373e\)/);
   assert.match(css, /\.event-timeline button\[data-kind\]:hover\s*\{[^}]*background: color-mix\(in srgb, var\(--event-color\) 34%, #26373e\)/);
   assert.match(css, /\.event-timeline button\[aria-pressed="true"\]\s*\{[^}]*outline: 4px solid #fff;[^}]*box-shadow: 0 0 8px 2px #ffffffb3, inset 0 0 8px #ffffff66/);
+  assert.match(css, /@keyframes event-selection-glow\s*\{\s*0%, 100%\s*\{[^}]*outline-color: #fff;[^}]*box-shadow:[^}]*\}\s*50%\s*\{[^}]*outline-color: #4f4f4f;[^}]*box-shadow:/);
+  assert.match(css, /@media \(prefers-reduced-motion: no-preference\)\s*\{\s*#event-list button\[aria-pressed="true"\]\s*\{\s*animation: event-selection-glow 2s ease-in-out infinite;/);
   assert.match(css, /\.event-timeline\s*\{[^}]*gap: 12px;[^}]*padding: 8px/);
   assert.deepEqual(choices[0], ['event', 4, true]);
   const examples = [

@@ -1,14 +1,199 @@
 {
   "version": 1,
   "id": "Cracks in the Path",
-  "duration": 60,
-  "goal": 0,
+  "duration": 75,
+  "goal": 40,
   "heartCost": 20,
   "brickSet": 1,
-  "events": [],
+  "events": [
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-oval",
+      "x": 0.6721945826423439,
+      "y": 0.49877532843464706,
+      "color": "#ef4444",
+      "patternColor": "#f59e0b",
+      "pattern": "polka-dots",
+      "width": 54.71604938271601,
+      "height": 178.21343873517787
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-diamond",
+      "x": 0.20441004852281802,
+      "y": 0.49877532843464706,
+      "color": "#ef4444",
+      "patternColor": "#f59e0b",
+      "pattern": "polka-dots"
+    },
+    {
+      "time": 3,
+      "kind": "enemy",
+      "type": "wheel",
+      "x": 0.5051286775996561,
+      "y": 0,
+      "shield": null
+    },
+    {
+      "time": 3,
+      "kind": "enemy",
+      "type": "wheel",
+      "x": 0.5051286775996561,
+      "y": 1,
+      "shield": null
+    },
+    {
+      "time": 3,
+      "kind": "enemy",
+      "type": "wheel",
+      "x": 0,
+      "y": 0.01781340458695168,
+      "shield": null
+    },
+    {
+      "time": 3,
+      "kind": "enemy",
+      "type": "wheel",
+      "x": 1,
+      "y": 0.9797372522823424,
+      "shield": null
+    },
+    {
+      "time": 5,
+      "kind": "food",
+      "type": "P",
+      "x": 0.9827406178981635,
+      "y": 0.5308394566911601,
+      "group": {
+        "shape": "line",
+        "count": 4,
+        "size": 0.5,
+        "angle": 90
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 10,
+      "kind": "food",
+      "type": "B",
+      "x": 0.009827406178981635,
+      "y": 0.5308394566911601,
+      "group": {
+        "shape": "line",
+        "count": 4,
+        "size": 0.5,
+        "angle": 90
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 15,
+      "kind": "weapon",
+      "type": "bronze",
+      "x": 0.7527793133099933,
+      "y": 0.49877532843464706
+    },
+    {
+      "time": 15,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.4520606842331552,
+      "y": 0.49877532843464706,
+      "group": {
+        "shape": "circle",
+        "count": 3
+      },
+      "shield": null
+    },
+    {
+      "time": 25,
+      "kind": "food",
+      "type": "C",
+      "x": 0.5051286775996561,
+      "y": 0.01781340458695168,
+      "group": {
+        "shape": "line",
+        "count": 3,
+        "size": 0.8,
+        "angle": 0
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 35,
+      "kind": "food",
+      "type": "S",
+      "x": 0.5051286775996561,
+      "y": 0.9797372522823424,
+      "group": {
+        "shape": "line",
+        "count": 5,
+        "size": 1,
+        "angle": 0
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 40,
+      "kind": "enemy",
+      "type": "wheel",
+      "random": true,
+      "randomCount": 3,
+      "shield": null
+    },
+    {
+      "time": 40,
+      "kind": "weapon",
+      "type": "bronze",
+      "x": 0.09827406178981635,
+      "y": 0.49877532843464706
+    },
+    {
+      "time": 55,
+      "kind": "food",
+      "type": "B",
+      "x": 0.4520606842331552,
+      "y": 0.49877532843464706,
+      "group": {
+        "shape": "circle",
+        "count": 5,
+        "size": 0.5
+      },
+      "lifetime": 10
+    },
+    {
+      "time": 45,
+      "kind": "food",
+      "type": "S",
+      "x": 0.4520606842331552,
+      "y": 0.46671120017813406,
+      "group": {
+        "shape": "circle",
+        "count": 5,
+        "size": 0.5
+      },
+      "lifetime": 10
+    },
+    {
+      "time": 65,
+      "kind": "food",
+      "type": "S",
+      "x": 0.5051286775996561,
+      "y": 0.9797372522823424,
+      "group": {
+        "shape": "line",
+        "count": 5,
+        "size": 1,
+        "angle": 0
+      },
+      "lifetime": 8
+    }
+  ],
   "bossLevel": false,
   "killGoal": 0,
-  "survive": true,
+  "survive": false,
   "catBlock": {
     "description": "To earn Cat Brick: Defeat no more than 0 of enemy type Robo Wheel.",
     "messages": {

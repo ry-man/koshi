@@ -917,6 +917,8 @@ function renderList() {
   }
   level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time).forEach(({ event, index }) => {
     const li = document.createElement('li');
+    li.dataset.eventTime = event.time;
+    li.dataset.previewReached = String(event.time <= Number($('#timeline').value));
     const button = eventTimelineButton(event, index, click => {
       choose('event', index, isAdditive(click));
       if (selectedEvents.has(index)) centerEventMarker(index);
@@ -1472,6 +1474,9 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
   $('#time-label').textContent = `${time.toFixed(1)}s`;
   if (followTime) $('#event-time').value = Math.min(time, Number($('#event-time').max));
   $('#preview-speed-label').textContent = `${$('#preview-speed').value}x`;
+  for (const entry of $('#event-list').querySelectorAll('[data-event-time]')) {
+    entry.dataset.previewReached = String(Number(entry.dataset.eventTime) <= time);
+  }
   const camera = previewGame.camera(time), outline = $('#camera-outline');
   outline.hidden = !level.autoscroll;
   outline.style.cssText = `left:${camera.x / previewGame.width * 100}%;top:${camera.y / previewGame.height * 100}%;width:${camera.width / previewGame.width * 100}%;height:${camera.height / previewGame.height * 100}%`;
