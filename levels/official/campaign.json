@@ -48,6 +48,12 @@
       "worldId": "1",
       "number": "8",
       "id": "official-1-8"
+    },
+    {
+      "file": "world-1/1-9.json",
+      "worldId": "1",
+      "number": "9",
+      "id": "official-1-9"
     }
   ]
 }
