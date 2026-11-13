@@ -108,7 +108,7 @@ test('legacy obstruction IDs normalize to the new shape types with explicit dime
 test('custom obstruction dimensions and destructibility round-trip in events and spawners without changing defaults', () => {
   for (const shape of shapes) {
     const rectangle = shape.includes('rectangle');
-    const attributes = { width: 150.5, height: rectangle ? 47.25 : 150.5, destructible: true, spiked: true };
+    const attributes = { width: 150.5, height: rectangle ? 47.25 : 150.5, rotation: 5, destructible: true, spiked: true };
     const source = { ...blank(), events: [placement(shape, attributes)],
       brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'object', type: `obstruction-${shape}`, ...attributes } }] };
     const validated = validateCustomLevel(JSON.parse(JSON.stringify(source)));
@@ -130,10 +130,10 @@ test('custom obstruction dimensions and destructibility round-trip in events and
     assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { [field]: invalid })] }), /invalid obstruction/);
   }
   assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { width: 50, height: 60 })] }), /equal width/);
-  for (const rotation of [0, 10, 350]) {
+  for (const rotation of [0, 5, 10, 15, 350]) {
     assert.equal(validateCustomLevel({ ...blank(), events: [placement('rectangle', { rotation })] }).events[0].rotation, rotation);
   }
-  for (const rotation of [-10, 15, 360, '10']) {
+  for (const rotation of [-10, 16, 360, '10']) {
     assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('rectangle', { rotation })] }), /invalid obstruction rotation/);
   }
   assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', { destructible: 'true' })] }), /invalid obstruction/);

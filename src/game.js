@@ -1878,7 +1878,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (item[field] === undefined) continue;
       if (!obstruction) fail(`${name}: ${field} is only supported for obstructions.`);
       if (['destructible', 'spiked'].includes(field) ? typeof item[field] !== 'boolean'
-        : field === 'rotation' ? !Number.isInteger(item[field]) || item[field] < 0 || item[field] > 350 || item[field] % 10 !== 0
+        : field === 'rotation' ? !Number.isInteger(item[field]) || item[field] < 0 || item[field] > 350 || item[field] % 5 !== 0
           : !Number.isFinite(item[field]) || item[field] < 1 || item[field] > 10000) {
         fail(`${name} has an invalid obstruction ${field}.`);
       }

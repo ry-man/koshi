@@ -8,6 +8,13 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('obstruction rotation controls accept 5-degree increments', () => {
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  for (const id of ['brick-spawn-rotation', 'event-rotation']) {
+    assert.ok(html.includes(`Rotation (degrees, 5° steps)<input id="${id}" type="number" min="0" max="350" step="5"`));
+  }
+});
+
 test('enemy palette separates bosses without changing category, selection, or read-only controls', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const node = () => ({
