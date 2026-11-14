@@ -208,6 +208,80 @@
       "enemyType": "wheel"
     }
   },
+  "cutscene": {
+    "theme": "happy-meadows",
+    "lines": [
+      {
+        "speaker": "koshi",
+        "text": "This place looks like a war zone! Everything is falling apart!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "mouse",
+        "text": "Correct, hero cat. This location is where many battles between robots and humans were fought.",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "wheel",
+        "text": "Be ssssuper careful to not walk on the crumbling bricksss!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          },
+          {
+            "character": "wheel",
+            "x": 0.82,
+            "y": 0.7
+          }
+        ]
+      },
+      {
+        "speaker": "koshi",
+        "text": "Thanks for the advice, buddy!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          }
+        ]
+      }
+    ]
+  },
   "levelInfo": {
     "pages": [
       {
