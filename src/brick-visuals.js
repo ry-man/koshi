@@ -306,43 +306,59 @@ function crumblerPipPositions(members, width, height, shape, count, perimeterIds
   const runs = crumblerPipRuns(members, width, height, perimeterIds);
   const thickness = Math.min(...runs.map(run => run.thickness));
   const size = Math.min(16, thickness * .68);
-  const slotsFor = pipSize => runs.flatMap((run, runIndex) => {
-    const length = run.end - run.start;
-    const inset = pipSize + 3;
-    const usable = length - inset * 2;
-    if (usable < 0) return [];
-    const capacity = Math.floor(usable / (pipSize * 1.15)) + 1;
-    return Array.from({ length: capacity }, (_, index) => {
-      const localDistance = capacity === 1 ? length / 2
-        : inset + usable * index / (capacity - 1);
-      return { run, runIndex, axis: run.direction === 1 ? run.start + localDistance : run.end - localDistance };
-    });
-  });
-  let pipSize = size;
-  const oneRowSlots = slotsFor(pipSize);
-  let rows = oneRowSlots.length >= count ? 1 : 2;
-  const perRow = Math.ceil(count / rows);
-  if (slotsFor(pipSize).length < perRow) {
-    let low = 0, high = pipSize;
-    for (let iteration = 0; iteration < 32; iteration++) {
-      const middle = (low + high) / 2;
-      if (slotsFor(middle).length >= perRow) low = middle; else high = middle;
+  // Pips are evenly spaced along the centerline of an inner band whose ends sit a quarter thickness
+  // inside the brick ends; the end gaps match the gaps between neighboring pips.
+  const point = (run, axis) => run.horizontal ? [axis, run.center] : [run.center, axis];
+  const ends = runs.map(run => run.direction === 1 ? [run.start, run.end] : [run.end, run.start]);
+  ends[0][0] += runs[0].direction * bandEndInset(runs[0]);
+  ends.at(-1)[1] -= runs.at(-1).direction * bandEndInset(runs.at(-1));
+  const segments = [];
+  runs.forEach((run, index) => {
+    const next = runs[index + 1];
+    if (next && next.horizontal !== run.horizontal) {
+      ends[index][1] = next.center;
+      ends[index + 1][0] = run.center;
     }
-    pipSize = low;
-  }
-  const slots = slotsFor(pipSize);
-  const selectedSlots = Array.from({ length: perRow }, (_, index) => slots.length === perRow
-    ? slots[index] : slots[Math.round(index * (slots.length - 1) / Math.max(1, perRow - 1))]);
+    const from = point(run, ends[index][0]), to = point(run, ends[index][1]);
+    segments.push({ run, from, to, angle: run.horizontal ? run.direction === 1 ? 0 : 180 : run.direction === 1 ? 90 : -90 });
+    if (next && next.horizontal === run.horizontal) {
+      const jumpTo = point(next, ends[index + 1][0]);
+      const dx = jumpTo[0] - to[0], dy = jumpTo[1] - to[1];
+      if (Math.hypot(dx, dy) > 1e-9) segments.push({ run, from: to, to: jumpTo,
+        angle: Math.atan2(dy, dx) * 180 / Math.PI });
+    }
+  });
+  segments.forEach(segment => {
+    segment.length = Math.hypot(segment.to[0] - segment.from[0], segment.to[1] - segment.from[1]);
+  });
+  const total = segments.reduce((sum, segment) => sum + segment.length, 0);
+  const at = distance => {
+    let remaining = Math.max(0, Math.min(total, distance)), segment = segments.at(-1);
+    for (const candidate of segments) {
+      if (remaining <= candidate.length + 1e-9) { segment = candidate; break; }
+      remaining -= candidate.length;
+    }
+    const t = segment.length ? Math.min(1, remaining / segment.length) : 0;
+    return { segment, x: segment.from[0] + (segment.to[0] - segment.from[0]) * t,
+      y: segment.from[1] + (segment.to[1] - segment.from[1]) * t };
+  };
+  const fits = (pipSize, perRow) => total / (perRow + 1) >= pipSize * 1.15;
+  let pipSize = size;
+  const rows = fits(pipSize, count) ? 1 : 2;
+  const perRow = Math.ceil(count / rows);
+  if (!fits(pipSize, perRow)) pipSize = Math.max(0, total / (perRow + 1) / 1.15);
   return Array.from({ length: count }, (_, index) => {
     const row = index % rows;
     const rowIndex = Math.floor(index / rows);
-    const { run, axis } = selectedSlots[rowIndex];
-    const offset = rows === 1 ? 0 : (row === 0 ? -1 : 1) * Math.min(pipSize * .22, run.thickness * .12);
-    const x = run.horizontal ? axis : run.center + offset;
-    const y = run.horizontal ? run.center + offset : axis;
-    return { x: x - shape.x, y: y - shape.y,
-      angle: run.horizontal ? run.direction === 1 ? 0 : 180 : run.direction === 1 ? 90 : -90, size: pipSize };
+    const { segment, x: px, y: py } = at(total * (rowIndex + 1) / (perRow + 1));
+    const offset = rows === 1 ? 0 : (row === 0 ? -1 : 1) * Math.min(pipSize * .22, segment.run.thickness * .12);
+    const radians = segment.angle * Math.PI / 180;
+    const x = px - Math.sin(radians) * offset, y = py + Math.cos(radians) * offset;
+    return { x: x - shape.x, y: y - shape.y, angle: segment.angle, size: pipSize };
   });
+}
+function bandEndInset(run) {
+  return Math.min(run.thickness / 4, (run.end - run.start) / 2);
 }
 function decorateBrick(button, brick, members, width, height, groupCenterBrick = null, portalExit = null, perimeterIds = null) {
   let cloud = null, knob = null, count = null, symbol = null, warpCount = null, turretFill = null, crumblerPipLayer = null;

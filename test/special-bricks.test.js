@@ -777,20 +777,28 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     ...cornerMembers.map(part => Math.max(part.x - x, 0, x - part.x - part.w, part.y - y, 0, y - part.y - part.h))) <= 0),
   'pips remain inside the corner sections with a buffer from their long ends');
   const cornerPipSize = Number(cornerVisual.crumblerPips[0].attributes.transform.match(/scale\(([^)]+)\)/)[1]) * 24;
-  const cornerEndBuffers = cornerVisual.crumblerPips.filter(pip => pip.attributes.opacity === '1').map(pip => {
-    const transform = pip.attributes.transform;
-    const angle = Number(transform.match(/rotate\(([^)]+)\)/)[1]);
-    const [x, y] = transform.match(/translate\(([^ ]+) ([^)]+)\)/).slice(1).map(Number);
-    const point = [x + cornerShape.x, y + cornerShape.y];
-    const part = cornerMembers.find(member => point[0] >= member.x && point[0] <= member.x + member.w
-      && point[1] >= member.y && point[1] <= member.y + member.h);
-    const axis = Math.abs(angle) === 90 ? 1 : 0;
-    const start = axis ? part.y : part.x;
-    const end = start + (axis ? part.h : part.w);
-    return Math.min(point[axis] - start, end - point[axis]);
-  });
-  assert.ok(cornerEndBuffers.every(buffer => buffer >= cornerPipSize + 3 - 1e-6),
-    'corner pips leave the required buffer from their long-axis ends');
+  const cornerAxis = cornerPositions.map(([, y]) => y).sort((a, b) => a - b);
+  const cornerSpacing = (40 - 2 * 5) / 3;
+  assert.ok(cornerAxis.every((y, index) => Math.abs(y - (5 + cornerSpacing * (1 + Math.floor(index / 2)))) < 1e-6),
+    'pip pairs and band ends are equally spaced along the brick length');
+  assert.ok(cornerPipSize <= cornerSpacing / 1.15 + 1e-6, 'crowded pips shrink to fit the equal spacing');
+  const lMembers = [
+    { id: 3, sourceId: 3, x: 0, y: 100, w: 20, h: 180 },
+    { id: 3, sourceId: 4, x: 0, y: 280, w: 300, h: 20 },
+  ];
+  const lShape = brickShape(lMembers, true);
+  for (const [pips, expected] of [
+    [1, [[60, 290]]],
+    [2, [[295 - 470 / 3, 290], [10, 290 - (470 * 2 / 3 - 285)]]],
+    [3, [[177.5, 290], [60, 290], [10, 222.5]]],
+  ]) {
+    const lVisual = context.KoshiBrickVisuals.decorateBrick(node(),
+      { ...lMembers[0], crumbler: pips, usesLeft: pips }, lMembers, 400, 300);
+    const actual = lVisual.crumblerPips.map(pip => pip.attributes.transform.match(/translate\(([^ ]+) ([^)]+)\)/)
+      .slice(1).map(Number)).map(([x, y]) => [x + lShape.x, y + lShape.y]);
+    assert.ok(expected.every(([ex, ey]) => actual.some(([x, y]) => Math.abs(x - ex) < 1e-6 && Math.abs(y - ey) < 1e-6)),
+      `${pips} corner pips are equally spaced along the inner band: ${JSON.stringify(actual)}`);
+  }
   cornerBrick.usesLeft = 2;
   context.KoshiBrickVisuals.updateBrick(cornerVisual, cornerBrick, 0);
   const remainingPositions = pipTransforms();

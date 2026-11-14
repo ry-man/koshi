@@ -614,6 +614,15 @@ function makeBrickButtons() {
     button.dataset.id = brick.id;
     button.style.cssText = `left:${part.x / game.width * 100}%;top:${part.y / game.height * 100}%;width:${part.w / game.width * 100}%;height:${part.h / game.height * 100}%;--brick-color:${colors[brick.kind]}`;
     if (brick.crumbler) button.style.clipPath = part.clipPath;
+    const rechargeBars = [];
+    const addRechargeBar = (host, direction, start, scale) => {
+      const bar = document.createElement('span');
+      bar.className = 'brick-recharge';
+      bar.setAttribute('aria-hidden', 'true');
+      bar.dataset.direction = direction;
+      host.prepend(bar);
+      rechargeBars.push({ bar, start, scale, axis: direction === 'left' || direction === 'right' ? 'scaleX' : 'scaleY' });
+    };
     if (merged) {
       button.classList.add('brick-merged');
       button.style.clipPath = part.roundedClipPath;
@@ -621,11 +630,12 @@ function makeBrickButtons() {
         const surface = document.createElement('span');
         surface.className = 'brick-surface';
         surface.setAttribute('aria-hidden', 'true');
-        surface.style.cssText = `left:${(member.x - part.x) / part.w * 100}%;top:${(member.y - part.y) / part.h * 100}%;width:${member.w / part.w * 100}%;height:${member.h / part.h * 100}%;--surface-start:${start}%;--surface-scale:${scale};--recharge-direction:to ${direction};--pattern-x:calc(${-member.x}px * var(--board-scale-x));--pattern-y:calc(${-member.y}px * var(--board-scale-y));`;
+        surface.style.cssText = `left:${(member.x - part.x) / part.w * 100}%;top:${(member.y - part.y) / part.h * 100}%;width:${member.w / part.w * 100}%;height:${member.h / part.h * 100}%;--pattern-x:calc(${-member.x}px * var(--board-scale-x));--pattern-y:calc(${-member.y}px * var(--board-scale-y));`;
+        addRechargeBar(surface, direction, start, scale);
         button.append(surface);
       }
     } else {
-      button.style.setProperty('--recharge-direction', `to ${recharge[0].direction}`);
+      addRechargeBar(button, recharge[0].direction, 0, 1);
     }
     if (brick.spikes) button.style.clipPath = body.roundedClipPath;
     if (outlined) {
@@ -747,7 +757,7 @@ function makeBrickButtons() {
       brick.portal ? game.portalExit(brick) : null, game.perimeter);
     exposePortalCloud(special, container);
     exposeBrickInfo(special, container, brick, game.width, game.height);
-    return { brick, button, members, bounds: part, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
+    return { brick, button, members, bounds: part, spring, conveyor, special, rechargeBars, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
   });
   for (const ghost of destructionVisuals.values()) container.append(ghost);
 }
@@ -1200,7 +1210,17 @@ function syncUI() {
     }
     button.tabIndex = game.state === 'playing' && !['cinder', 'goal'].includes(brick.kind) ? 0 : -1;
     button.classList.toggle('tutorial-target', Boolean(tutorial && tutorial.target.id === brick.id));
-    button.style.setProperty('--cooldown-fill', `${['cinder', 'goal'].includes(brick.kind) || game.sunglassesActive ? 100 : brick.usesLeft === 0 ? 0 : Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100}%`);
+    const fill = ['cinder', 'goal'].includes(brick.kind) || game.sunglassesActive ? 100 : brick.usesLeft === 0 ? 0 : Math.floor(Math.max(0, 1 - remaining / COOLDOWNS[brick.kind]) * 100 + 1e-6);
+    // Whole-percent steps avoid restyling every recharging brick on every frame.
+    if (item.cooldownFill !== fill) {
+      item.cooldownFill = fill;
+      button.style.setProperty('--cooldown-fill', `${fill}%`);
+      button.dataset.charged = String(fill === 100);
+      // Scaling composited bars avoids repainting clipped, shadowed brick artwork such as Crumblers.
+      for (const { bar, start, scale, axis } of item.rechargeBars ?? []) {
+        bar.style.transform = `${axis}(${Math.min(1, Math.max(0, (fill - start) * scale / 100))})`;
+      }
+    }
   }
   syncSunglassesOverlay();
   if (ending?.game !== game || ending?.state !== game.state) ending = null;

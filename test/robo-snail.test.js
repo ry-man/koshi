@@ -110,7 +110,7 @@ test('partially recharged bricks keep their displayed progress frozen for the en
     toggleAttribute() {}, querySelector: () => node(),
   });
   for (const kind of Object.keys(COOLDOWNS)) {
-    const game = arena(), brick = game.bricks[0], button = node();
+    const game = arena(), brick = game.bricks[0], button = node(), bar = node();
     brick.kind = kind;
     assert.equal(game.steer(brick.id, brick.x + brick.w / 2, brick.y + brick.h / 2), true);
     game.cat.vx = 0; game.cat.vy = 0;
@@ -118,7 +118,7 @@ test('partially recharged bricks keep their displayed progress frozen for the en
     const context = vm.createContext({
       ...engine, ...visuals, game, WORLDS: require('../src/worlds.js').WORLDS,
       document: { querySelector: () => node() },
-      buttons: [{ brick, button, members: [brick], usesLeft: brick.usesLeft }],
+      buttons: [{ brick, button, members: [brick], usesLeft: brick.usesLeft, rechargeBars: [{ bar, start: 0, scale: 1, axis: 'scaleX' }] }],
       timer: node(), foodCount: node(), hearts: node(), progress: node(), progressLabel: node(),
       weaponStatus: node(), shieldStatus: node(), pause: node(), displayedStuck: false, displayedState: 'playing',
       displayedTurret: false, brickRevision: game.brickRevision, tutorial: null, ending: null,
@@ -129,7 +129,10 @@ test('partially recharged bricks keep their displayed progress frozen for the en
       + source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
     const fill = () => {
       context.syncUI();
-      return parseFloat(button.style.properties['--cooldown-fill']);
+      const value = parseFloat(button.style.properties['--cooldown-fill']);
+      assert.equal(bar.style.transform, `scaleX(${value / 100})`, 'recharge bar scale follows the displayed fill');
+      assert.equal(button.dataset.charged, String(value === 100));
+      return value;
     };
     const initial = fill();
     assert.ok(initial > 0 && initial < 100);
