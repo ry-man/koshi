@@ -3,7 +3,7 @@
   "id": "Tire Trouble",
   "duration": 60,
   "goal": 30,
-  "heartCost": null,
+  "heartCost": 12,
   "brickSet": 1,
   "events": [
     {

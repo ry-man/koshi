@@ -3,7 +3,7 @@
   "id": "Walk in the Park",
   "duration": 120,
   "goal": 0,
-  "heartCost": null,
+  "heartCost": 12,
   "brickSet": 1,
   "events": [
     {

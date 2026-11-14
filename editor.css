@@ -49,6 +49,10 @@
 .scene-line { display: grid; gap: 12px; padding: 14px 0; border-top: 1px solid #ffffff18; margin-top: 12px; }
 .scene-line > button { justify-self: start; }
 .scene-cast { display: flex; flex-wrap: wrap; gap: 12px; }
+.scene-character { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 150px; }
+.scene-character-stage { flex-direction: row; align-items: center; }
+.scene-accessory-label { flex-direction: column; align-items: stretch; }
+.scene-accessories { width: 100%; min-height: 76px; }
 .editor-workspace { display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 30vw, 560px); gap: 18px; align-items: start; }
 .stage-panel { container-type: inline-size; }
 .stage-toolbar { display: grid; grid-template-columns: minmax(150px, .7fr) minmax(290px, 1.4fr) minmax(190px, .9fr) minmax(210px, 1fr); gap: 10px; align-items: start; }

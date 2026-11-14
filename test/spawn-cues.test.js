@@ -144,6 +144,51 @@ test('obstruction spawners reserve a position and wait two seconds before becomi
   assert.equal(game.pendingSpawns.size, 0);
 });
 
+test('scheduled and spawner obstructions begin fading when they become solid', () => {
+  const scheduled = new Game(() => .5, { customLevel: custom([
+    { time: 2, kind: 'object', type: 'obstruction-circle', x: .2, y: .2 },
+  ]) });
+  scheduled.start();
+  assert.equal(scheduled.obstructions.length, 0);
+  scheduled.update(2);
+  assert.equal(scheduled.obstructions.length, 1);
+  assert.equal(scheduled.obstructions[0].fadeInAt, scheduled.elapsed);
+
+  const spawned = new Game(() => .5, { customLevel: custom([]) });
+  spawned.start();
+  spawned.bricks[0].spawner = { kind: 'object', type: 'obstruction-diamond' };
+  spawned.spawnFromBrick(spawned.bricks[0]);
+  spawned.update(2);
+  assert.equal(spawned.obstructions.length, 1);
+  assert.equal(spawned.obstructions[0].fadeInAt, spawned.elapsed);
+});
+
+test('obstruction appearance uses a temporary fade without changing existing opacity', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = source.indexOf('const OBSTRUCTION_FADE_IN');
+  const end = source.indexOf('\nconst SHOT_EMERGE', start);
+  const stack = [], ctx = {
+    globalAlpha: .8,
+    save() { stack.push(this.globalAlpha); },
+    restore() { this.globalAlpha = stack.pop(); },
+  };
+  const context = vm.createContext({ ctx, game: { elapsed: 3 } });
+  vm.runInContext(source.slice(start, end), context);
+  let opacity;
+  context.drawAppearingObstruction({ fadeInAt: 3 }, () => { opacity = ctx.globalAlpha; });
+  assert.equal(opacity, 0);
+  context.game.elapsed = 3.3;
+  context.drawAppearingObstruction({ fadeInAt: 3 }, () => { opacity = ctx.globalAlpha; });
+  assert.ok(Math.abs(opacity - .4) < 1e-8);
+  context.game.elapsed = 3.6;
+  context.drawAppearingObstruction({ fadeInAt: 3 }, () => { opacity = ctx.globalAlpha; });
+  assert.equal(opacity, .8);
+  context.drawAppearingObstruction({}, () => { opacity = ctx.globalAlpha; });
+  assert.equal(opacity, .8);
+  assert.equal(ctx.globalAlpha, .8);
+  assert.equal(stack.length, 0);
+});
+
 test('obstruction warnings trace the actual dotted shape while retaining the twinkling star', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   for (const type of ['obstruction-circle', 'obstruction-diamond', 'obstruction-rectangle']) {

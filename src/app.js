@@ -88,14 +88,86 @@ let displayedStuck = false;
 let tutorial = null;
 let guideIndex = 0;
 const guide = document.querySelector('#how-to-play');
-function drawCutsceneCharacter(context, character, time, speaking) {
+function drawCutsceneAccessories(character, accessories, time) {
+  const eyes = {
+    koshi: [0, -3], tom: [-1, -25], boss: [-8, -8], bucket: [0, 0],
+    ball: [0, -6], jackolantern: [0, -5], goalie: [0, -11],
+    'robo-koshi': [0, -3], 'robo-snail': [0, -19], 'robo-cow': [11, -17],
+    'robo-unicorn': [6, -12], 'robo-love-bug': [0, -15], 'robo-crab': [0, -19],
+    'robo-trash-bin': [0, -5],
+  }[character] ?? [0, -3];
+  const hatPosition = {
+    koshi: [0, -23], tom: [0, -46], boss: [-3, -38], mouse: [0, -19], wheel: [0, -19],
+    ram: [0, -20], bucket: [0, -10], ball: [0, -19], jackolantern: [0, -18],
+    snake: [0, -19], goalie: [0, -27], 'robo-koshi': [0, -22],
+    'robo-snail': [0, -27], 'robo-cow': [11, -25], 'robo-unicorn': [0, -27],
+    'robo-crab': [0, -7], 'robo-love-bug': [0, -31], 'robo-trash-bin': [0, -16],
+  }[character] ?? [0, -20];
+  for (const accessory of accessories ?? []) {
+    if (accessory === 'sunglasses') {
+      const [x, y] = eyes;
+      ctx.save(); ctx.translate(x, y);
+      ctx.fillStyle = '#17232d'; ctx.strokeStyle = '#0a1118'; ctx.lineWidth = 2;
+      for (const side of [-1, 1]) {
+        ctx.beginPath(); ctx.roundRect(side * 9 - 8, -5, 16, 11, 3); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#8edcf0aa';
+        ctx.fillRect(side * 9 - 5, -3, 5, 2);
+        ctx.fillStyle = '#17232d';
+      }
+      ctx.beginPath(); ctx.moveTo(-2, -1); ctx.lineTo(2, -1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-17, -2); ctx.lineTo(-22, -5);
+      ctx.moveTo(17, -2); ctx.lineTo(22, -5); ctx.stroke();
+      ctx.restore();
+    } else if (accessory === 'top-hat') {
+      const width = character === 'tom' || character === 'boss' || character === 'goalie' ? 42 : 38;
+      const [hatX, hatY] = hatPosition;
+      ctx.save(); ctx.translate(hatX, hatY + 1);
+      ctx.fillStyle = '#05070a'; ctx.strokeStyle = '#222a32'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.ellipse(0, 0, width * .62, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(-width * .36, -27, width * .72, 28, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#171d25'; ctx.fillRect(-width * .35, -8, width * .7, 4);
+      ctx.restore();
+    } else if (accessory === 'magic-wand') {
+      let x = 18, y = 9;
+      if (character === 'bucket') {
+        const wave = Math.sin(time * 5) * .16;
+        x = 16 + 12 * Math.cos(wave) + 30 * Math.sin(wave);
+        y = -8 + 12 * Math.sin(wave) - 30 * Math.cos(wave);
+      } else if (character === 'robo-crab') {
+        x = 35; y = -24;
+      }
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(time * 4) * .08);
+      ctx.lineCap = 'round'; ctx.strokeStyle = '#483277'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(-2, 4); ctx.lineTo(10, -23); ctx.stroke();
+      ctx.strokeStyle = '#bda2fa'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-1, 3); ctx.lineTo(10, -22); ctx.stroke();
+      ctx.fillStyle = '#ffe77b'; ctx.strokeStyle = '#956a36'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let point = 0; point < 10; point++) {
+        const angle = -Math.PI / 2 + point * Math.PI / 5;
+        const radius = point % 2 ? 2.5 : 6;
+        const px = 10 + Math.cos(angle) * radius, py = -27 + Math.sin(angle) * radius;
+        if (point) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+function drawCutsceneCharacter(context, character, time, speaking, options = {}) {
   const previous = ctx;
   const previousGame = game;
   ctx = context;
+  if (options.accessoriesOnly) {
+    drawCutsceneAccessories(character, options.accessories, time);
+    ctx = previous;
+    return;
+  }
   if (character === 'koshi') {
     game = { cat: { radius: 23, x: NaN, y: NaN }, weapon: null, sawStartedAt: null };
     drawCat(0, 0, time, null, false, speaking ? 'won' : null);
   } else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
+  if (options.accessories?.length) drawCutsceneAccessories(character, options.accessories, time);
   ctx = previous;
   game = previousGame;
 }
@@ -2339,7 +2411,8 @@ function render(now) {
   ctx.beginPath(); ctx.arc(WIDTH / 2, HEIGHT / 2, 112, 0, Math.PI * 2); ctx.stroke();
   for (const circle of game.catCircles) if (visible(circle)) drawCatCircle(ctx, circle);
   for (const obstruction of game.obstructions) if (visible(obstruction)) {
-    drawEmergingShot(obstruction, obstruction.color ?? OBJECTS[obstruction.type].color, shot => drawObstruction(ctx, shot));
+    drawAppearingObstruction(obstruction, shot =>
+      drawEmergingShot(shot, shot.color ?? OBJECTS[shot.type].color, emerging => drawObstruction(ctx, emerging)));
   }
   for (const effect of game.obstructionDestructions) if (visible(effect, 160)) drawObstructionDestruction(ctx, effect);
   const streamRows = powerupStreamRows(game);
@@ -2918,6 +2991,16 @@ function drawBubble(bubble, trapped = false) {
       ctx.strokeStyle = '#d7faff'; ctx.lineWidth = 1.5; ctx.stroke();
     }
   }
+  ctx.restore();
+}
+
+const OBSTRUCTION_FADE_IN = .6;
+function drawAppearingObstruction(obstruction, draw) {
+  const opacity = obstruction.fadeInAt == null ? 1
+    : Math.max(0, Math.min(1, (game.elapsed - obstruction.fadeInAt) / OBSTRUCTION_FADE_IN));
+  ctx.save();
+  ctx.globalAlpha *= opacity;
+  draw(obstruction);
   ctx.restore();
 }
 

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, CHARACTERS, SCENE_THEMES, Cutscene, validateCutscene, validateCustomLevel } = require('../src/game.js');
+const { Game, LEVELS, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, Cutscene, validateCutscene, validateCustomLevel } = require('../src/game.js');
 const { GUIDE, LESSONS } = require('../src/learning.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
@@ -274,6 +274,51 @@ test('Tom commands the campaign in every scene and round-trips as a custom speak
   assert.throws(() => validateCutscene({ ...source.cutscene, lines: [{
     ...source.cutscene.lines[0], actors: [{ character: 'koshi', x: .25, y: .65 }],
   }] }), /speaking character/);
+});
+
+test('cutscene accessories validate per actor and survive level round trips', () => {
+  const withAccessories = { ...scene(), lines: [{
+    speaker: 'koshi', text: 'Ready!', actors: [
+      { character: 'koshi', x: .3, y: .6, accessories: ['sunglasses', 'top-hat', 'magic-wand'] },
+      { character: 'mouse', x: .7, y: .6, accessories: ['magic-wand'] },
+    ],
+  }] };
+  assert.deepEqual(validateCutscene(withAccessories), withAccessories);
+  assert.deepEqual(validateCustomLevel({ ...level(), cutscene: withAccessories }).cutscene, withAccessories);
+  for (const accessories of ['sunglasses', ['unknown'], ['magic-wand', 'magic-wand']]) {
+    const invalid = structuredClone(withAccessories);
+    invalid.lines[0].actors[0].accessories = accessories;
+    assert.throws(() => validateCutscene(invalid), /invalid accessories/);
+  }
+  assert.deepEqual(validateCutscene(scene()).lines[0].actors[0], scene().lines[0].actors[0],
+    'legacy actors keep their existing shape');
+});
+
+test('cutscene accessories draw for every supported type and animate the wand', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = source.indexOf('function drawCutsceneAccessories(');
+  const end = source.indexOf('\nfunction drawCutsceneCharacter(', start);
+  const calls = [];
+  const ctx = new Proxy({}, {
+    get: (_, name) => (...args) => calls.push([name, ...args]),
+    set: (_, name, value) => { calls.push([name, value]); return true; },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source.slice(start, end), context);
+  for (const character of Object.keys(CHARACTERS)) {
+    calls.length = 0;
+    context.drawCutsceneAccessories(character, ['sunglasses', 'top-hat', 'magic-wand'], 1);
+    assert.ok(calls.some(([name]) => name === 'roundRect'), `${character} glasses/hat draw`);
+    assert.ok(calls.some(([name]) => name === 'closePath'), `${character} wand draws`);
+    assert.ok(calls.flat().every(value => typeof value !== 'number' || Number.isFinite(value)), character);
+  }
+  const rotations = time => {
+    calls.length = 0;
+    context.drawCutsceneAccessories('bucket', ['magic-wand'], time);
+    return calls.filter(([name]) => name === 'rotate').map(([, angle]) => angle);
+  };
+  assert.notDeepEqual(rotations(0), rotations(1), 'the held wand follows the bucket arm animation');
+  assert.deepEqual(Object.keys(SCENE_ACCESSORIES), ['sunglasses', 'top-hat', 'magic-wand']);
 });
 
 test('Tom has a distinct full-body drawing and pixel portrait with animated bill and antenna', () => {

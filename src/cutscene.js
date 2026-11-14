@@ -843,15 +843,21 @@ class CutscenePlayer {
         ctx.rotate(Math.sin(animationTime * 14) * .04);
       }
       if (actor.character === 'tom') drawTom(ctx, walking ? animationTime : time, speaking, walking);
+      if (actor.character === 'tom' && actor.accessories?.length) {
+        this.drawCharacter(ctx, actor.character, time, speaking,
+          { accessories: actor.accessories, accessoriesOnly: true, walking });
+      }
       else if (snake) {
         const scale = .32;
         ctx.save();
         ctx.translate(0, 19 * (1 - scale));
         ctx.rotate(Math.PI / 2);
         ctx.scale(scale, scale);
-        this.drawCharacter(ctx, actor.character, time, speaking);
+        this.drawCharacter(ctx, actor.character, time, speaking,
+          actor.accessories?.length ? { accessories: actor.accessories, walking } : undefined);
         ctx.restore();
-      } else this.drawCharacter(ctx, actor.character, time, speaking);
+      } else this.drawCharacter(ctx, actor.character, time, speaking,
+        actor.accessories?.length ? { accessories: actor.accessories, walking } : undefined);
       ctx.restore();
     }
     this.actorLine = line;

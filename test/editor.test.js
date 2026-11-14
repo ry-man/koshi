@@ -490,10 +490,11 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   class Node {
     constructor() { this.children = []; this.listeners = {}; this.value = ''; this.checked = false; this.disabled = false; }
-    append(...children) { for (const child of children) if (typeof child !== 'string') { child.parent = this; this.children.push(child); } }
+    append(...children) { for (const child of children) if (typeof child !== 'string') { child.parentElement = this; this.children.push(child); } }
     replaceChildren(...children) { this.children = []; this.append(...children); }
     addEventListener(type, handler) { this.listeners[type] = handler; }
-    remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
+    setAttribute(name, value) { this[name] = value; }
+    remove() { this.parentElement.children = this.parentElement.children.filter(child => child !== this); }
     get lastElementChild() { return this.children.at(-1); }
     querySelector(selector) { return this.querySelectorAll(selector)[0]; }
     querySelectorAll(selector) {
@@ -513,6 +514,7 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   let changes = 0;
   const context = vm.createContext({
     $, level: blank(), CHARACTERS: { koshi: 'Koshi', mouse: 'Mouse', wheel: 'Wheel' },
+    SCENE_ACCESSORIES: { sunglasses: 'Sunglasses', 'top-hat': 'Big black top hat', 'magic-wand': 'Magic wand' },
     document: { createElement: () => new Node() },
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
     validateCustomLevel, readOnly: () => false, markChanged: () => changes++, selectedEvents: new Set(), touched: new Set(),
@@ -533,12 +535,17 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   assert.equal(row.querySelector('.scene-text').value, '');
   assert.deepEqual(row.querySelectorAll('.scene-cast input:checked').map(input => input.value), ['koshi', 'mouse']);
   assert.equal(row.querySelectorAll('.scene-cast input').find(input => input.value === 'mouse').disabled, true);
+  const mouseCheckbox = row.querySelectorAll('.scene-cast input').find(input => input.value === 'mouse');
+  const mouseAccessories = mouseCheckbox.parentElement.parentElement.querySelector('.scene-accessories');
+  assert.equal(mouseAccessories.multiple, true);
+  assert.equal(mouseAccessories.hidden, false);
+  mouseAccessories.children.find(option => option.value === 'magic-wand').selected = true;
   assert.throws(() => context.validateSavedLevel(), /dialogue/);
   row.querySelector('.scene-text').value = 'Next line';
   $('#cutscene-form').listeners.input();
   assert.equal(context.level.cutscene.lines.length, 2);
   assert.deepEqual(JSON.parse(JSON.stringify(context.level.cutscene.lines[1].actors)), [
-    actors[2], actors[0], actors[1],
+    actors[2], { ...actors[0], accessories: ['magic-wand'] }, { ...actors[1], accessories: ['magic-wand'] },
   ]);
   assert.doesNotThrow(() => context.validateSavedLevel());
   assert.equal($('#scene-lines').lastElementChild, row, 'typing does not rebuild the focused row');

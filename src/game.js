@@ -278,6 +278,11 @@ const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', r
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
   'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
   'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
+const SCENE_ACCESSORIES = {
+  sunglasses: 'Sunglasses',
+  'top-hat': 'Big black top hat',
+  'magic-wand': 'Magic wand',
+};
 
 const INFO_GRAPHICS = {
   'heart:heart': 'Heart',
@@ -332,7 +337,17 @@ function validateCutscene(value) {
         for (const axis of ['x', 'y']) {
           if (typeof actor[axis] !== 'number' || !Number.isFinite(actor[axis]) || actor[axis] < .1 || actor[axis] > .9) fail(`actor ${axis} must be between 0.1 and 0.9.`);
         }
-        return { character: actor.character, x: actor.x, y: actor.y };
+        let accessories;
+        if (actor.accessories !== undefined) {
+          if (!Array.isArray(actor.accessories)
+            || actor.accessories.some(accessory => typeof accessory !== 'string' || !Object.hasOwn(SCENE_ACCESSORIES, accessory))
+            || new Set(actor.accessories).size !== actor.accessories.length) {
+            fail(`actor ${actor.character} has invalid accessories.`);
+          }
+          accessories = [...actor.accessories];
+        }
+        return { character: actor.character, x: actor.x, y: actor.y,
+          ...(accessories ? { accessories } : {}) };
       });
       if (!actors.some(actor => actor.character === line.speaker)) fail(`line ${i + 1} must include the speaking character on stage.`);
       return { speaker: line.speaker, text: line.text.trim(), actors };
@@ -4635,6 +4650,7 @@ class Game {
         const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
         for (const enemy of items) this.initializeRoboKoshi(enemy, spawn.time, spawn);
       }
+      if (target === this.obstructions) for (const obstruction of items) obstruction.fadeInAt = this.elapsed;
       target.push(...items);
       if (target === this.obstructions || target === this.bumpers) appearing.push(...items);
     }
@@ -7796,6 +7812,7 @@ class Game {
       }
       if (['obstruction', 'bumper'].includes(pending.kind) && pending.time <= this.elapsed + 1e-9) {
         (pending.kind === 'bumper' ? this.bumpers : this.obstructions).push(...pending.items);
+        if (pending.kind === 'obstruction') for (const obstruction of pending.items) obstruction.fadeInAt = this.elapsed;
         for (const obstruction of pending.items) this.clearAppearingObstruction(obstruction);
         this.pendingSpawns.delete(event);
       }
@@ -8191,7 +8208,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;

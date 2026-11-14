@@ -4,6 +4,7 @@
 const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
+const { SCENE_ACCESSORIES } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : '');
@@ -3309,7 +3310,10 @@ function readSceneLine(row) {
     text: row.querySelector('.scene-text').value,
     actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
       const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-      return existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56, goalie: .5, 'robo-trash-bin': .5 }[checkbox.value], y: .65 }];
+      const actors = existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56, goalie: .5, 'robo-trash-bin': .5 }[checkbox.value], y: .65 }];
+      const accessories = [...checkbox.parentElement.parentElement.querySelector('.scene-accessories').children]
+        .filter(option => option.selected).map(option => option.value);
+      return actors.map(actor => ({ ...actor, ...(accessories.length ? { accessories } : {}) }));
     }),
   };
 }
@@ -3332,15 +3336,35 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
   textLabel.append(text);
   const cast = document.createElement('div'); cast.className = 'scene-cast';
   for (const [character, name] of Object.entries(CHARACTERS)) {
+    const actor = line.actors.find(entry => entry.character === character);
+    const wrapper = document.createElement('div'); wrapper.className = 'scene-character';
     const label = document.createElement('label'), checkbox = document.createElement('input');
     checkbox.type = 'checkbox'; checkbox.value = character;
-    checkbox.checked = line.actors.some(actor => actor.character === character);
-    label.append(checkbox, `${name} on stage`); cast.append(label);
+    checkbox.checked = Boolean(actor);
+    label.className = 'scene-character-stage';
+    label.append(checkbox, `${name} on stage`);
+    const accessoryLabel = document.createElement('label');
+    accessoryLabel.className = 'scene-accessory-label'; accessoryLabel.append('Accessories');
+    const accessories = document.createElement('select');
+    accessories.className = 'scene-accessories'; accessories.multiple = true;
+    accessories.size = Object.keys(SCENE_ACCESSORIES).length;
+    accessories.hidden = !checkbox.checked;
+    accessories.setAttribute('aria-label', `${name} accessories`);
+    for (const [value, accessoryName] of Object.entries(SCENE_ACCESSORIES)) {
+      const option = document.createElement('option');
+      option.value = value; option.textContent = accessoryName;
+      option.selected = actor?.accessories?.includes(value) ?? false;
+      accessories.append(option);
+    }
+    accessoryLabel.append(accessories);
+    wrapper.append(label, accessoryLabel); cast.append(wrapper);
+    checkbox.addEventListener('change', () => { accessories.hidden = !checkbox.checked; });
   }
   const updateSpeaker = () => {
     for (const checkbox of cast.querySelectorAll('input')) {
       checkbox.disabled = checkbox.value === speaker.value;
       if (checkbox.disabled) checkbox.checked = true;
+      checkbox.parentElement.parentElement.querySelector('.scene-accessories').hidden = !checkbox.checked;
     }
   };
   speaker.addEventListener('change', updateSpeaker); updateSpeaker();
