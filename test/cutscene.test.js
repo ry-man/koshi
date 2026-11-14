@@ -321,6 +321,86 @@ test('cutscene accessories draw for every supported type and animate the wand', 
   assert.deepEqual(Object.keys(SCENE_ACCESSORIES), ['sunglasses', 'top-hat', 'magic-wand']);
 });
 
+test('retained actors slide individual accessories vertically, including interrupted and reduced-motion changes', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
+  for (const [width, height] of [[1440, 600], [390, 560]]) {
+    let matrix = [1, 0, 0, 1, 0, 0];
+    const stack = [], drawings = [];
+    const ctx = new Proxy({
+      save() { stack.push([...matrix]); },
+      restore() { matrix = stack.pop(); },
+      translate(x, y) { matrix[4] += matrix[0] * x + matrix[2] * y; matrix[5] += matrix[1] * x + matrix[3] * y; },
+      scale(x, y) { matrix[0] *= x; matrix[1] *= x; matrix[2] *= y; matrix[3] *= y; },
+      rotate(angle) {
+        const [a, b, c, d] = matrix, cos = Math.cos(angle), sin = Math.sin(angle);
+        matrix.splice(0, 4, a * cos + c * sin, b * cos + d * sin, c * cos - a * sin, d * cos - b * sin);
+      },
+    }, { get: (target, key) => target[key] ?? (() => {}) });
+    const context = vm.createContext({ ctx, width, height, time: 0, reducedMotion: false, drawTom() {} });
+    vm.runInContext(`function stage(line) { ${loop} }`, context);
+    const player = {
+      positions: new Map(), animationTime: 0,
+      drawCharacter(_, character, time, speaking, options) {
+        drawings.push({ character, accessory: options?.accessories?.[0], x: matrix[4], y: matrix[5] });
+      },
+    };
+    const line = accessories => ({
+      speaker: 'koshi',
+      actors: ['koshi', 'tom', 'snake'].map((character, i) => ({ character, x: .2 + i * .3, y: .65, accessories })),
+    });
+    const first = line(['sunglasses']), second = line(['top-hat', 'magic-wand']);
+    const before = JSON.stringify([first, second]);
+    const render = value => { drawings.length = 0; context.stage.call(player, value); };
+    render(first);
+    assert.ok([...player.positions.values()].every(position => position.accessoryPositions.get('sunglasses').offset === 0),
+      'first-line accessories are attached immediately');
+    render(second);
+    for (const character of ['koshi', 'tom', 'snake']) {
+      const state = player.positions.get(`${character}:0`).accessoryPositions;
+      assert.equal(state.get('sunglasses').offset, 0, 'removal begins on the actor');
+      assert.ok(drawings.find(draw => draw.character === character && draw.accessory === 'top-hat').y < 0);
+      assert.ok(drawings.find(draw => draw.character === character && draw.accessory === 'magic-wand').y > 540);
+    }
+    const start = structuredClone(drawings);
+    render(second);
+    assert.deepEqual(drawings, start, 'redraws and paused frames do not advance accessories');
+    player.animationTime = .2;
+    render(second);
+    const middle = structuredClone(drawings);
+    for (const draw of middle.filter(draw => draw.accessory)) {
+      const previous = start.find(entry => entry.character === draw.character && entry.accessory === draw.accessory);
+      assert.equal(draw.x, previous.x, `${draw.character}: no sideways movement, even for the rotated snake`);
+      assert.notEqual(draw.y, previous.y);
+      assert.equal(draw.y > previous.y, draw.accessory === 'top-hat', 'headwear arrives from above and held props from below');
+    }
+    const reverse = line(['sunglasses']);
+    render(reverse);
+    assert.deepEqual(drawings, middle, 'reversing an accessory change starts at its current position');
+    player.animationTime = .7;
+    render(reverse);
+    for (const position of player.positions.values()) {
+      assert.deepEqual([...position.accessoryPositions.keys()], ['sunglasses']);
+      assert.equal(position.accessoryPositions.get('sunglasses').offset, 0);
+    }
+    render(second);
+    player.animationTime = 1.2;
+    render(second);
+    for (const position of player.positions.values()) {
+      assert.deepEqual([...position.accessoryPositions.keys()], ['top-hat', 'magic-wand']);
+      assert.ok([...position.accessoryPositions.values()].every(movement => movement.offset === 0));
+    }
+    render(reverse);
+    context.reducedMotion = true;
+    render(reverse);
+    for (const position of player.positions.values()) {
+      assert.deepEqual([...position.accessoryPositions.keys()], ['sunglasses']);
+      assert.equal(position.accessoryPositions.get('sunglasses').offset, 0);
+    }
+    assert.equal(JSON.stringify([first, second]), before, 'animation never rewrites authored scenes');
+  }
+});
+
 test('Tom has a distinct full-body drawing and pixel portrait with animated bill and antenna', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
   const drawing = source.slice(source.indexOf('function drawTom('), source.indexOf('class CutscenePlayer'));
@@ -347,7 +427,7 @@ test('Tom has a distinct full-body drawing and pixel portrait with animated bill
   assert.match(talking, /#ea7070/);
   assert.match(still, /gradient/);
   assert.notEqual(draw(false, true), draw(true, true));
-  assert.match(source, /if \(actor\.character === 'tom'\) drawTom\(ctx, walking \? animationTime : time, speaking, walking\)/);
+  assert.match(source, /if \(actor\.character === 'tom' && !accessory\) drawTom\(ctx, walking \? animationTime : time, speaking, walking\)/);
 });
 
 test('optional cutscenes survive custom-level round trips independently of source data', () => {

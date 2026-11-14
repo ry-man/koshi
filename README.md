@@ -378,8 +378,9 @@ type. Select multiple variants to show them together on a page.
 Steering-brick captions break after "Brick" so each color's cooldown details
 start on the second line. The focused page heading has no browser-default outline;
 navigation buttons retain their keyboard focus indicators.
-Click **Apply information** before saving, exporting JSON, or playtesting.
-Disabling the section and applying removes the information from the level.
+Changes apply automatically, including page additions, removals, and reordering.
+Unfinished or invalid pages report an error and block JSON export and playtesting
+until corrected. Disabling the section removes the information from the level.
 Campaign originals remain read-only; Official levels can be copied into the
 custom workspace with **Edit a copy**.
 
@@ -1296,9 +1297,18 @@ Reduced-motion mode shows each complete line immediately and disables animation.
 Screen readers receive complete dialogue lines rather than individual letters.
 
 In the editor, enable **Optional pre-level cutscene**, choose the world
-background, and add dialogue lines with a speaker and on-stage cast.
+background, and add dialogue lines with a speaker and on-stage cast. Use **Add
+character** to choose an actor; only characters on stage appear below the dialogue,
+each with an **Accessories** button, currently applied accessories listed one per line, and
+a **Remove character** button. **Accessories** opens a scrollable popup of
+checkboxes; click or tap any accessory to toggle it independently, then choose
+**Done** or press Escape to close. Changes apply immediately; no Ctrl key is needed. The current
+speaker must remain on stage, and each line supports up to six actors.
 Changes apply automatically, and each new dialogue line inherits the previous
-line's speaker and checked on-stage characters. Enter dialogue for the new line;
+line's speaker, characters, positions, and individual accessory selections.
+Accessories added or removed on a retained character slide vertically onto or off
+the stage: headwear from above and held props from below. Reduced-motion mode
+applies these changes immediately. Enter dialogue for the new line;
 invalid or unfinished edits report an error and block JSON printing and playtesting
 until corrected. Unchecking the option removes the scene. The full JSON format
 supports precise actor positions and repeated actors:
@@ -1361,8 +1371,8 @@ Only a Boost launch during his rocking, red **ERROR!** eye display damages
 him. Six hits defeat him. The red, gold-bordered health bar below the counters
 tracks his health; his death animation finishes before Koshi celebrates.
 
-1. Set the level name, time limit, win condition, and optional heart cost (blank disables
-   food-triggered hearts). Settings apply automatically when you change a selection
+1. Set the level name, time limit, win condition, and optional heart cost (new levels
+   default to 15; blank disables food-triggered hearts). Settings apply automatically when you change a selection
    or checkbox, or finish editing a field. Invalid settings are reported without
    replacing the last valid level. **Level settings & introductions** is collapsible
    and contains the optional cutscene and level information sections.
@@ -1536,8 +1546,8 @@ tracks his health; his death animation finishes before Koshi celebrates.
    the timeline does not scroll to the board. Selected events remain visible
    when **Show all spawn locations** is off. **Dynamic View** resumes following
    the game camera when you scrub or play the preview.
-   Choose **Time Plot** under **Timeline view** to plot events along a
-   horizontally scrollable time axis, or **Detailed** for the original cards.
+   **Timeline view** defaults to **Time Plot**, plotting events along a
+   horizontally scrollable time axis. Choose **Detailed** for the original cards.
    Time Plot boxes show their event ID, category color, icon, and lifetime in
    seconds; infinity means no scheduled removal. Timed boxes span their exact
    scheduled lifetime, even beyond the level end, and the scale expands as

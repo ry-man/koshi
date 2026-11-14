@@ -11,7 +11,7 @@ const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-
 const board = $('#editor-board');
 const form = $('#event-form');
 const campaignMode = globalThis.KoshiCampaignMode;
-const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: null, brickSet: 1, events: [] });
+const blank = () => ({ version: 1, id: 'My level', duration: 60, goal: 20, heartCost: 15, brickSet: 1, events: [] });
 const validateDraft = value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true });
 const immutableBrick = kind => ['cinder', 'goal'].includes(kind);
 const OBSTRUCTION_COLORS = [
@@ -3304,16 +3304,16 @@ for (const selector of ['#cat-block-trigger', '#cat-block-amount', '#cat-block-e
   $(selector).addEventListener(selector === '#cat-block-amount' ? 'input' : 'change', updateCatBlockTrigger);
 }
 let cutsceneError = null;
+let levelInfoError = null;
 function readSceneLine(row) {
   return {
     speaker: row.querySelector('.scene-speaker').value,
     text: row.querySelector('.scene-text').value,
-    actors: [...row.querySelectorAll('.scene-cast input:checked')].flatMap(checkbox => {
-      const existing = row.sceneActors.filter(actor => actor.character === checkbox.value);
-      const actors = existing.length ? existing : [{ character: checkbox.value, x: { koshi: .28, mouse: .67, wheel: .82, tom: .5, ram: .12, bucket: .9, ball: .5, jackolantern: .5, snake: .56, goalie: .5, 'robo-trash-bin': .5 }[checkbox.value], y: .65 }];
-      const accessories = [...checkbox.parentElement.parentElement.querySelector('.scene-accessories').children]
-        .filter(option => option.selected).map(option => option.value);
-      return actors.map(actor => ({ ...actor, ...(accessories.length ? { accessories } : {}) }));
+    actors: [...row.querySelector('.scene-cast').children].map(card => {
+      const { accessories: previousAccessories, ...actor } = card.sceneActor;
+      const accessories = [...card.querySelector('.scene-accessories').querySelectorAll('input')]
+        .filter(input => input.checked).map(input => input.value);
+      return { ...actor, ...(accessories.length ? { accessories } : {}) };
     }),
   };
 }
@@ -3335,48 +3335,122 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
   text.className = 'scene-text'; text.rows = 3; text.value = line.text;
   textLabel.append(text);
   const cast = document.createElement('div'); cast.className = 'scene-cast';
-  for (const [character, name] of Object.entries(CHARACTERS)) {
-    const actor = line.actors.find(entry => entry.character === character);
-    const wrapper = document.createElement('div'); wrapper.className = 'scene-character';
-    const label = document.createElement('label'), checkbox = document.createElement('input');
-    checkbox.type = 'checkbox'; checkbox.value = character;
-    checkbox.checked = Boolean(actor);
-    label.className = 'scene-character-stage';
-    label.append(checkbox, `${name} on stage`);
-    const accessoryLabel = document.createElement('label');
-    accessoryLabel.className = 'scene-accessory-label'; accessoryLabel.append('Accessories');
-    const accessories = document.createElement('select');
-    accessories.className = 'scene-accessories'; accessories.multiple = true;
-    accessories.size = Object.keys(SCENE_ACCESSORIES).length;
-    accessories.hidden = !checkbox.checked;
-    accessories.setAttribute('aria-label', `${name} accessories`);
-    for (const [value, accessoryName] of Object.entries(SCENE_ACCESSORIES)) {
-      const option = document.createElement('option');
-      option.value = value; option.textContent = accessoryName;
-      option.selected = actor?.accessories?.includes(value) ?? false;
-      accessories.append(option);
-    }
-    accessoryLabel.append(accessories);
-    wrapper.append(label, accessoryLabel); cast.append(wrapper);
-    checkbox.addEventListener('change', () => { accessories.hidden = !checkbox.checked; });
+  cast.setAttribute('aria-label', 'Characters on stage');
+  const addCharacter = document.createElement('button');
+  addCharacter.type = 'button'; addCharacter.className = 'scene-add-character';
+  addCharacter.textContent = 'Add character';
+  addCharacter.setAttribute('aria-expanded', 'false');
+  const characterPicker = document.createElement('select');
+  characterPicker.className = 'scene-character-picker'; characterPicker.hidden = true;
+  characterPicker.setAttribute('aria-label', 'Character to add');
+  const placeholder = document.createElement('option');
+  placeholder.value = ''; placeholder.textContent = 'Choose a character';
+  characterPicker.append(placeholder);
+  for (const [value, name] of Object.entries(CHARACTERS)) {
+    const option = document.createElement('option');
+    option.value = value; option.textContent = name; characterPicker.append(option);
   }
-  const updateSpeaker = () => {
-    for (const checkbox of cast.querySelectorAll('input')) {
-      checkbox.disabled = checkbox.value === speaker.value;
-      if (checkbox.disabled) checkbox.checked = true;
-      checkbox.parentElement.parentElement.querySelector('.scene-accessories').hidden = !checkbox.checked;
+  const updateCast = () => {
+    addCharacter.disabled = cast.children.length >= 6;
+    for (const card of cast.children) {
+      card.querySelector('.scene-remove-character').disabled = card.sceneActor.character === speaker.value
+        && [...cast.children].filter(entry => entry.sceneActor.character === speaker.value).length === 1;
     }
   };
-  speaker.addEventListener('change', updateSpeaker); updateSpeaker();
+  const addActor = actor => {
+    const name = CHARACTERS[actor.character];
+    const wrapper = document.createElement('div'); wrapper.className = 'scene-character';
+    wrapper.sceneActor = { ...actor };
+    const heading = document.createElement('strong'); heading.textContent = name;
+    const accessoryButton = document.createElement('button');
+    accessoryButton.type = 'button'; accessoryButton.className = 'scene-edit-accessories';
+    accessoryButton.textContent = 'Accessories';
+    accessoryButton.setAttribute('aria-haspopup', 'dialog');
+    accessoryButton.setAttribute('aria-label', `Edit ${name} accessories`);
+    const accessorySummary = document.createElement('p');
+    accessorySummary.className = 'scene-accessory-summary';
+    const accessoryDialog = document.createElement('dialog');
+    accessoryDialog.className = 'scene-accessory-dialog';
+    accessoryDialog.setAttribute('aria-label', `${name} accessories`);
+    const dialogHeading = document.createElement('h2'); dialogHeading.textContent = `${name} accessories`;
+    const accessories = document.createElement('fieldset');
+    accessories.className = 'scene-accessories';
+    accessories.setAttribute('aria-label', `${name} accessories`);
+    const legend = document.createElement('legend'); legend.textContent = 'Accessories';
+    accessories.append(legend);
+    for (const [value, accessoryName] of Object.entries(SCENE_ACCESSORIES)) {
+      const label = document.createElement('label'); label.className = 'inline-label';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.value = value;
+      checkbox.checked = actor.accessories?.includes(value) ?? false;
+      label.append(checkbox, accessoryName);
+      accessories.append(label);
+    }
+    const updateAccessories = () => {
+      const selected = [...accessories.querySelectorAll('input')].filter(input => input.checked);
+      accessorySummary.textContent = selected.length
+        ? selected.map(input => SCENE_ACCESSORIES[input.value]).join('\n') : 'No accessories';
+    };
+    accessories.addEventListener('change', updateAccessories);
+    updateAccessories();
+    const done = document.createElement('button');
+    done.type = 'button'; done.className = 'scene-accessories-done'; done.textContent = 'Done';
+    done.addEventListener('click', () => accessoryDialog.close());
+    accessoryDialog.append(dialogHeading, accessories, done);
+    accessoryButton.addEventListener('click', () => {
+      if (readOnly()) return;
+      accessoryDialog.showModal();
+    });
+    const removeActor = document.createElement('button');
+    removeActor.type = 'button'; removeActor.className = 'scene-remove-character'; removeActor.textContent = 'Remove character';
+    removeActor.setAttribute('aria-label', `Remove ${name}`);
+    removeActor.addEventListener('click', () => {
+      if (readOnly() || removeActor.disabled) return;
+      wrapper.remove(); updateCast(); applyCutscene();
+    });
+    wrapper.append(heading, accessoryButton, accessorySummary, removeActor, accessoryDialog); cast.append(wrapper);
+    updateCast();
+  };
+  const newActor = character => ({
+    character, x: { koshi: .28, mouse: .67, wheel: .82, ram: .12, bucket: .9, snake: .56 }[character] ?? .5, y: .65,
+  });
+  line.actors.forEach(addActor);
+  addCharacter.addEventListener('click', () => {
+    if (readOnly()) return;
+    characterPicker.hidden = !characterPicker.hidden;
+    addCharacter.setAttribute('aria-expanded', String(!characterPicker.hidden));
+    if (!characterPicker.hidden) characterPicker.focus();
+  });
+  characterPicker.addEventListener('change', () => {
+    if (readOnly() || !characterPicker.value) return;
+    if (cast.children.length >= 6) { message('Cutscenes support at most 6 characters per line.', true); return; }
+    addActor(newActor(characterPicker.value));
+    characterPicker.value = ''; characterPicker.hidden = true;
+    addCharacter.setAttribute('aria-expanded', 'false');
+    (addCharacter.disabled ? cast.lastElementChild.querySelector('.scene-edit-accessories') : addCharacter).focus();
+    applyCutscene();
+  });
+  let previousSpeaker = speaker.value;
+  speaker.addEventListener('change', () => {
+    if (readOnly()) return;
+    if (![...cast.children].some(card => card.sceneActor.character === speaker.value)) {
+      if (cast.children.length >= 6) {
+        speaker.value = previousSpeaker;
+        message('Remove a character before adding a new speaker (6 characters maximum).', true);
+        return;
+      }
+      addActor(newActor(speaker.value));
+    }
+    previousSpeaker = speaker.value; updateCast();
+  });
   const remove = document.createElement('button');
-  remove.type = 'button'; remove.textContent = 'Remove line';
+  remove.type = 'button'; remove.className = 'scene-remove-line'; remove.textContent = 'Remove line';
   remove.addEventListener('click', () => {
     if (readOnly()) return;
     row.remove();
     applyCutscene();
   });
-  row.sceneActors = line.actors.map(actor => ({ ...actor }));
-  row.append(speakerLabel, textLabel, cast, remove);
+  row.append(speakerLabel, textLabel, addCharacter, characterPicker, cast, remove);
   $('#scene-lines').append(row);
 }
 function populateCutscene() {
@@ -3458,13 +3532,18 @@ function addInfoPage(page = { title: 'New concept', text: '', graphics: [] }) {
     ['Remove page', () => row.remove()],
   ]) {
     const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
-    button.addEventListener('click', action); actions.append(button);
+    if (label === 'Remove page') button.className = 'info-remove-page';
+    button.addEventListener('click', () => {
+      if (readOnly()) return;
+      action(); applyLevelInfo();
+    }); actions.append(button);
   }
   row.append(legend, titleLabel, textLabel, graphicsLabel, preview, actions);
   $('#info-pages').append(row);
 }
 
 function populateLevelInfo() {
+  levelInfoError = null;
   $('#info-enabled').checked = Boolean(level.levelInfo);
   $('#info-fields').disabled = !level.levelInfo;
   $('#info-pages').replaceChildren();
@@ -3475,9 +3554,9 @@ $('#info-add-page').addEventListener('click', () => {
   if (readOnly()) return;
   if ($('#info-pages').children.length >= 20) { message('Level information supports at most 20 pages.', true); return; }
   addInfoPage();
+  applyLevelInfo();
 });
-$('#level-info-form').addEventListener('submit', event => {
-  event.preventDefault();
+function applyLevelInfo() {
   if (readOnly()) return;
   attempt(() => {
     const candidate = { ...level };
@@ -3489,8 +3568,17 @@ $('#level-info-form').addEventListener('submit', event => {
       })) };
     } else delete candidate.levelInfo;
     level = validateDraft(candidate);
-    markChanged(); populateLevelInfo(); message('Level information applied. Playtest to view it before the objectives.');
+    levelInfoError = null;
+    markChanged(); message('Level information updated. Playtest to view it before the objectives.');
+  }, () => {
+    levelInfoError = new Error($('#editor-message').textContent);
+    dirty = true;
   });
+}
+for (const type of ['input', 'change']) $('#level-info-form').addEventListener(type, applyLevelInfo);
+$('#level-info-form').addEventListener('submit', event => {
+  event.preventDefault();
+  applyLevelInfo();
 });
 
 function replaceLevel(value) {
@@ -3611,6 +3699,7 @@ new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
 function validateSavedLevel() {
   if (trackDrawing) throw new Error('Apply the Cat Track or Cancel edits before printing JSON or playtesting.');
   if (cutsceneError) throw cutsceneError;
+  if (levelInfoError) throw levelInfoError;
   if (selectedEvents.size && touched.size) throw new Error('Finish or correct the selected event changes before printing JSON or playtesting.');
   return validateCustomLevel(level, { requireCatBlockConsistency: true });
 }

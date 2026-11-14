@@ -795,11 +795,29 @@ class CutscenePlayer {
           ...from, actor, target, from, start: animationTime,
           duration: Math.hypot(target.x - from.x, target.y - from.y) / 720,
           entering, leaving: false, scale: actorScale,
+          accessoryPositions: position?.accessoryPositions,
         };
       }
       position.target = target;
       position.actor = actor;
       position.scale = actorScale;
+      if (!position.accessoryPositions) {
+        position.accessoryPositions = new Map((actor.accessories ?? []).map(accessory =>
+          [accessory, { offset: 0, target: 0, from: 0, start: animationTime, leaving: false }]));
+      }
+      const wanted = new Set(actor.accessories ?? []);
+      for (const accessory of new Set([...position.accessoryPositions.keys(), ...wanted])) {
+        let movement = position.accessoryPositions.get(accessory);
+        const leaving = !wanted.has(accessory);
+        if (!movement || movement.leaving !== leaving) {
+          // Headwear comes from above; held props come from below the stage.
+          const offscreen = accessory === 'magic-wand'
+            ? 540 - position.y + 120 * actorScale : -position.y - 120 * actorScale;
+          const offset = movement?.offset ?? offscreen;
+          movement = { offset, from: offset, target: leaving ? offscreen : 0, start: animationTime, leaving };
+          position.accessoryPositions.set(accessory, movement);
+        }
+      }
       this.positions.set(key, position);
     });
     for (const [key, position] of this.positions) {
@@ -837,27 +855,36 @@ class CutscenePlayer {
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, walking ? -Math.abs(Math.sin(animationTime * 14)) * 4
         : speaking ? Math.sin(time * 6) * 3 / position.scale : 0);
-      if (walking) {
-        const right = position.target.x > position.from.x;
-        ctx.scale(actor.character === 'tom' ? right ? -1 : 1 : right ? 1 : -1, 1);
-        ctx.rotate(Math.sin(animationTime * 14) * .04);
-      }
-      if (actor.character === 'tom') drawTom(ctx, walking ? animationTime : time, speaking, walking);
-      if (actor.character === 'tom' && actor.accessories?.length) {
-        this.drawCharacter(ctx, actor.character, time, speaking,
-          { accessories: actor.accessories, accessoriesOnly: true, walking });
-      }
-      else if (snake) {
-        const scale = .32;
+      const drawActor = (accessory = null, offset = 0) => {
         ctx.save();
-        ctx.translate(0, 19 * (1 - scale));
-        ctx.rotate(Math.PI / 2);
-        ctx.scale(scale, scale);
-        this.drawCharacter(ctx, actor.character, time, speaking,
-          actor.accessories?.length ? { accessories: actor.accessories, walking } : undefined);
+        // Translate before turning the actor, keeping accessory travel strictly vertical.
+        ctx.translate(0, offset / position.scale);
+        if (walking) {
+          const right = position.target.x > position.from.x;
+          ctx.scale(actor.character === 'tom' ? right ? -1 : 1 : right ? 1 : -1, 1);
+          ctx.rotate(Math.sin(animationTime * 14) * .04);
+        }
+        if (snake) {
+          const scale = .32;
+          ctx.translate(0, 19 * (1 - scale));
+          ctx.rotate(Math.PI / 2);
+          ctx.scale(scale, scale);
+        }
+        if (actor.character === 'tom' && !accessory) drawTom(ctx, walking ? animationTime : time, speaking, walking);
+        else this.drawCharacter(ctx, actor.character, time, speaking,
+          accessory ? { accessories: [accessory], accessoriesOnly: true, walking } : undefined);
         ctx.restore();
-      } else this.drawCharacter(ctx, actor.character, time, speaking,
-        actor.accessories?.length ? { accessories: actor.accessories, walking } : undefined);
+      };
+      drawActor();
+      for (const [accessory, movement] of position.accessoryPositions) {
+        const accessoryProgress = reducedMotion ? 1 : Math.min(1, Math.max(0, animationTime - movement.start) / .4);
+        movement.offset = movement.from + (movement.target - movement.from) * accessoryProgress;
+        if (movement.leaving && accessoryProgress === 1) {
+          position.accessoryPositions.delete(accessory);
+          continue;
+        }
+        drawActor(accessory, movement.offset);
+      }
       ctx.restore();
     }
     this.actorLine = line;

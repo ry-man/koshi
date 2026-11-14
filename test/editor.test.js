@@ -8,6 +8,16 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('new editor levels default to a heart cost of 15 without changing imported levels', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const context = vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('const blank ='), source.indexOf('const validateDraft ='))
+    + '\nglobalThis.createBlank = blank;', context);
+  assert.equal(validateCustomLevel(context.createBlank()).heartCost, 15);
+  assert.equal(validateCustomLevel(blank()).heartCost, null, 'explicitly disabled heart spawning stays disabled');
+  assert.equal(validateCustomLevel({ ...blank(), heartCost: 7 }).heartCost, 7);
+});
+
 test('built-in level choices start with their world-level number', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const { LEVELS } = require('../src/game.js');
@@ -395,6 +405,13 @@ test('the event timeline grows with its contents without changing overlap-dialog
   assert.match(css, /\.overlap-picker\s*\{[^}]*max-height: calc\(100dvh - 24px\);[^}]*overflow-y: auto;/);
 });
 
+test('the event timeline defaults to Time Plot while keeping Detailed available', () => {
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const select = html.match(/<select id="event-timeline-view">([\s\S]*?)<\/select>/)[1];
+  assert.match(select, /<option value="relative" selected>Time Plot<\/option>/);
+  assert.match(select, /<option value="compact">Detailed<\/option>/);
+});
+
 test('new levels reset Dynamic View only after confirming unsaved changes', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const toggle = { checked: false };
@@ -436,7 +453,7 @@ test('Print, paste, and open JSON files use validated level import without draft
   };
   const messages = [], errors = [];
   const context = vm.createContext({
-    $, level: blank(), validateCustomLevel, cutsceneError: null, trackDrawing: false, selectedEvents: new Set(), touched: new Set(),
+    $, level: blank(), validateCustomLevel, cutsceneError: null, levelInfoError: null, trackDrawing: false, selectedEvents: new Set(), touched: new Set(),
     message: (text, error = false) => messages.push({ text, error }),
     console: { error: (...args) => errors.push(args) },
   });
@@ -486,22 +503,25 @@ test('Print, paste, and open JSON files use validated level import without draft
   assert.doesNotMatch(source, /showDirectoryPicker|createWritable|#save-draft|#load-draft|#download-json/);
 });
 
-test('cutscene edits apply automatically and new lines inherit the previous speaker and cast', () => {
+test('cutscene cards preserve individual actors and new lines inherit the full scene', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   class Node {
-    constructor() { this.children = []; this.listeners = {}; this.value = ''; this.checked = false; this.disabled = false; }
+    constructor(tag) { this.tag = tag; this.children = []; this.listeners = {}; this.value = ''; this.checked = false; this.disabled = false; }
     append(...children) { for (const child of children) if (typeof child !== 'string') { child.parentElement = this; this.children.push(child); } }
     replaceChildren(...children) { this.children = []; this.append(...children); }
     addEventListener(type, handler) { this.listeners[type] = handler; }
     setAttribute(name, value) { this[name] = value; }
     remove() { this.parentElement.children = this.parentElement.children.filter(child => child !== this); }
+    focus() {}
+    showModal() { this.open = true; }
+    close() { this.open = false; }
     get lastElementChild() { return this.children.at(-1); }
     querySelector(selector) { return this.querySelectorAll(selector)[0]; }
     querySelectorAll(selector) {
       if (selector.startsWith('.scene-cast ')) return this.querySelector('.scene-cast').querySelectorAll(selector.split(' ')[1]);
       return this.children.flatMap(child => [
         ...(selector.startsWith('.') ? child.className === selector.slice(1) ? [child] : []
-          : child.type === 'checkbox' && (selector !== 'input:checked' || child.checked) ? [child] : []),
+          : child.tag === selector ? [child] : []),
         ...child.querySelectorAll(selector),
       ]);
     }
@@ -513,9 +533,9 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   };
   let changes = 0;
   const context = vm.createContext({
-    $, level: blank(), CHARACTERS: { koshi: 'Koshi', mouse: 'Mouse', wheel: 'Wheel' },
+    $, level: blank(), CHARACTERS: { koshi: 'Koshi', mouse: 'Mouse', wheel: 'Wheel', ram: 'Ram' },
     SCENE_ACCESSORIES: { sunglasses: 'Sunglasses', 'top-hat': 'Big black top hat', 'magic-wand': 'Magic wand' },
-    document: { createElement: () => new Node() },
+    document: { createElement: tag => new Node(tag) },
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
     validateCustomLevel, readOnly: () => false, markChanged: () => changes++, selectedEvents: new Set(), touched: new Set(),
     message: (text, error) => { $('#editor-message').textContent = text; $('#editor-message').error = Boolean(error); },
@@ -524,7 +544,11 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   vm.runInContext(source.slice(source.indexOf('function attempt('), source.indexOf('function markChanged(')), context);
   vm.runInContext(source.slice(source.indexOf('let cutsceneError = null;'), source.indexOf('function addInfoPage(')), context);
   vm.runInContext(source.slice(source.indexOf('function validateSavedLevel('), source.indexOf("$('#generate-json').addEventListener")), context);
-  const actors = [{ character: 'mouse', x: .42, y: .7 }, { character: 'mouse', x: .6, y: .8 }, { character: 'koshi', x: .2, y: .5 }];
+  const actors = [
+    { character: 'mouse', x: .42, y: .7, accessories: ['top-hat'] },
+    { character: 'mouse', x: .6, y: .8, accessories: ['sunglasses'] },
+    { character: 'koshi', x: .2, y: .5 },
+  ];
   context.level = validateCustomLevel({ ...blank(), cutscene: {
     theme: 'garden', lines: [{ speaker: 'mouse', text: 'First line', actors }],
   } });
@@ -533,20 +557,50 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   const row = $('#scene-lines').lastElementChild;
   assert.equal(row.querySelector('.scene-speaker').value, 'mouse');
   assert.equal(row.querySelector('.scene-text').value, '');
-  assert.deepEqual(row.querySelectorAll('.scene-cast input:checked').map(input => input.value), ['koshi', 'mouse']);
-  assert.equal(row.querySelectorAll('.scene-cast input').find(input => input.value === 'mouse').disabled, true);
-  const mouseCheckbox = row.querySelectorAll('.scene-cast input').find(input => input.value === 'mouse');
-  const mouseAccessories = mouseCheckbox.parentElement.parentElement.querySelector('.scene-accessories');
-  assert.equal(mouseAccessories.multiple, true);
-  assert.equal(mouseAccessories.hidden, false);
-  mouseAccessories.children.find(option => option.value === 'magic-wand').selected = true;
+  const cast = row.querySelector('.scene-cast');
+  assert.deepEqual(cast.children.map(card => card.sceneActor.character), ['mouse', 'mouse', 'koshi']);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.readSceneLine(row).actors)), actors);
+  const mouseAccessories = cast.children[0].querySelector('.scene-accessories');
+  assert.equal(mouseAccessories.tag, 'fieldset');
+  const accessoryDialog = cast.children[0].querySelector('.scene-accessory-dialog');
+  const accessoryButton = cast.children[0].querySelector('.scene-edit-accessories');
+  const summary = cast.children[0].querySelector('.scene-accessory-summary');
+  assert.equal(mouseAccessories.parentElement, accessoryDialog, 'checkboxes live inside the popup');
+  assert.ok(!accessoryDialog.open, 'accessory choices are hidden until opened');
+  assert.equal(summary.textContent, 'Big black top hat');
+  assert.equal(accessoryButton.disabled, false, 'speakers can edit accessories');
+  accessoryButton.listeners.click();
+  assert.equal(accessoryDialog.open, true);
+  const accessoryInputs = mouseAccessories.querySelectorAll('input');
+  assert.ok(accessoryInputs.every(input => input.type === 'checkbox'));
+  const hat = accessoryInputs.find(input => input.value === 'top-hat');
+  const wand = accessoryInputs.find(input => input.value === 'magic-wand');
+  wand.checked = true;
+  mouseAccessories.listeners.change();
+  assert.equal(summary.textContent, 'Big black top hat\nMagic wand');
+  const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
+  assert.match(css, /\.scene-accessory-summary\s*\{[^}]*white-space:\s*pre-line;/);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.readSceneLine(row).actors[0].accessories)), ['top-hat', 'magic-wand'],
+    'checking a second accessory leaves the first selected');
+  hat.checked = false;
+  mouseAccessories.listeners.change();
+  assert.equal(summary.textContent, 'Magic wand');
+  assert.equal(wand.checked, true, 'unchecking one accessory leaves others selected');
   assert.throws(() => context.validateSavedLevel(), /dialogue/);
   row.querySelector('.scene-text').value = 'Next line';
   $('#cutscene-form').listeners.input();
   assert.equal(context.level.cutscene.lines.length, 2);
   assert.deepEqual(JSON.parse(JSON.stringify(context.level.cutscene.lines[1].actors)), [
-    actors[2], { ...actors[0], accessories: ['magic-wand'] }, { ...actors[1], accessories: ['magic-wand'] },
+    { ...actors[0], accessories: ['magic-wand'] }, actors[1], actors[2],
   ]);
+  wand.checked = false;
+  mouseAccessories.listeners.change();
+  assert.equal(summary.textContent, 'No accessories');
+  cast.children[0].querySelector('.scene-accessories-done').listeners.click();
+  assert.equal(accessoryDialog.open, false);
+  $('#cutscene-form').listeners.change();
+  assert.equal(context.level.cutscene.lines[1].actors[0].accessories, undefined, 'removing every accessory clears saved accessories');
+  assert.deepEqual(JSON.parse(JSON.stringify(context.level.cutscene.lines[0].actors)), actors, 'editing the next line does not mutate the source');
   assert.doesNotThrow(() => context.validateSavedLevel());
   assert.equal($('#scene-lines').lastElementChild, row, 'typing does not rebuild the focused row');
   $('#scene-theme').value = 'workshop';
@@ -557,6 +611,25 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   $('#cutscene-form').listeners.change();
   assert.equal(context.level.cutscene.lines[1].speaker, 'wheel');
   assert.ok(context.level.cutscene.lines[1].actors.some(actor => actor.character === 'wheel'));
+  assert.equal(cast.children.at(-1).querySelector('.scene-remove-character').disabled, true, 'the only speaking actor cannot be removed');
+  const addCharacter = row.querySelector('.scene-add-character');
+  const picker = row.querySelector('.scene-character-picker');
+  addCharacter.listeners.click();
+  assert.equal(picker.hidden, false);
+  picker.value = 'koshi'; picker.listeners.change();
+  assert.equal(cast.children.length, 5);
+  assert.equal(picker.hidden, true);
+  picker.value = 'mouse'; picker.listeners.change();
+  assert.equal(cast.children.length, 6);
+  assert.equal(addCharacter.disabled, true);
+  row.querySelector('.scene-speaker').value = 'ram';
+  row.querySelector('.scene-speaker').listeners.change();
+  assert.equal(row.querySelector('.scene-speaker').value, 'wheel', 'a new speaker cannot exceed the actor limit');
+  picker.value = 'mouse'; picker.listeners.change();
+  assert.equal(cast.children.length, 6, 'the actor limit is enforced');
+  cast.children.at(-1).querySelector('.scene-remove-character').listeners.click();
+  assert.equal(cast.children.length, 5);
+  assert.equal(addCharacter.disabled, false);
   row.children.at(-1).listeners.click();
   assert.equal(context.level.cutscene.lines.length, 1);
   context.readOnly = () => true;
@@ -572,6 +645,93 @@ test('cutscene edits apply automatically and new lines inherit the previous spea
   assert.equal($('#scene-fields').disabled, true);
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   assert.doesNotMatch(html, /Apply cutscene/);
+});
+
+test('information edits apply automatically, preserve focused controls, and block saving invalid drafts', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  class Node {
+    constructor(tag) { this.tag = tag; this.children = []; this.listeners = {}; this.value = ''; }
+    append(...children) {
+      for (const child of children) { child.remove(); child.parentElement = this; this.children.push(child); }
+    }
+    remove() {
+      if (this.parentElement) this.parentElement.children = this.parentElement.children.filter(child => child !== this);
+    }
+    insertBefore(child, reference) {
+      child.remove(); child.parentElement = this;
+      this.children.splice(this.children.indexOf(reference), 0, child);
+    }
+    replaceChildren(...children) { this.children = []; this.append(...children); }
+    addEventListener(type, handler) { this.listeners[type] = handler; }
+    get previousElementSibling() { return this.parentElement.children[this.parentElement.children.indexOf(this) - 1]; }
+    get nextElementSibling() { return this.parentElement.children[this.parentElement.children.indexOf(this) + 1]; }
+    get selectedOptions() { return this.children.filter(child => child.selected); }
+    querySelector(selector) {
+      for (const child of this.children) {
+        if (child.className === selector.slice(1)) return child;
+        const found = child.querySelector(selector);
+        if (found) return found;
+      }
+    }
+  }
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, new Node());
+    return nodes.get(selector);
+  };
+  let changes = 0;
+  const context = vm.createContext({
+    $, document: { createElement: tag => new Node(tag) }, INFO_GRAPHICS: { 'enemy:mouse': 'Mouse' },
+    COOLDOWNS: {}, picture: () => new Node(), level: blank(), levelInfoError: null,
+    validateDraft: validateCustomLevel, validateCustomLevel, readOnly: () => false,
+    markChanged: () => changes++, message: text => { $('#editor-message').textContent = text; },
+    console: { error() {} }, cutsceneError: null, trackDrawing: false,
+    selectedEvents: new Set(), touched: new Set(),
+  });
+  vm.runInContext(source.slice(source.indexOf('function attempt('), source.indexOf('function markChanged(')), context);
+  vm.runInContext(source.slice(source.indexOf('function addInfoPage('), source.indexOf('function replaceLevel(')), context);
+  vm.runInContext(source.slice(source.indexOf('function validateSavedLevel('), source.indexOf("$('#generate-json').addEventListener")), context);
+  context.level.levelInfo = { pages: [{ title: 'First', text: 'Explanation', graphics: [] }] };
+  context.populateLevelInfo();
+  const form = $('#level-info-form'), pages = $('#info-pages');
+  const first = pages.children[0];
+  first.querySelector('.info-title').value = 'Edited';
+  form.listeners.input();
+  assert.equal(context.level.levelInfo.pages[0].title, 'Edited');
+  assert.equal(pages.children[0], first, 'editing does not rebuild focused controls');
+  first.querySelector('.info-graphics-select').children[0].selected = true;
+  form.listeners.change();
+  assert.equal(context.level.levelInfo.pages[0].graphics[0], 'enemy:mouse');
+  $('#info-add-page').listeners.click();
+  assert.throws(() => context.validateSavedLevel(), /page 2 text/i);
+  const second = pages.children[1];
+  second.querySelector('.info-text').value = 'Second explanation';
+  form.listeners.input();
+  assert.equal(context.validateSavedLevel().levelInfo.pages.length, 2);
+  second.querySelector('.file-actions').children[0].listeners.click();
+  assert.equal(context.level.levelInfo.pages[0].title, 'New concept');
+  second.querySelector('.file-actions').children[1].listeners.click();
+  assert.equal(context.level.levelInfo.pages[0].title, 'Edited');
+  second.querySelector('.file-actions').children[2].listeners.click();
+  assert.equal(context.level.levelInfo.pages.length, 1);
+  context.readOnly = () => true;
+  const before = changes;
+  first.querySelector('.file-actions').children[2].listeners.click();
+  form.listeners.input();
+  $('#info-add-page').listeners.click();
+  assert.equal(pages.children.length, 1);
+  assert.equal(changes, before);
+  context.readOnly = () => false;
+  first.querySelector('.file-actions').children[2].listeners.click();
+  assert.throws(() => context.validateSavedLevel(), /page/i);
+  $('#info-enabled').checked = false;
+  $('#info-enabled').listeners.change();
+  form.listeners.change();
+  assert.equal(context.validateSavedLevel().levelInfo, undefined);
+  context.populateLevelInfo();
+  assert.doesNotThrow(() => context.validateSavedLevel());
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  assert.doesNotMatch(html, /Apply information/);
 });
 
 test('palette image artwork fits its icon slot in menus, markers, and information previews', () => {
