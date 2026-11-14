@@ -317,7 +317,7 @@ test('relative timeline handles empty levels and bounds axis tick count for larg
 test('relative view is selectable and retains existing gold and selection styling', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
-  assert.match(html, /id="event-timeline-view"><option value="compact">Detailed<\/option><option value="relative">Time Plot<\/option>/);
+  assert.match(html, /id="event-timeline-view"><option value="compact">Detailed<\/option><option value="relative" selected>Time Plot<\/option>/);
   assert.match(source, /\$\('#event-timeline-view'\)\.addEventListener\('change', renderList\)/);
   assert.match(css, /#event-list > \[data-preview-reached="true"\]/);
   assert.match(css, /#event-list button\[aria-pressed="true"\].*animation: event-selection-glow/);
