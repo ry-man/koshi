@@ -355,6 +355,17 @@
             <p>This cumulative estimate adds each event's displayed weapon-strike or enemy-point total at its scheduled time. Weapons carried by enemies and stored in Item Cases are added when those events appear; each active spawning brick contributes its weapon or enemy total when the brick first enters the screen. Grouped and independent random events are counted in full. Assume every pickup is collected and used fully; misses, combat timing, replacement losses, case-breaking costs, recharges, duplication and non-weapon attacks are not simulated. Positive balance is an estimate, not proof that enemies can be defeated in practice.</p>
           </details>
         </section>
+        <section id="food-points-section" class="weapon-balance-section" aria-label="Food points over time" hidden>
+          <h3>Estimated maximum food points</h3>
+          <p>Food points available over time; the dashed line shows the food target when present.</p>
+          <div id="food-points-viewport" aria-label="Scrollable food points chart">
+            <svg id="food-points-chart" role="img"></svg>
+          </div>
+          <details class="point-assumptions">
+            <summary>See assumptions</summary>
+            <p>This cumulative estimate counts every scheduled food pickup at its appearance time, including all grouped and independent random placements. Each food-spawning brick contributes once when it first enters the screen. It assumes food is collected immediately and ignores expiration, travel, obstacles, eggplants, battery recharges and duplication; actual scores can be lower or higher. The target is the larger of the active level food goal and any Cat Brick food target.</p>
+          </details>
+        </section>
       </section>
       <section class="editor-panel" aria-label="Import and export">
         <fieldset id="files-access" class="access-fields">

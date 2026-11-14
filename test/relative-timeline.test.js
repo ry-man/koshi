@@ -23,6 +23,7 @@ function fixture(events, duration = 20) {
     '#event-list': node(), '#event-timeline-axis': node(), '#event-timeline-viewport': node(),
     '#event-timeline-plot': node(), '#event-timeline-cursor': node(),
     '#weapon-balance-section': node(), '#weapon-balance-chart': node(),
+    '#food-points-section': node(), '#food-points-chart': node(),
     '#event-count': node(), '#event-timeline-view': { value: 'relative' }, '#timeline': { value: '3' },
     '#timeline-discretization': { value: '0' },
     '#relative-event-details': node(), '#relative-event-details-list': node(),
@@ -89,6 +90,7 @@ test('relative view renders accessible compact boxes and switches back without c
   assert.equal(list.dataset.view, 'relative');
   assert.equal(f.nodes['#event-timeline-viewport'].dataset.view, 'relative');
   assert.equal(f.nodes['#weapon-balance-section'].hidden, false);
+  assert.equal(f.nodes['#food-points-section'].hidden, false);
   assert.equal(axis.hidden, false);
   assert.equal(f.nodes['#event-timeline-cursor'].hidden, false);
   assert.equal(f.nodes['#event-timeline-cursor'].style.left, `${3 * Number(f.nodes['#event-timeline-viewport'].dataset.scale)}px`);
@@ -117,6 +119,7 @@ test('relative view renders accessible compact boxes and switches back without c
   assert.equal(axis.hidden, true);
   assert.equal(f.nodes['#event-timeline-cursor'].hidden, true);
   assert.equal(f.nodes['#weapon-balance-section'].hidden, true);
+  assert.equal(f.nodes['#food-points-section'].hidden, true);
   assert.equal(f.nodes['#relative-event-details'].hidden, true);
   assert.equal(list.style.width, '');
   assert.equal(list.style.height, '');
@@ -172,6 +175,59 @@ test('weapon balance records every Official level 1-10 weapon and enemy appearan
   assert.deepEqual(eventTimes, [3, 15, 40]);
   assert.deepEqual(JSON.parse(JSON.stringify(points.slice(1).map(point => point.value))), [-4, -4, -4],
     'later weapon and enemy event totals cancel but remain represented in the series');
+});
+
+test('food points accumulate groups, random placements and visible food spawners once', () => {
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS });
+  vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
+  const events = [
+    { kind: 'food', type: 'S', time: 0 },
+    { kind: 'food', type: 'P', time: 2, group: { count: 3 } },
+    { kind: 'food', type: 'B', time: 2, randomCount: 2 },
+    { kind: 'weapon', type: 'wood', time: 1 },
+    { kind: 'food', type: 'C', time: 9 },
+  ];
+  const bricks = [
+    { id: 1, x: 170, y: 10, w: 10, h: 10, absorbedBy: null, spawner: { kind: 'food', type: 'H' } },
+    { id: 2, x: 140, y: 10, w: 10, h: 10, absorbedBy: 1 },
+    { id: 3, x: 400, y: 10, w: 10, h: 10, absorbedBy: null, spawner: { kind: 'food', type: 'L' } },
+    { id: 4, x: 0, y: 10, w: 10, h: 10, absorbedBy: null, spawner: { kind: 'weapon', type: 'gold' } },
+  ];
+  const game = {
+    level: { autoscroll: { speed: 1 } },
+    camera: time => ({ x: time * 20, y: 0, width: 100, height: 100 }),
+  };
+  const before = JSON.stringify({ events, bricks });
+  assert.deepEqual(JSON.parse(JSON.stringify(context.foodPointsSeries(events, bricks, game, 10))), [
+    { time: 0, value: 0 }, { time: 0, value: 1 }, { time: 2, value: 20 }, { time: 9, value: 24 },
+  ]);
+  assert.equal(JSON.stringify({ events, bricks }), before);
+  game.level.autoscroll = null;
+  assert.deepEqual(JSON.parse(JSON.stringify(context.foodPointsSeries([], bricks, game, 10))), [{ time: 0, value: 0 }]);
+});
+
+test('food chart renders and updates the applicable target, points, and axes', () => {
+  const f = fixture([{ kind: 'food', type: 'P', time: 2, lifetime: 1 }], 10);
+  f.context.level.goal = 10;
+  f.context.renderList();
+  const chart = f.nodes['#food-points-chart'];
+  const byClass = name => chart.children.filter(child => child.attributes.class === name);
+  assert.equal(byClass('food-points-target').length, 1);
+  assert.equal(byClass('food-points-target')[0].children[0].textContent, 'Food target: 10 points');
+  assert.equal(byClass('food-points-point')[0].children[0].textContent, '2 food points at 2s');
+  assert.ok(byClass('food-points-segment').length >= 2);
+  assert.ok(byClass('weapon-balance-time').some(tick => tick.textContent === '0s'));
+  f.context.level.catBlock = { trigger: { type: 'food', amount: 15 } };
+  f.context.renderList();
+  assert.equal(byClass('food-points-target')[0].children[0].textContent, 'Food target: 15 points');
+  f.context.level.survive = true;
+  f.context.level.catBlock = null;
+  f.context.renderList();
+  assert.equal(byClass('food-points-target').length, 0);
+  f.context.level.survive = false;
+  f.context.level.goal = 0;
+  f.context.renderList();
+  assert.equal(byClass('food-points-target').length, 0);
 });
 
 test('dragging the timeline cursor maps the horizontal axis to preview time', () => {
@@ -325,6 +381,7 @@ test('relative view is selectable and retains existing gold and selection stylin
   assert.match(css, /#event-timeline-cursor::after\s*\{[^}]*border-left: 2px dotted #b28b37/);
   assert.match(html, /Selected Event:/);
   assert.match(html, /id="weapon-balance-chart" role="img"/);
+  assert.match(html, /id="weapon-balance-section"[\s\S]*id="food-points-section"[\s\S]*id="food-points-chart" role="img"[\s\S]*<details class="point-assumptions">/);
   assert.match(html, /id="weapon-balance-section"[\s\S]*<details class="point-assumptions">[\s\S]*<summary>See assumptions<\/summary>/);
   assert.match(html, /id="event-timeline-cursor" type="button" role="slider"/);
   assert.match(source, /\$\('#event-timeline-cursor'\)\.addEventListener\('pointerdown'/);

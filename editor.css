@@ -237,8 +237,8 @@
 .weapon-balance-section { margin-top: 16px; border-top: 1px solid #ffffff24; padding-top: 12px; }
 .weapon-balance-section h3 { margin: 0; font-size: 15px; font-weight: 600; }
 .weapon-balance-section > p { margin: 5px 0; color: var(--muted); font-size: 12px; }
-#weapon-balance-viewport { overflow-x: auto; margin: 8px 0; }
-#weapon-balance-chart { display: block; max-width: none; }
+#weapon-balance-viewport, #food-points-viewport { overflow-x: auto; margin: 8px 0; }
+#weapon-balance-chart, #food-points-chart { display: block; max-width: none; }
 .weapon-balance-axis { stroke: #b7c8cc; stroke-width: 1; }
 .weapon-balance-zero { stroke: #f0c967; stroke-width: 1.5; stroke-dasharray: 4 3; }
 .weapon-balance-value, .weapon-balance-time { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -249,6 +249,9 @@
 .weapon-balance-point.positive { fill: #8ed8a8; }
 .weapon-balance-point.negative { fill: #ffaba2; }
 .weapon-balance-point.zero { fill: #b7c8cc; }
+.food-points-segment { stroke: #8ed8a8; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.food-points-point { fill: #8ed8a8; }
+.food-points-target { stroke: #ffaba2; stroke-width: 1.5; stroke-dasharray: 6 3; vector-effect: non-scaling-stroke; }
 .event-category { display: inline-block; color: var(--event-color); text-transform: capitalize; margin-right: 10px; font-size: 10px; font-weight: 700; }
 .event-time { color: var(--accent); margin-right: 10px; font-variant-numeric: tabular-nums; }
 .event-location { display: block; color: var(--muted); margin-top: 5px; font-size: 10px; }

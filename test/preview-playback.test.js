@@ -246,7 +246,7 @@ test('event timeline initializes outlines on render in time order', () => {
   const list = { children: [], dataset: {}, style: {}, replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } };
   const nodes = { '#event-list': list, '#event-count': {}, '#timeline': { value: '3' },
     '#event-timeline-view': { value: 'compact' }, '#event-timeline-axis': {}, '#event-timeline-viewport': { dataset: {} },
-    '#relative-event-details': {}, '#weapon-balance-section': {},
+    '#relative-event-details': {}, '#weapon-balance-section': {}, '#food-points-section': {},
     '#event-timeline-cursor': { style: {}, setAttribute() {} }, '#event-timeline-plot': { style: {} } };
   const level = { events: [{ time: 4 }, { time: 0 }, { time: 3 }, { time: 3 }] };
   const context = vm.createContext({

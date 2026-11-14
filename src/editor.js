@@ -1004,9 +1004,11 @@ function renderList() {
   const axis = $('#event-timeline-axis');
   const viewport = $('#event-timeline-viewport');
   const balanceSection = $('#weapon-balance-section');
+  const foodSection = $('#food-points-section');
   viewport.dataset.view = relative ? 'relative' : 'compact';
   list.dataset.view = relative ? 'relative' : 'compact';
   balanceSection.hidden = !relative;
+  foodSection.hidden = !relative;
   axis.hidden = !relative;
   $('#event-timeline-cursor').hidden = !relative;
   $('#event-timeline-plot').style.width = '';
@@ -1028,6 +1030,7 @@ function renderList() {
     list.style.width = `${layout.width}px`;
     if (layout.rows) list.style.height = `${layout.rows * 56 - 12}px`;
     renderWeaponBalanceChart(layout, previewGame);
+    renderFoodPointsChart(layout, previewGame);
   }
   const entries = relative ? layout.entries : level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time);
   entries.forEach(entry => {
@@ -1844,6 +1847,26 @@ function weaponBalanceSeries(events, bricks, game, duration) {
   return points;
 }
 
+function foodPointsSeries(events, bricks, game, duration) {
+  const changes = new Map();
+  const addChange = (time, source) => {
+    if (source.kind !== 'food') return;
+    changes.set(time, (changes.get(time) ?? 0) + pointReference([source], []).food);
+  };
+  for (const event of events) addChange(event.time, event);
+  for (const brick of bricks.filter(brick => brick.absorbedBy === null && brick.spawner?.kind === 'food')) {
+    const time = firstSpawnerAppearanceTime(brick, bricks, game, duration);
+    if (time !== null) addChange(time, brick.spawner);
+  }
+  const points = [{ time: 0, value: 0 }];
+  let value = 0;
+  for (const [time, change] of [...changes].sort(([a], [b]) => a - b)) {
+    value += change;
+    points.push({ time, value });
+  }
+  return points;
+}
+
 function pointTargets(level) {
   const trigger = level.catBlock?.trigger;
   const scored = !level.survive && !level.bossLevel;
@@ -1888,12 +1911,33 @@ function renderPointReference(events, bricks) {
 }
 
 function renderWeaponBalanceChart(layout, game) {
-  const svg = $('#weapon-balance-chart');
-  const points = weaponBalanceSeries(level.events, game.bricks, game, level.duration);
+  renderTimelineChart($('#weapon-balance-chart'), layout,
+    weaponBalanceSeries(level.events, game.bricks, game, level.duration), {
+      label: 'Cumulative estimated weapon strikes minus enemy points over time. Positive values indicate sufficient estimated strikes for the enemies scheduled by that time.',
+      title: 'Weapon strike surplus over enemy points',
+      description: 'A step chart of cumulative estimated weapon strikes minus cumulative enemy points. Values above zero indicate sufficient estimated strikes for all enemies scheduled by that time.',
+      pointLabel: 'net strikes',
+    });
+}
+
+function renderFoodPointsChart(layout, game) {
+  renderTimelineChart($('#food-points-chart'), layout,
+    foodPointsSeries(level.events, game.bricks, game, level.duration), {
+      label: 'Estimated maximum food points and food target over time.',
+      title: 'Estimated maximum food points over time',
+      description: 'A step chart of cumulative food points available from scheduled food and food spawners, with a horizontal food target line when applicable.',
+      pointLabel: 'food points',
+      target: pointTargets(level).food,
+      food: true,
+    });
+}
+
+function renderTimelineChart(svg, layout, points, options) {
   const width = Math.ceil(layout.width + 48), height = 172;
   const left = 42, right = width - 8, top = 12, bottom = height - 27;
   const endTime = layout.width / layout.scale;
   const values = points.map(point => point.value);
+  if (options.target > 0) values.push(options.target);
   const span = Math.max(...values) - Math.min(...values);
   const padding = span ? span * .1 : 1;
   const min = Math.min(0, ...values) - padding, max = Math.max(0, ...values) + padding;
@@ -1909,17 +1953,24 @@ function renderWeaponBalanceChart(layout, game) {
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('width', String(width));
   svg.setAttribute('height', String(height));
-  svg.setAttribute('aria-label', 'Cumulative estimated weapon strikes minus enemy points over time. Positive values indicate sufficient estimated strikes for the enemies scheduled by that time.');
+  svg.setAttribute('aria-label', options.label);
   const title = make('title');
-  title.textContent = 'Weapon strike surplus over enemy points';
+  title.textContent = options.title;
   const description = make('desc');
-  description.textContent = 'A step chart of cumulative estimated weapon strikes minus cumulative enemy points. Values above zero indicate sufficient estimated strikes for all enemies scheduled by that time.';
+  description.textContent = options.description;
   svg.append(title, description);
   const zero = y(0);
   svg.append(make('line', { x1: left, y1: zero, x2: right, y2: zero, class: 'weapon-balance-zero' }));
+  if (options.target > 0) {
+    const targetLine = make('line', { x1: left, y1: y(options.target), x2: right, y2: y(options.target), class: 'food-points-target' });
+    const targetTitle = make('title');
+    targetTitle.textContent = `Food target: ${label(options.target)} points`;
+    targetLine.append(targetTitle);
+    svg.append(targetLine);
+  }
   svg.append(make('line', { x1: left, y1: top, x2: left, y2: bottom, class: 'weapon-balance-axis' }));
   svg.append(make('line', { x1: left, y1: bottom, x2: right, y2: bottom, class: 'weapon-balance-axis' }));
-  for (const value of [...new Set([max - padding, 0, min + padding])]) {
+  for (const value of [...new Set([max - padding, 0, min + padding, ...(options.target > 0 ? [options.target] : [])])]) {
     const tickY = y(value);
     svg.append(make('line', { x1: left - 4, y1: tickY, x2: left, y2: tickY, class: 'weapon-balance-axis' }));
     const tick = make('text', { x: left - 7, y: tickY + 4, 'text-anchor': 'end', class: 'weapon-balance-value' });
@@ -1941,7 +1992,7 @@ function renderWeaponBalanceChart(layout, game) {
   const drawLine = (x1, y1, x2, y2, value) => {
     if (x1 === x2 && y1 === y2) return;
     svg.append(make('line', { x1, y1, x2, y2,
-      class: `weapon-balance-segment ${value > 0 ? 'positive' : value < 0 ? 'negative' : 'zero'}` }));
+      class: options.food ? 'food-points-segment' : `weapon-balance-segment ${value > 0 ? 'positive' : value < 0 ? 'negative' : 'zero'}` }));
   };
   let current = points[0];
   for (const next of points.slice(1)) {
@@ -1952,9 +2003,9 @@ function renderWeaponBalanceChart(layout, game) {
   drawLine(x(current.time), y(current.value), x(endTime), y(current.value), current.value);
   for (const point of points.slice(1)) {
     const marker = make('circle', { cx: x(point.time), cy: y(point.value), r: 3,
-      class: `weapon-balance-point ${point.value > 0 ? 'positive' : point.value < 0 ? 'negative' : 'zero'}` });
+      class: options.food ? 'food-points-point' : `weapon-balance-point ${point.value > 0 ? 'positive' : point.value < 0 ? 'negative' : 'zero'}` });
     const markerTitle = make('title');
-    markerTitle.textContent = `${label(point.value)} net strikes at ${Number(point.time.toPrecision(4))}s`;
+    markerTitle.textContent = `${label(point.value)} ${options.pointLabel} at ${Number(point.time.toPrecision(4))}s`;
     marker.append(markerTitle);
     svg.append(marker);
   }

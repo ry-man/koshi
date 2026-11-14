@@ -1566,6 +1566,10 @@ tracks his health; his death animation finishes before Koshi celebrates.
    Multi-event edits preserve their relative offsets, so only the dragged
    event's edge is snapped. If no interval fits the shared limits, the events
    remain unchanged.
+   Below the Time Plot, charts show estimated weapon-strike balance and
+   cumulative food points. The food chart includes food-spawning bricks and a
+   dashed food-target line when applicable. Expand each chart's assumptions for
+   the limits of these estimates.
    Clicking overlapping markers opens an element picker with the same event
    IDs, timing, category, artwork, descriptions, placement details and point
    totals as the timeline. Choose a row to select that event (or spawning brick);
