@@ -451,9 +451,11 @@ test('Print, paste, and open JSON files use validated level import without draft
     });
     return nodes.get(selector);
   };
-  const messages = [], errors = [];
+  const messages = [], errors = [], confirmations = [];
+  let allowImport = true;
   const context = vm.createContext({
     $, level: blank(), validateCustomLevel, cutsceneError: null, levelInfoError: null, trackDrawing: false, selectedEvents: new Set(), touched: new Set(),
+    confirm: text => { confirmations.push(text); return allowImport; },
     message: (text, error = false) => messages.push({ text, error }),
     console: { error: (...args) => errors.push(args) },
   });
@@ -464,6 +466,12 @@ test('Print, paste, and open JSON files use validated level import without draft
   assert.equal($('#level-json').value, JSON.stringify(validateCustomLevel(blank()), null, 2));
   const loaded = { ...blank(), id: 'Pasted level', events: [event()] };
   $('#level-json').value = JSON.stringify(loaded);
+  const beforeCancelledImport = context.level;
+  allowImport = false;
+  $('#import-json').listeners.click();
+  assert.equal(context.level, beforeCancelledImport, 'cancelled confirmation leaves the level unchanged');
+  assert.equal(confirmations.at(-1), 'Are you sure you want to update the editor with the input JSON? Any unsaved data will be lost.');
+  allowImport = true;
   $('#import-json').listeners.click();
   assert.deepEqual(JSON.parse(JSON.stringify(context.level)), validateCustomLevel(loaded));
   const fileInput = $('#import-file');

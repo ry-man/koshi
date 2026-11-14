@@ -3777,6 +3777,7 @@ $('#generate-json').addEventListener('click', () => attempt(() => {
   $('#level-json').value = JSON.stringify(valid, null, 2); message('Full JSON printed from the current level settings and events.');
 }));
 $('#import-json').addEventListener('click', () => attempt(() => {
+  if (!confirm('Are you sure you want to update the editor with the input JSON? Any unsaved data will be lost.')) return;
   replaceLevel(JSON.parse($('#level-json').value)); message('JSON loaded. Review the placements or playtest the level.');
 }));
 $('#import-file-button').addEventListener('click', () => $('#import-file').click());
