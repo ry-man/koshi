@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game } = require('../src/game.js');
+const KoshiGame = require('../src/game.js');
+const { Game, OBJECTS } = KoshiGame;
+const { drawObstruction } = require('../src/brick-visuals.js');
+const { OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS, assembleCampaign } = require('../src/campaign.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -144,6 +147,61 @@ test('obstruction spawners reserve a position and wait two seconds before becomi
   assert.equal(game.pendingSpawns.size, 0);
 });
 
+test('obstruction cue paths match solid geometry and rotation in both layouts, including Official 1-12', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const drawCueSource = source.slice(source.indexOf('function drawSpawnCue('), source.indexOf('\nfunction drawSword('));
+  const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
+  const level = levels.findIndex(level => level.id === 'official-1-12');
+  const shapes = Object.keys(OBJECTS).filter(type => OBJECTS[type].obstruction);
+  const record = () => {
+    let transform = { x: 0, y: 0, angle: 0 }, vertices = [];
+    const stack = [], strokes = [];
+    const vertex = (x, y) => vertices.push([
+      transform.x + x * Math.cos(transform.angle) - y * Math.sin(transform.angle),
+      transform.y + x * Math.sin(transform.angle) + y * Math.cos(transform.angle),
+    ]);
+    const ctx = {
+      save() { stack.push({ ...transform }); },
+      restore() { transform = stack.pop(); },
+      translate(x, y) {
+        transform.x += x * Math.cos(transform.angle) - y * Math.sin(transform.angle);
+        transform.y += x * Math.sin(transform.angle) + y * Math.cos(transform.angle);
+      },
+      rotate(angle) { transform.angle += angle; },
+      beginPath() { vertices = []; },
+      moveTo: vertex, lineTo: vertex,
+      rect(x, y, width, height) {
+        vertex(x, y); vertex(x + width, y); vertex(x + width, y + height); vertex(x, y + height);
+      },
+      stroke() { strokes.push(vertices.slice()); },
+      closePath() {}, setLineDash() {}, fill() {}, fillRect() {}, clip() {}, arc() {},
+      createRadialGradient: () => ({ addColorStop() {} }),
+      createLinearGradient: () => ({ addColorStop() {} }),
+    };
+    return { ctx, strokes, stack };
+  };
+  for (const portrait of [false, true]) {
+    const game = new Game(() => .5, { levels, level, portrait });
+    const events = [
+      ...game.customEvents.filter(event => event.type === 'obstruction-rectangle'),
+      ...shapes.map(type => ({ time: 3, kind: 'object', type, x: .3, y: .4,
+        width: 160, height: 60, rotation: 23 })),
+    ];
+    assert.ok(events.length > shapes.length, 'includes authored Official 1-12 rectangles');
+    for (const event of events) {
+      const obstruction = game.createCustomSpawn(event)[0];
+      const cue = { kind: 'object', x: obstruction.x, y: obstruction.y, progress: .5, obstruction };
+      const warning = record(), solid = record();
+      const context = vm.createContext({ ctx: warning.ctx, KoshiGame });
+      vm.runInContext(drawCueSource, context);
+      context.drawSpawnCue(cue);
+      drawObstruction(solid.ctx, obstruction);
+      assert.deepEqual(warning.strokes[0], solid.strokes[0], `${event.type}, portrait=${portrait}`);
+      assert.equal(warning.stack.length, 0, 'cue restores the canvas transform');
+    }
+  }
+});
+
 test('scheduled and spawner obstructions begin fading when they become solid', () => {
   const scheduled = new Game(() => .5, { customLevel: custom([
     { time: 2, kind: 'object', type: 'obstruction-circle', x: .2, y: .2 },
@@ -204,13 +262,13 @@ test('obstruction warnings trace the actual dotted shape while retaining the twi
     });
     const context = vm.createContext({ ctx, KoshiGame: require('../src/game.js') });
     vm.runInContext(source.slice(source.indexOf('function drawSpawnCue('), source.indexOf('function drawSword(')), context);
-    context.drawSpawnCue({ kind: 'object', x: 100, y: 200, progress: .5, obstruction: { type, width: 160, height: type.includes('rectangle') ? 60 : 160 } });
+    const obstruction = { type, width: 160, height: type.includes('rectangle') ? 60 : 160 };
+    context.drawSpawnCue({ kind: 'object', x: 100, y: 200, progress: .5, obstruction });
     assert.ok(calls.some(([name, dash]) => name === 'setLineDash' && String(dash) === '3,5'));
-    if (type.includes('circle')) assert.ok(calls.some(([name, x, y, radius]) => name === 'arc' && radius === 80));
-    else if (type.includes('rectangle')) assert.ok(calls.some(call => JSON.stringify(call) === JSON.stringify(['rect', -80, -30, 160, 60])));
-    else for (const [x, y] of [[80, 0], [0, 80], [-80, 0]]) {
-      assert.ok(calls.some(call => JSON.stringify(call) === JSON.stringify(['lineTo', x, y])));
-    }
+    const outline = calls.slice(calls.findIndex(([name]) => name === 'beginPath') + 1,
+      calls.findIndex(([name]) => name === 'closePath'));
+    assert.deepEqual(outline, [['rotate', 0], ...KoshiGame.obstructionVertices(obstruction)
+      .map((point, index) => [index ? 'lineTo' : 'moveTo', ...point])]);
     assert.ok(calls.some(([name]) => name === 'stroke'));
     assert.ok(calls.some(([name]) => name === 'fill'), 'the star still twinkles');
     assert.equal(stack.length, 0);

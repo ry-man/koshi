@@ -686,7 +686,8 @@ the board; phones keep compact controls above it without scrolling away from pla
   use the same effects without changing spawn times or food lifetimes. Spawns
   within the first second have shortened previews; time-zero spawns remain instant.
   Obstructions and bumpers preview for **two seconds**, with the same twinkling star plus a
-  dotted outline of their full shape. Bumpers also preview their three concentric
+  dotted outline matching their shape, dimensions and rotation, including the
+  Official campaign's portrait rotation. Bumpers also preview their three concentric
   rings as dotted circles. Scheduled times remain unchanged; early
   warnings are shortened. Obstruction- and bumper-spawning bricks reserve their location on
   contact and wait two seconds before becoming solid. On arrival, overlapping

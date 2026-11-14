@@ -3065,15 +3065,17 @@ function drawObjectLifetime(item) {
 function drawSpawnCue({ kind, x, y, progress, obstruction, bumper }) {
   ctx.save();
   if (obstruction || bumper) {
-    const { radius, width, height } = bumper ?? globalThis.KoshiGame.obstructionGeometry(obstruction);
+    const { radius } = bumper ?? globalThis.KoshiGame.obstructionGeometry(obstruction);
     ctx.save(); ctx.translate(x, y);
     ctx.strokeStyle = '#f1f3f2'; ctx.lineWidth = 2;
     ctx.setLineDash([3, 5]); ctx.beginPath();
-    const shape = bumper ? 'circle' : globalThis.KoshiGame.OBJECTS[obstruction.type].obstruction;
-    if (shape === 'circle') ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    else if (shape === 'rectangle') ctx.rect(-width / 2, -height / 2, width, height);
+    if (bumper) ctx.arc(0, 0, radius, 0, Math.PI * 2);
     else {
-      ctx.moveTo(0, -radius); ctx.lineTo(radius, 0); ctx.lineTo(0, radius); ctx.lineTo(-radius, 0); ctx.closePath();
+      ctx.rotate((obstruction.rotation ?? 0) * Math.PI / 180);
+      const vertices = globalThis.KoshiGame.obstructionVertices(obstruction);
+      ctx.moveTo(...vertices[0]);
+      for (const point of vertices.slice(1)) ctx.lineTo(...point);
+      ctx.closePath();
     }
     ctx.stroke();
     if (bumper) {
