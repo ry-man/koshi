@@ -216,6 +216,11 @@
             "character": "tom",
             "x": 0.5,
             "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
           }
         ]
       },
@@ -348,7 +353,7 @@
     "pages": [
       {
         "title": "Appearing Obstructions",
-        "text": "Just like items and enemies, obstructions themselves may appear from thin year. The outline of the obstruction will forecast its position.\n\nAny obstruction which appears on top of Koshi will immediately kill him, so be careful!",
+        "text": "Just like items and enemies, obstructions themselves may appear from thin year. The outline of the obstruction will forecast its position.\n\nAny obstruction which appears on top of Koshi will immediately kill him, so be careful! They will also take out any enemies or items which are in the way.",
         "graphics": []
       }
     ]
