@@ -811,7 +811,7 @@ class CutscenePlayer {
         const leaving = !wanted.has(accessory);
         if (!movement || movement.leaving !== leaving) {
           // Headwear comes from above; held props come from below the stage.
-          const offscreen = accessory === 'magic-wand'
+          const offscreen = accessory === 'magic-wand' || accessory.startsWith('weapon:') || accessory.startsWith('item:')
             ? 540 - position.y + 120 * actorScale : -position.y - 120 * actorScale;
           const offset = movement?.offset ?? offscreen;
           movement = { offset, from: offset, target: leaving ? offscreen : 0, start: animationTime, leaving };

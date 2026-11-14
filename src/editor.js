@@ -4,7 +4,7 @@
 const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
-const { SCENE_ACCESSORIES } = globalThis.KoshiGame;
+const { SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : '');
@@ -3429,15 +3429,33 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
     accessories.setAttribute('aria-label', `${name} accessories`);
     const legend = document.createElement('legend'); legend.textContent = 'Accessories';
     accessories.append(legend);
-    for (const [value, accessoryName] of Object.entries(SCENE_ACCESSORIES)) {
-      const label = document.createElement('label'); label.className = 'inline-label';
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox'; checkbox.value = value;
-      checkbox.checked = actor.accessories?.includes(value) ?? false;
-      label.append(checkbox, accessoryName);
-      accessories.append(label);
+    for (const [groupName, entries] of Object.entries(SCENE_ACCESSORY_GROUPS)) {
+      const group = document.createElement('fieldset');
+      group.className = 'scene-accessory-group';
+      const groupLegend = document.createElement('legend'); groupLegend.textContent = groupName;
+      group.append(groupLegend);
+      const options = document.createElement('div');
+      options.className = 'scene-accessory-options';
+      for (const [value, accessoryName] of Object.entries(entries)) {
+        const label = document.createElement('label'); label.className = 'inline-label';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox'; checkbox.value = value;
+        checkbox.checked = actor.accessories?.includes(value) ?? false;
+        label.append(checkbox, accessoryName);
+        options.append(label);
+      }
+      group.append(options);
+      accessories.append(group);
     }
-    const updateAccessories = () => {
+    const updateAccessories = event => {
+      const changed = event?.target;
+      if (changed?.checked && (changed.value.startsWith('weapon:') || changed.value.startsWith('item:'))) {
+        for (const input of accessories.querySelectorAll('input')) {
+          if (input !== changed && (input.value.startsWith('weapon:') || input.value.startsWith('item:'))) {
+            input.checked = false;
+          }
+        }
+      }
       const selected = [...accessories.querySelectorAll('input')].filter(input => input.checked);
       accessorySummary.textContent = selected.length
         ? selected.map(input => SCENE_ACCESSORIES[input.value]).join('\n') : 'No accessories';

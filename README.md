@@ -1303,7 +1303,13 @@ character** to choose an actor; only characters on stage appear below the dialog
 each with an **Accessories** button, currently applied accessories listed one per line, and
 a **Remove character** button. **Accessories** opens a scrollable popup of
 checkboxes; click or tap any accessory to toggle it independently, then choose
-**Done** or press Escape to close. Changes apply immediately; no Ctrl key is needed. The current
+**Done** or press Escape to close. **Other** contains non-game accessories;
+**Weapons** and **Items** list the complete game catalogs, including future
+additions. An actor can have multiple **Other** accessories and one weapon or
+item; selecting a different weapon or item replaces the previous selection.
+These appear as visual props and do not grant gameplay effects. Existing JSON
+with multiple game props remains playable; selecting a new prop replaces them.
+Changes apply immediately; no Ctrl key is needed. The current
 speaker must remain on stage, and each line supports up to six actors.
 Changes apply automatically, and each new dialogue line inherits the previous
 line's speaker, characters, positions, and individual accessory selections.
@@ -1342,6 +1348,8 @@ a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 Actor coordinates are normalized stage positions between 0.1 and 0.9 on each
 axis. Official backgrounds keep their ground line at the same relative stage
 height in portrait and landscape; `y: 0.8` places Koshi on the foreground path.
+Accessory IDs use `weapon:<weapon ID>` and `item:<item ID>` for game props;
+the existing `sunglasses`, `top-hat`, and `magic-wand` IDs remain unchanged.
 Per-line positions animate between dialogue beats. Characters added to or removed
 from a line's `actors` walk on or off the nearest screen edge, using their authored
 `x` position to choose the side and preserving their height. Characters that remain

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, ITEMS, SHIELDS, SWORDS, WEAPONS, OBJECTS, CHARACTERS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, ITEMS, SHIELDS, SWORDS, WEAPONS, OBJECTS, CHARACTERS, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -534,7 +534,7 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
   let changes = 0;
   const context = vm.createContext({
     $, level: blank(), CHARACTERS: { koshi: 'Koshi', mouse: 'Mouse', wheel: 'Wheel', ram: 'Ram' },
-    SCENE_ACCESSORIES: { sunglasses: 'Sunglasses', 'top-hat': 'Big black top hat', 'magic-wand': 'Magic wand' },
+    SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS,
     document: { createElement: tag => new Node(tag) },
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
     validateCustomLevel, readOnly: () => false, markChanged: () => changes++, selectedEvents: new Set(), touched: new Set(),
@@ -573,6 +573,10 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
   assert.equal(accessoryDialog.open, true);
   const accessoryInputs = mouseAccessories.querySelectorAll('input');
   assert.ok(accessoryInputs.every(input => input.type === 'checkbox'));
+  const groups = mouseAccessories.querySelectorAll('.scene-accessory-group');
+  assert.deepEqual(groups.map(group => group.children[0].textContent), ['Other', 'Weapons', 'Items']);
+  assert.deepEqual(groups[1].querySelectorAll('input').map(input => input.value), Object.keys(WEAPONS).map(id => `weapon:${id}`));
+  assert.deepEqual(groups[2].querySelectorAll('input').map(input => input.value), Object.keys(ITEMS).map(id => `item:${id}`));
   const hat = accessoryInputs.find(input => input.value === 'top-hat');
   const wand = accessoryInputs.find(input => input.value === 'magic-wand');
   wand.checked = true;
@@ -601,6 +605,25 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
   $('#cutscene-form').listeners.change();
   assert.equal(context.level.cutscene.lines[1].actors[0].accessories, undefined, 'removing every accessory clears saved accessories');
   assert.deepEqual(JSON.parse(JSON.stringify(context.level.cutscene.lines[0].actors)), actors, 'editing the next line does not mutate the source');
+  const weapon = accessoryInputs.find(input => input.value === 'weapon:gold');
+  const item = accessoryInputs.find(input => input.value === 'item:battery');
+  const otherWeapon = accessoryInputs.find(input => input.value === 'weapon:wood');
+  hat.checked = true; wand.checked = true; weapon.checked = true;
+  mouseAccessories.listeners.change({ target: weapon });
+  assert.equal(summary.textContent, 'Big black top hat\nMagic wand\nGold Sword');
+  item.checked = true;
+  mouseAccessories.listeners.change({ target: item });
+  $('#cutscene-form').listeners.change();
+  assert.equal(weapon.checked, false);
+  assert.equal(summary.textContent, 'Big black top hat\nMagic wand\nBattery');
+  assert.deepEqual(JSON.parse(JSON.stringify(context.level.cutscene.lines[1].actors[0].accessories)), ['top-hat', 'magic-wand', 'item:battery']);
+  otherWeapon.checked = true;
+  mouseAccessories.listeners.change({ target: otherWeapon });
+  assert.equal(item.checked, false);
+  assert.equal(summary.textContent, 'Big black top hat\nMagic wand\nWood Sword');
+  otherWeapon.checked = false;
+  mouseAccessories.listeners.change({ target: otherWeapon });
+  assert.equal(summary.textContent, 'Big black top hat\nMagic wand');
   assert.doesNotThrow(() => context.validateSavedLevel());
   assert.equal($('#scene-lines').lastElementChild, row, 'typing does not rebuild the focused row');
   $('#scene-theme').value = 'workshop';

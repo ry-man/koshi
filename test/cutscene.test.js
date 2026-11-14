@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, Cutscene, validateCutscene, validateCustomLevel } = require('../src/game.js');
+const { Game, LEVELS, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, ITEMS, WEAPONS, Cutscene, validateCutscene, validateCustomLevel } = require('../src/game.js');
 const { GUIDE, LESSONS } = require('../src/learning.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
@@ -279,13 +279,13 @@ test('Tom commands the campaign in every scene and round-trips as a custom speak
 test('cutscene accessories validate per actor and survive level round trips', () => {
   const withAccessories = { ...scene(), lines: [{
     speaker: 'koshi', text: 'Ready!', actors: [
-      { character: 'koshi', x: .3, y: .6, accessories: ['sunglasses', 'top-hat', 'magic-wand'] },
+      { character: 'koshi', x: .3, y: .6, accessories: ['sunglasses', 'top-hat', 'magic-wand', 'weapon:gold', 'item:battery'] },
       { character: 'mouse', x: .7, y: .6, accessories: ['magic-wand'] },
     ],
   }] };
   assert.deepEqual(validateCutscene(withAccessories), withAccessories);
   assert.deepEqual(validateCustomLevel({ ...level(), cutscene: withAccessories }).cutscene, withAccessories);
-  for (const accessories of ['sunglasses', ['unknown'], ['magic-wand', 'magic-wand']]) {
+  for (const accessories of ['sunglasses', ['unknown'], ['weapon:battery'], ['item:gold'], ['magic-wand', 'magic-wand']]) {
     const invalid = structuredClone(withAccessories);
     invalid.lines[0].actors[0].accessories = accessories;
     assert.throws(() => validateCutscene(invalid), /invalid accessories/);
@@ -318,7 +318,39 @@ test('cutscene accessories draw for every supported type and animate the wand', 
     return calls.filter(([name]) => name === 'rotate').map(([, angle]) => angle);
   };
   assert.notDeepEqual(rotations(0), rotations(1), 'the held wand follows the bucket arm animation');
-  assert.deepEqual(Object.keys(SCENE_ACCESSORIES), ['sunglasses', 'top-hat', 'magic-wand']);
+  assert.deepEqual(Object.keys(SCENE_ACCESSORY_GROUPS), ['Other', 'Weapons', 'Items']);
+  assert.deepEqual(Object.keys(SCENE_ACCESSORY_GROUPS.Other), ['sunglasses', 'top-hat', 'magic-wand']);
+});
+
+test('all catalog weapons and items are validated and drawn as cutscene props', () => {
+  const expected = [
+    ...Object.keys(WEAPONS).map(id => `weapon:${id}`),
+    ...Object.keys(ITEMS).map(id => `item:${id}`),
+  ];
+  assert.deepEqual(Object.keys(SCENE_ACCESSORY_GROUPS.Weapons), expected.slice(0, Object.keys(WEAPONS).length));
+  assert.deepEqual(Object.keys(SCENE_ACCESSORY_GROUPS.Items), expected.slice(Object.keys(WEAPONS).length));
+  assert.ok(expected.every(id => Object.hasOwn(SCENE_ACCESSORIES, id)));
+  const withProps = { ...scene(), lines: [{
+    speaker: 'koshi', text: 'Ready!', actors: [{ character: 'koshi', x: .3, y: .6, accessories: expected }],
+  }] };
+  assert.deepEqual(validateCutscene(withProps), withProps);
+  assert.deepEqual(validateCustomLevel({ ...level(), cutscene: withProps }).cutscene, withProps);
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const drawn = [], positions = [];
+  const context = vm.createContext({
+    ctx: { save() {}, restore() {}, translate: (...args) => positions.push(args), scale() {} },
+    drawWeapon: (x, y, type) => drawn.push(`weapon:${type}`),
+    drawGameItem: item => drawn.push(`item:${item.type}`),
+  });
+  vm.runInContext(source.slice(source.indexOf('function drawCutsceneAccessories('), source.indexOf('\nfunction drawCutsceneCharacter(')), context);
+  context.drawCutsceneAccessories('tom', expected, 0);
+  assert.deepEqual(drawn, expected);
+  assert.ok(positions.every(position => position[0] === 19 && position[1] === 0));
+  for (const character of Object.keys(CHARACTERS)) {
+    positions.length = 0;
+    context.drawCutsceneAccessories(character, ['weapon:gold', 'item:battery'], 0);
+    assert.deepEqual(positions, character === 'snake' ? [[0, -40], [0, -40]] : [[19, 0], [19, 0]], character);
+  }
 });
 
 test('retained actors slide individual accessories vertically, including interrupted and reduced-motion changes', () => {
@@ -349,7 +381,7 @@ test('retained actors slide individual accessories vertically, including interru
       speaker: 'koshi',
       actors: ['koshi', 'tom', 'snake'].map((character, i) => ({ character, x: .2 + i * .3, y: .65, accessories })),
     });
-    const first = line(['sunglasses']), second = line(['top-hat', 'magic-wand']);
+    const first = line(['sunglasses']), second = line(['top-hat', 'magic-wand', 'weapon:gold', 'item:battery']);
     const before = JSON.stringify([first, second]);
     const render = value => { drawings.length = 0; context.stage.call(player, value); };
     render(first);
@@ -361,6 +393,8 @@ test('retained actors slide individual accessories vertically, including interru
       assert.equal(state.get('sunglasses').offset, 0, 'removal begins on the actor');
       assert.ok(drawings.find(draw => draw.character === character && draw.accessory === 'top-hat').y < 0);
       assert.ok(drawings.find(draw => draw.character === character && draw.accessory === 'magic-wand').y > 540);
+      assert.ok(drawings.find(draw => draw.character === character && draw.accessory === 'weapon:gold').y > 540);
+      assert.ok(drawings.find(draw => draw.character === character && draw.accessory === 'item:battery').y > 540);
     }
     const start = structuredClone(drawings);
     render(second);
@@ -387,7 +421,7 @@ test('retained actors slide individual accessories vertically, including interru
     player.animationTime = 1.2;
     render(second);
     for (const position of player.positions.values()) {
-      assert.deepEqual([...position.accessoryPositions.keys()], ['top-hat', 'magic-wand']);
+      assert.deepEqual([...position.accessoryPositions.keys()], ['top-hat', 'magic-wand', 'weapon:gold', 'item:battery']);
       assert.ok([...position.accessoryPositions.values()].every(movement => movement.offset === 0));
     }
     render(reverse);

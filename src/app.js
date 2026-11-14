@@ -151,6 +151,15 @@ function drawCutsceneAccessories(character, accessories, time) {
       }
       ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.restore();
+    } else if (accessory.startsWith('weapon:') || accessory.startsWith('item:')) {
+      const [kind, type] = accessory.split(':');
+      ctx.save();
+      if (character === 'snake') ctx.translate(0, -40);
+      else ctx.translate(19, 0);
+      ctx.scale(.65, .65);
+      if (kind === 'weapon') drawWeapon(0, 0, type);
+      else drawGameItem({ x: 0, y: 0, type });
+      ctx.restore();
     }
   }
 }
@@ -3480,6 +3489,10 @@ function drawGameItem(item) {
     ctx.fillStyle = skin; ctx.beginPath(); ctx.moveTo(-5, -14); ctx.bezierCurveTo(12, -22, 22, -7, 13, 8); ctx.bezierCurveTo(4, 24, -18, 17, -17, 3); ctx.bezierCurveTo(-17, -5, -12, -11, -5, -14); ctx.fill();
     ctx.strokeStyle = '#d6b7e5'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-9, -7); ctx.quadraticCurveTo(-15, 2, -9, 8); ctx.stroke();
     ctx.fillStyle = '#316039'; ctx.beginPath(); ctx.moveTo(-5, -14); ctx.lineTo(5, -16); ctx.lineTo(10, -11); ctx.lineTo(2, -12); ctx.closePath(); ctx.fill();
+  } else {
+    ctx.font = '32px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ITEMS[item.type].icon, 0, 0);
   }
   ctx.restore();
 }

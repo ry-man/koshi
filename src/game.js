@@ -278,11 +278,16 @@ const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', r
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
   'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
   'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
-const SCENE_ACCESSORIES = {
-  sunglasses: 'Sunglasses',
-  'top-hat': 'Big black top hat',
-  'magic-wand': 'Magic wand',
+const SCENE_ACCESSORY_GROUPS = {
+  Other: {
+    sunglasses: 'Sunglasses',
+    'top-hat': 'Big black top hat',
+    'magic-wand': 'Magic wand',
+  },
+  Weapons: Object.fromEntries(Object.entries(WEAPONS).map(([id, weapon]) => [`weapon:${id}`, weapon.name])),
+  Items: Object.fromEntries(Object.entries(ITEMS).map(([id, item]) => [`item:${id}`, item.name])),
 };
+const SCENE_ACCESSORIES = Object.assign({}, ...Object.values(SCENE_ACCESSORY_GROUPS));
 
 const INFO_GRAPHICS = {
   'heart:heart': 'Heart',
@@ -8208,7 +8213,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;
