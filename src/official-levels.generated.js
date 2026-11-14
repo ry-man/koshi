@@ -6704,9 +6704,9 @@ const levels = [
     "level": {
       "version": 1,
       "id": "Cracked Up",
-      "duration": 75,
-      "goal": 30,
-      "heartCost": null,
+      "duration": 85,
+      "goal": 35,
+      "heartCost": 15,
       "brickSet": 1,
       "events": [
         {
@@ -6756,7 +6756,7 @@ const levels = [
             "count": 5,
             "size": 0.65
           },
-          "lifetime": 10
+          "lifetime": 15
         },
         {
           "time": 15,
@@ -6814,7 +6814,7 @@ const levels = [
           "type": "P",
           "random": true,
           "randomCount": 5,
-          "lifetime": 10
+          "lifetime": 15
         },
         {
           "time": 52,
@@ -6823,7 +6823,7 @@ const levels = [
           "random": true
         },
         {
-          "time": 57,
+          "time": 62,
           "kind": "enemy",
           "type": "mouse",
           "x": 0.3989926908666544,
@@ -6841,7 +6841,8 @@ const levels = [
           "kind": "food",
           "type": "C",
           "random": true,
-          "lifetime": 13
+          "randomCount": 3,
+          "lifetime": 18
         },
         {
           "time": 35,
@@ -6862,7 +6863,7 @@ const levels = [
             "size": 0.25,
             "angle": 45
           },
-          "lifetime": 13
+          "lifetime": 23
         }
       ],
       "bossLevel": false,
