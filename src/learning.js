@@ -80,8 +80,8 @@ const GUIDE = [
     title: 'Crumblers & Warped',
     practice: 'crumbler',
     sections: [
-      ['Crumblers / C counter', 'Jagged Crumblers have limited selections. Each successful selection deepens their chips and cracks and reduces C by one. At C:0 the brick stays solid, but cannot be selected until restart. Its cooldown animation stops.', 'brick:crumbler'],
-      ['Warped / W counter', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes. The first absorption starts W; further selections do not restart it. When W expires, absorbed bricks regain their own attributes and remaining uses. A Warped brick that is also a Crumbler and reaches C:0 freezes enlarged with W:X until restart or absorption by another Warped owner.', 'brick:warped'],
+      ['Crumblers / cracked-brick pips', 'Jagged Crumblers have limited selections. Each successful selection deepens their chips and cracks and removes one cracked-brick pip. With no pips left, the brick stays solid but cannot be selected until restart. Its cooldown animation stops.', 'brick:crumbler'],
+      ['Warped / W counter', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes. The first absorption starts W; further selections do not restart it. When W expires, absorbed bricks regain their own attributes and remaining uses. A Warped brick that is also a Crumbler and runs out of uses freezes enlarged with W:X until restart or absorption by another Warped owner.', 'brick:warped'],
       ['Larger starting bricks', 'Double and triple bricks appear in the campaign. Aim anywhere on their surface: the whole group shares one owner’s cooldown, selection count, and attributes. In the editor, select adjacent bricks and choose an owner before Combine. Groups can cross corners; Cinder combines only with Cinder. Split retains current attributes. Warped timer restoration and restart preserve saved starting groups. A Portal group counts as one endpoint.'],
     ],
   },
@@ -182,7 +182,7 @@ const LESSONS = [
   { id: 'redirect', title: 'Redirect in flight', instruction: 'Tap any brick, then quickly tap a DIFFERENT brick before Koshi stops. You can change course mid-flight.' },
   { id: 'food', title: 'Collect food', instruction: 'Tap the outlined brick to travel through all three strawberries. Watch the food counter rise.' },
   { id: 'cooldown', title: 'Brick recharge', instruction: `Use the outlined red fast brick, then wait for its ${COOLDOWNS.fast}-second full-surface refill. Green normal bricks take ${COOLDOWNS.normal} seconds and blue slow bricks take ${COOLDOWNS.slow} seconds. Other ready bricks remain available while one recharges.` },
-  { id: 'crumbler', title: 'Crumblers', instruction: 'Use the outlined Crumbler twice: go to it, go to the opposite brick, then return after it recharges. C:0 is solid but permanently unselectable.' },
+  { id: 'crumbler', title: 'Crumblers', instruction: 'Use the outlined Crumbler twice: go to it, go to the opposite brick, then return after it recharges. When its cracked-brick pips are gone, it is solid but permanently unselectable.' },
   { id: 'warped', title: 'Warped bricks', instruction: 'Select the outlined Warped brick. Watch it absorb a neighbor, then wait 8 seconds for the group to restore.' },
   ...['red', 'green', 'blue'].map(color => ({
     id: `slime-${color}`, title: `${color[0].toUpperCase() + color.slice(1)} slime`,
@@ -223,7 +223,7 @@ const LESSONS = [
   { id: 'conveyor', title: 'Conveyor belts', instruction: 'Touch the outlined grey Conveyor and watch Koshi ride along its arrows. Then select another brick to move away; you can redirect even while riding. Belts can run clockwise or counterclockwise; larger Warped belts can carry him around corners.' },
   { id: 'cinder', title: 'Cinder blocks', instruction: 'Koshi starts stopped against a grey Cinder block. It is solid but cannot be selected or absorbed, and has no special effects. Tap the outlined brick across the board to leave the Cinder and land safely.' },
   { id: 'larger', title: 'Larger bricks', instruction: 'Aim anywhere on the outlined double brick. Both segments share one cooldown and the owner’s attributes; they are not separate targets. Land on it and watch the entire surface recharge together.' },
-  { id: 'warped-crumbler', title: 'Warped Crumblers', instruction: 'Select the outlined Warped Crumbler once. It absorbs a neighbor but uses its last selection. C:0 and W:X mean it stays solid and enlarged even after its 8-second timer; only restart or absorption can restore it.' },
+  { id: 'warped-crumbler', title: 'Warped Crumblers', instruction: 'Select the outlined Warped Crumbler once. It absorbs a neighbor but uses its last selection. With no cracked-brick pips and W:X, it stays solid and enlarged even after its 8-second timer; only restart or absorption can restore it.' },
   { id: 'bumper', title: 'Bumpers', instruction: 'Aim through the red bumper. It bounces Koshi away and increases his speed; green preserves speed and blue reduces it.' },
   { id: 'bubble', title: 'Bubbles', instruction: 'Touch the blue bubble and wait until it releases Koshi. Bubbles hold for the matching slime duration: blue 5 seconds, green 3, red 1.' },
   { id: 'obstruction', title: 'Obstructions', instruction: 'Steer into the fixed circle, then choose another brick to route around it. Obstructions block Koshi, robots, and soccer balls.' },

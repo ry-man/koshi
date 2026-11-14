@@ -572,7 +572,7 @@ test('level features merge cooldown colors and slime colors into functional cate
     [{ picture: 'slime:green', name: 'Slime' }]);
 });
 
-test('map brick preview fills its picture and omits Crumbler and Warped counters', () => {
+test('map brick preview fills its picture and shows Crumbler pips instead of a counter', () => {
   const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const picture = app.slice(app.indexOf('function guidePicture('), app.indexOf('\nfunction showGuideChapter('));
   assert.match(picture, /fillBrick\s*\?[\s\S]*?x: 0, y: 0, w: 160, h: 80/);
@@ -583,7 +583,10 @@ test('map brick preview fills its picture and omits Crumbler and Warped counters
   assert.match(picture, /surface\(conveyor\.belt, null, '#303840', 12\)/);
   assert.match(picture, /surface\(conveyor\.teeth, '#adb4ba', '#303840', 2\)/);
   assert.match(picture, /brickSpring\(\[brick\], 600, 960, 0, 1\.8\)/);
-  assert.match(picture, /if \(!fillBrick && \(crumbler \|\| warped\)\)/);
+  assert.match(picture, /if \(!fillBrick && crumbler\)/);
+  assert.match(picture, /for \(const x of \[43, 80, 117\]\)/);
+  assert.match(picture, /if \(!fillBrick && warped\)/);
+  assert.doesNotMatch(picture, /C:3/);
   const visuals = fs.readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8');
   assert.match(visuals, /fill: '#1b2623'/);
 });

@@ -744,7 +744,7 @@ function makeBrickButtons() {
     }
     const special = decorateBrick(button, brick, members, game.width, game.height,
       brick.turret || brick.portal || brick.hazard ? game.groupSource(brick) : null,
-      brick.portal ? game.portalExit(brick) : null);
+      brick.portal ? game.portalExit(brick) : null, game.perimeter);
     exposePortalCloud(special, container);
     exposeBrickInfo(special, container, brick, game.width, game.height);
     return { brick, button, members, bounds: part, spring, conveyor, special, spikes: container.querySelector(`.brick-spikes[data-id="${brick.id}"]`), usesLeft: null };
@@ -1726,10 +1726,23 @@ function guidePicture(picture, title, fillBrick = false) {
       surface(spring.grain, null, '#684128', .8);
       surface(spring.highlight, null, '#dfb47d', 1);
     }
-    if (!fillBrick && (crumbler || warped)) {
-      ctx.fillStyle = '#111d25'; ctx.fillRect(45, 28, 70, 17);
+    if (!fillBrick && crumbler) {
+      for (const x of [43, 80, 117]) {
+        ctx.save(); ctx.translate(x, 36); ctx.scale(.52, .52);
+        ctx.fillStyle = '#d8c49b'; ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2;
+        ctx.fillRect(-9, -7, 18, 14); ctx.strokeRect(-9, -7, 18, 14);
+        ctx.beginPath(); ctx.moveTo(3, -7); ctx.lineTo(0, -2); ctx.lineTo(4, 0); ctx.lineTo(0, 7);
+        ctx.strokeStyle = '#392b20'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+        ctx.restore();
+      }
+    }
+    if (!fillBrick && warped) {
+      const top = crumbler ? 22 : 28;
+      const baseline = crumbler ? 32 : 41;
+      const badgeWidth = crumbler ? 46 : 70;
+      ctx.fillStyle = '#111d25'; ctx.fillRect(80 - badgeWidth / 2, top, badgeWidth, 17);
       ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-      ctx.fillText([crumbler ? 'C:3' : '', warped ? 'W:12' : ''].filter(Boolean).join(' '), 80, 41);
+      ctx.fillText('W:12', 80, baseline);
     }
   } else if (kind === 'enemy') {
     drawRobot({ type, x: 80, y: 42, distance: 0 });

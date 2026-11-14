@@ -1404,7 +1404,7 @@ function renderBoard() {
     if (brick.spikes) element.style.clipPath = body.roundedClipPath;
     const special = decorateBrick(element, brick, members, previewGame.width, previewGame.height,
       brick.turret || brick.portal || brick.hazard ? previewGame.groupSource(brick) : null,
-      brick.portal ? previewGame.portalExit(brick, parts) : null);
+      brick.portal ? previewGame.portalExit(brick, parts) : null, previewGame.perimeter);
     if (brick.slimed || brick.springs || brick.spikes || merged) {
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');

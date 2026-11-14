@@ -727,24 +727,123 @@ test('shared visuals render matching portal colors, countdown switches and grey 
       const members = [brick, { x: 20, y: 20, w: 800, h: 22 }, { x: 798, y: 20, w: 22, h: 500 }];
       const merged = context.KoshiBrickVisuals.decorateBrick(node(), brick, members);
       assert.equal(merged.vertical, vertical, 'orientation follows original owner, not merged bounding box');
-      if (!mask) { assert.equal(merged.info, null); continue; }
-      assert.equal(merged.info.attributes.viewBox, plain.info.attributes.viewBox, 'growth never enlarges the information layout');
-      assert.equal(merged.info.children.length, [1, 2, 4].filter(bit => mask & bit).length);
+      if (!(mask & 6)) { assert.equal(merged.info, null); }
+      else {
+        assert.equal(merged.info.attributes.viewBox, plain.info.attributes.viewBox, 'growth never enlarges the information layout');
+        assert.equal(merged.info.children.length, [2, 4].filter(bit => mask & bit).length);
+      }
+      if (!mask) continue;
       const container = node();
       context.KoshiBrickVisuals.exposeBrickInfo(merged, container, brick, 960, 600);
-      const bounds = merged.infoBounds;
-      assert.equal(merged.info.style.cssText, `left:${bounds.x / 960 * 100}%;top:${bounds.y / 600 * 100}%;width:${brick.w / 960 * 100}%;height:${brick.h / 600 * 100}%;`);
+      if (merged.info) {
+        const bounds = merged.infoBounds;
+        assert.equal(merged.info.style.cssText, `left:${bounds.x / 960 * 100}%;top:${bounds.y / 600 * 100}%;width:${brick.w / 960 * 100}%;height:${brick.h / 600 * 100}%;`);
+      }
       context.KoshiBrickVisuals.updateBrick(merged, brick, 4);
-      if (mask & 1) assert.equal(merged.crumblerCount.textContent, 'C:3');
+      if (mask & 1) {
+        assert.equal(merged.crumblerPips.filter(pip => pip.attributes.opacity === '1').length, 3);
+        assert.equal(merged.crumblerPips.length, 5);
+      }
       if (mask & 2) assert.equal(merged.warpCount.textContent, 'W:8');
       if (mask & 4) assert.equal(merged.count.textContent, '2');
       if (mask & 1) {
         brick.usesLeft = 0;
         context.KoshiBrickVisuals.updateBrick(merged, brick, 4);
-        assert.equal(merged.crumblerCount.textContent, 'C:0');
+        assert.equal(merged.crumblerPips.filter(pip => pip.attributes.opacity === '1').length, 0);
         if (mask & 2) assert.equal(merged.warpCount.textContent, 'W:X');
       }
     }
+  }
+  const cornerMembers = [
+    { id: 1, sourceId: 1, x: 180, y: 0, w: 20, h: 20 },
+    { id: 1, sourceId: 2, x: 180, y: 20, w: 20, h: 20 },
+  ];
+  const cornerBrick = { ...cornerMembers[0], crumbler: 4, usesLeft: 4 };
+  const cornerVisual = context.KoshiBrickVisuals.decorateBrick(node(), cornerBrick, cornerMembers, 200, 100);
+  const cornerShape = brickShape(cornerMembers, true);
+  const pipTransforms = () => cornerVisual.crumblerPips.filter(pip => pip.attributes.opacity === '1')
+    .map(pip => {
+      const [x, y] = pip.attributes.transform.match(/translate\(([^ ]+) ([^)]+)\)/).slice(1).map(Number);
+      return [x + cornerShape.x, y + cornerShape.y];
+    });
+  const cornerPositions = pipTransforms();
+  assert.equal(cornerPositions.length, 4);
+  assert.ok(cornerPositions.every(([x, y]) => cornerMembers.some(part =>
+    x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)),
+  'merged corner pips stay on solid brick surfaces');
+  assert.ok(cornerPositions.every(([x, y]) => Math.abs(x - 190) <= 3 || Math.abs(y - 10) <= 3),
+    'merged pips stay near each brick section centerline around corners');
+  assert.ok(cornerPositions.every(([x, y]) => Math.min(
+    ...cornerMembers.map(part => Math.max(part.x - x, 0, x - part.x - part.w, part.y - y, 0, y - part.y - part.h))) <= 0),
+  'pips remain inside the corner sections with a buffer from their long ends');
+  const cornerPipSize = Number(cornerVisual.crumblerPips[0].attributes.transform.match(/scale\(([^)]+)\)/)[1]) * 24;
+  const cornerEndBuffers = cornerVisual.crumblerPips.filter(pip => pip.attributes.opacity === '1').map(pip => {
+    const transform = pip.attributes.transform;
+    const angle = Number(transform.match(/rotate\(([^)]+)\)/)[1]);
+    const [x, y] = transform.match(/translate\(([^ ]+) ([^)]+)\)/).slice(1).map(Number);
+    const point = [x + cornerShape.x, y + cornerShape.y];
+    const part = cornerMembers.find(member => point[0] >= member.x && point[0] <= member.x + member.w
+      && point[1] >= member.y && point[1] <= member.y + member.h);
+    const axis = Math.abs(angle) === 90 ? 1 : 0;
+    const start = axis ? part.y : part.x;
+    const end = start + (axis ? part.h : part.w);
+    return Math.min(point[axis] - start, end - point[axis]);
+  });
+  assert.ok(cornerEndBuffers.every(buffer => buffer >= cornerPipSize + 3 - 1e-6),
+    'corner pips leave the required buffer from their long-axis ends');
+  cornerBrick.usesLeft = 2;
+  context.KoshiBrickVisuals.updateBrick(cornerVisual, cornerBrick, 0);
+  const remainingPositions = pipTransforms();
+  assert.equal(remainingPositions.length, 2);
+  assert.ok(remainingPositions.every(([x, y]) => Math.abs(x - 190) <= 3 || Math.abs(y - 10) <= 3),
+    'remaining pips stay on the corner centerline');
+  cornerBrick.usesLeft = 0;
+  context.KoshiBrickVisuals.updateBrick(cornerVisual, cornerBrick, 0);
+  assert.equal(pipTransforms().length, 0);
+  const wrapMembers = [
+    { id: 1, sourceId: 1, x: 0, y: 0, w: 20, h: 20 },
+    { id: 1, sourceId: 2, x: 0, y: 20, w: 20, h: 20 },
+  ];
+  const wrapBrick = { ...wrapMembers[0], crumbler: 4, usesLeft: 4 };
+  const wrapVisual = context.KoshiBrickVisuals.decorateBrick(node(), wrapBrick, wrapMembers, 200, 100,
+    null, null, [2, 1]);
+  const wrapPositions = wrapVisual.crumblerPips.filter(pip => pip.attributes.opacity === '1')
+    .map(pip => pip.attributes.transform.match(/translate\(([^ ]+) ([^)]+)\)/).slice(1).map(Number));
+  assert.ok(wrapPositions[0][1] > wrapPositions.at(-1)[1], 'pips follow perimeter order across the wraparound corner');
+  const straightBrick = { id: 7, x: 10, y: 20, w: 120, h: 20, crumbler: 4, usesLeft: 4 };
+  const straightVisual = context.KoshiBrickVisuals.decorateBrick(node(), straightBrick, [straightBrick]);
+  const straightPositions = straightVisual.crumblerPips.map(pip =>
+    pip.attributes.transform.match(/translate\(([^ ]+) ([^)]+)\)/).slice(1).map(Number));
+  const pipSize = Number(straightVisual.crumblerPips[0].attributes.transform.match(/scale\(([^)]+)\)/)[1]) * 24;
+  assert.ok(straightPositions[0][0] >= pipSize * 1.5, 'first pip has a buffer from the long-axis start');
+  assert.ok(120 - straightPositions.at(-1)[0] >= pipSize * 1.5, 'last pip has a buffer from the long-axis end');
+  assert.ok(Math.abs(straightPositions[0][0] + straightPositions.at(-1)[0] - 120) < 1e-6,
+    'pips remain centered along the brick');
+  assert.ok(straightPositions.every(([, y]) => y === 10), 'pips stay on the brick centerline');
+  const mergedStraight = [
+    { id: 8, sourceId: 8, x: 10, y: 50, w: 60, h: 20 },
+    { id: 8, sourceId: 9, x: 70, y: 50, w: 60, h: 20 },
+  ];
+  const mergedStraightVisual = context.KoshiBrickVisuals.decorateBrick(node(),
+    { ...mergedStraight[0], crumbler: 2, usesLeft: 2 }, mergedStraight, 200, 100);
+  const mergedPipSizes = mergedStraightVisual.crumblerPips.map(pip =>
+    Number(pip.attributes.transform.match(/scale\(([^)]+)\)/)[1]) * 24);
+  assert.ok(mergedPipSizes.every(pipSize => Math.abs(pipSize - 13.6) < 1e-6),
+    'merged filler geometry does not shrink normal-size pips');
+  const crowdedBrick = { ...straightBrick, crumbler: 8, usesLeft: 8 };
+  const crowdedVisual = context.KoshiBrickVisuals.decorateBrick(node(), crowdedBrick, [crowdedBrick]);
+  const crowdedPositions = crowdedVisual.crumblerPips.map(pip => {
+    const [, x, y] = pip.attributes.transform.match(/translate\(([^ ]+) ([^)]+)\)/).map(Number);
+    const pipSize = Number(pip.attributes.transform.match(/scale\(([^)]+)\)/)[1]) * 24;
+    return { x, y, pipSize };
+  });
+  assert.equal(new Set(crowdedPositions.map(({ y }) => y)).size, 2, 'crowded pips use two rows before shrinking');
+  assert.ok(crowdedPositions.every(({ pipSize }) => Math.abs(pipSize - 13.6) < 1e-6),
+    'two rows retain the normal pip size when they fit');
+  for (const y of new Set(crowdedPositions.map(point => point.y))) {
+    const row = crowdedPositions.filter(point => point.y === y).sort((a, b) => a.x - b.x);
+    assert.ok(row[0].x >= row[0].pipSize, 'each row leaves a buffer at the brick end');
+    assert.ok(120 - row.at(-1).x >= row[0].pipSize, 'each row leaves a buffer at the other brick end');
   }
   for (const spawn of [
     ...Object.keys(FOODS).map(type => ({ kind: 'food', type })),
@@ -807,10 +906,9 @@ test('shared visuals render matching portal colors, countdown switches and grey 
   assert.equal(boostVisual.symbol.style.opacity, '.8', 'Toggle state does not dim an active Boost surface');
   const compact = { x: 0, y: 0, w: 68, h: 50, crumbler: 5, usesLeft: 5, warped: 15, toggle: 4, toggleRemaining: 4 };
   const compactVisual = context.KoshiBrickVisuals.decorateBrick(node(), compact, [compact]);
-  assert.equal(compactVisual.info.attributes.viewBox, '0 0 158 116');
-  assert.equal(compactVisual.info.children[0].attributes.y, '0');
-  assert.equal(compactVisual.info.children[1].attributes.y, '58');
-  assert.equal(compactVisual.info.children[2].attributes.x, '64');
+  assert.equal(compactVisual.info.attributes.viewBox, '0 0 158 58');
+  assert.equal(compactVisual.info.children[0].attributes.x, '0');
+  assert.equal(compactVisual.info.children[1].attributes.x, '64');
 });
 
 test('special graphics center on the full starting or grown brick, including corner unions', () => {
@@ -881,10 +979,15 @@ test('all special icon panels fit solid brick sections across every corner and w
             assert.deepEqual(visual.infoBounds, bounds);
             const container = node();
             exposeBrickInfo(visual, container, brick, game.width, game.height);
-            assert.equal(visual.info.style.cssText, `left:${bounds.x / game.width * 100}%;top:${bounds.y / game.height * 100}%;width:${bounds.w / game.width * 100}%;height:${bounds.h / game.height * 100}%;`);
+            if (visual.info) assert.equal(visual.info.style.cssText, `left:${bounds.x / game.width * 100}%;top:${bounds.y / game.height * 100}%;width:${bounds.w / game.width * 100}%;height:${bounds.h / game.height * 100}%;`);
           }
         }
       }
     }
   }
+});
+
+test('exhausted Crumblers use a fully desaturated grey fill', () => {
+  const css = readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(css, /\.brick\.crumbler\[data-deactivated="true"\]\s*\{[^}]*--brick-fill:\s*#969b99;[^}]*filter:\s*grayscale\(1\)/);
 });

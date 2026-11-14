@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
-const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, obstructionSpikes, obstructionVertices, brickShape, brickRegions, brickEnabled, goalTiles } = engine;
+const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, obstructionSpikes, obstructionVertices, brickShape, brickPerimeter, brickRegions, brickEnabled, goalTiles } = engine;
 const HAZARD_FLAME = 'M-24 18 Q-12 12 -20 -2 L-10 -18 Q-13 -2 -4 -8 L3 -17 Q12 -4 9 2 Q18 -10 24 -20 Q16 3 24 18 Z';
 const MISSILE_BODY = 'M-14 -7 H9 Q24 -7 24 0 Q24 7 9 7 H-14 Z';
 const MISSILE_FINS = 'M-15 -6 L-25 -16 L-5 -10 V-6 M-15 6 L-25 16 L-5 10 V6 M-22 0 H-4';
@@ -268,8 +268,85 @@ function brickInfoBounds(brick, members) {
     || (point.scale === best.scale && point.distance < best.distance) ? point : best);
   return { x, y, w, h };
 }
-function decorateBrick(button, brick, members, width, height, groupCenterBrick = null, portalExit = null) {
-  let cloud = null, knob = null, count = null, symbol = null, crumblerCount = null, warpCount = null, turretFill = null;
+function crumblerPipRuns(members, width, height, perimeterIds) {
+  const sections = members.some(part => part.sourceId !== undefined)
+    ? members.filter(part => part.sourceId !== undefined) : members;
+  const maxX = Math.max(...sections.map(part => part.x + part.w));
+  const maxY = Math.max(...sections.map(part => part.y + part.h));
+  const orderedMembers = sections.map(part => ({ ...part, id: part.sourceId ?? part.id }));
+  const perimeter = perimeterIds ?? brickPerimeter(orderedMembers, width ?? maxX, height ?? maxY);
+  const ids = new Set(orderedMembers.map(part => part.id));
+  const indices = perimeter.flatMap((id, index) => ids.has(id) ? [index] : []);
+  const start = indices.find(index => !ids.has(perimeter[(index + perimeter.length - 1) % perimeter.length])) ?? indices[0];
+  const ordered = Array.from({ length: perimeter.length }, (_, offset) => perimeter[(start + offset) % perimeter.length])
+    .filter(id => ids.has(id)).map(id => orderedMembers.find(part => part.id === id));
+  const regions = brickRegions(ordered, width ?? maxX, height ?? maxY);
+  const runs = [];
+  for (const part of ordered) {
+    const edge = regions.get(part.id).edge;
+    const horizontal = edge === 'top' || edge === 'bottom';
+    const axisStart = horizontal ? part.x : part.y;
+    const axisEnd = axisStart + (horizontal ? part.w : part.h);
+    const center = horizontal ? part.y + part.h / 2 : part.x + part.w / 2;
+    const direction = edge === 'bottom' || edge === 'left' ? -1 : 1;
+    const previous = runs.at(-1);
+    if (previous && previous.edge === edge && Math.abs(previous.center - center) < 1e-6
+      && Math.abs((direction > 0 ? previous.end : previous.start) - (direction > 0 ? axisStart : axisEnd)) < 1e-6) {
+      previous.start = Math.min(previous.start, axisStart);
+      previous.end = Math.max(previous.end, axisEnd);
+      continue;
+    }
+    runs.push({ edge, horizontal, center, start: axisStart, end: axisEnd, direction,
+      thickness: horizontal ? part.h : part.w });
+  }
+  return runs;
+}
+function crumblerPipPositions(members, width, height, shape, count, perimeterIds) {
+  if (!count) return [];
+  const runs = crumblerPipRuns(members, width, height, perimeterIds);
+  const thickness = Math.min(...runs.map(run => run.thickness));
+  const size = Math.min(16, thickness * .68);
+  const slotsFor = pipSize => runs.flatMap((run, runIndex) => {
+    const length = run.end - run.start;
+    const inset = pipSize + 3;
+    const usable = length - inset * 2;
+    if (usable < 0) return [];
+    const capacity = Math.floor(usable / (pipSize * 1.15)) + 1;
+    return Array.from({ length: capacity }, (_, index) => {
+      const localDistance = capacity === 1 ? length / 2
+        : inset + usable * index / (capacity - 1);
+      return { run, runIndex, axis: run.direction === 1 ? run.start + localDistance : run.end - localDistance };
+    });
+  });
+  let pipSize = size;
+  const oneRowSlots = slotsFor(pipSize);
+  let rows = oneRowSlots.length >= count ? 1 : 2;
+  const perRow = Math.ceil(count / rows);
+  if (slotsFor(pipSize).length < perRow) {
+    let low = 0, high = pipSize;
+    for (let iteration = 0; iteration < 32; iteration++) {
+      const middle = (low + high) / 2;
+      if (slotsFor(middle).length >= perRow) low = middle; else high = middle;
+    }
+    pipSize = low;
+  }
+  const slots = slotsFor(pipSize);
+  const selectedSlots = Array.from({ length: perRow }, (_, index) => slots.length === perRow
+    ? slots[index] : slots[Math.round(index * (slots.length - 1) / Math.max(1, perRow - 1))]);
+  return Array.from({ length: count }, (_, index) => {
+    const row = index % rows;
+    const rowIndex = Math.floor(index / rows);
+    const { run, axis } = selectedSlots[rowIndex];
+    const offset = rows === 1 ? 0 : (row === 0 ? -1 : 1) * Math.min(pipSize * .22, run.thickness * .12);
+    const x = run.horizontal ? axis : run.center + offset;
+    const y = run.horizontal ? run.center + offset : axis;
+    return { x: x - shape.x, y: y - shape.y,
+      angle: run.horizontal ? run.direction === 1 ? 0 : 180 : run.direction === 1 ? 90 : -90, size: pipSize };
+  });
+}
+function decorateBrick(button, brick, members, width, height, groupCenterBrick = null, portalExit = null, perimeterIds = null) {
+  let cloud = null, knob = null, count = null, symbol = null, warpCount = null, turretFill = null, crumblerPipLayer = null;
+  const crumblerPips = [];
   let powerDisc = null, powerMark = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
   const source = (brick.turret || brick.hazard) && groupCenterBrick && groupCenterBrick.id !== brick.id ? groupCenterBrick : null;
@@ -318,7 +395,7 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
     }
   }
   button.dataset.specialVertical = String(vertical);
-  const slots = [brick.spawner || brick.boost || brick.barrier || brick.turret || brick.hazard ? 'symbol' : null, brick.crumbler ? 'crumbler' : null,
+  const slots = [brick.spawner || brick.boost || brick.barrier || brick.turret || brick.hazard ? 'symbol' : null,
     brick.warped ? 'warped' : null, brick.toggle ? 'toggle' : null, brick.power ? 'power' : null].filter(Boolean);
   const length = slots.reduce((total, slot) => total + (slot === 'toggle' ? 94 : 64), 0);
   const stacked = !vertical && brick.w / brick.h < 2 && brick.toggle && slots.length > 2;
@@ -478,13 +555,26 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
     }
     place(symbol, 'symbol');
   }
-  for (const attribute of ['crumbler', 'warped']) {
-    if (!brick[attribute]) continue;
+  if (brick.crumbler) {
+    crumblerPipLayer = svgNode('svg', { class: 'brick-crumbler-pips', viewBox: `0 0 ${shape.w} ${shape.h}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+    crumblerPipLayer.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;';
+    for (let index = 0; index < brick.crumbler; index++) {
+      const pip = svgNode('g', { class: 'brick-crumbler-pip', opacity: 0 });
+      pip.append(
+        svgNode('path', { d: 'M3 5H21V19H3Z', fill: '#d8c49b', stroke: '#17232c', 'stroke-width': 2, 'stroke-linejoin': 'round' }),
+        svgNode('path', { d: 'M4 7H20', fill: 'none', stroke: '#fff2d6', 'stroke-width': 1.2, opacity: .8 }),
+        svgNode('path', { d: 'M13 5L10 10L14 12L10 19', fill: 'none', stroke: '#392b20', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+      crumblerPipLayer.append(pip);
+      crumblerPips.push(pip);
+    }
+    button.append(crumblerPipLayer);
+  }
+  if (brick.warped) {
     const badge = svgNode('svg', { class: 'brick-number-badge', viewBox: '0 0 64 58' });
     badge.append(svgNode('rect', { x: 2, y: 7, width: 60, height: 44, rx: 6, fill: '#111d25', 'fill-opacity': .9 }));
     const text = svgNode('text', { x: 32, y: 36, 'text-anchor': 'middle', fill: 'white', 'font-size': 24, 'font-weight': 'bold' });
-    badge.append(text); place(badge, attribute);
-    if (attribute === 'crumbler') crumblerCount = text; else warpCount = text;
+    badge.append(text); place(badge, 'warped');
+    warpCount = text;
   }
   if (brick.toggle) {
     const toggle = svgNode('svg', { class: 'brick-toggle', viewBox: vertical ? '-3 -3 58 94' : '-3 -3 94 58', 'aria-hidden': 'true' });
@@ -517,7 +607,8 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
       powerMark);
     place(power, 'power');
   }
-  const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerCount, warpCount, turretFill, powerDisc, powerMark };
+  const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerPips, crumblerPipLayer,
+    crumblerGeometry: { members, width, height, shape, maxCount: brick.crumbler, perimeterIds }, warpCount, turretFill, powerDisc, powerMark };
   updateBrick(visual, brick, 0);
   return visual;
 }
@@ -550,14 +641,25 @@ function updateBrick(visual, brick, elapsed, sunglassesActive = false) {
     visual.turretFill.setAttribute('fill', used ? TURRET_USED_COLOR : visual.turretFill.turretColor);
     if (visual.symbol.dataset) visual.symbol.dataset.turretUsed = String(used);
   }
-  if (visual.crumblerCount) visual.crumblerCount.textContent = `C:${brick.usesLeft ?? brick.crumbler}`;
+  if (visual.crumblerPipLayer) {
+    const remaining = Math.max(0, Math.min(visual.crumblerGeometry.maxCount, brick.usesLeft ?? brick.crumbler));
+    if (visual.crumblerUsesLeft !== remaining) {
+      const { members, width, height, shape, perimeterIds } = visual.crumblerGeometry;
+      const positions = crumblerPipPositions(members, width, height, shape, remaining, perimeterIds);
+      visual.crumblerPips.forEach((pip, index) => {
+        const position = positions[index];
+        pip.setAttribute('opacity', position ? 1 : 0);
+        pip.setAttribute('aria-hidden', String(!position));
+        if (position) pip.setAttribute('transform', `translate(${position.x} ${position.y}) rotate(${position.angle}) scale(${position.size / 24}) translate(-12 -12)`);
+      });
+      visual.crumblerUsesLeft = remaining;
+    }
+  }
   if (visual.warpCount) {
     const seconds = brick.warpUntil == null ? brick.warped : Math.max(0, Math.ceil(brick.warpUntil - elapsed - 1e-9));
     visual.warpCount.textContent = `W:${brick.usesLeft === 0 ? 'X' : seconds}`;
   }
-  for (const text of [visual.crumblerCount, visual.warpCount]) {
-    if (text) text.setAttribute('font-size', Math.min(28, 120 / text.textContent.length));
-  }
+  if (visual.warpCount) visual.warpCount.setAttribute('font-size', Math.min(28, 120 / visual.warpCount.textContent.length));
 }
 function exposeBrickInfo(visual, container, brick, width, height) {
   if (!visual.info) return;

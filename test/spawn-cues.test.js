@@ -153,6 +153,10 @@ test('obstruction cue paths match solid geometry and rotation in both layouts, i
   const levels = assembleCampaign(OFFICIAL_LEVEL_DATA, OFFICIAL_WORLDS);
   const level = levels.findIndex(level => level.id === 'official-1-12');
   const shapes = Object.keys(OBJECTS).filter(type => OBJECTS[type].obstruction);
+  const expectedVertices = {
+    circle: 96, diamond: 4, rectangle: 4, pentagon: 5, hexagon: 6, octagon: 8, v: 35, oval: 64,
+  };
+  assert.deepEqual(shapes.map(type => OBJECTS[type].obstruction), Object.keys(expectedVertices));
   const record = () => {
     let transform = { x: 0, y: 0, angle: 0 }, vertices = [];
     const stack = [], strokes = [];
@@ -196,6 +200,8 @@ test('obstruction cue paths match solid geometry and rotation in both layouts, i
       vm.runInContext(drawCueSource, context);
       context.drawSpawnCue(cue);
       drawObstruction(solid.ctx, obstruction);
+      assert.equal(warning.strokes[0].length, expectedVertices[OBJECTS[event.type].obstruction],
+        `${event.type} must retain its own silhouette`);
       assert.deepEqual(warning.strokes[0], solid.strokes[0], `${event.type}, portrait=${portrait}`);
       assert.equal(warning.stack.length, 0, 'cue restores the canvas transform');
     }

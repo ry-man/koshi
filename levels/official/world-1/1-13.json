@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "id": "My level",
+  "duration": 80,
+  "goal": 20,
+  "heartCost": 15,
+  "brickSet": 1,
+  "events": [
+    {
+      "time": 5,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6997113199434924,
+      "y": 0.9476731240258295,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 10,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6997113199434924,
+      "y": 0.7232242262302383,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 15,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.2928567041336527,
+      "y": 0.04987753284346471,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 20,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.2928567041336527,
+      "y": 0.2743264306390559,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 25,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5051286775996561,
+      "y": 0.49877532843464706,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 30,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.23978871076715189,
+      "y": 0.434647071921621,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 35,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.7527793133099933,
+      "y": 0.5629035849476731,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 40,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.4520606842331552,
+      "y": 0.6590959697172122,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 45,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5581966709661569,
+      "y": 0.33845468715208193,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 50,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.8058473066764941,
+      "y": 0.7232242262302383,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 55,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.18672071740065108,
+      "y": 0.2743264306390559,
+      "color": "#b78c70",
+      "patternColor": "#047857",
+      "pattern": "stripes"
+    },
+    {
+      "time": 15,
+      "kind": "weapon",
+      "type": "bronze",
+      "x": 0.8766046311651619,
+      "y": 0.8835448675128034
+    },
+    {
+      "time": 25,
+      "kind": "weapon",
+      "type": "bronze",
+      "x": 0.13365272403415024,
+      "y": 0.14606991761300378
+    },
+    {
+      "time": 40,
+      "kind": "food",
+      "type": "S",
+      "x": 0.3813033597444874,
+      "y": 0.434647071921621,
+      "group": {
+        "shape": "line",
+        "count": 6,
+        "angle": 120
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 50,
+      "kind": "food",
+      "type": "P",
+      "x": 0.6112646643326577,
+      "y": 0.5949677132041862,
+      "group": {
+        "shape": "line",
+        "count": 6,
+        "angle": 120
+      },
+      "lifetime": 8
+    }
+  ],
+  "bossLevel": false,
+  "killGoal": 0,
+  "survive": false,
+  "brickTypes": [
+    {
+      "edge": "top",
+      "start": 0.2,
+      "end": 0.4,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.5,
+      "end": 0.625,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    }
+  ]
+}
