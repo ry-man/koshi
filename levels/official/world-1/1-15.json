@@ -1,0 +1,1830 @@
+{
+  "version": 1,
+  "id": "Jog in the Park",
+  "duration": 75,
+  "goal": 0,
+  "heartCost": 15,
+  "brickSet": 1,
+  "events": [
+    {
+      "time": 6,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.1625371144746744,
+      "y": 0.7232242262302383,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 73.66285334711039,
+      "height": 280.41106719367593
+    },
+    {
+      "time": 2,
+      "kind": "food",
+      "type": "B",
+      "x": 0.08568776910554263,
+      "y": 0.7552883544867512,
+      "lifetime": 8
+    },
+    {
+      "time": 3,
+      "kind": "food",
+      "type": "B",
+      "x": 0.1140006858204859,
+      "y": 0.21019817412602984,
+      "lifetime": 8
+    },
+    {
+      "time": 5,
+      "kind": "weapon",
+      "type": "bronze",
+      "x": 0.14231360253542918,
+      "y": 0.7552883544867512
+    },
+    {
+      "time": 11,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.22860058680954204,
+      "y": 0.1781340458695168,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 192,
+      "height": 192
+    },
+    {
+      "time": 8,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.1962429677067497,
+      "y": 0.5308394566911601,
+      "group": {
+        "shape": "line",
+        "count": 2,
+        "size": 0.5,
+        "angle": 90
+      },
+      "shield": null
+    },
+    {
+      "time": 18,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.28792288849799463,
+      "y": 0.6590959697172122,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 123.22529644268776,
+      "height": 123.22529644268776
+    },
+    {
+      "time": 18,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.31893227347150394,
+      "y": 0.6590959697172122,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 123.22529644268776,
+      "height": 123.22529644268776
+    },
+    {
+      "time": 18,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.3485934243157302,
+      "y": 0.6590959697172122,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 123.22529644268776,
+      "height": 123.22529644268776
+    },
+    {
+      "time": 18,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.3796028092892395,
+      "y": 0.402582943665108,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 123.22529644268776,
+      "height": 123.22529644268776
+    },
+    {
+      "time": 18,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.40926396013346583,
+      "y": 0.402582943665108,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 123.22529644268776,
+      "height": 123.22529644268776
+    },
+    {
+      "time": 18,
+      "kind": "object",
+      "type": "obstruction-circle",
+      "x": 0.44027334510697513,
+      "y": 0.402582943665108,
+      "color": "#22c55e",
+      "patternColor": "#f43f5e",
+      "pattern": "polka-dots",
+      "width": 123.22529644268776,
+      "height": 123.22529644268776
+    },
+    {
+      "time": 61,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.9188964610024448,
+      "y": 0.49877532843464706,
+      "color": "#b91c1c",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid",
+      "width": 37.3727950402249,
+      "height": 472.505928853755
+    },
+    {
+      "time": 0,
+      "kind": "item",
+      "type": "treasure-chest",
+      "x": 0.9970940405008596,
+      "y": 0.49877532843464706,
+      "keysRequired": 1
+    },
+    {
+      "time": 65,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.935075270553841,
+      "y": 0.49877532843464706,
+      "shield": null,
+      "carriesItem": "key"
+    },
+    {
+      "time": 27,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.48611330550259757,
+      "y": 0.7552883544867512,
+      "shield": null
+    },
+    {
+      "time": 27,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.48611330550259757,
+      "y": 0.24226230238254287,
+      "shield": null
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5063368174418428,
+      "y": 0.7232242262302383,
+      "color": "#eab308",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5238638611225219,
+      "y": 0.2743264306390559,
+      "color": "#f59e0b",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5198191587346729,
+      "y": 0.11400578935649076,
+      "color": "#84cc16",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5103815198296918,
+      "y": 0.8835448675128034,
+      "color": "#15803d",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5535250119667482,
+      "y": 0.49877532843464706,
+      "color": "#f59e0b",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5575697143545972,
+      "y": 0.33845468715208193,
+      "color": "#84cc16",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5535250119667482,
+      "y": 0.1781340458695168,
+      "color": "#15803d",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5899273334573896,
+      "y": 0.9476731240258295,
+      "color": "#eab308",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.5939720358452386,
+      "y": 0.7873524827432643,
+      "color": "#15803d",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6007132064916537,
+      "y": 0.04987753284346471,
+      "color": "#84cc16",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6047579088795028,
+      "y": 0.21019817412602984,
+      "color": "#f59e0b",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6128473136552008,
+      "y": 0.21019817412602984,
+      "color": "#15803d",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    }
+  ],
+  "bossLevel": false,
+  "killGoal": 0,
+  "survive": true,
+  "autoscroll": {
+    "length": 100,
+    "speed": 1.5,
+    "events": []
+  },
+  "catBlock": {
+    "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+    "messages": {
+      "item": "Koshi found the Cat Block!",
+      "enemy": "Koshi found a Cat Block carried by an enemy!",
+      "chest": "Koshi opened the treasure chest and found the Cat Block!",
+      "achievement": "Koshi earned the Cat Brick!"
+    },
+    "trigger": {
+      "type": "chest"
+    }
+  },
+  "brickTypes": [
+    {
+      "edge": "bottom",
+      "start": 0,
+      "end": 0.2,
+      "kind": "cinder"
+    },
+    {
+      "edge": "bottom",
+      "start": 0.2,
+      "end": 0.4,
+      "kind": "cinder"
+    },
+    {
+      "edge": "bottom",
+      "start": 0.4,
+      "end": 0.6,
+      "kind": "cinder"
+    },
+    {
+      "edge": "bottom",
+      "start": 0.6,
+      "end": 0.8,
+      "kind": "cinder"
+    },
+    {
+      "edge": "bottom",
+      "start": 0.8,
+      "end": 1,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.08,
+      "end": 0.09,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.08,
+      "end": 0.09,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.09,
+      "end": 0.1,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.09,
+      "end": 0.1,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.11,
+      "end": 0.12,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.11,
+      "end": 0.12,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.12,
+      "end": 0.13,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.12,
+      "end": 0.13,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.13,
+      "end": 0.14,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.13,
+      "end": 0.14,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.15,
+      "end": 0.16,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.15,
+      "end": 0.16,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.16,
+      "end": 0.17,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.16,
+      "end": 0.17,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.17,
+      "end": 0.18,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.17,
+      "end": 0.18,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.19,
+      "end": 0.2,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.19,
+      "end": 0.2,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.2,
+      "end": 0.21,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.2,
+      "end": 0.21,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.21,
+      "end": 0.22,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.21,
+      "end": 0.22,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.23,
+      "end": 0.24,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.23,
+      "end": 0.24,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.24,
+      "end": 0.25,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.24,
+      "end": 0.25,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.25,
+      "end": 0.26,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.25,
+      "end": 0.26,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.27,
+      "end": 0.28,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.27,
+      "end": 0.28,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.28,
+      "end": 0.29,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.28,
+      "end": 0.29,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.29,
+      "end": 0.3,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.29,
+      "end": 0.3,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.31,
+      "end": 0.32,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.31,
+      "end": 0.32,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.32,
+      "end": 0.33,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.32,
+      "end": 0.33,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.33,
+      "end": 0.34,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.33,
+      "end": 0.34,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.35,
+      "end": 0.36,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.35,
+      "end": 0.36,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.36,
+      "end": 0.37,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.36,
+      "end": 0.37,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.37,
+      "end": 0.38,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.37,
+      "end": 0.38,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.39,
+      "end": 0.4,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.39,
+      "end": 0.4,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.4,
+      "end": 0.41,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.4,
+      "end": 0.41,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.41,
+      "end": 0.42,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.41,
+      "end": 0.42,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.43,
+      "end": 0.44,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.43,
+      "end": 0.44,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.44,
+      "end": 0.45,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.44,
+      "end": 0.45,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.45,
+      "end": 0.46,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.45,
+      "end": 0.46,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.47,
+      "end": 0.48,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.47,
+      "end": 0.48,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.48,
+      "end": 0.49,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.48,
+      "end": 0.49,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.49,
+      "end": 0.5,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.49,
+      "end": 0.5,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.51,
+      "end": 0.52,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.51,
+      "end": 0.52,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.52,
+      "end": 0.53,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.52,
+      "end": 0.53,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.53,
+      "end": 0.54,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.53,
+      "end": 0.54,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.55,
+      "end": 0.56,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.55,
+      "end": 0.56,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.56,
+      "end": 0.57,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.56,
+      "end": 0.57,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.58,
+      "end": 0.59,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.58,
+      "end": 0.59,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.59,
+      "end": 0.6,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.59,
+      "end": 0.6,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.61,
+      "end": 0.62,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.61,
+      "end": 0.62,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.62,
+      "end": 0.63,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.62,
+      "end": 0.63,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.64,
+      "end": 0.65,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.64,
+      "end": 0.65,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.65,
+      "end": 0.66,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.65,
+      "end": 0.66,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.67,
+      "end": 0.68,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.67,
+      "end": 0.68,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.68,
+      "end": 0.69,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.68,
+      "end": 0.69,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.7,
+      "end": 0.71,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.7,
+      "end": 0.71,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.71,
+      "end": 0.72,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.71,
+      "end": 0.72,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.73,
+      "end": 0.74,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.73,
+      "end": 0.74,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.74,
+      "end": 0.75,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.74,
+      "end": 0.75,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.76,
+      "end": 0.77,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.76,
+      "end": 0.77,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.77,
+      "end": 0.78,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.77,
+      "end": 0.78,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.79,
+      "end": 0.8,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.79,
+      "end": 0.8,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.8,
+      "end": 0.81,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.8,
+      "end": 0.81,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.82,
+      "end": 0.83,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.82,
+      "end": 0.83,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.83,
+      "end": 0.84,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.83,
+      "end": 0.84,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.85,
+      "end": 0.86,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.85,
+      "end": 0.86,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.86,
+      "end": 0.87,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.86,
+      "end": 0.87,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.88,
+      "end": 0.89,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.88,
+      "end": 0.89,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.89,
+      "end": 0.9,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.89,
+      "end": 0.9,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.91,
+      "end": 0.92,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.91,
+      "end": 0.92,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.92,
+      "end": 0.93,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.92,
+      "end": 0.93,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.94,
+      "end": 0.95,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.94,
+      "end": 0.95,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.95,
+      "end": 0.96,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.95,
+      "end": 0.96,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.97,
+      "end": 0.98,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.97,
+      "end": 0.98,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.98,
+      "end": 0.99,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.98,
+      "end": 0.99,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.99,
+      "end": 1,
+      "kind": "cinder"
+    },
+    {
+      "edge": "right",
+      "start": 0.99,
+      "end": 1,
+      "kind": "cinder"
+    },
+    {
+      "edge": "left",
+      "start": 0.93,
+      "end": 0.94,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.93,
+      "end": 0.94,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.96,
+      "end": 0.97,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.96,
+      "end": 0.97,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.87,
+      "end": 0.88,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.9,
+      "end": 0.91,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.78,
+      "end": 0.79,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.78,
+      "end": 0.79,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.81,
+      "end": 0.82,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.81,
+      "end": 0.82,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.84,
+      "end": 0.85,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.72,
+      "end": 0.73,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.75,
+      "end": 0.76,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.75,
+      "end": 0.76,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.9,
+      "end": 0.91,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.87,
+      "end": 0.88,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.84,
+      "end": 0.85,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.69,
+      "end": 0.7,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.63,
+      "end": 0.64,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.66,
+      "end": 0.67,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.6,
+      "end": 0.61,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.54,
+      "end": 0.55,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.54,
+      "end": 0.55,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.57,
+      "end": 0.58,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.5,
+      "end": 0.51,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.5,
+      "end": 0.51,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.46,
+      "end": 0.47,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.46,
+      "end": 0.47,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.42,
+      "end": 0.43,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.42,
+      "end": 0.43,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.38,
+      "end": 0.39,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.38,
+      "end": 0.39,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.34,
+      "end": 0.35,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.34,
+      "end": 0.35,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.3,
+      "end": 0.31,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.3,
+      "end": 0.31,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.26,
+      "end": 0.27,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.26,
+      "end": 0.27,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.22,
+      "end": 0.23,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.22,
+      "end": 0.23,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.18,
+      "end": 0.19,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.18,
+      "end": 0.19,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.14,
+      "end": 0.15,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.14,
+      "end": 0.15,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.1,
+      "end": 0.11,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.1,
+      "end": 0.11,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.07,
+      "end": 0.08,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.07,
+      "end": 0.08,
+      "kind": "normal"
+    },
+    {
+      "edge": "top",
+      "start": 0,
+      "end": 0.2,
+      "kind": "normal"
+    },
+    {
+      "edge": "top",
+      "start": 0.2,
+      "end": 0.4,
+      "kind": "normal"
+    },
+    {
+      "edge": "top",
+      "start": 0.4,
+      "end": 0.6,
+      "kind": "normal"
+    },
+    {
+      "edge": "top",
+      "start": 0.6,
+      "end": 0.8,
+      "kind": "normal"
+    },
+    {
+      "edge": "top",
+      "start": 0.8,
+      "end": 1,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0,
+      "end": 0.01,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0,
+      "end": 0.01,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.01,
+      "end": 0.02,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.01,
+      "end": 0.02,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.02,
+      "end": 0.03,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.02,
+      "end": 0.03,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.03,
+      "end": 0.04,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.03,
+      "end": 0.04,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.04,
+      "end": 0.05,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.04,
+      "end": 0.05,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.05,
+      "end": 0.06,
+      "kind": "normal"
+    },
+    {
+      "edge": "right",
+      "start": 0.05,
+      "end": 0.06,
+      "kind": "normal"
+    },
+    {
+      "edge": "left",
+      "start": 0.06,
+      "end": 0.07,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.06,
+      "end": 0.07,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.72,
+      "end": 0.73,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.69,
+      "end": 0.7,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.66,
+      "end": 0.67,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.63,
+      "end": 0.64,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.6,
+      "end": 0.61,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.57,
+      "end": 0.58,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    }
+  ]
+}

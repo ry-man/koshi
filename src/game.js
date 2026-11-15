@@ -1938,7 +1938,13 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     const name = `Event ${i + 1}`;
     if (!event || typeof event !== 'object' || Array.isArray(event)) fail(`${name} must be an object.`);
     event = normalizeLegacyObstruction(event);
-    const time = number(event.time, 0, duration, `${name} time`);
+    let spawnPercent;
+    if (event.spawnPercent !== undefined) {
+      if (!value.autoscroll) fail(`${name}: screen-position spawning requires an autoscrolling level.`);
+      if (event.random) fail(`${name}: screen-position spawning requires a fixed center.`);
+      spawnPercent = number(event.spawnPercent, 0, 100, `${name} screen crossing percentage`);
+    }
+    const time = spawnPercent === undefined ? number(event.time, 0, duration, `${name} time`) : 0;
     if (time >= duration) fail(`${name} must appear before the level ends.`);
     if (event.random !== undefined && typeof event.random !== 'boolean') fail(`${name} random location must be a boolean.`);
     const random = event.random === true;
@@ -1977,7 +1983,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (event.kind === 'enemy' && event.type === 'snake' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: snakes must start on an edge of the playable area.`);
       if (event.kind === 'enemy' && event.type === 'robo-cow' && x !== 0 && x !== 1 && y !== 0 && y !== 1) fail(`${name}: Robo Cows must start on an edge of the playable area.`);
     }
-    const result = { time, kind: event.kind, type: event.type, ...(random ? { random: true } : { x, y }),
+    const result = { time, ...(spawnPercent === undefined ? {} : { spawnPercent }), kind: event.kind, type: event.type, ...(random ? { random: true } : { x, y }),
       ...(group ? { group } : {}), ...(randomCount === undefined ? {} : { randomCount }) };
     shield(event, result, name);
     crabDirection(event, result, name);
@@ -3248,12 +3254,10 @@ class Game {
       this.levelIndex = -1;
       this.level = { ...this.customLevel, coordinateOrientation: customCoordinateOrientation,
         heartCost: this.customLevel.heartCost ?? Infinity, food: [], enemies: [], weapons: [], items: [] };
-      this.customEvents = [...this.customLevel.events].sort((a, b) => a.time - b.time);
     } else {
       if (!levels[level]) throw new RangeError(`Unknown level: ${level}`);
       this.levelIndex = level;
       this.level = levels[level];
-      this.customEvents = [...(this.level.events ?? [])].sort((a, b) => a.time - b.time);
     }
     this.random = random;
     this.catBlockPreviouslyCollected = catBlockCollected;
@@ -3415,6 +3419,9 @@ class Game {
     this.catTracks = (this.level.tracks ?? []).map(track => ({ ...track,
       path: catTrackPath(track, node => this.campaignEventPoint(node.x, node.y)) }));
     this.catTracksById = new Map(this.catTracks.map(track => [track.id, track]));
+    this.customEvents = (this.customLevel?.events ?? this.level.events ?? [])
+      .map(event => event.spawnPercent === undefined ? event : { ...event, time: this.eventAppearanceTime(event) })
+      .sort((a, b) => a.time - b.time);
   }
 
   start() {
@@ -4431,6 +4438,31 @@ class Game {
     return camera;
   }
 
+  eventAppearanceTime(event) {
+    if (event.spawnPercent === undefined) return event.time;
+    const scroll = this.level.autoscroll;
+    const point = event.track
+      ? this.trackEventPoint({ ...event, time: 0 }, 0) : this.campaignEventPoint(event.x, event.y);
+    const length = this.portrait ? this.viewportHeight : this.viewportWidth;
+    const boardLength = this.portrait ? this.height : this.width;
+    const center = this.landscapePortrait ? this.height - point.y : this.portrait ? point.y : point.x;
+    const target = center - length * (1 - event.spawnPercent / 100);
+    if (target <= 0) return 0;
+    if (target > boardLength - length + 1e-9) return Infinity;
+    const { pitch } = boardDimensions(this.portrait, this.scale, scroll.length);
+    let distance = 0, previous = 0, speed = scroll.speed;
+    for (const change of [...scroll.events, { time: Infinity, speed: 0 }]) {
+      const velocity = speed * pitch;
+      if (velocity > 0 && target <= distance + (change.time - previous) * velocity + 1e-9) {
+        return previous + Math.max(0, target - distance) / velocity;
+      }
+      if (Number.isFinite(change.time)) distance += (change.time - previous) * velocity;
+      previous = change.time;
+      speed = change.speed;
+    }
+    return Infinity;
+  }
+
   simulationBounds() {
     if (!this.level.autoscroll) return { x: 0, y: 0, width: this.width, height: this.height };
     const camera = this.camera();
@@ -4623,7 +4655,7 @@ class Game {
     const track = this.catTracksById.get(event.track);
     const start = catTrackProjection(track.path, this.campaignEventPoint(event.x, event.y));
     return catTrackPoint(track.path, start.distance
-      + (this.catTrackEnabled(track) ? Math.max(0, time - event.time) * track.speed : 0));
+      + (this.catTrackEnabled(track) && time > event.time ? (time - event.time) * track.speed : 0));
   }
 
   updateCatTracks(dt) {

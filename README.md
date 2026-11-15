@@ -1253,6 +1253,27 @@ Omit `autoscroll` for a traditional level. Placements use normalized coordinates
 over the entire board, not the camera. Changing board length changes those
 relative positions; split combined bricks before changing length.
 
+For fixed placements, choose **Appearance trigger: Screen crossing** in the
+object inspector and enter **Center crossed screen (%)**. At 0% the placed
+center enters the visible screen, at 50% it reaches the screen center, and at
+100% it reaches the exit edge. This follows right-to-left screen travel on
+desktop and bottom-to-top travel on phone. Formations use their shared center,
+not each member's edge. Random placements remain time-triggered.
+
+JSON events use optional `"spawnPercent": 50` (0 through 100) instead of a
+spawn time. The validator keeps `time: 0` for compatibility, but that value
+does not trigger these events. Camera pauses and speed changes determine the
+actual appearance time; warnings, pickup lifetimes and Cat Track movement use
+that time too. Centers already past the threshold spawn at Start. A threshold
+the camera never reaches does not spawn; the relative timeline labels it
+**not reached**. Percentage events cannot be dragged along the time axis;
+edit their percentage, placement or lifetime in the inspector instead.
+Convert percentage events to Time before disabling autoscrolling.
+
+Existing JSON files, built-in campaign data and saved editor drafts without
+`spawnPercent` retain their original time-based behavior and need no migration.
+No existing level layouts or schedules are changed by this option.
+
 ### Optional story cutscenes
 
 Each level can have an optional pre-level cutscene. All 62 campaign levels

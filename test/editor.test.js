@@ -8,6 +8,56 @@ const vm = require('node:vm');
 const blank = () => ({ version: 1, id: 'Designer level', duration: 30, goal: 50, heartCost: null, brickSet: 3, events: [] });
 const event = (kind = 'food', type = 'S', time = 2) => ({ kind, type, time, x: .2, y: .7, ...(kind === 'food' ? { lifetime: 5 } : {}) });
 
+test('screen-crossing inspector creates, edits and converts events while preserving mixed percentages', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const inputs = new Map();
+  const $ = selector => {
+    if (!inputs.has(selector)) inputs.set(selector, {
+      value: '', placeholder: '', dataset: {}, querySelector: () => null, prepend() {},
+    });
+    return inputs.get(selector);
+  };
+  const context = vm.createContext({
+    $, OBJECTS, snapWheel, MIXED: '', document: { createElement: () => ({}) },
+    level: { ...blank(), autoscroll: { length: 24, speed: .5, events: [] } },
+    selectedEvents: new Set(), selectedBricks: new Set(), touched: new Set(), placing: false,
+    common: values => values.every(value => value === values[0]) ? values[0] : '',
+    selectedList: () => [...context.selectedEvents],
+    mixedOption: select => { select.value = ''; },
+    typeOptions() {}, syncPalettes() {}, validateDraft: validateCustomLevel, readOnly: () => false,
+    markChanged() {}, setSelection() {}, message() {}, plural: count => `${count} events`,
+  });
+  vm.runInContext(source.slice(source.indexOf('function readEvent('), source.indexOf('function setSelection(')), context);
+  vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf('function applyEventChanges(')), context);
+  for (const [id, value] of Object.entries({
+    'event-kind': 'food', 'event-type': 'S', 'event-time': '2', 'event-lifetime': '5',
+    'event-x': '50', 'event-y': '40', 'event-location': 'fixed', 'event-formation': 'single',
+    'event-trigger': 'position', 'event-spawn-percent': '25',
+  })) $(`#${id}`).value = value;
+  context.updateEventPlacement();
+  assert.equal($('#event-time').disabled, true);
+  assert.equal($('#event-spawn-percent').required, true);
+  const placement = context.readEvent();
+  assert.equal(placement.spawnPercent, 25);
+  assert.equal(placement.time, 0);
+  context.level = validateCustomLevel({ ...context.level, events: [placement, { ...placement, spawnPercent: 75 }] });
+  context.selectedEvents = new Set([0, 1]); context.populateEventForm();
+  assert.equal($('#event-spawn-percent').placeholder, 'Mixed');
+  context.touched.add('#event-spawn-percent'); $('#event-spawn-percent').value = '50';
+  context.applyToSelected();
+  assert.deepEqual(Array.from(context.level.events, event => event.spawnPercent), [50, 50]);
+  context.touched.clear(); context.touched.add('#event-trigger'); $('#event-trigger').value = 'time';
+  $('#event-time').value = '4'; context.updateEventTrigger(); context.applyToSelected();
+  assert.equal($('#event-spawn-percent').disabled, true);
+  assert.ok(context.level.events.every(event => event.time === 4 && !Object.hasOwn(event, 'spawnPercent')));
+  context.level.events[0].spawnPercent = 25;
+  context.populateEventForm();
+  assert.equal($('#event-trigger').value, '', 'different triggers display Mixed');
+  $('#event-trigger').value = 'position'; context.touched.add('#event-trigger'); context.applyToSelected();
+  assert.deepEqual(Array.from(context.level.events, event => event.spawnPercent), [25, 0],
+    'switching mixed events preserves an existing percentage and defaults only timed events');
+});
+
 test('new editor levels default to a heart cost of 15 without changing imported levels', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const context = vm.createContext({});

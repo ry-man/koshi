@@ -9,6 +9,127 @@ const blank = () => ({ version: 1, id: 'Scrolling test', duration: 60, goal: 0, 
 const scrolling = () => ({ ...blank(), autoscroll: { length: 24, speed: .25, events: [{ time: 10, speed: 0 }, { time: 15, speed: .5 }] } });
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
 
+test('screen-crossing events round-trip and reject invalid percentages or incompatible placements', () => {
+  const placement = { kind: 'food', type: 'S', x: .5, y: .5, lifetime: 5, spawnPercent: 50 };
+  const level = { ...scrolling(), events: [placement] };
+  const normalized = validateCustomLevel(level);
+  assert.deepEqual(normalized.events[0], { ...placement, time: 0 });
+  assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(normalized))), normalized);
+  assert.equal(Object.hasOwn(placement, 'time'), false, 'validation does not mutate authored events');
+  for (const spawnPercent of [-1, 101, NaN, Infinity, '50', null]) {
+    assert.throws(() => validateCustomLevel({ ...level, events: [{ ...placement, spawnPercent }] }), /percentage/);
+  }
+  assert.throws(() => validateCustomLevel({ ...blank(), events: [placement] }), /autoscrolling/);
+  assert.throws(() => validateCustomLevel({ ...level, events: [{ ...placement, random: true }] }), /fixed center/);
+  for (const spawnPercent of [0, 100]) {
+    assert.equal(validateCustomLevel({ ...level, events: [{ ...placement, spawnPercent }] }).events[0].spawnPercent, spawnPercent);
+  }
+});
+
+test('screen crossing measures exact center progress in desktop, phone and legacy portrait coordinates', () => {
+  for (const options of [{}, { portrait: true, scale: .5 },
+    { portrait: true, customCoordinateOrientation: 'viewport', scale: .5 }]) {
+    const placement = { kind: 'food', type: 'S', time: 0, x: .5, y: .5, lifetime: 5 };
+    const game = new Game(() => .5, { ...options, customLevel: scrolling() });
+    for (const spawnPercent of [0, 25, 50, 100]) {
+      const event = { ...placement, spawnPercent };
+      const time = game.eventAppearanceTime(event);
+      const point = game.campaignEventPoint(event.x, event.y), camera = game.camera(time);
+      const crossed = game.landscapePortrait ? (point.y - camera.y) / camera.height
+        : game.portrait ? 1 - (point.y - camera.y) / camera.height : 1 - (point.x - camera.x) / camera.width;
+      close(crossed * 100, spawnPercent);
+      assert.equal(game.eventAppearanceTime(placement), 0);
+    }
+  }
+});
+
+test('screen-crossing times include camera stops, restart deterministically, and preserve authored data', () => {
+  const game = new Game(() => .5, { customLevel: scrolling() });
+  const pitch = boardDimensions().pitch, b = game.bounds();
+  const x = (WIDTH + 3 * pitch - b.left) / (b.right - b.left);
+  const placement = { kind: 'food', type: 'S', x, y: .5, spawnPercent: 0, lifetime: 5 };
+  const level = { ...scrolling(), events: [placement,
+    { kind: 'food', type: 'S', x: .95, y: .2, time: 1, lifetime: 10 }] };
+  const original = JSON.stringify(level);
+  const runtime = new Game(() => .5, { customLevel: level });
+  close(runtime.eventAppearanceTime(placement), 16);
+  assert.deepEqual(runtime.customEvents.map(event => event.time), [1, 16]);
+  runtime.start();
+  runtime.elapsed = 15;
+  runtime.prepareSpawns();
+  runtime.spawnCustomEvents();
+  assert.equal(runtime.food.length, 1, 'legacy timed events still appear offscreen at their original time');
+  assert.ok(runtime.spawnCues.some(cue => cue.kind === 'food'));
+  runtime.elapsed = 16;
+  runtime.spawnCustomEvents();
+  const food = runtime.food.find(item => item.born === 16);
+  assert.ok(food);
+  close(food.expires, 21);
+  runtime.spawnCustomEvents();
+  assert.equal(runtime.food.length, 2, 'crossing spawns once');
+  runtime.reset();
+  close(runtime.customEvents[1].time, 16);
+  assert.equal(runtime.nextCustom, 0);
+  assert.equal(JSON.stringify(level), original);
+});
+
+test('already-crossed centers spawn at Start and unreachable centers do not block timed events', () => {
+  const level = { ...scrolling(), autoscroll: { length: 24, speed: 0, events: [] }, events: [
+    { kind: 'object', type: 'bumper-red', x: .1, y: .2, spawnPercent: 0 },
+    { kind: 'object', type: 'bumper-red', x: .8, y: .2, spawnPercent: 50 },
+    { kind: 'object', type: 'bumper-red', x: .2, y: .8, time: 2 },
+  ] };
+  const game = new Game(() => .5, { customLevel: level });
+  assert.equal(game.eventAppearanceTime(level.events[0]), 0);
+  assert.equal(game.eventAppearanceTime(level.events[1]), Infinity);
+  game.start();
+  assert.equal(game.bumpers.length, 1);
+  game.elapsed = 2; game.prepareSpawns(); game.spawnCustomEvents();
+  assert.equal(game.bumpers.length, 2);
+  game.elapsed = 1000; game.prepareSpawns(); game.spawnCustomEvents();
+  assert.equal(game.bumpers.length, 2);
+  const end = new Game(() => .5, { customLevel: { ...level, autoscroll: { length: 24, speed: 10, events: [] } } });
+  assert.equal(end.eventAppearanceTime({ ...level.events[1], x: 1, spawnPercent: 100 }), Infinity);
+});
+
+test('formations spawn together using their shared center and obstruction warnings use resolved times', () => {
+  const event = { kind: 'object', type: 'obstruction-rectangle', x: .5, y: .5,
+    spawnPercent: 50, group: { shape: 'line', count: 3, size: .2 } };
+  const game = new Game(() => .5, { customLevel: { ...scrolling(), events: [event] } });
+  const time = game.eventAppearanceTime(event);
+  game.start(); game.elapsed = time - 1;
+  game.prepareSpawns();
+  assert.equal(game.spawnCues.length, 3);
+  game.spawnCues.forEach(cue => close(cue.progress, .5));
+  game.elapsed = time - .001; game.spawnCustomEvents();
+  assert.equal(game.obstructions.length, 0);
+  game.elapsed = time; game.spawnCustomEvents();
+  assert.equal(game.obstructions.length, 3);
+  const center = game.obstructions.reduce((sum, item) => sum + item.x, 0) / 3;
+  close(center, game.camera().x + WIDTH / 2);
+});
+
+test('Cat Tracks begin moving at the resolved appearance time in both orientations', () => {
+  const placement = { kind: 'object', type: 'bumper-red', x: .5, y: .4, spawnPercent: 50, track: 'rail' };
+  const level = { ...scrolling(), events: [placement],
+    tracks: [{ id: 'rail', nodes: [{ x: .3, y: .4 }, { x: .7, y: .4 }], speed: 20, closed: false }] };
+  for (const portrait of [false, true]) {
+    const game = new Game(() => .5, { portrait, customLevel: level });
+    const time = game.eventAppearanceTime(placement);
+    game.start(); game.elapsed = time; game.prepareSpawns(); game.spawnCustomEvents();
+    assert.equal(game.bumpers.length, 1);
+    const bumper = game.bumpers[0], initialDistance = bumper.trackDistance;
+    close(bumper.trackBorn, time);
+    game.elapsed += .5; game.updateCatTracks(.5);
+    close(bumper.trackDistance, initialDistance + 10);
+    const paused = new Game(() => .5, { portrait, customLevel: {
+      ...level, autoscroll: { length: 24, speed: 0, events: [] },
+    } });
+    const point = paused.trackEventPoint(paused.customEvents[0], 30);
+    assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y), 'unreachable track previews stay at their initial center');
+  }
+});
+
 test('autoscroll round-trips, sorts independent speed events, and rejects invalid schedules', () => {
   const source = scrolling();
   source.autoscroll.events.reverse();
@@ -186,7 +307,7 @@ test('editor camera timeline adds, edits, sorts and removes changes, restoring i
   const level = scrolling(), previewGame = new Game(() => .5, { customLevel: level });
   const context = vm.createContext({
     $, level, previewGame, readOnly: () => locked, document: { createElement: node },
-    validateDraft: validateCustomLevel, markChanged() {}, renderBoard() {}, message: text => messages.push(text),
+    validateDraft: validateCustomLevel, markChanged() {}, render() {}, message: text => messages.push(text),
     attempt(action, onError) { try { action(); } catch (error) { messages.push(error.message); if (onError) onError(); } },
   });
   vm.runInContext(source.slice(source.indexOf('function updateAutoscrollSettings('), source.indexOf('function updateWinCondition(')), context);

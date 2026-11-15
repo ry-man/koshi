@@ -729,6 +729,10 @@ function readEvent() {
   }
   if (event.random && !event.group
     && Number($('#event-random-count').value) > 1) event.randomCount = Number($('#event-random-count').value);
+  if (level.autoscroll && $('#event-trigger').value === 'position') {
+    event.time = 0;
+    event.spawnPercent = Number($('#event-spawn-percent').value);
+  }
   if (!event.random && !event.group && event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type)) Object.assign(event, snapWheel(event.x, event.y));
   return event;
 }
@@ -752,6 +756,21 @@ function updateEventPlacement() {
     $(id).disabled = random;
     $(id).required = !random && selectedEvents.size <= 1;
   }
+  updateEventTrigger();
+}
+
+function updateEventTrigger() {
+  const position = $('#event-trigger').value === 'position';
+  const option = $('#event-trigger').querySelector('option[value="position"]');
+  if (option) option.disabled = $('#event-location').value === 'random';
+  $('#event-trigger-label').hidden = !level.autoscroll;
+  $('#event-trigger').disabled = !level.autoscroll;
+  $('#event-spawn-percent-label').hidden = !position;
+  $('#event-spawn-percent').disabled = !position;
+  $('#event-spawn-percent').required = position && selectedEvents.size <= 1;
+  $('#event-time-label').hidden = position;
+  $('#event-time').disabled = position;
+  $('#event-time').required = !position && selectedEvents.size <= 1;
 }
 
 // Multi-event edits show shared values and mark differing fields as "Mixed".
@@ -759,6 +778,13 @@ function populateEventForm() {
   const indices = selectedList(), items = indices.map(index => level.events[index]);
   const multi = items.length > 1;
   const numbers = { '#event-time': 0, '#event-lifetime': 8, '#event-x': 50, '#event-y': 50 };
+  $('#event-trigger').querySelector('option[value=""]')?.remove();
+  const trigger = items.length ? common(items.map(event => event.spawnPercent === undefined ? 'time' : 'position'))
+    : level.autoscroll ? $('#event-trigger').value || 'time' : 'time';
+  if (trigger === MIXED) mixedOption($('#event-trigger')); else $('#event-trigger').value = trigger;
+  const percent = items.length ? common(items.map(event => event.spawnPercent ?? 0)) : Number($('#event-spawn-percent').value);
+  $('#event-spawn-percent').value = percent === MIXED ? '' : percent;
+  $('#event-spawn-percent').placeholder = percent === MIXED ? 'Mixed' : '';
   touched.clear();
   $('#event-shield').querySelector('option[value=""]')?.remove();
   const shields = items.filter(event => event.kind === 'enemy').map(event => event.shield ?? 'none');
@@ -895,7 +921,7 @@ function relativeTimelineLayout(events, duration) {
   const rowEnds = [];
   let width = duration * scale;
   for (const entry of entries) {
-    entry.left = entry.event.time * scale;
+    entry.left = Math.min(entry.event.time, duration) * scale;
     entry.width = entry.lifetime === null ? entry.minimumWidth : entry.lifetime * scale;
     let row = rowEnds.findIndex(end => end + 12 <= entry.left);
     if (row === -1) { row = rowEnds.length; rowEnds.push(0); }
@@ -929,8 +955,10 @@ function relativeTimelineButton(entry, onChoose) {
   button.setAttribute('aria-pressed', String(selectedEvents.has(index)));
   const name = event.kind === 'heart' ? 'Heart' : description(event);
   const lifetime = entry.lifetime === null ? 'no scheduled removal' : `${durationLabel} seconds`;
-  button.setAttribute('aria-label', `Event ${index + 1}: ${event.kind}, ${name}, at ${event.time} seconds, ${lifetime}`);
-  button.title = `${name} · ${event.time}s · ${lifetime}`;
+  const appearance = event.spawnPercent === undefined ? `${event.time}s`
+    : `${event.spawnPercent}% crossed · ${Number.isFinite(event.time) ? `${Number(event.time.toFixed(3))}s` : 'not reached'}`;
+  button.setAttribute('aria-label', `Event ${index + 1}: ${event.kind}, ${name}, at ${event.spawnPercent === undefined ? `${event.time} seconds` : appearance}, ${lifetime}`);
+  button.title = `${name} · ${appearance} · ${lifetime}`;
   button.style.setProperty('--relative-icon-left', `${idWidth + 4}px`);
   const id = document.createElement('span');
   id.className = 'event-id'; id.textContent = String(index + 1);
@@ -943,7 +971,7 @@ function relativeTimelineButton(entry, onChoose) {
   badge.className = 'relative-event-duration'; badge.textContent = `${durationLabel}s`;
   badge.setAttribute('aria-hidden', 'true');
   button.append(id, artwork, badge);
-  if (!readOnly()) {
+  if (!readOnly() && event.spawnPercent === undefined) {
     for (const edge of entry.lifetime === null ? ['start'] : ['start', 'end']) {
       const handle = document.createElement('span');
       handle.className = 'relative-event-handle'; handle.dataset.edge = edge;
@@ -979,7 +1007,9 @@ function eventTimelineButton(event, index, onChoose, spawnKey = null) {
   const id = document.createElement('span');
   id.className = 'event-id'; id.textContent = spawnKey ? 'B' : String(index + 1);
   id.setAttribute('aria-label', spawnKey ? `Spawning brick ${spawnKey}` : `Event ID ${index + 1}`);
-  const time = document.createElement('span'); time.className = 'event-time'; time.textContent = spawnKey ? 'Spawn only' : `${event.time}s`;
+  const time = document.createElement('span'); time.className = 'event-time'; time.textContent = spawnKey ? 'Spawn only'
+    : event.spawnPercent === undefined ? `${event.time}s`
+      : `${event.spawnPercent}% crossed${previewGame.eventAppearanceTime(event) >= level.duration ? ' · not reached before level ends' : ''}`;
   const location = document.createElement('span'); location.className = 'event-location';
   location.textContent = `${event.random || event.previewRandom ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''}${spawnKey ? ` · spawning brick ${spawnKey}` : ''}`;
   const category = document.createElement('span'); category.className = 'event-category';
@@ -1019,7 +1049,9 @@ function renderList() {
     const li = document.createElement('li'); li.className = 'empty-state';
     li.textContent = 'No events yet. Place your first object on the board.'; list.append(li);
   }
-  const layout = relative ? relativeTimelineLayout(level.events, level.duration) : null;
+  const events = level.events.map(event => event.spawnPercent === undefined ? event
+    : { ...event, time: previewGame.eventAppearanceTime(event) });
+  const layout = relative ? relativeTimelineLayout(events, level.duration) : null;
   if (relative) {
     renderRelativeAxis(axis, layout);
     viewport.dataset.scale = layout.scale;
@@ -1032,7 +1064,7 @@ function renderList() {
     renderWeaponBalanceChart(layout, previewGame);
     renderFoodPointsChart(layout, previewGame);
   }
-  const entries = relative ? layout.entries : level.events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time);
+  const entries = relative ? layout.entries : events.map((event, index) => ({ event, index })).sort((a, b) => a.event.time - b.event.time);
   entries.forEach(entry => {
     const { event, index } = entry;
     const li = document.createElement('li');
@@ -1114,6 +1146,7 @@ function startTimelineGesture(event, entry, scale) {
   const index = entry.index;
   const selected = selectedEvents.has(index) ? [...selectedEvents]
     : isAdditive(event) ? [...selectedEvents, index] : [index];
+  if (selected.some(i => level.events[i].spawnPercent !== undefined)) return;
   const edge = event.target.closest('.relative-event-handle')?.dataset.edge;
   const mode = edge ?? 'move';
   const origins = new Map(selected.map(i => [i, { ...level.events[i] }]));
@@ -1539,7 +1572,8 @@ function renderBoard() {
   renderCatTracks();
   const templates = spawnTemplates();
   renderSpawnLinks(templates);
-  [...level.events.map((event, index) => ({ event, index })), ...templates]
+  [...level.events.map((event, index) => ({ event: event.spawnPercent === undefined ? event
+    : { ...event, time: previewGame.eventAppearanceTime(event) }, index })), ...templates]
     .filter(({ event }) => $('#show-random').checked || !(event.random || event.previewRandom))
     .flatMap(entry => previewGame.customEventPoints(entry.event.previewRandom
       ? { ...entry.event, random: true } : entry.event, { preview: true }).map(point => ({ ...entry, point })))
@@ -1564,9 +1598,10 @@ function renderBoard() {
         3 * previewGame.height / board.clientHeight);
       marker.classList.toggle('alignment-highlight', axes.vertical || axes.horizontal);
     }
-    marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${event.time}s`);
+    const appearance = event.spawnPercent === undefined ? `${event.time}s` : `${event.spawnPercent}% crossed`;
+    marker.setAttribute('aria-label', spawnKey ? `Spawn template: ${event.kind === 'heart' ? 'Heart' : description(event)}` : `Event ${index + 1}: ${description(event)} at ${appearance}`);
     marker.setAttribute('aria-pressed', String(selected));
-    const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${event.time}s${event.random || event.previewRandom ? ' · random' : ''}`;
+    const label = document.createElement('small'); label.textContent = spawnKey ? 'Spawn only' : `${appearance}${event.random || event.previewRandom ? ' · random' : ''}`;
     if (event.kind === 'object' && OBJECTS[event.type].bumper) {
       const bumper = previewGame.createBumper(point, event.type);
       const frameSize = bumper.radius * 2 + 4;
@@ -1718,7 +1753,8 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
         || (marker.dataset.previewEnd !== undefined && Number(marker.dataset.previewEnd) <= time));
     const event = level.events[Number(marker.dataset.index)];
     if (event.track) {
-      const point = previewGame.trackEventPoint(event, time);
+      const point = previewGame.trackEventPoint(event.spawnPercent === undefined ? event
+        : { ...event, time: previewGame.eventAppearanceTime(event) }, time);
       marker.style.left = `${point.x / previewGame.width * 100}%`;
       marker.style.top = `${point.y / previewGame.height * 100}%`;
     }
@@ -1832,7 +1868,10 @@ function weaponBalanceSeries(events, bricks, game, duration) {
     const change = totals.weaponHits - totals.enemy;
     changes.set(time, (changes.get(time) ?? 0) + change);
   };
-  for (const event of events) addChange(event.time, event);
+  for (const event of events) {
+    const time = event.spawnPercent === undefined ? event.time : game.eventAppearanceTime(event);
+    if (Number.isFinite(time) && time < duration) addChange(time, event);
+  }
   for (const brick of bricks.filter(brick => brick.absorbedBy === null && brick.spawner)) {
     const time = firstSpawnerAppearanceTime(brick, bricks, game, duration);
     if (time !== null) addChange(time, brick.spawner);
@@ -1853,7 +1892,10 @@ function foodPointsSeries(events, bricks, game, duration) {
     if (source.kind !== 'food') return;
     changes.set(time, (changes.get(time) ?? 0) + pointReference([source], []).food);
   };
-  for (const event of events) addChange(event.time, event);
+  for (const event of events) {
+    const time = event.spawnPercent === undefined ? event.time : game.eventAppearanceTime(event);
+    if (Number.isFinite(time) && time < duration) addChange(time, event);
+  }
   for (const brick of bricks.filter(brick => brick.absorbedBy === null && brick.spawner?.kind === 'food')) {
     const time = firstSpawnerAppearanceTime(brick, bricks, game, duration);
     if (time !== null) addChange(time, brick.spawner);
@@ -2012,6 +2054,7 @@ function renderTimelineChart(svg, layout, points, options) {
 }
 
 function render() {
+  updateEventTrigger();
   renderBoard(); renderList();
 }
 
@@ -2370,7 +2413,7 @@ function connectSpawn(index) {
   if (!event || connectingSpawn === null) throw new Error('Choose a placed object to connect.');
   if (event.track) throw new Error('Detach the object from its Cat Track before connecting it to a spawning brick.');
   if (event.random || event.group) throw new Error('Connect requires a single object at a fixed location.');
-  const key = connectingSpawn, { time, ...spawn } = event;
+  const key = connectingSpawn, { time, spawnPercent, ...spawn } = event;
   saveSpawnTemplate(key, spawn, index);
   connectingSpawn = null;
   setSelection([], [key]);
@@ -3018,10 +3061,10 @@ $('#event-shield').addEventListener('change', () => touched.add('#event-shield')
 $('#event-crab-direction').addEventListener('change', () => touched.add('#event-crab-direction'));
 $('#event-carries-item').addEventListener('change', () => touched.add('#event-carries-item'));
 $('#event-contains-item').addEventListener('change', () => touched.add('#event-contains-item'));
-for (const selector of ['#event-time', '#event-lifetime', '#event-x', '#event-y', '#event-keys-required']) {
+for (const selector of ['#event-time', '#event-spawn-percent', '#event-lifetime', '#event-x', '#event-y', '#event-keys-required']) {
   $(selector).addEventListener('input', () => touched.add(selector));
 }
-for (const selector of ['#event-location', '#event-formation']) {
+for (const selector of ['#event-location', '#event-formation', '#event-trigger']) {
   $(selector).addEventListener('change', () => { touched.add(selector); updateEventPlacement(); });
 }
 for (const selector of ['#event-count-input', '#event-group-size', '#event-group-angle', '#event-random-count']) {
@@ -3034,6 +3077,9 @@ function applyToSelected() {
   const kind = touched.has('#event-kind') && value('#event-kind') !== MIXED ? value('#event-kind') : null;
   const type = touched.has('#event-type') && value('#event-type') !== MIXED ? value('#event-type') : null;
   const time = number('#event-time'), x = number('#event-x'), y = number('#event-y'), lifetime = number('#event-lifetime');
+  const percent = number('#event-spawn-percent');
+  const triggerChanged = touched.has('#event-trigger') && value('#event-trigger') !== MIXED;
+  const appearanceChanged = triggerChanged || percent !== null;
   const lifetimeChanged = touched.has('#event-lifetime') && !$('#event-lifetime').disabled;
   const shieldChanged = touched.has('#event-shield') && value('#event-shield') !== MIXED;
   const directionChanged = touched.has('#event-crab-direction') && value('#event-crab-direction') !== MIXED;
@@ -3046,13 +3092,18 @@ function applyToSelected() {
   const destructibleChanged = touched.has('#event-destructible');
   const spikedChanged = touched.has('#event-spiked');
   const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle', '#event-random-count'].some(selector => touched.has(selector));
-  if (!kind && !type && !shieldChanged && !directionChanged && !carrierChanged && !contentChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !rotationChanged && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !appearanceChanged && !shieldChanged && !directionChanged && !carrierChanged && !contentChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !rotationChanged && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
     if (kind) next.kind = kind;
     if (type) next.type = type;
     if (time !== null) next.time = time;
+    if (triggerChanged) {
+      if (value('#event-trigger') === 'position') next.spawnPercent = percent
+        ?? (value('#event-spawn-percent') !== '' ? Number(value('#event-spawn-percent')) : next.spawnPercent ?? 0);
+      else { delete next.spawnPercent; next.time = Number(value('#event-time')); }
+    } else if (percent !== null && next.spawnPercent !== undefined) next.spawnPercent = percent;
     if (x !== null) next.x = x / 100;
     if (y !== null) next.y = y / 100;
     if (touched.has('#event-location') && value('#event-location') !== MIXED) {
@@ -3289,7 +3340,7 @@ function renderCameraTimeline() {
         if (readOnly()) return;
         const events = level.autoscroll.events.map((entry, i) => i === index ? { ...entry, [field]: input.value === '' ? NaN : Number(input.value) } : entry);
         level = validateDraft({ ...level, autoscroll: { ...level.autoscroll, events } });
-        markChanged(); renderCameraTimeline(); renderBoard();
+        markChanged(); renderCameraTimeline(); render();
         message('Camera speed change updated.');
       }, () => { input.value = event[field]; }));
       label.append(input); row.append(label);
@@ -3300,7 +3351,7 @@ function renderCameraTimeline() {
       if (readOnly()) return;
       level = validateDraft({ ...level, autoscroll: { ...level.autoscroll,
         events: level.autoscroll.events.filter((_, i) => i !== index) } });
-      markChanged(); renderCameraTimeline(); renderBoard(); message('Camera speed change removed.');
+      markChanged(); renderCameraTimeline(); render(); message('Camera speed change removed.');
     }));
     row.append(remove);
     return row;
@@ -3311,7 +3362,7 @@ $('#add-camera-event').addEventListener('click', () => attempt(() => {
   const time = Number($('#timeline').value);
   const events = [...level.autoscroll.events, { time, speed: previewGame.camera(time).speed }];
   level = validateDraft({ ...level, autoscroll: { ...level.autoscroll, events } });
-  markChanged(); renderCameraTimeline(); renderBoard(); message('Camera speed change added. Edit its speed below.');
+  markChanged(); renderCameraTimeline(); render(); message('Camera speed change added. Edit its speed below.');
 }));
 function updateWinCondition() {
   const boss = $('#boss-level-enabled').checked;

@@ -49,6 +49,32 @@ function fixture(events, duration = 20) {
   return { context, nodes, selections };
 }
 
+test('percentage events use resolved timeline and chart times without rewriting schedules', () => {
+  const events = [
+    { kind: 'food', type: 'S', time: 0, x: .5, y: .4, lifetime: 5, spawnPercent: 50 },
+    { kind: 'enemy', type: 'mouse', time: 2, x: .1, y: .2 },
+    { kind: 'weapon', type: 'wood', time: 0, x: 1, y: .4, spawnPercent: 100 },
+  ];
+  const level = { version: 1, id: 'Timeline crossing', duration: 60, goal: 0, survive: true,
+    heartCost: null, brickSet: 1, autoscroll: { length: 24, speed: 1, events: [] }, events };
+  const f = fixture(events, level.duration);
+  f.context.previewGame = new Game(() => .5, { customLevel: level });
+  const before = JSON.stringify(events);
+  f.context.renderList();
+  const entries = f.nodes['#event-list'].children;
+  assert.deepEqual(entries.map(li => li.dataset.eventIndex), [1, 0, 2]);
+  assert.equal(entries[1].dataset.eventTime, f.context.previewGame.eventAppearanceTime(events[0]));
+  assert.match(entries[1].children[0].title, /50% crossed/);
+  assert.match(entries[2].children[0].title, /not reached/);
+  assert.equal(entries[2].style.left, `${60 * Number(f.nodes['#event-timeline-viewport'].dataset.scale)}px`);
+  assert.ok(entries[1].children[0].children.every(child => child.className !== 'relative-event-handle'));
+  const food = f.context.foodPointsSeries(events, [], f.context.previewGame, 60);
+  assert.equal(food[1].time, f.context.previewGame.eventAppearanceTime(events[0]));
+  const balance = f.context.weaponBalanceSeries(events, [], f.context.previewGame, 60);
+  assert.deepEqual(Array.from(balance, point => [point.time, point.value]), [[0, 0], [2, -1]]);
+  assert.equal(JSON.stringify(events), before);
+});
+
 test('relative timeline uses exact timed endpoints, compact untimed boxes and optimal rows', () => {
   const events = [
     { kind: 'food', type: 'S', time: 0, lifetime: .1 },
