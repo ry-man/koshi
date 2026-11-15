@@ -93,7 +93,7 @@ function drawCutsceneAccessories(character, accessories, time) {
   const eyes = {
     koshi: [0, -3], tom: [-1, -25], boss: [-8, -8], 'tom-frog': [0, -24], bucket: [0, 0],
     ball: [0, -6], jackolantern: [0, -5], goalie: [0, -11],
-    'robo-koshi': [0, -3], 'robo-snail': [0, -19], 'robo-cow': [11, -17],
+    'robo-koshi': [0, -3], 'robo-snail': [0, -19], 'robo-fly': [10, -5], 'robo-cow': [11, -17],
     'robo-unicorn': [6, -12], 'robo-love-bug': [0, -15], 'robo-crab': [0, -19],
     'robo-trash-bin': [0, -5],
   }[character] ?? [0, -3];
@@ -101,7 +101,7 @@ function drawCutsceneAccessories(character, accessories, time) {
     koshi: [0, -23], tom: [0, -46], boss: [-3, -38], 'tom-frog': [0, -44], mouse: [0, -19], wheel: [0, -19],
     ram: [0, -20], bucket: [0, -10], ball: [0, -19], jackolantern: [0, -18],
     snake: [0, -19], goalie: [0, -27], 'robo-koshi': [0, -22],
-    'robo-snail': [0, -27], 'robo-cow': [11, -25], 'robo-unicorn': [0, -27],
+    'robo-snail': [0, -27], 'robo-fly': [0, -20], 'robo-cow': [11, -25], 'robo-unicorn': [0, -27],
     'robo-crab': [0, -7], 'robo-love-bug': [0, -31], 'robo-trash-bin': [0, -16],
   }[character] ?? [0, -20];
   for (const accessory of accessories ?? []) {
@@ -4206,6 +4206,42 @@ function drawRoboLoveBug(enemy, deathProgress = null, damageColor = null) {
   ctx.restore(); ctx.restore();
 }
 
+function drawRoboFly(enemy, deathProgress = null, damageColor = null) {
+  const age = enemy.age ?? 0;
+  const flutter = deathProgress === null ? Math.sin(age * 48) * .28 : 0;
+  ctx.save();
+  ctx.rotate(enemy.phase ?? 0);
+  ctx.strokeStyle = '#303d42'; ctx.lineWidth = 2;
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(-2, -7);
+    ctx.rotate(side * (.25 + flutter));
+    ctx.fillStyle = '#c9e2e899';
+    ctx.beginPath(); ctx.ellipse(side * 9, -10, 13, 5, side * -.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#edf7f6'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(side * 2, -10); ctx.lineTo(side * 16, -10); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.strokeStyle = '#4d5b60'; ctx.lineWidth = 2.5;
+  for (const side of [-1, 1]) for (const y of [-1, 5, 11]) {
+    ctx.beginPath(); ctx.moveTo(side * 1, y); ctx.lineTo(side * 10, y + 6); ctx.lineTo(side * 13, y + 3); ctx.stroke();
+  }
+  ctx.fillStyle = damageColor ?? '#65757a'; ctx.strokeStyle = '#303d42'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(-5, 3, 10, 7, -.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#89999d'; ctx.fillRect(-12, 0, 3, 5);
+  ctx.fillStyle = '#56666b';
+  for (const x of [-10, -5, 0]) ctx.fillRect(x, 0, 2, 6);
+  ctx.fillStyle = damageColor ?? '#84969a';
+  ctx.beginPath(); ctx.ellipse(9, -1, 7, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#e83f48';
+  for (const y of [-5, 3]) {
+    ctx.beginPath(); ctx.ellipse(12, y, 3, 3.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  ctx.strokeStyle = '#c2d0d2'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(8, -6); ctx.lineTo(5, -12); ctx.lineTo(2, -14);
+  ctx.moveTo(13, -6); ctx.lineTo(14, -12); ctx.lineTo(17, -14); ctx.stroke();
+  ctx.restore();
+}
+
 function drawRoboCrab(enemy, deathProgress = null, damageColor = null) {
   const dying = deathProgress !== null, progress = deathProgress ?? 0;
   const age = enemy.age ?? 0;
@@ -4826,6 +4862,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   }
   if (enemy.type === 'robo-snail') {
     drawRoboSnail(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
+  if (enemy.type === 'robo-fly') {
+    drawRoboFly(enemy, deathProgress, damageColor);
     ctx.restore(); return;
   }
   if (enemy.type === 'robo-trash-bin') {

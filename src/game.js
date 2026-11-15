@@ -274,7 +274,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-fly': 'Robo Fly', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
 CHARACTERS['tom-frog'] = 'Tom the Frog';
 const isBossType = type => type === 'boss' || type === 'tom-frog';
 const frogAirborne = enemy => enemy.type === 'tom-frog' && ['jump-up', 'jump-track', 'jump-fall'].includes(enemy.state);
@@ -1971,7 +1971,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
@@ -2153,7 +2153,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -4848,7 +4848,7 @@ class Game {
     const carriedItems = carriedItemTypes(event).filter(type => !this.catBlockCollected || type !== 'cat-block');
     const carriedItem = event.carriesItem && carriedItems.includes(event.carriesItem)
       ? event.carriesItem : carriedItems.length === 1 ? carriedItems[0] : null;
-    const enemy = { ...point, type: event.type, radius: event.type === 'robo-cow' ? 26 : 19,
+    const enemy = { ...point, type: event.type, radius: event.type === 'robo-cow' ? 26 : event.type === 'robo-fly' ? 15 : 19,
       ...(carriedItem ? { carriesItem: carriedItem } : {}),
       carriesCatBlock: carriedItems.includes('cat-block'),
       ...(carriedItems.includes('key') ? { carriesKey: true } : {}),
@@ -7527,11 +7527,12 @@ class Game {
         if (enemy.type === 'robo-love-bug') enemy.loveBugStride = (enemy.loveBugStride ?? 0) + dt * 14;
       } else if (enemy.type === 'jackolantern') {
         this.updateJackolantern(enemy, dt, parts, startX, startY);
-      } else if (enemy.type === 'robo-snail') {
+      } else if (['robo-snail', 'robo-fly'].includes(enemy.type)) {
         enemy.resting = false;
         enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * dt;
-        enemy.x += Math.cos(enemy.phase) * 85 * dt;
-        enemy.y += Math.sin(enemy.phase) * 85 * dt;
+        const speed = enemy.type === 'robo-fly' ? 105 : 85;
+        enemy.x += Math.cos(enemy.phase) * speed * dt;
+        enemy.y += Math.sin(enemy.phase) * speed * dt;
         if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
         if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
         enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));

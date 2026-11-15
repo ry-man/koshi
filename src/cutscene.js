@@ -866,7 +866,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(position.scale * height / width * 960 / 540, position.scale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, 'robo-trash-bin': 23, boss: 40, 'tom-frog': 46 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-fly': 20, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, 'robo-trash-bin': 23, boss: 40, 'tom-frog': 46 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, walking ? -Math.abs(Math.sin(animationTime * 14)) * 4
