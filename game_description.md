@@ -133,8 +133,10 @@ Toast damages Koshi.
 While dizzy, Tom gently rocks and scrolls red pixel **ERROR!** letters across
 his black eye displays. Only Boost charges can hurt him then. Each hit flashes
 his body red and opens his mouth in a yell. Six hits empty his red,
-gold-bordered health bar beneath the counters, labeled
-**Tom the Toaster's Health:** in the menu font. His 2.4-second death animation
+gold-bordered life bar in the existing gap beneath the counters, labeled
+**Tom the Toaster:** in the menu font, without moving or resizing the board.
+Frog boss battles use the same compact bar labeled **Tom the Frog:**.
+His 2.4-second death animation
 plays with gameplay frozen, followed by Koshi's victory animation.
 
 Playable levels choose survival OR a combination of food, enemy and/or soccer-goal targets.

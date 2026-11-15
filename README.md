@@ -1400,8 +1400,10 @@ toast shots. The first is blue, targets any non-Cinder brick (including Boost),
 and turns the struck brick blue with the slow cooldown while preserving its
 attributes. The second is black and turns a non-Boost brick into Cinder.
 Only a Boost launch during his rocking, red **ERROR!** eye display damages
-him. Six hits defeat him. The red, gold-bordered health bar below the counters
-tracks his health; his death animation finishes before Koshi celebrates.
+him. Six hits defeat him. The compact red, gold-bordered life bar fits the
+existing gap below the counters without resizing or moving the board, and is
+labeled with the boss's name (for example, **Tom the Toaster:** or
+**Tom the Frog:**). His death animation finishes before Koshi celebrates.
 
 **Tom the Frog** (`tom-frog`) is available for custom boss levels, without changing
 the built-in campaign. His grey-green body follows the frog drawing, with yellow
@@ -1419,11 +1421,14 @@ retracting. A tongue hit damages Koshi with blue saliva.
 
 Up to three slow, wandering flies spawn every 5–15 seconds through the usual
 enemy skull cloud, at random positions at least one body width away from Tom.
-One in eight flies carries a heart; destroying that fly with a weapon or Boost
+Flies steer away from bricks when the gap between their body and a brick is less
+than two Koshi widths, leaving room for Koshi to sneak behind them.
+One in five flies carries a heart; destroying that fly with a weapon or Boost
 drops the heart for Koshi, but Tom eats the heart if he eats the fly.
 They hurt Koshi on contact and can be destroyed with a weapon or Boost, but
 guiding any part of Tom's tongue into them makes him reel them in, eat, and lick
-his lips. He needs **1, 1, 2, 2, 3, 3** flies for successive damage openings.
+his lips. Every eaten fly opens a sleep window; six flies can provide the six
+damage openings needed to defeat him.
 Each meal makes him sleep for eight seconds with scrolling pixel **ZZZZ...** eyes
 while his body flashes shades of green.
 Only a sword can damage him during sleep, once per opening; six hits defeat him.

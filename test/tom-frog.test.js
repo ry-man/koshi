@@ -254,8 +254,8 @@ test('flies arrive through the standard one-second enemy skull cloud and pending
   assert.deepEqual(game.spawnCues, []);
 });
 
-test('one in eight flies carries a heart that Koshi can free, but Tom eats it with the fly', () => {
-  for (const [roll, carries] of [[0, true], [.124, true], [.125, false], [.9, false]]) {
+test('one in five flies carries a heart that Koshi can free, but Tom eats it with the fly', () => {
+  for (const [roll, carries] of [[0, true], [.199999, true], [.2, false], [.9, false]]) {
     const game = arena(), boss = game.boss;
     game.random = () => roll;
     boss.nextFlyAt = game.elapsed;
@@ -284,6 +284,48 @@ test('one in eight flies carries a heart that Koshi can free, but Tom eats it wi
   while (boss.tongue) game.updateFrogTongue(boss, .1, game.cat.x, game.cat.y);
   assert.equal(boss.fliesEaten, 1);
   assert.equal(game.healing.length, 0, 'the heart is eaten along with the fly');
+});
+
+test('flies steer away from every boundary within two Koshi widths and keep their wandering speed', () => {
+  for (const portrait of [false, true]) for (const edge of ['left', 'right', 'top', 'bottom']) {
+    const game = arena({ portrait }), boss = game.boss, bounds = game.bounds();
+    boss.nextFlyAt = Infinity; boss.nextSwordAt = Infinity;
+    const vertical = edge === 'left' || edge === 'right', sign = ['left', 'top'].includes(edge) ? 1 : -1;
+    const point = { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 };
+    point[vertical ? 'x' : 'y'] = bounds[edge] + sign * 20;
+    const insect = { ...fly(point.x, point.y), phase: vertical ? sign > 0 ? Math.PI : 0 : sign > 0 ? -Math.PI / 2 : Math.PI / 2 };
+    game.frogFlies = [insect];
+    game.updateFrogFlies(boss, .1, game.cat.x, game.cat.y);
+    const dx = insect.x - point.x, dy = insect.y - point.y;
+    assert.ok((vertical ? dx : dy) * sign > 0, `${portrait ? 'portrait' : 'landscape'} ${edge} fly moves inward`);
+    assert.ok(Math.abs(Math.hypot(dx, dy) - 3.2) < 1e-9, 'speed remains 32 units per second');
+    for (let frame = 0; frame < 360; frame++) game.updateFrogFlies(boss, 1 / 120, game.cat.x, game.cat.y);
+    const gap = Math.min(...game.brickParts().map(part => Math.hypot(
+      insect.x - Math.max(part.x, Math.min(part.x + part.w, insect.x)),
+      insect.y - Math.max(part.y, Math.min(part.y + part.h, insect.y))))) - insect.radius;
+    assert.ok(gap >= game.cat.radius * 4, 'fly leaves at least two Koshi widths behind it');
+  }
+});
+
+test('fly avoidance starts at the exact two-width gap and handles internal, merged and corner bricks', () => {
+  const game = arena(), boss = game.boss;
+  boss.nextFlyAt = Infinity; boss.nextSwordAt = Infinity;
+  const body = { x: 250, y: 250, w: 100, h: 100 };
+  game.brickParts = () => [{ x: 250, y: 250, w: 50, h: 100, collisionBody: body }];
+  for (const [gap, avoids] of [[game.cat.radius * 4 - .001, true], [game.cat.radius * 4, false]]) {
+    const insect = { ...fly(body.x + body.w + 13 + gap, 300), phase: Math.PI };
+    game.frogFlies = [insect];
+    game.updateFrogFlies(boss, 0, game.cat.x, game.cat.y);
+    assert.equal(Math.cos(insect.phase) > 0, avoids, `gap ${gap}`);
+  }
+  const corner = { ...fly(370, 370), phase: -Math.PI * .75 };
+  game.frogFlies = [corner];
+  game.updateFrogFlies(boss, .1, game.cat.x, game.cat.y);
+  assert.ok(corner.x > 370 && corner.y > 370, 'rounded corner clearance steers diagonally away');
+  const inside = { ...fly(255, 300), phase: 0 };
+  game.frogFlies = [inside];
+  game.updateFrogFlies(boss, .1, game.cat.x, game.cat.y);
+  assert.ok(inside.x < 255, 'an overlapping fly leaves through the nearest brick face');
 });
 
 test('flies spawn at least one Tom body width away from his body', () => {
@@ -393,21 +435,18 @@ test('bronze swords keep arriving every 10–20 seconds, even while armed, until
   }
 });
 
-test('meals progress 1,1,2,2,3,3; only sleeping sword hits count; death finishes before winning', () => {
+test('six single-fly meals provide six sword openings; only sleeping hits count; death finishes before winning', () => {
   const game = arena(), boss = game.boss;
   game.boosted = true;
   game.damageRangedEnemy(boss); game.defeatEnemy(boss);
   assert.equal(boss.health, 6);
   assert.equal(game.enemyDeaths.length, 0);
-  for (const [hit, needed] of [1, 1, 2, 2, 3, 3].entries()) {
-    assert.equal(game.frogMealSize(boss), needed);
+  for (let hit = 0; hit < 6; hit++) {
     boss.state = 'rest'; boss.invulnerableUntil = 0;
     game.weapon = { type: 'bronze', uses: 3 };
     assert.equal(game.hitFrog(boss), false, 'awake sword hits cannot damage him');
-    for (let count = 0; count < needed; count++) {
-      swallow(game, 1);
-      assert.equal(boss.state, count + 1 === needed ? 'sleep' : 'rest');
-    }
+    swallow(game, 1);
+    assert.equal(boss.state, 'sleep', `one fly opens hit ${hit + 1}`);
     game.weapon = null;
     assert.equal(game.hitFrog(boss), false, 'Boost alone cannot damage him');
     for (const type of ['hammer-bronze', 'axe-gold', 'rope-dart-gold']) {
@@ -470,7 +509,7 @@ test('frog practice uses the real six-hit boss battle and only completes after v
   for (let i = 0; i < 6; i++) {
     game.boss.invulnerableUntil = 0;
     game.weapon = { type: 'bronze', uses: 3 };
-    swallow(game, game.frogMealSize(game.boss));
+    swallow(game, 1);
     assert.equal(game.hitFrog(game.boss), true);
     assert.equal(tutorial.observe(), false);
   }

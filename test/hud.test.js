@@ -83,6 +83,15 @@ test('only active food, enemy, and soccer objectives render stacked fractions', 
   assert.match(styles, /\.hud \.counter-stat \.counter-denominator \{ border-top: 1px solid currentColor;/);
 });
 
+test('stacked target scores fit the same counter height as boss scores', () => {
+  const lineHeight = Number(styles.match(/\.hud \.counter-stat \.counter-fraction \{[^}]*line-height: ([\d.]+);/)[1]);
+  const maximumFont = Number(styles.match(/\.hud \.target-stat strong \{ font-size: clamp\([^;]+, (\d+)px\);/)[1]);
+  const counterHeight = Number(styles.match(/\.hud \.counter-stat strong \{[^}]*min-height: (\d+)px;/)[1]);
+  const numeratorPadding = Number(styles.match(/\.hud \.counter-stat \.counter-numerator \{ padding-bottom: (\d+)px;/)[1]);
+  const denominator = styles.match(/\.hud \.counter-stat \.counter-denominator \{ border-top: (\d+)px[^}]*padding-top: (\d+)px;/);
+  assert.ok(maximumFont * lineHeight * 2 + numeratorPadding + Number(denominator[1]) + Number(denominator[2]) <= counterHeight);
+});
+
 test('food and enemy values sit beside their icons in a centered responsive row', () => {
   assert.match(styles, /\.hud \.counter-stat strong \{ display: flex; align-items: center; justify-content: center;/);
   assert.match(styles, /\.hud \.counter-stat \.counter-icon \{[^}]*font-size: var\(--counter-icon-size\);/);
@@ -93,4 +102,26 @@ test('all counter icons reserve non-shrinking space and values cannot paint over
   assert.match(styles, /\.hud \.counter-stat \.counter-icon \{ flex: 0 0 var\(--counter-icon-slot\);[^}]*overflow: hidden;/);
   assert.match(styles, /\.hud \.counter-stat \.counter-value \{[^}]*min-width: 0; overflow: hidden; text-overflow: ellipsis;/);
   assert.match(styles, /\.hud \.counter-stat strong \{[^}]*gap: var\(--counter-gap\);[^}]*overflow: hidden;/);
+});
+
+test('boss meters use the boss name without Health and retain accessible life values', () => {
+  const { CHARACTERS, isBossType } = require('../src/game.js');
+  const meterSync = source.slice(source.indexOf("  document.querySelector('#boss-health').hidden"),
+    source.indexOf('  const gameCanvas ='));
+  for (const type of ['boss', 'tom-frog']) {
+    const { node, context } = hud({ bossLevel: true, events: [{ type }] });
+    Object.assign(context, { CHARACTERS, isBossType });
+    vm.runInContext(meterSync, context);
+    assert.equal(node('#boss-health').hidden, false);
+    assert.equal(node('#boss-health-label').textContent, `${CHARACTERS[type]}: `);
+    assert.equal(node('#boss-health-meter').attributes['aria-valuenow'], 6);
+    context.game.boss = { name: CHARACTERS[type], health: 2, maxHealth: 6 };
+    vm.runInContext(meterSync, context);
+    assert.equal(node('#boss-health-meter').attributes['aria-valuenow'], 2);
+    assert.equal(node('#boss-health-meter').attributes['aria-valuemax'], 6);
+    assert.equal(node('#boss-health-fill').style.width, `${2 / 6 * 100}%`);
+    context.game.level.bossLevel = false;
+    vm.runInContext(meterSync, context);
+    assert.equal(node('#boss-health').hidden, true);
+  }
 });

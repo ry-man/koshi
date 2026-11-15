@@ -5419,10 +5419,6 @@ class Game {
     this.boss = enemy;
   }
 
-  frogMealSize(enemy) {
-    return 1 + Math.floor((enemy.maxHealth - enemy.health) / 2);
-  }
-
   startFrogAttack(enemy) {
     enemy.stateTime = 0; enemy.walking = false; enemy.walkTarget = null;
     // The tongue is how Tom eats flies, so he only uses it while one is on the board.
@@ -5443,7 +5439,7 @@ class Game {
         } catch {
           point = this.randomPoint(farFromTom);
         }
-        this.frogPendingFlies.push({ ...point, time: this.elapsed + 1, carriesHeart: this.random() < 1 / 8 });
+        this.frogPendingFlies.push({ ...point, time: this.elapsed + 1, carriesHeart: this.random() < 1 / 5 });
       }
       enemy.nextFlyAt = this.elapsed + 5 + this.random() * 10;
     }
@@ -5462,10 +5458,26 @@ class Game {
       }
     }
     const bounds = this.bounds();
+    const parts = this.brickParts(), clearance = this.cat.radius * 4;
     this.frogFlies = this.frogFlies.filter(fly => {
       const oldX = fly.x, oldY = fly.y;
       fly.age += dt;
       fly.phase += Math.sin(fly.age * 1.3 + fly.phase) * dt * .7;
+      let awayX = 0, awayY = 0;
+      for (const part of parts) {
+        const body = part.collisionBody ?? part;
+        const dx = fly.x - Math.max(body.x, Math.min(body.x + body.w, fly.x));
+        const dy = fly.y - Math.max(body.y, Math.min(body.y + body.h, fly.y));
+        const distance = Math.hypot(dx, dy);
+        if (distance >= clearance + fly.radius) continue;
+        const weight = 1 - Math.max(0, distance - fly.radius) / clearance;
+        const normal = distance ? { x: dx / distance, y: dy / distance }
+          : [{ gap: fly.x - body.x, x: -1, y: 0 }, { gap: body.x + body.w - fly.x, x: 1, y: 0 },
+            { gap: fly.y - body.y, x: 0, y: -1 }, { gap: body.y + body.h - fly.y, x: 0, y: 1 }]
+            .sort((a, b) => a.gap - b.gap)[0];
+        awayX += normal.x * weight; awayY += normal.y * weight;
+      }
+      if (Math.hypot(awayX, awayY) > 1e-9) fly.phase = Math.atan2(awayY, awayX);
       fly.x += Math.cos(fly.phase) * 32 * dt;
       fly.y += Math.sin(fly.phase) * 32 * dt;
       if (fly.x < bounds.left || fly.x > bounds.right) fly.phase = Math.PI - fly.phase;
@@ -5600,7 +5612,7 @@ class Game {
       this.shootFrogSlime(enemy);
       enemy.state = 'rest'; enemy.stateTime = 0;
     } else if (enemy.state === 'lick' && enemy.stateTime >= .65) {
-      enemy.state = enemy.fliesEaten >= this.frogMealSize(enemy) ? 'sleep' : 'rest';
+      enemy.state = enemy.fliesEaten > 0 ? 'sleep' : 'rest';
       enemy.stateTime = 0;
     } else if ((enemy.state === 'sleep' && enemy.stateTime >= 8 - 1e-9)
       || (enemy.state === 'hurt' && enemy.stateTime >= .9)) {

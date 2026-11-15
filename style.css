@@ -195,10 +195,10 @@ h1 em { font-style: normal; color: var(--accent); }
   border-color: var(--console-color);
   box-shadow: 0 0 0 3px var(--console-color);
 }
-.hud { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 22px var(--hud-inset); gap: var(--hud-gap); }
-.boss-health { display: flex; align-items: center; gap: 12px; padding: 0 14px 14px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px; }
+.hud { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 22px var(--hud-inset); gap: var(--hud-gap); }
+.boss-health { position: absolute; left: var(--hud-inset); right: var(--hud-inset); bottom: 0; height: 14px; display: flex; align-items: center; gap: 8px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; line-height: 1; }
 .boss-health[hidden] { display: none; }
-.boss-health-meter { flex: 1; min-width: 40px; height: 16px; border: 2px solid #e4b947; background: #281b20; border-radius: 3px; overflow: hidden; }
+.boss-health-meter { flex: 1; min-width: 40px; height: 10px; border: 2px solid #e4b947; background: #281b20; border-radius: 3px; overflow: hidden; }
 #boss-health-fill { height: 100%; width: 100%; background: #e13e45; transition: width .18s; }
 .stat { min-width: 0; text-align: center; }
 .stat-label { display: block; color: var(--muted); font-size: 9px; margin-bottom: 8px; }
@@ -210,7 +210,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .hud .counter-stat strong { display: flex; align-items: center; justify-content: center; gap: var(--counter-gap); max-width: 100%; min-height: 48px; overflow: hidden; font-variant-numeric: tabular-nums; }
 .hud .counter-stat .counter-icon { flex: 0 0 var(--counter-icon-slot); width: var(--counter-icon-slot); overflow: hidden; font-size: var(--counter-icon-size); line-height: 1.2; }
 .hud .counter-stat .counter-value { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; font: inherit; color: inherit; }
-.hud .counter-stat .counter-fraction { display: grid; text-align: center; line-height: 1.1; }
+.hud .counter-stat .counter-fraction { display: grid; text-align: center; line-height: 1.05; }
 .hud .counter-stat .counter-fraction > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: inherit; color: inherit; }
 .hud .counter-stat .counter-numerator { padding-bottom: 2px; }
 .hud .counter-stat .counter-denominator { border-top: 1px solid currentColor; padding-top: 2px; }
@@ -575,6 +575,8 @@ body:has(.world-picker[open]) { overflow: hidden; }
   .game-shell > :not(.play-area) { flex-shrink: 0; }
   .game-shell > .error { margin: 4px 8px; font-size: 11px; }
   .hud { --counter-icon-size: 17px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 6px var(--hud-inset); gap: var(--hud-gap); }
+  .boss-health { bottom: -6px; height: 10px; font-size: 10px; }
+  .boss-health-meter { height: 8px; }
   .stat { border: 0; padding: 0; }
   .stat-label { font-size: 8px; letter-spacing: .2px; line-height: 1.1; margin-bottom: 5px; white-space: normal; }
   .stat strong { font-size: 17px; }

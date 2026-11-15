@@ -1171,7 +1171,7 @@ function syncUI() {
   if (game.level.bossLevel) {
     const health = game.boss?.health ?? 6, maximum = game.boss?.maxHealth ?? 6;
     const bossType = game.level.events?.find(event => isBossType(event.type))?.type ?? 'boss';
-    document.querySelector('#boss-health-label').textContent = `${game.boss?.name ?? CHARACTERS[bossType]}'s Health: `;
+    document.querySelector('#boss-health-label').textContent = `${game.boss?.name ?? CHARACTERS[bossType]}: `;
     document.querySelector('#boss-health-meter').setAttribute('aria-valuenow', health);
     document.querySelector('#boss-health-meter').setAttribute('aria-valuemax', maximum);
     document.querySelector('#boss-health-fill').style.width = `${health / maximum * 100}%`;
