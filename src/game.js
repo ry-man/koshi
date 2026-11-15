@@ -3673,6 +3673,7 @@ class Game {
   obstructionTrajectory(parts, spikes) {
     const actor = { ...this.cat }, points = [[actor.x, actor.y]];
     const maxDistance = Math.hypot(this.width, this.height) * 2;
+    const visited = new Set();
     let traveled = 0, reflections = 0;
     const append = () => {
       const point = [actor.x, actor.y], last = points.at(-1), before = points.at(-2);
@@ -3689,6 +3690,10 @@ class Game {
     };
     // Match gameplay's fixed substeps and position-only sliding, without ticking the live game.
     for (let step = 0; step < 4096 && traveled < maxDistance; step++) {
+      // Contact nudges can create a repeating loop between adjacent obstructions.
+      const state = `${Math.round(actor.x * 1e5)},${Math.round(actor.y * 1e5)},${actor.vx},${actor.vy},${reflections}`;
+      if (visited.has(state)) break;
+      visited.add(state);
       const old = { x: actor.x, y: actor.y };
       const speed = Math.hypot(actor.vx, actor.vy);
       if (!speed) break;

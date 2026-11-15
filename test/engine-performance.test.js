@@ -12,6 +12,58 @@ function arena(scroll = true, portrait = false) {
   return game;
 }
 
+test('level 1-15 trapped hexagon forecasts stop on recurring motion in both orientations', () => {
+  const level = require('../levels/official/world-1/1-15.json');
+  for (const portrait of [false, true]) {
+    const game = new Game(() => .5, { customLevel: level, portrait });
+    game.start();
+    game.update(1 / 120);
+    game.elapsed = 35;
+    const x = 5886.278951045759, y = 240;
+    Object.assign(game.cat, portrait
+      ? { x: y, y: game.height - x, vx: 300, vy: -260 }
+      : { x, y, vx: 260, vy: 300 });
+    game.target = portrait ? { x: 572, y: game.height - 6175 } : { x: 6175, y: 572 };
+    const advance = () => {
+      const old = { ...game.cat };
+      game.cat.x += game.cat.vx / 120;
+      game.cat.y += game.cat.vy / 120;
+      game.moveAroundObstructions(game.cat, old, true);
+    };
+    for (let frame = 0; frame < 120; frame++) advance();
+    let substeps = 0;
+    const move = game.moveAroundObstructions;
+    game.moveAroundObstructions = function (...args) {
+      substeps++;
+      return move.apply(this, args);
+    };
+    const obstructions = structuredClone(game.obstructions), target = game.target;
+    for (let frame = 0; frame < 30; frame++) {
+      const cat = { ...game.cat };
+      substeps = 0;
+      const points = game.trajectory();
+      assert.ok(substeps <= 8, `${portrait ? 'portrait' : 'landscape'} frame ${frame}: ${substeps} forecast substeps`);
+      assert.ok(points.length >= 3 && points.length <= 9,
+        'the preview includes the motion loop without hundreds of overlapping segments');
+      assert.deepEqual(points[0], [cat.x, cat.y]);
+      assert.ok(points.every(([px, py]) => Math.hypot(px - cat.x, py - cat.y) < 2),
+        'the preview stays at the obstruction contact instead of extending to the target');
+      assert.deepEqual(game.cat, cat, 'forecast leaves intended velocity and live position unchanged');
+      assert.equal(game.target, target);
+      assert.deepEqual(game.obstructions, obstructions);
+      advance();
+      assert.ok(Math.hypot(game.cat.x - cat.x, game.cat.y - cat.y) < 2, 'live motion stays trapped');
+      assert.ok(points.slice(1).some(([px, py], index) => {
+        const [sx, sy] = points[index], dx = px - sx, dy = py - sy;
+        const t = Math.max(0, Math.min(1,
+          ((game.cat.x - sx) * dx + (game.cat.y - sy) * dy) / (dx * dx + dy * dy)));
+        return Math.hypot(sx + dx * t - game.cat.x, sy + dy * t - game.cat.y) < 1e-5;
+      }),
+        'the preview includes the next live collision substep');
+    }
+  }
+});
+
 // Keep the pre-optimization clipping algorithm as an independent numerical oracle.
 function referenceBlock(wave, parts, previousRadius, obstructions) {
   function clip(polygon, distance) {

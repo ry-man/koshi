@@ -1899,6 +1899,10 @@ that geometry without reducing collision or forecast precision.
 Polygon collision sweeps test offset edges and rounded vertices directly rather
 than iteratively searching for contact. The forecast still uses the same sliding
 substeps and collision geometry as live movement.
+If contact between adjacent obstructions makes that motion loop in place, the
+forecast ends when it revisits the same position and velocity, rather than
+repeatedly simulating and drawing the loop each frame. Live movement and the
+steering target are unchanged.
 
 The editor lists each shape, size and orientation once. Its **Obstruction texture**
 controls offer the same fixed **100 color presets** for base and pattern colors
