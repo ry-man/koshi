@@ -93,7 +93,7 @@ function drawCutsceneAccessories(character, accessories, time) {
   const eyes = {
     koshi: [0, -3], tom: [-1, -25], boss: [-8, -8], 'tom-frog': [0, -24], bucket: [0, 0],
     ball: [0, -6], jackolantern: [0, -5], goalie: [0, -11],
-    'robo-koshi': [0, -3], 'robo-snail': [0, -19], 'robo-fly': [10, -5], 'robo-cow': [11, -17],
+    'robo-koshi': [0, -3], 'robo-snail': [0, -19], 'robo-fly': [0, -9], 'robo-cow': [11, -17],
     'robo-unicorn': [6, -12], 'robo-love-bug': [0, -15], 'robo-crab': [0, -19],
     'robo-trash-bin': [0, -5],
   }[character] ?? [0, -3];
@@ -101,7 +101,7 @@ function drawCutsceneAccessories(character, accessories, time) {
     koshi: [0, -23], tom: [0, -46], boss: [-3, -38], 'tom-frog': [0, -44], mouse: [0, -19], wheel: [0, -19],
     ram: [0, -20], bucket: [0, -10], ball: [0, -19], jackolantern: [0, -18],
     snake: [0, -19], goalie: [0, -27], 'robo-koshi': [0, -22],
-    'robo-snail': [0, -27], 'robo-fly': [0, -20], 'robo-cow': [11, -25], 'robo-unicorn': [0, -27],
+    'robo-snail': [0, -27], 'robo-fly': [0, -22], 'robo-cow': [11, -25], 'robo-unicorn': [0, -27],
     'robo-crab': [0, -7], 'robo-love-bug': [0, -31], 'robo-trash-bin': [0, -16],
   }[character] ?? [0, -20];
   for (const accessory of accessories ?? []) {
@@ -164,6 +164,37 @@ function drawCutsceneAccessories(character, accessories, time) {
     }
   }
 }
+function drawCutsceneRoboFly(time) {
+  const flutter = Math.sin(time * 16);
+  ctx.save();
+  ctx.strokeStyle = '#4d5b60'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  for (const side of [-1, 1]) for (const y of [2, 8, 14]) {
+    ctx.beginPath(); ctx.moveTo(side * 7, y); ctx.lineTo(side * 20, y + 6);
+    ctx.lineTo(side * 25, y + 3); ctx.stroke();
+  }
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(side * 7, 0); ctx.rotate(side * (.2 + flutter * .25));
+    ctx.fillStyle = '#f2f8f6'; ctx.strokeStyle = '#91aaae'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(side * 15, -7, 17, 7, side * -.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle = '#65757a'; ctx.strokeStyle = '#303d42'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(0, 10, 14, 17, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#89999d'; ctx.lineWidth = 2;
+  for (const y of [8, 15, 21]) {
+    ctx.beginPath(); ctx.moveTo(-10, y); ctx.lineTo(10, y); ctx.stroke();
+  }
+  ctx.fillStyle = '#84969a'; ctx.strokeStyle = '#303d42'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(0, -9, 15, 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#303d42';
+  for (const x of [-7, 7]) {
+    ctx.beginPath(); ctx.arc(x, -10, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = '#c2d0d2'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-6, -20); ctx.lineTo(-11, -27);
+  ctx.moveTo(6, -20); ctx.lineTo(11, -27); ctx.stroke();
+  ctx.restore();
+}
 function drawCutsceneCharacter(context, character, time, speaking, options = {}) {
   const previous = ctx;
   const previousGame = game;
@@ -176,7 +207,8 @@ function drawCutsceneCharacter(context, character, time, speaking, options = {})
   if (character === 'koshi') {
     game = { cat: { radius: 23, x: NaN, y: NaN }, weapon: null, sawStartedAt: null };
     drawCat(0, 0, time, null, false, speaking ? 'won' : null);
-  } else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
+  } else if (character === 'robo-fly') drawCutsceneRoboFly(time);
+  else drawRobot({ type: character, x: 0, y: 0, age: time, facingAngle: 0, distance: time * 25, speaking });
   if (options.accessories?.length) drawCutsceneAccessories(character, options.accessories, time);
   ctx = previous;
   game = previousGame;
@@ -4211,34 +4243,37 @@ function drawRoboFly(enemy, deathProgress = null, damageColor = null) {
   const flutter = deathProgress === null ? Math.sin(age * 48) * .28 : 0;
   ctx.save();
   ctx.rotate(enemy.phase ?? 0);
-  ctx.strokeStyle = '#303d42'; ctx.lineWidth = 2;
-  for (const side of [-1, 1]) {
-    ctx.save(); ctx.translate(-2, -7);
-    ctx.rotate(side * (.25 + flutter));
-    ctx.fillStyle = '#c9e2e899';
-    ctx.beginPath(); ctx.ellipse(side * 9, -10, 13, 5, side * -.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle = '#edf7f6'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(side * 2, -10); ctx.lineTo(side * 16, -10); ctx.stroke();
-    ctx.restore();
-  }
-  ctx.strokeStyle = '#4d5b60'; ctx.lineWidth = 2.5;
-  for (const side of [-1, 1]) for (const y of [-1, 5, 11]) {
-    ctx.beginPath(); ctx.moveTo(side * 1, y); ctx.lineTo(side * 10, y + 6); ctx.lineTo(side * 13, y + 3); ctx.stroke();
+  ctx.strokeStyle = '#4d5b60'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+  for (const side of [-1, 1]) for (const x of [-15, -8, -1]) {
+    ctx.beginPath(); ctx.moveTo(x, 7); ctx.lineTo(x - 3 + side * 2, 12 + side * 2);
+    ctx.lineTo(x - 6 + side * 3, 17 + side * 3); ctx.stroke();
   }
   ctx.fillStyle = damageColor ?? '#65757a'; ctx.strokeStyle = '#303d42'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.ellipse(-5, 3, 10, 7, -.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#89999d'; ctx.fillRect(-12, 0, 3, 5);
-  ctx.fillStyle = '#56666b';
-  for (const x of [-10, -5, 0]) ctx.fillRect(x, 0, 2, 6);
-  ctx.fillStyle = damageColor ?? '#84969a';
-  ctx.beginPath(); ctx.ellipse(9, -1, 7, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#e83f48';
-  for (const y of [-5, 3]) {
-    ctx.beginPath(); ctx.ellipse(12, y, 3, 3.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-8, 5, 13, 8, -.25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  for (const [index, angle] of [-.9, -.2].entries()) {
+    ctx.save(); ctx.translate(-4, -2); ctx.rotate(angle + flutter * (index ? 1 : -1));
+    ctx.fillStyle = '#f2f8f6'; ctx.strokeStyle = '#91aaae'; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.ellipse(-10, 0, 12, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#c2d0d2'; ctx.lineWidth = .8;
+    ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(-19, 0); ctx.stroke();
+    ctx.restore();
   }
   ctx.strokeStyle = '#c2d0d2'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(8, -6); ctx.lineTo(5, -12); ctx.lineTo(2, -14);
-  ctx.moveTo(13, -6); ctx.lineTo(14, -12); ctx.lineTo(17, -14); ctx.stroke();
+  for (const [x, tipX, tipY] of [[5, 2, -24], [14, 22, -19]]) {
+    ctx.beginPath(); ctx.moveTo(x, -11); ctx.lineTo(tipX, tipY); ctx.stroke();
+    ctx.fillStyle = '#303d42';
+    ctx.beginPath(); ctx.arc(tipX, tipY, 2.3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = '#303d42'; ctx.lineWidth = 2;
+  ctx.fillStyle = damageColor ?? '#84969a';
+  ctx.beginPath(); ctx.ellipse(9, -4, 11, 10, -.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#303d42';
+  for (const [x, y] of [[5, -7], [13, -2]]) {
+    ctx.beginPath(); ctx.arc(x, y, 4.2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = damageColor ?? '#84969a';
+  ctx.beginPath(); ctx.moveTo(17, 0); ctx.lineTo(28, 8); ctx.lineTo(19, 5);
+  ctx.lineTo(15, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
@@ -4690,9 +4725,10 @@ function drawFrogBoss(enemy, deathProgress = null, damageColor = null) {
     y -= (Math.max(0, t - .33) / .67) ** 1.4 * jumpHeight;
   }
   if (deathProgress === null && state === 'jump-fall') {
-    x = shadow.x; y = shadow.y - (1 - Math.min(1, time / .25) ** 2) * jumpHeight;
-    extend = 24 * (1 - Math.min(1, time / .25));
+    x = shadow.x; y = shadow.y - (1 - Math.min(1, time / .325) ** 2) * jumpHeight;
+    extend = 24 * (1 - Math.min(1, time / .325));
   }
+  if (deathProgress === null && state === 'hurt' && enemy.bounceTarget) y -= 18 * Math.sin(Math.PI * Math.min(1, time / .55));
   if (deathProgress === null && state === 'slam') extend = -12 * Math.max(0, 1 - time / .65);
   const walking = deathProgress === null && state === 'rest' && enemy.walking;
   const stride = walking ? (enemy.walkDistance ?? 0) * .25 : 0;
@@ -5494,6 +5530,12 @@ function resize() {
   render(performance.now() / 1000);
 }
 
+function positionBossHealth() {
+  const hud = document.querySelector('.hud');
+  const gap = Math.max(0, board.getBoundingClientRect().top - hud.getBoundingClientRect().bottom);
+  hud.style.setProperty('--boss-health-gap', `${gap}px`);
+}
+
 function frame(timestamp) {
   if (cutscene.active && cutscene.openingFinish) {
     const seconds = lastTime === null ? 0 : (timestamp - lastTime) / 1000;
@@ -5572,6 +5614,10 @@ if (game && (game.level.cutscene || game.level.levelInfo)
 document.body.classList.remove('game-loading');
 installBackNavigation();
 new ResizeObserver(resize).observe(board);
+const bossHealthLayoutObserver = new ResizeObserver(positionBossHealth);
+for (const element of [board, document.querySelector('.hud'), document.querySelector('.play-area')]) {
+  bossHealthLayoutObserver.observe(element);
+}
 if (new URLSearchParams(location.search).get('perf') === '1') {
   import('./performance.js').then(() => {
     const monitor = globalThis.KoshiPerformanceTools.createMonitor({

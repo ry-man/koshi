@@ -575,7 +575,7 @@ body:has(.world-picker[open]) { overflow: hidden; }
   .game-shell > :not(.play-area) { flex-shrink: 0; }
   .game-shell > .error { margin: 4px 8px; font-size: 11px; }
   .hud { --counter-icon-size: 17px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 6px var(--hud-inset); gap: var(--hud-gap); }
-  .boss-health { bottom: -6px; height: 10px; font-size: 10px; }
+  .boss-health { bottom: calc((var(--boss-health-gap, 2px) + 10px) / -2); height: 10px; font-size: 10px; }
   .boss-health-meter { height: 8px; }
   .stat { border: 0; padding: 0; }
   .stat-label { font-size: 8px; letter-spacing: .2px; line-height: 1.1; margin-bottom: 5px; white-space: normal; }

@@ -5599,7 +5599,7 @@ class Game {
     } else if (enemy.state === 'jump-track') {
       enemy.shadow = { x: this.cat.x, y: this.cat.y };
       if (enemy.stateTime >= 2 - 1e-9) { enemy.state = 'jump-fall'; enemy.stateTime = 0; }
-    } else if (enemy.state === 'jump-fall' && enemy.stateTime >= .25) {
+    } else if (enemy.state === 'jump-fall' && enemy.stateTime >= .325 - 1e-9) {
       enemy.x = enemy.shadow.x; enemy.y = enemy.shadow.y; enemy.shadow = null;
       enemy.state = 'slam'; enemy.stateTime = 0;
       this.frogEffects.push({ type: 'smoke', x: enemy.x, y: enemy.y, age: 0, duration: .85 });
@@ -5614,8 +5614,17 @@ class Game {
     } else if (enemy.state === 'lick' && enemy.stateTime >= .65) {
       enemy.state = enemy.fliesEaten > 0 ? 'sleep' : 'rest';
       enemy.stateTime = 0;
-    } else if ((enemy.state === 'sleep' && enemy.stateTime >= 8 - 1e-9)
-      || (enemy.state === 'hurt' && enemy.stateTime >= .9)) {
+    } else if (enemy.state === 'hurt') {
+      if (enemy.bounceTarget) {
+        const progress = Math.min(1, enemy.stateTime / .55);
+        enemy.x = enemy.bounceOrigin.x + (enemy.bounceTarget.x - enemy.bounceOrigin.x) * progress;
+        enemy.y = enemy.bounceOrigin.y + (enemy.bounceTarget.y - enemy.bounceOrigin.y) * progress;
+      }
+      if (enemy.stateTime >= .9) {
+        enemy.fliesEaten = 0; enemy.asleep = false;
+        enemy.state = 'rest'; enemy.stateTime = 0; enemy.bounceTarget = null;
+      }
+    } else if (enemy.state === 'sleep' && enemy.stateTime >= 8 - 1e-9) {
       enemy.fliesEaten = 0; enemy.asleep = false;
       enemy.state = 'rest'; enemy.stateTime = 0;
     }
@@ -5656,6 +5665,34 @@ class Game {
     enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
     enemy.state = 'hurt'; enemy.stateTime = 0;
     if (enemy.health === 0) this.finishBossBattle(enemy);
+    else {
+      const camera = this.camera(), radius = enemy.radius;
+      // Include the artwork's wide hind legs and the height of the bounce.
+      const area = { left: camera.x + 75, right: camera.x + camera.width - 75,
+        top: camera.y + 72, bottom: camera.y + camera.height - 54 };
+      const origin = { x: enemy.x, y: enemy.y }, cat = this.cat;
+      const clearance = radius + cat.radius + 12, travel = clearance * 2;
+      const angle = this.random() * Math.PI * 2;
+      let target = null;
+      for (let i = 0; i < 64; i++) {
+        const direction = angle + i * Math.PI / 32;
+        const x = Math.max(area.left, Math.min(area.right, origin.x + Math.cos(direction) * travel));
+        const y = Math.max(area.top, Math.min(area.bottom, origin.y + Math.sin(direction) * travel));
+        if ((x - origin.x) * (origin.x - cat.x) + (y - origin.y) * (origin.y - cat.y) < 0
+          || Math.hypot(x - origin.x, y - origin.y) < clearance
+          || Math.hypot(x - cat.x, y - cat.y) < clearance) continue;
+        target = { x, y };
+        break;
+      }
+      if (!target) {
+        target = [
+          { x: area.left, y: area.top }, { x: area.right, y: area.top },
+          { x: area.left, y: area.bottom }, { x: area.right, y: area.bottom },
+        ].sort((a, b) => Math.min(Math.hypot(b.x - origin.x, b.y - origin.y), Math.hypot(b.x - cat.x, b.y - cat.y))
+          - Math.min(Math.hypot(a.x - origin.x, a.y - origin.y), Math.hypot(a.x - cat.x, a.y - cat.y)))[0];
+      }
+      enemy.bounceOrigin = origin; enemy.bounceTarget = target;
+    }
     return true;
   }
 

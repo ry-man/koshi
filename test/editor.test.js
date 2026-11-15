@@ -695,6 +695,7 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
   $('#cutscene-form').listeners.change();
   assert.equal(context.level.cutscene.lines[1].speaker, 'wheel');
   assert.ok(context.level.cutscene.lines[1].actors.some(actor => actor.character === 'wheel'));
+  assert.equal(new Set(cast.children.map(card => card.sceneActor.x)).size, 4, 'adding a speaker chooses a distinct stage position');
   assert.equal(cast.children.at(-1).querySelector('.scene-remove-character').disabled, true, 'the only speaking actor cannot be removed');
   const addCharacter = row.querySelector('.scene-add-character');
   const picker = row.querySelector('.scene-character-picker');
@@ -705,6 +706,7 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
   assert.equal(picker.hidden, true);
   picker.value = 'mouse'; picker.listeners.change();
   assert.equal(cast.children.length, 6);
+  assert.equal(new Set(cast.children.map(card => card.sceneActor.x)).size, 6, 'added actors have distinct stage positions');
   assert.equal(addCharacter.disabled, true);
   row.querySelector('.scene-speaker').value = 'ram';
   row.querySelector('.scene-speaker').listeners.change();

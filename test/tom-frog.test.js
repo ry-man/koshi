@@ -71,16 +71,17 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
     assert.equal(boss.state, 'jump-fall');
     const target = { ...boss.shadow };
     game.cat.x += 150;
-    game.updateFrog(boss, .24);
+    game.updateFrog(boss, .324);
     assert.deepEqual(boss.shadow, target);
-    game.updateFrog(boss, .01);
+    assert.equal(boss.state, 'jump-fall', 'the locked shadow lasts 30% longer than 0.25 seconds');
+    game.updateFrog(boss, .001);
     assert.equal(boss.state, 'slam');
     assert.equal(boss.x, target.x);
     assert.equal(game.hearts, 3, 'dodging the locked shadow avoids the slam');
     assert.equal(game.frogEffects.at(-1).type, 'smoke');
     boss.shadow = { x: game.cat.x, y: game.cat.y };
     boss.state = 'jump-fall'; boss.stateTime = 0;
-    game.updateFrog(boss, .25);
+    game.updateFrog(boss, .325);
     assert.equal(game.hearts, 2);
   });
 }
@@ -498,6 +499,57 @@ test('real swept combat damages only a sleeping frog with a sword and consumes i
   assert.equal(game.weaponAttacks[0].type, 'wood');
 });
 
+for (const options of [{}, { portrait: true, scale: .3 }]) {
+  test(`frog bounces safely away from stationary Koshi near every screen edge (${options.portrait ? 'portrait' : 'landscape'})`, () => {
+    const game = arena(options), boss = game.boss;
+    const camera = game.camera(), radius = boss.radius;
+    const xs = [camera.x + radius, camera.x + camera.width / 2, camera.x + camera.width - radius];
+    const ys = [camera.y + radius, camera.y + camera.height / 2, camera.y + camera.height - radius];
+    for (const x of xs) for (const y of ys) for (const random of [0, .13, .5, .99])
+      for (const [dx, dy] of [[0, 0], [-60, 0], [60, 0], [0, -60], [0, 60]]) {
+      const catX = x + dx, catY = y + dy;
+      if (catX < camera.x || catX > camera.x + camera.width || catY < camera.y || catY > camera.y + camera.height) continue;
+      Object.assign(boss, { x, y, state: 'sleep', stateTime: 0, health: 6, invulnerableUntil: 0 });
+      Object.assign(game.cat, { x: catX, y: catY, vx: 0, vy: 0 });
+      game.random = () => random;
+      game.elapsed = 0; game.hearts = 3; game.invulnerableUntil = 0;
+      game.weapon = { type: 'bronze', uses: 3 };
+      game.combatEnemies(0, catX, catY);
+      assert.equal(boss.health, 5);
+      assert.equal(boss.state, 'hurt');
+      const target = boss.bounceTarget;
+      assert.ok(target.x >= camera.x + 75 && target.x <= camera.x + camera.width - 75);
+      assert.ok(target.y >= camera.y + 72 && target.y <= camera.y + camera.height - 54);
+      assert.ok(Math.hypot(target.x - x, target.y - y) > radius + game.cat.radius);
+      assert.ok(Math.hypot(target.x - catX, target.y - catY) > radius + game.cat.radius);
+      game.elapsed = .275;
+      game.combatEnemies(.275, catX, catY);
+      assert.ok(Math.hypot(boss.x - x, boss.y - y) > 0, 'bounce moves rather than teleporting');
+      game.elapsed = 1.01;
+      game.combatEnemies(.735, catX, catY);
+      assert.equal(boss.state, 'rest');
+      assert.ok(Math.hypot(boss.x - x, boss.y - y) > radius + game.cat.radius);
+      assert.equal(game.hearts, 3, 'Koshi remains safe after the invulnerability expires');
+    }
+  });
+}
+
+test('frog bounce chooses randomized directions away from the attacking side', () => {
+  const targets = [];
+  for (const random of [0, .25, .5, .75]) {
+    const game = arena(), boss = game.boss;
+    const origin = { x: boss.x, y: boss.y };
+    Object.assign(game.cat, { x: origin.x - 50, y: origin.y });
+    boss.state = 'sleep'; game.weapon = { type: 'bronze', uses: 3 };
+    game.random = () => random;
+    assert.equal(game.hitFrog(boss), true);
+    assert.ok(boss.bounceTarget.x >= origin.x);
+    assert.ok(Math.hypot(boss.bounceTarget.x - game.cat.x, boss.bounceTarget.y - game.cat.y) > boss.radius + game.cat.radius);
+    targets.push(`${boss.bounceTarget.x.toFixed(2)},${boss.bounceTarget.y.toFixed(2)}`);
+  }
+  assert.ok(new Set(targets).size > 1);
+});
+
 test('frog practice uses the real six-hit boss battle and only completes after victory', () => {
   const { Tutorial, LESSONS } = require('../src/learning.js');
   const tutorial = new Tutorial();
@@ -556,6 +608,13 @@ test('frog artwork renders five blinks, scrolling sleep pixels, captured flies, 
   const standing = shape({ state: 'rest', stateTime: 0 });
   assert.notDeepEqual(shape({ state: 'jump-up', stateTime: .1 }), standing, 'hind legs crouch before the jump');
   assert.notDeepEqual(shape({ state: 'jump-up', stateTime: .3 }), standing, 'hind legs kick out during the jump');
+  const fallY = stateTime => {
+    calls.length = 0;
+    context.drawFrogBoss({ ...boss, state: 'jump-fall', stateTime, shadow: { x: 400, y: 300 } });
+    return calls.find(call => call[0] === 'translate')[2];
+  };
+  assert.ok(fallY(.25) < 300, 'fall animation continues past the old landing time');
+  assert.equal(fallY(.325), 300, 'fall animation reaches the shadow at the new landing time');
   const rotations = walkDistance => {
     calls.length = 0; context.drawFrogBoss({ ...boss, state: 'rest', stateTime: 0, walking: true, walkDistance });
     return calls.filter(call => call[0] === 'rotate').map(call => call[1]);

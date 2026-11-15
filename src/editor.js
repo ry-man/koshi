@@ -3538,9 +3538,14 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
     wrapper.append(heading, accessoryButton, accessorySummary, removeActor, accessoryDialog); cast.append(wrapper);
     updateCast();
   };
-  const newActor = character => ({
-    character, x: { koshi: .28, mouse: .67, wheel: .82, ram: .12, bucket: .9, snake: .56 }[character] ?? .5, y: .65,
-  });
+  const newActor = character => {
+    const occupied = [...cast.children].map(card => card.sceneActor.x);
+    const slots = [.1, .26, .42, .58, .74, .9];
+    const x = occupied.length ? slots.reduce((best, slot) =>
+      Math.min(...occupied.map(value => Math.abs(value - slot)))
+        > Math.min(...occupied.map(value => Math.abs(value - best))) ? slot : best) : .5;
+    return { character, x, y: .65 };
+  };
   line.actors.forEach(addActor);
   addCharacter.addEventListener('click', () => {
     if (readOnly()) return;

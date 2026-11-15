@@ -1296,10 +1296,13 @@ Scenes replay when restarting or directly selecting a level. Levels
 without a scene start immediately as before.
 
 The upper two-thirds of the viewport show a garden, workshop or foundry stage, with
-characters using the same drawings as gameplay. On phone-sized stages, the cast
-is roughly evenly spaced in its authored left-to-right order, with 20% more
-space beside Koshi. Larger casts scale down to fit; authored heights, desktop
-positions, and saved level data remain unchanged. Speakers step forward and
+characters based on their gameplay drawings. Robo Fly has a larger, clear
+cutscene body, dark eyes, flapping white wings, six legs, and a distinct pixel
+portrait. When Koshi is present, he stands on the left while the other actors
+share the remaining space to his right. Without Koshi, phone-sized or crowded
+casts are spaced across the stage; other desktop positions are preserved.
+Actors are scaled to avoid overlap. Authored heights and saved
+level data remain unchanged. Speakers step forward and
 animate while talking. Characters walk into and out of the scene; characters
 repositioning for cast changes walk at the same speed rather than jumping to
 their new positions. The lower third holds an animated, 32-by-32 pixel
@@ -1324,7 +1327,8 @@ In the editor, enable **Optional pre-level cutscene**, choose the world
 background, and add dialogue lines with a speaker and on-stage cast. Use **Add
 character** to choose an actor; only characters on stage appear below the dialogue,
 each with an **Accessories** button, currently applied accessories listed one per line, and
-a **Remove character** button. **Accessories** opens a scrollable popup of
+a **Remove character** button. Newly added characters use an unoccupied stage
+position. **Accessories** opens a scrollable popup of
 checkboxes; click or tap any accessory to toggle it independently, then choose
 **Done** or press Escape to close. **Other** contains non-game accessories;
 **Weapons** and **Items** list the complete game catalogs, including future
@@ -1410,7 +1414,7 @@ the built-in campaign. His grey-green body follows the frog drawing, with yellow
 pixel eyes, and he draws above the bricks. Between attacks he slowly walks
 through open floor, swinging his little arms and shuffling his hind legs. He
 randomly jumps offscreen (his hind legs crouch and kick; a shadow tracks Koshi
-for two seconds, then locks before a fast, smoky slam), blinks five times before
+for two seconds, then locks for 0.325 seconds before a smoky slam), blinks five times before
 firing his red tongue (only while at least one fly is on the board), or opens his
 mouth to shoot one randomly red, green, or blue slime ball at any visible brick.
 Slime replaces the struck brick's surfaces using the same rules as Robo Trash
@@ -1431,7 +1435,8 @@ his lips. Every eaten fly opens a sleep window; six flies can provide the six
 damage openings needed to defeat him.
 Each meal makes him sleep for eight seconds with scrolling pixel **ZZZZ...** eyes
 while his body flashes shades of green.
-Only a sword can damage him during sleep, once per opening; six hits defeat him.
+Only a sword can damage him during sleep, once per opening; he bounces away
+after each non-final hit, and six hits defeat him.
 A missed opening consumes the meal. A bronze sword appears every random 10–20
 seconds, even while Koshi is armed, until three swords are in play (swords in the
 arena plus Koshi's weapon). Pausing freezes all battle timers.

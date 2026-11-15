@@ -471,6 +471,25 @@ function drawPortrait(ctx, character, speaking, time) {
     for (const x of [9, 19]) box('#ffe34c', x, 14, 5, blink ? 1 : 4);
     box('#18352b', 11, 24, 2, 2); box('#18352b', 13, 22, 6, talking ? 4 : 2);
     box('#18352b', 19, 24, 2, 2);
+  } else if (character === 'robo-fly') {
+    const flap = Math.sin(time * 16) > 0 ? 2 : 0;
+    for (const side of [-1, 1]) for (const y of [16, 20, 24]) {
+      const x = side < 0 ? 2 : 25;
+      box('#4d5b60', x, y, 5, 2);
+      box('#4d5b60', side < 0 ? 2 : 28, y + 2, 2, 2);
+    }
+    for (const x of [1, 21]) {
+      box('#91aaae', x, 8 - flap, 10, 7);
+      box('#f2f8f6', x + 1, 9 - flap, 8, 5);
+    }
+    box('#303d42', 9, 14, 14, 16); box('#65757a', 10, 15, 12, 14);
+    for (const y of [20, 24, 27]) box('#89999d', 11, y, 10, 1);
+    box('#303d42', 7, 5, 18, 13); box('#84969a', 8, 6, 16, 11);
+    for (const x of [10, 18]) {
+      box('#303d42', x, 8, 4, blink ? 1 : 5);
+    }
+    box('#c2d0d2', 9, 2, 2, 5); box('#c2d0d2', 21, 2, 2, 5);
+    box('#303d42', 14, 14, 4, talking ? 3 : 1);
   } else if (character === 'robo-snail') {
     box('#314443', 13, 9, 17, 18); box('#777f80', 15, 8, 14, 17);
     box('#826345', 16, 10, 5, 5); box('#a17a4c', 21, 15, 7, 5);
@@ -774,18 +793,32 @@ class CutscenePlayer {
     }
     ctx.setTransform(w / 960, 0, 0, h / 540, 0, 0);
     const mobile = width <= 760 || (width <= 1000 && height <= 500 && width > height);
-    const actorScale = Math.min(2.4, width / height * 1.6) * (mobile ? Math.min(1, 4 / line.actors.length) : 1);
+    let actorScale = Math.min(2.4, width / height * 1.6) * (mobile ? Math.min(1, 4 / line.actors.length) : 1);
     const horizontalPositions = new Map();
-    if (mobile && line.actors.length > 1) {
-      const ordered = [...line.actors].sort((a, b) => a.x - b.x);
-      const gaps = ordered.slice(1).map((actor, i) =>
-        actor.character === 'koshi' || ordered[i].character === 'koshi' ? 1.2 : 1);
-      const step = .68 * 960 / gaps.reduce((sum, gap) => sum + gap, 0);
-      let x = .16 * 960;
-      ordered.forEach((actor, i) => {
-        if (i) x += gaps[i - 1] * step;
-        horizontalPositions.set(actor, x);
-      });
+    const ordered = [...line.actors].sort((a, b) =>
+      Number(b.character === 'koshi') - Number(a.character === 'koshi') || a.x - b.x);
+    const koshiCount = ordered.filter(actor => actor.character === 'koshi').length;
+    const actorWidth = actor => ({
+      koshi: 25, tom: 50, boss: 48, 'tom-frog': 75, 'robo-fly': 32,
+      'robo-cow': 35, 'robo-unicorn': 38, 'robo-crab': 40, goalie: 42,
+    }[actor.character] ?? 28);
+    const horizontalScale = actorScale * height / width * 960 / 540;
+    const overlappingPositions = ordered.some((actor, i) => i > 0
+      && (actor.x - ordered[i - 1].x) * 960 < (actorWidth(actor) + actorWidth(ordered[i - 1])) * horizontalScale + 8);
+    if ((mobile || overlappingPositions || koshiCount > 0) && ordered.length > 1) {
+      if (koshiCount && koshiCount < ordered.length) {
+        ordered.forEach((actor, i) => {
+          const x = i < koshiCount ? .32 * (i + .5) / koshiCount
+            : .32 + .58 * (i - koshiCount + .5) / (ordered.length - koshiCount);
+          horizontalPositions.set(actor, x * 960);
+        });
+      } else {
+        ordered.forEach((actor, i) => horizontalPositions.set(actor, (.16 + .68 * i / (ordered.length - 1)) * 960));
+      }
+      const fit = ordered.slice(1).map((actor, i) =>
+        (horizontalPositions.get(actor) - horizontalPositions.get(ordered[i]) - 8)
+        / ((actorWidth(actor) + actorWidth(ordered[i])) * horizontalScale));
+      actorScale *= Math.min(1, ...fit);
     }
     const animationTime = this.animationTime ?? 0;
     const changedLine = this.actorLine !== line;
@@ -794,6 +827,9 @@ class CutscenePlayer {
     const present = new Set();
     const offscreenX = (actor, scale) => {
       const margin = 100 * scale * height / width * 960 / 540;
+      if (koshiCount || this.actorLine?.actors.some(entry => entry.character === 'koshi')) {
+        return actor.character === 'koshi' ? -margin : 960 + margin;
+      }
       return actor.x < .5 ? -margin : 960 + margin;
     };
     line.actors.forEach(actor => {

@@ -156,7 +156,7 @@ test('Official backgrounds render distinctly and round-trip through custom level
   assert.equal(new Set(drawings).size, themes.length);
 });
 
-test('phone cutscenes space the cast evenly with a wider gap beside Koshi without editing actors', () => {
+test('cutscenes reserve space on the left for Koshi and distribute the remaining cast', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
   const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
   const scales = [];
@@ -195,34 +195,92 @@ test('phone cutscenes space the cast evenly with a wider gap beside Koshi withou
         context.stage.call(player, line);
         const ordered = line.actors.map((actor, i) => ({
           actor, position: player.positions.get(actorKeys(line.actors)[i]),
-        })).sort((a, b) => a.actor.x - b.actor.x);
+        })).sort((a, b) => a.position.x - b.position.x);
+        const redistributed = ordered.some(({ actor, position }) => Math.abs(position.x - actor.x * 960) > 1e-8);
         for (const { actor, position } of ordered) {
           assert.equal(position.y, actor.y * 540, 'authored height stays unchanged');
-          if (!mobile || ordered.length === 1) assert.equal(position.x, actor.x * 960);
+          if (!redistributed) assert.equal(position.x, actor.x * 960);
         }
-        if (mobile && ordered.length > 1) {
-          assert.ok(Math.abs(ordered[0].position.x / 960 - .16) < 1e-9);
-          assert.ok(Math.abs(ordered.at(-1).position.x / 960 - .84) < 1e-9);
-          const weightedGaps = ordered.slice(1).map((entry, i) => {
-            const gap = entry.position.x - ordered[i].position.x;
-            assert.ok(gap > 0, 'authored left-to-right order is preserved');
-            const besideKoshi = entry.actor.character === 'koshi' || ordered[i].actor.character === 'koshi';
-            return gap / (besideKoshi ? 1.2 : 1);
-          });
-          assert.ok(weightedGaps.every(gap => Math.abs(gap - weightedGaps[0]) < 1e-9),
-            'enemy gaps are equal; gaps beside Koshi are exactly 20% wider');
-          if (ordered.length === 2) {
-            assert.ok((ordered[1].position.x - ordered[0].position.x) / 960 > .6,
-              'a lone enemy stays well separated from Koshi');
+        if (redistributed && ordered.length > 1) {
+          const koshi = ordered.filter(entry => entry.actor.character === 'koshi');
+          const others = ordered.filter(entry => entry.actor.character !== 'koshi');
+          if (koshi.length && others.length) {
+            assert.ok(koshi.every(entry => entry.position.x < others[0].position.x), 'Koshi stands left of every enemy');
+            assert.ok(Math.abs(koshi[0].position.x / 960 - .16) < 1e-9);
+            for (const [i, entry] of others.entries()) {
+              assert.ok(Math.abs(entry.position.x / 960 - (.32 + .58 * (i + .5) / others.length)) < 1e-9,
+                'actors occupy equally spaced centers in the remaining stage');
+            }
+          } else {
+            assert.ok(Math.abs(ordered[0].position.x / 960 - .16) < 1e-9);
+            assert.ok(Math.abs(ordered.at(-1).position.x / 960 - .84) < 1e-9);
           }
         }
         const expectedScale = Math.min(2.4, width / height * 1.6)
           * (mobile ? Math.min(1, 4 / line.actors.length) : 1);
-        assert.ok(Math.abs(scales[0][1] - expectedScale) < 1e-9);
+        if (!redistributed) assert.ok(Math.abs(scales[0][1] - expectedScale) < 1e-9);
+        else assert.ok(scales[0][1] <= expectedScale);
         assert.equal(JSON.stringify(line), before, 'rendering does not modify level content');
       }
     }
   }
+});
+
+test('crowded cutscene casts settle into distinct positions across dialogue and resize', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
+  const ctx = new Proxy({}, { get: () => () => {} });
+  const context = vm.createContext({ ctx, width: 1440, height: 600, time: 0, reducedMotion: false, drawTom() {} });
+  vm.runInContext(`function stage(line) { ${loop} }`, context);
+  const player = { positions: new Map(), animationTime: 0, drawCharacter() {} };
+  const cast = [
+    { character: 'koshi', x: .28, y: .65 },
+    ...['tom-frog', 'robo-fly', 'robo-fly', 'robo-crab', 'boss']
+      .map(character => ({ character, x: .5, y: .65 })),
+  ];
+  const first = { speaker: 'tom-frog', actors: cast };
+  const second = { speaker: 'koshi', actors: cast.map(actor => ({ ...actor })) };
+  const before = JSON.stringify([first, second]);
+  const check = () => {
+    const positions = [...player.positions.values()].sort((a, b) => a.x - b.x);
+    const sizes = { koshi: 25, 'tom-frog': 75, 'robo-fly': 32, 'robo-crab': 40, boss: 48 };
+    for (let i = 1; i < positions.length; i++) {
+      const previous = positions[i - 1], current = positions[i];
+      const halfWidths = (sizes[previous.actor.character] + sizes[current.actor.character])
+        * current.scale * context.height / context.width * 960 / 540;
+      assert.ok(current.x - previous.x >= halfWidths + 8 - 1e-8, 'cast members have room for their artwork');
+    }
+    assert.ok(positions.every(position => position.x === position.target.x && position.y === .65 * 540));
+  };
+  context.stage.call(player, first);
+  player.animationTime = 2; context.stage.call(player, first); check();
+  context.stage.call(player, second);
+  player.animationTime = 4; context.stage.call(player, second); check();
+  context.width = 390; context.height = 560;
+  context.stage.call(player, second);
+  player.animationTime = 6; context.stage.call(player, second); check();
+  assert.equal(JSON.stringify([first, second]), before);
+});
+
+test('cutscene Robo Fly draws a clear body, large dark eyes, flapping white wings and six legs', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const calls = [];
+  const ctx = new Proxy({}, {
+    get(target, key) { return key in target ? target[key] : (...args) => calls.push([key, ...args]); },
+    set(target, key, value) { target[key] = value; calls.push(['set', key, value]); return true; },
+  });
+  const context = vm.createContext({ ctx });
+  vm.runInContext(source.slice(source.indexOf('function drawCutsceneRoboFly('), source.indexOf('function drawCutsceneCharacter(')), context);
+  context.drawCutsceneRoboFly(0);
+  assert.equal(calls.filter(([name, x]) => name === 'moveTo' && Math.abs(x) === 7).length, 6);
+  assert.equal(calls.filter(([name]) => name === 'ellipse').length, 4, 'two wings, body and head');
+  assert.equal(calls.filter(([name, x, y, radius]) => name === 'arc' && Math.abs(x) === 7 && y === -10 && radius === 5).length, 2);
+  assert.ok(calls.some(([name, property, value]) => name === 'set' && property === 'fillStyle' && value === '#f2f8f6'));
+  assert.ok(calls.some(([name, property, value]) => name === 'set' && property === 'fillStyle' && value === '#303d42'));
+  const first = calls.filter(([name]) => name === 'rotate').map(([, angle]) => angle);
+  calls.length = 0; context.drawCutsceneRoboFly(Math.PI / 32);
+  assert.notDeepEqual(calls.filter(([name]) => name === 'rotate').map(([, angle]) => angle), first);
+  assert.match(source, /character === 'robo-fly'\) drawCutsceneRoboFly\(time\)/);
 });
 
 test('all campaign scenes validate and every campaign story character speaks', () => {
@@ -500,6 +558,28 @@ test('every story character has a distinct animated portrait with finite drawing
   assert.equal(new Set(drawings).size, Object.keys(CHARACTERS).length);
 });
 
+test('Robo Fly dialogue portrait has wings, large dark eyes, and speaking animation', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const context = vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('function drawPortrait('), source.indexOf('class CutscenePlayer')), context);
+  const draw = (character, speaking, time) => {
+    const calls = [];
+    const ctx = new Proxy({}, {
+      get: (_, name) => (...args) => calls.push([name, ...args]),
+      set: (_, name, value) => { calls.push([name, value]); return true; },
+    });
+    context.drawPortrait(ctx, character, speaking, time);
+    return calls;
+  };
+  const fly = draw('robo-fly', true, 0), wheel = draw('wheel', true, 0);
+  assert.notDeepEqual(fly, wheel);
+  assert.equal(fly.filter(call => call[0] === 'fillRect' && [10, 18].includes(call[1]) && call[2] === 8 && call[3] === 4 && call[4] === 5).length, 2);
+  assert.equal(fly.filter(call => call[0] === 'fillRect' && [2, 22].includes(call[1]) && call[2] === 9 && call[3] === 8 && call[4] === 5).length, 2);
+  assert.ok(fly.some(call => call[0] === 'fillStyle' && call[1] === '#f2f8f6'));
+  assert.notDeepEqual(fly, draw('robo-fly', false, 0));
+  assert.notDeepEqual(fly, draw('robo-fly', true, .1), 'wings animate');
+});
+
 test('cutscene validation rejects malformed dialogue, actors, themes, and oversized input', () => {
   const invalid = [null, [], {}, { ...scene(), theme: 'unknown' }, { ...scene(), lines: [] }, { ...scene(), lines: Array(101).fill(scene().lines[0]) }];
   for (const patch of [
@@ -555,8 +635,8 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       assert.equal(player.positions.size, 5, 'departures remain visible while walking out');
       assert.equal(player.positions.get('koshi:0').x, koshiX, 'array index changes do not restart retained actors');
       assert.ok(player.positions.get('ram:0').x > 960, 'right-side actor enters from beyond the stage');
-      assert.ok(player.positions.get('bucket:0').x < 0, 'left-side actor enters from beyond the stage');
-      assert.ok(player.positions.get('mouse:0').target.x < 0, 'departure uses its previous authored side');
+      assert.ok(player.positions.get('bucket:0').x > 960, 'enemies enter from the right of Koshi');
+      assert.ok(player.positions.get('mouse:0').target.x > 960, 'enemies depart to the right of Koshi');
       assert.ok(player.positions.get('wheel:0').target.x > 960);
       assert.ok(drawings.some(op => op[0] === 'draw' && op[1] === 'mouse' && !op[2]),
         'departing characters no longer speak');
@@ -567,8 +647,8 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       }
       player.animationTime += .1;
       render(second);
-      for (const key of ['ram:0', 'mouse:0']) assert.ok(player.positions.get(key).x < start.get(key).x);
-      for (const key of ['bucket:0', 'wheel:0']) assert.ok(player.positions.get(key).x > start.get(key).x);
+      for (const key of ['ram:0', 'bucket:0']) assert.ok(player.positions.get(key).x < start.get(key).x);
+      for (const key of ['mouse:0', 'wheel:0']) assert.ok(player.positions.get(key).x > start.get(key).x);
       for (const [key, value] of start) assert.equal(player.positions.get(key).y, value.y, 'walking preserves authored height');
       assert.ok(drawings.some(op => op[0] === 'rotate' && op[1] !== 0), 'walking has a visible gait');
       const continuing = { ...second, actors: [...second.actors].reverse() };
@@ -609,7 +689,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       const mouse = { character: 'mouse', x: .8, y: .65 };
       const first = { speaker: 'mouse', actors: [koshi, mouse] };
       const joined = { speaker: 'mouse', actors: [
-        { ...koshi, x: .5, y: .7 }, mouse, { character: 'wheel', x: .1, y: .65 },
+        { ...koshi, x: .5, y: .9 }, mouse, { character: 'wheel', x: .1, y: .65 },
       ] };
       const before = JSON.stringify([first, joined]);
       const render = line => { drawings.length = 0; context.stage.call(player, line); };
@@ -664,8 +744,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       player.animationTime += .01;
       render(joined);
       const afterResize = point('wheel:0');
-      assert.ok(Math.abs(Math.hypot(afterResize.x - beforeResize.x, afterResize.y - beforeResize.y) - 7.2) < 1e-9,
-        'responsive reflow uses the same walking speed');
+      assert.deepEqual(afterResize, beforeResize, 'the reserved cast positions remain stable across viewport sizes');
       context.reducedMotion = true;
       render(joined);
       assert.ok([...player.positions.values()].every(position => position.x === position.target.x
@@ -699,7 +778,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
     assert.equal(player.positions.size, 3, 'no duplicate or stale actors are created');
     player.animationTime = 2;
     context.stage.call(player, first);
-    assert.equal(player.positions.get('mouse:1').x, .8 * 960);
+    assert.equal(player.positions.get('mouse:1').x, (.32 + .58 * 1.5 / 2) * 960);
   });
 
 test('stage shadows align with each character base and stay grounded while speakers bob', () => {

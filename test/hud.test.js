@@ -125,3 +125,22 @@ test('boss meters use the boss name without Health and retain accessible life va
     assert.equal(node('#boss-health').hidden, true);
   }
 });
+
+test('phone boss meter is positioned halfway between the HUD and board', () => {
+  const positionBossHealth = source.slice(source.indexOf('function positionBossHealth()'), source.indexOf('function frame(timestamp)'));
+  const properties = {};
+  const hud = {
+    getBoundingClientRect: () => ({ bottom: 200 }),
+    style: { setProperty: (name, value) => { properties[name] = value; } },
+  };
+  const board = { getBoundingClientRect: () => ({ top: 250 }) };
+  const context = vm.createContext({ board, document: { querySelector: () => hud } });
+  vm.runInContext(positionBossHealth, context);
+  context.positionBossHealth();
+  assert.equal(properties['--boss-health-gap'], '50px');
+  board.getBoundingClientRect = () => ({ top: 190 });
+  context.positionBossHealth();
+  assert.equal(properties['--boss-health-gap'], '0px');
+  assert.match(styles, /\.boss-health \{ bottom: calc\(\(var\(--boss-health-gap, 2px\) \+ 10px\) \/ -2\); height: 10px;/);
+  assert.match(source, /new ResizeObserver\(positionBossHealth\)/);
+});
