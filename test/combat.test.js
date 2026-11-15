@@ -249,7 +249,7 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
       target[name] = value; return true;
     },
   });
-  const context = vm.createContext({ ctx, SHIELDS });
+  const context = vm.createContext({ ctx, SHIELDS, isBossType: require('../src/game.js').isBossType });
   vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
     + source.slice(source.indexOf('function drawRobot('), source.indexOf('function resize(')), context);
   const draw = (type, progress = null) => {
@@ -334,7 +334,7 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
     assert.ok(fireball.some(op => op[0] === 'fill' && op.at(-2) === color));
   }
   assert.ok(!fireball.some(op => op[0] === 'scale'));
-  assert.match(source, /for \(const enemy of robotDrawOrder\(game\.enemyDeaths\.filter\(visibleRobot\)\)\) drawEnemyDeath\(enemy\)/);
+  assert.match(source, /for \(const enemy of robotDrawOrder\(game\.enemyDeaths\.filter\(visibleRobot\)\)\) if \(enemy\.type !== 'tom-frog'\) drawEnemyDeath\(enemy\)/);
 });
 
 test('gold sword has exactly ten hits and no timed expiry', () => {

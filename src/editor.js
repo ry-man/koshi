@@ -4,6 +4,7 @@
 const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
+const { isBossType } = globalThis.KoshiGame;
 const { SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS } = globalThis.KoshiGame;
 const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
@@ -103,7 +104,7 @@ function campaignPreview(index) {
   const add = (kind, time, type, point, lifetime, shield) => events.push({
     kind, time, type, x: (point.x - bounds.left) / (bounds.right - bounds.left),
     y: (point.y - bounds.top) / (bounds.bottom - bounds.top),
-    previewRandom: kind !== 'enemy' || type !== 'boss',
+    previewRandom: kind !== 'enemy' || !isBossType(type),
     ...(lifetime == null ? {} : { lifetime }), ...(shield == null ? {} : { shield }),
   });
   for (const entry of game.level.food) {
@@ -277,6 +278,12 @@ function picture(value, control) {
     path.setAttribute('d', spawnSymbol(item));
     svg.append(path); image.append(svg);
     image.style.color = spawnColor(item);
+    if (item.type === 'tom-frog') {
+      const eyes = document.createElementNS(ns, 'path');
+      eyes.setAttribute('d', 'M-10 -14 H-4 V-10 H-10 Z M6 -14 H12 V-10 H6 Z');
+      eyes.setAttribute('fill', '#f5dc45'); eyes.setAttribute('stroke', '#354638');
+      svg.append(eyes);
+    }
     if (item.type === 'robo-love-bug') {
       path.setAttribute('stroke', '#522631');
       const detail = (d, color) => {
@@ -470,7 +477,7 @@ function syncPalettes() {
         }
       }
       if (id === 'event-type' && $('#event-kind').value === 'enemy') {
-        const bosses = entry.buttons.filter(button => button.dataset.value === 'boss');
+        const bosses = entry.buttons.filter(button => isBossType(button.dataset.value));
         if (bosses.length) {
           const section = document.createElement('section'), heading = document.createElement('h3');
           section.className = 'boss-palette-section';
@@ -692,7 +699,7 @@ function description(event) {
 }
 
 function icon(event) {
-  if (event.kind === 'enemy' && ['robo-snail', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'boss'].includes(event.type)) return picture(`enemy:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'enemy' && (isBossType(event.type) || ['robo-snail', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
@@ -1802,7 +1809,7 @@ function pointReference(events, bricks) {
       const points = (source.shield ? SHIELDS[source.shield].hits : 1) * count;
       totals.enemy += points;
       totals.shields[source.shield ?? 'none'] += count;
-      if (['boss', 'robo-love-bug'].includes(source.type)) totals.specialEnemies += count;
+      if (isBossType(source.type) || source.type === 'robo-love-bug') totals.specialEnemies += count;
       else totals.weaponEnemyPoints += points;
       if (Object.hasOwn(WEAPONS, source.carriesItem ?? '')) addWeapon(source.carriesItem, count, 'drop');
     }

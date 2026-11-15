@@ -249,7 +249,8 @@ test('editor exposes all trigger options, shows only required parameters and pre
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("for (const [selector, entries]"), source.indexOf('function addSceneLine(')), context);
   assert.equal($('#cat-block-trigger').children.length, 17);
-  assert.equal($('#cat-block-enemy-type').children.length, 16);
+  assert.equal($('#cat-block-enemy-type').children.length, Object.keys(CHARACTERS).filter(type => !['koshi', 'tom'].includes(type)).length);
+  assert.ok($('#cat-block-enemy-type').children.some(option => option.value === 'tom-frog'));
   assert.ok($('#cat-block-enemy-type').children.some(option => option.value === 'robo-crab'));
   assert.ok($('#cat-block-enemy-type').children.some(option => option.value === 'robo-love-bug'));
   assert.ok($('#cat-block-enemy-type').children.some(option => option.value === 'robo-trash-bin'));

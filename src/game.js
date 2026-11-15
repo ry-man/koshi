@@ -275,6 +275,9 @@ function applyBrickTypes(bricks, entries = []) {
   }
 }
 const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
+CHARACTERS['tom-frog'] = 'Tom the Frog';
+const isBossType = type => type === 'boss' || type === 'tom-frog';
+const frogAirborne = enemy => enemy.type === 'tom-frog' && ['jump-up', 'jump-track', 'jump-fall'].includes(enemy.state);
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
   'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
   'hairball-swamp', 'meownt-vesuvius', 'robot-hq'];
@@ -296,7 +299,7 @@ const INFO_GRAPHICS = {
   ...Object.fromEntries(Object.entries(ITEMS).map(([id, value]) => [`item:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(OBJECTS).map(([id, value]) => [`object:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(WEAPONS).map(([id, value]) => [`weapon:${id}`, value.name])),
-  ...Object.fromEntries(Object.entries(CHARACTERS).filter(([id]) => !['koshi', 'tom', 'boss'].includes(id))
+  ...Object.fromEntries(Object.entries(CHARACTERS).filter(([id]) => !['koshi', 'tom'].includes(id) && !isBossType(id))
     .map(([id, name]) => [`enemy:${id}`, name])),
   ...Object.fromEntries(Object.keys(SLIMES).map(id => [`slime:${id}`, `${id[0].toUpperCase() + id.slice(1)} Slime`])),
   ...Object.fromEntries([['slow', 'Blue'], ['normal', 'Green'], ['fast', 'Red']]
@@ -1968,7 +1971,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, boss: true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
@@ -1987,7 +1990,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       ...(group ? { group } : {}), ...(randomCount === undefined ? {} : { randomCount }) };
     shield(event, result, name);
     crabDirection(event, result, name);
-    if (event.type === 'boss' && (group || randomCount || event.shield)) fail(`${name}: a boss must be a single, unshielded enemy.`);
+    if (isBossType(event.type) && (group || randomCount || event.shield)) fail(`${name}: a boss must be a single, unshielded enemy.`);
     obstructionAppearance(event, result, name);
     containedItem(event, result, name);
     if (event.track !== undefined) {
@@ -2021,7 +2024,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   }
   if (value.tracks !== undefined) result.tracks = tracks;
   if (value.bossLevel !== undefined) result.bossLevel = value.bossLevel;
-  const bosses = events.filter(event => event.kind === 'enemy' && event.type === 'boss');
+  const bosses = events.filter(event => event.kind === 'enemy' && isBossType(event.type));
   if (bosses.length && !value.bossLevel) fail('Enable Boss level before placing a boss.');
   if (bosses.length > 1 || (value.bossLevel && !allowIncompleteBoss && bosses.length !== 1)) {
     fail('A boss level must contain exactly one boss enemy.');
@@ -3229,7 +3232,9 @@ function reflectVelocity(vx, vy, normal) {
 
 function levelObjective(level) {
   const limit = level.activationLimit == null ? '' : `. Boom Helmet: ${level.activationLimit} activations; reaching zero is fatal`;
-  if (level.bossLevel) return `Defeat Tom the Toaster: land 6 Boost hits while he is dizzy${limit}`;
+  if (level.bossLevel) return (level.events?.some(event => event.type === 'tom-frog')
+    ? 'Defeat Tom the Frog: feed him flies with his tongue, then land 6 sword hits while he sleeps'
+    : 'Defeat Tom the Toaster: land 6 Boost hits while he is dizzy') + limit;
   if (level.survive) return `Survive for ${level.duration} seconds until the timer reaches zero${limit}`;
   const targets = [];
   if (level.goal > 0) targets.push(`Collect ${level.goal} food`);
@@ -3337,6 +3342,9 @@ class Game {
     this.boss = null;
     this.bossDefeated = false;
     this.bossProjectiles = [];
+    this.frogFlies = [];
+    this.frogPendingFlies = [];
+    this.frogEffects = [];
     this.weapons = [];
     this.batteries = 0;
     this.sawStartedAt = null;
@@ -3898,7 +3906,7 @@ class Game {
   }
 
   damageRangedEnemy(enemy) {
-    if (enemy.type === 'boss' || enemy.type === 'robo-love-bug') return;
+    if (isBossType(enemy.type) || enemy.type === 'robo-love-bug') return;
     if (this.enemyDamageProgress(enemy) !== null || !this.robots.includes(enemy)) return;
     if (enemy.shield) {
       enemy.shield = SHIELDS[enemy.shield].next;
@@ -4345,7 +4353,8 @@ class Game {
       return items.map(item => ({ kind, x: item.x, y: item.y, progress,
         ...(OBJECTS[item.type]?.obstruction ? { obstruction: item } : {}),
         ...(OBJECTS[item.type]?.bumper ? { bumper: item } : {}) }));
-    });
+    }).concat((this.frogPendingFlies ?? []).filter(fly => fly.time > this.elapsed + 1e-9).map(fly => ({
+      kind: 'enemy', x: fly.x, y: fly.y, progress: Math.max(0, Math.min(1, this.elapsed - (fly.time - 1))) })));
   }
 
   takeSpawn(event, create) {
@@ -4524,7 +4533,7 @@ class Game {
 
   spawnRadius(event) {
     if (event.kind === 'enemy') {
-      if (event.type === 'boss') return 48;
+      if (isBossType(event.type)) return 48;
       if (event.type === 'robo-cow') return 26;
       return event.type === 'goalie' ? 23 : 19;
     }
@@ -4864,8 +4873,9 @@ class Game {
     if (event.type === 'robo-cow') this.initializeRoboCow(enemy);
     if (event.type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
     if (event.type === 'robo-trash-bin') this.initializeTrashBin(enemy);
-    if (event.type === 'boss') {
-      this.initializeBoss(enemy);
+    if (isBossType(event.type)) {
+      if (event.type === 'tom-frog') this.initializeFrog(enemy);
+      else this.initializeBoss(enemy);
       if (event.random && this.level.autoscroll) Object.assign(enemy, point);
     }
     return [enemy];
@@ -4959,7 +4969,7 @@ class Game {
     }
 
     this.robots = this.robots.filter(enemy => {
-      if (enemy.type === 'robo-koshi' || enemy.type === 'boss') return true;
+      if (enemy.type === 'robo-koshi' || isBossType(enemy.type)) return true;
       const parts = enemy.type === 'snake' ? this.snakeSegments(enemy) : [enemy];
       if (!parts.some(part => overlaps(part, part.radius + (part.index ? 5 : 0)))) return true;
       if (enemy.type === 'robo-love-bug') {
@@ -5377,8 +5387,9 @@ class Game {
       if (type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
       if (type === 'robo-trash-bin') this.initializeTrashBin(enemy);
       this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
-      if (type === 'boss') {
-        this.initializeBoss(enemy);
+      if (isBossType(type)) {
+        if (type === 'tom-frog') this.initializeFrog(enemy);
+        else this.initializeBoss(enemy);
         if (this.level.autoscroll) Object.assign(enemy, point);
       }
       items.push(enemy);
@@ -5396,6 +5407,252 @@ class Game {
       attack: null, target: null, shots: 0,
     });
     this.boss = enemy;
+  }
+
+  initializeFrog(enemy) {
+    Object.assign(enemy, {
+      radius: 48, name: CHARACTERS['tom-frog'], health: 6, maxHealth: 6,
+      shield: null, state: 'rest', stateTime: 0, fliesEaten: 0, tongue: null,
+      nextFlyAt: this.elapsed + 5 + this.random() * 10,
+      nextSwordAt: this.elapsed + 10 + this.random() * 10,
+    });
+    this.boss = enemy;
+  }
+
+  frogMealSize(enemy) {
+    return 1 + Math.floor((enemy.maxHealth - enemy.health) / 2);
+  }
+
+  startFrogAttack(enemy) {
+    enemy.stateTime = 0; enemy.walking = false; enemy.walkTarget = null;
+    // The tongue is how Tom eats flies, so he only uses it while one is on the board.
+    const attacks = this.frogFlies.length ? ['jump-up', 'tongue-blink', 'slime-charge'] : ['jump-up', 'slime-charge'];
+    enemy.state = attacks[Math.floor(this.random() * attacks.length)];
+    if (enemy.state === 'jump-up') enemy.jumpOrigin = { x: enemy.x, y: enemy.y };
+  }
+
+  updateFrogFlies(enemy, dt, startX, startY) {
+    if (this.elapsed >= enemy.nextFlyAt) {
+      if (this.frogFlies.length + this.frogPendingFlies.length + (enemy.tongue?.caught.length ?? 0) < 3) {
+        // Leave at least one body width of open space between Tom's body and a new fly.
+        const farFromTom = point => Math.hypot(point.x - enemy.x, point.y - enemy.y) >= enemy.radius * 3 + 13;
+        let point;
+        try {
+          point = this.randomPoint(point => Math.hypot(point.x - this.cat.x, point.y - this.cat.y) > 90
+            && farFromTom(point) && this.pickupClear(point));
+        } catch {
+          point = this.randomPoint(farFromTom);
+        }
+        this.frogPendingFlies.push({ ...point, time: this.elapsed + 1, carriesHeart: this.random() < 1 / 8 });
+      }
+      enemy.nextFlyAt = this.elapsed + 5 + this.random() * 10;
+    }
+    this.frogPendingFlies = this.frogPendingFlies.filter(({ x, y, time, carriesHeart }) => {
+      if (time > this.elapsed + 1e-9) return true;
+      this.frogFlies.push({ x, y, radius: 13, age: 0, phase: this.random() * Math.PI * 2, carriesHeart });
+      return false;
+    });
+    if (this.weapons.filter(item => item.frogSupply).length + (this.weapon ? 1 : 0) >= 3) {
+      enemy.nextSwordAt = null;
+    } else {
+      if (enemy.nextSwordAt === null) enemy.nextSwordAt = this.elapsed + 10 + this.random() * 10;
+      if (this.elapsed >= enemy.nextSwordAt) {
+        this.weapons.push({ ...this.createCollectible(this.elapsed, 'bronze', null), frogSupply: true });
+        enemy.nextSwordAt = null;
+      }
+    }
+    const bounds = this.bounds();
+    this.frogFlies = this.frogFlies.filter(fly => {
+      const oldX = fly.x, oldY = fly.y;
+      fly.age += dt;
+      fly.phase += Math.sin(fly.age * 1.3 + fly.phase) * dt * .7;
+      fly.x += Math.cos(fly.phase) * 32 * dt;
+      fly.y += Math.sin(fly.phase) * 32 * dt;
+      if (fly.x < bounds.left || fly.x > bounds.right) fly.phase = Math.PI - fly.phase;
+      if (fly.y < bounds.top || fly.y > bounds.bottom) fly.phase = -fly.phase;
+      fly.x = Math.max(bounds.left, Math.min(bounds.right, fly.x));
+      fly.y = Math.max(bounds.top, Math.min(bounds.bottom, fly.y));
+      const distance = distanceToSegment(0, 0, oldX - startX, oldY - startY,
+        fly.x - this.cat.x, fly.y - this.cat.y);
+      if (!this.activeTurret && (this.boosted || this.weapon && !WEAPONS[this.weapon.type].ropeDart)
+        && distance <= this.cat.radius + fly.radius + 18) {
+        if (!this.boosted) {
+          this.weaponAttacks.push({ x: fly.x, y: fly.y, type: this.weapon.type, age: 0 });
+          if (!WEAPONS[this.weapon.type].seconds && --this.weapon.uses === 0) this.dropWeapon(true);
+        }
+        if (fly.carriesHeart) this.healing.push({ x: fly.x, y: fly.y });
+        return false;
+      }
+      if (distance <= this.cat.radius + fly.radius) this.takeDamage();
+      return true;
+    });
+  }
+
+  shootFrogTongue(enemy) {
+    const x = enemy.x, y = enemy.y + 12;
+    const angle = Math.atan2(this.cat.y - y, this.cat.x - x);
+    const reach = Math.hypot(this.width, this.height) * 2;
+    let contact = 1;
+    for (const part of this.brickParts()) {
+      contact = Math.min(contact, brickContact(x, y, Math.cos(angle) * reach, Math.sin(angle) * reach, 5, part));
+    }
+    enemy.tongue = { x, y, angle, length: 0, limit: reach * contact,
+      brickHit: contact < 1, swept: 0, caught: [], hitCat: false };
+    enemy.state = 'tongue-extend'; enemy.stateTime = 0;
+  }
+
+  updateFrogTongue(enemy, dt, startX, startY) {
+    const tongue = enemy.tongue;
+    const oldLength = tongue.length, oldAngle = tongue.angle, state = enemy.state;
+    if (state === 'tongue-extend') tongue.length = Math.min(tongue.limit, tongue.length + 1100 * dt);
+    if (state === 'tongue-swing') {
+      const step = Math.min(Math.PI / 2 - tongue.swept, dt * 1.8);
+      tongue.angle += tongue.direction * step; tongue.swept += step;
+    }
+    if (state === 'tongue-retract') tongue.length = Math.max(0, tongue.length - 1300 * dt);
+    // Sample the swept shaft, not just its tip, so flies and Koshi cannot slip through a swing.
+    const steps = Math.max(1, Math.ceil(Math.abs(tongue.angle - oldAngle) * Math.max(oldLength, tongue.length) / 6),
+      Math.ceil(Math.abs(tongue.length - oldLength) / 10));
+    for (let i = 1; i <= steps; i++) {
+      const fraction = i / steps;
+      const angle = oldAngle + (tongue.angle - oldAngle) * fraction;
+      const length = oldLength + (tongue.length - oldLength) * fraction;
+      const x = tongue.x + Math.cos(angle) * length, y = tongue.y + Math.sin(angle) * length;
+      this.frogFlies = this.frogFlies.filter(fly => {
+        if (distanceToSegment(fly.x, fly.y, tongue.x, tongue.y, x, y) > fly.radius + 5) return true;
+        const along = Math.max(0, Math.min(length,
+          (fly.x - tongue.x) * Math.cos(angle) + (fly.y - tongue.y) * Math.sin(angle)));
+        tongue.caught.push({ ...fly, along });
+        enemy.state = 'tongue-retract';
+        return false;
+      });
+      const catX = startX + (this.cat.x - startX) * fraction;
+      const catY = startY + (this.cat.y - startY) * fraction;
+      if (!tongue.hitCat && distanceToSegment(catX, catY, tongue.x, tongue.y, x, y) <= this.cat.radius + 5) {
+        tongue.hitCat = true;
+        this.takeDamage();
+        this.frogEffects.push({ type: 'saliva', x: catX, y: catY, age: 0, duration: .7 });
+        if (state === 'tongue-extend') {
+          enemy.state = 'tongue-retract';
+          tongue.length = Math.min(length, Math.hypot(catX - tongue.x, catY - tongue.y));
+          break;
+        }
+      }
+    }
+    if (enemy.state === 'tongue-extend' && tongue.length >= tongue.limit) {
+      if (tongue.brickHit) { enemy.state = 'tongue-hold'; enemy.stateTime = 0; }
+      else enemy.state = 'tongue-retract';
+    } else if (state === 'tongue-hold' && enemy.state === 'tongue-hold' && enemy.stateTime >= 1 - 1e-9) {
+      const target = Math.atan2(this.cat.y - tongue.y, this.cat.x - tongue.x);
+      tongue.direction = Math.atan2(Math.sin(target - tongue.angle), Math.cos(target - tongue.angle)) < 0 ? -1 : 1;
+      enemy.state = 'tongue-swing';
+    } else if (enemy.state === 'tongue-swing' && tongue.swept >= Math.PI / 2 - 1e-9) {
+      enemy.state = 'tongue-retract';
+    } else if (state === 'tongue-retract' && tongue.length === 0) {
+      enemy.fliesEaten += tongue.caught.length;
+      enemy.state = tongue.caught.length ? 'lick' : 'rest';
+      enemy.stateTime = 0; enemy.tongue = null;
+    }
+  }
+
+  shootFrogSlime(enemy) {
+    const parts = this.brickParts();
+    const x = enemy.x, y = enemy.y + 12;
+    const candidates = parts.filter(part => !['cinder', 'goal'].includes(this.bricks[part.id].kind)
+      && this.brickVisible(this.bricks[part.id]))
+      .filter(target => {
+        const dx = target.x + target.w / 2 - x, dy = target.y + target.h / 2 - y;
+        const contact = brickContact(x, y, dx, dy, 10, target);
+        return parts.every(part => part.id === target.id || brickContact(x, y, dx, dy, 10, part) >= contact);
+      });
+    if (!candidates.length) return;
+    const target = candidates[Math.floor(this.random() * candidates.length)];
+    const angle = Math.atan2(target.y + target.h / 2 - y, target.x + target.w / 2 - x);
+    this.bossProjectiles.push({ type: 'frog-slime', x, y,
+      vx: Math.cos(angle) * 380, vy: Math.sin(angle) * 380, radius: 10, angle,
+      color: ['red', 'green', 'blue'][Math.floor(this.random() * 3)], targetId: target.id });
+  }
+
+  updateFrog(enemy, dt, startX = this.cat.x, startY = this.cat.y) {
+    this.updateFrogFlies(enemy, dt, startX, startY);
+    enemy.stateTime += dt;
+    enemy.asleep = enemy.state === 'sleep';
+    enemy.afraid = false;
+    if (enemy.state === 'rest') {
+      this.walkFrog(enemy, dt);
+      if (enemy.stateTime >= 2 - 1e-9) this.startFrogAttack(enemy);
+    } else if (enemy.state === 'jump-up' && enemy.stateTime >= .45) {
+      enemy.state = 'jump-track'; enemy.stateTime = 0;
+      enemy.shadow = { x: this.cat.x, y: this.cat.y };
+    } else if (enemy.state === 'jump-track') {
+      enemy.shadow = { x: this.cat.x, y: this.cat.y };
+      if (enemy.stateTime >= 2 - 1e-9) { enemy.state = 'jump-fall'; enemy.stateTime = 0; }
+    } else if (enemy.state === 'jump-fall' && enemy.stateTime >= .25) {
+      enemy.x = enemy.shadow.x; enemy.y = enemy.shadow.y; enemy.shadow = null;
+      enemy.state = 'slam'; enemy.stateTime = 0;
+      this.frogEffects.push({ type: 'smoke', x: enemy.x, y: enemy.y, age: 0, duration: .85 });
+      if (Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius) this.takeDamage();
+    } else if (enemy.state === 'slam' && enemy.stateTime >= .65) {
+      enemy.state = 'rest'; enemy.stateTime = 0;
+    } else if (enemy.state === 'tongue-blink' && enemy.stateTime >= 1 - 1e-9) this.shootFrogTongue(enemy);
+    else if (enemy.tongue) this.updateFrogTongue(enemy, dt, startX, startY);
+    else if (enemy.state === 'slime-charge' && enemy.stateTime >= .8) {
+      this.shootFrogSlime(enemy);
+      enemy.state = 'rest'; enemy.stateTime = 0;
+    } else if (enemy.state === 'lick' && enemy.stateTime >= .65) {
+      enemy.state = enemy.fliesEaten >= this.frogMealSize(enemy) ? 'sleep' : 'rest';
+      enemy.stateTime = 0;
+    } else if ((enemy.state === 'sleep' && enemy.stateTime >= 8 - 1e-9)
+      || (enemy.state === 'hurt' && enemy.stateTime >= .9)) {
+      enemy.fliesEaten = 0; enemy.asleep = false;
+      enemy.state = 'rest'; enemy.stateTime = 0;
+    }
+    enemy.asleep = enemy.state === 'sleep';
+    if (enemy.state !== 'rest') enemy.walking = false;
+  }
+
+  walkFrog(enemy, dt) {
+    enemy.walking = false;
+    const bounds = this.bounds(), margin = 30;
+    const area = { left: bounds.left + margin, right: bounds.right - margin,
+      top: bounds.top + margin, bottom: bounds.bottom - margin };
+    if (area.left > area.right || area.top > area.bottom) return;
+    if (!enemy.walkTarget) {
+      enemy.walkTarget = { x: area.left + this.random() * (area.right - area.left),
+        y: area.top + this.random() * (area.bottom - area.top) };
+    }
+    const dx = enemy.walkTarget.x - enemy.x, dy = enemy.walkTarget.y - enemy.y, distance = Math.hypot(dx, dy);
+    const step = Math.min(distance, 32 * dt);
+    if (distance < 1) { enemy.walkTarget = null; return; }
+    const x = enemy.x + dx / distance * step, y = enemy.y + dy / distance * step;
+    // Tom only strolls through open floor; he never walks into Koshi or through bricks.
+    const blocked = Math.hypot(this.cat.x - x, this.cat.y - y) <= this.cat.radius + enemy.radius + 6
+      || this.brickParts().some(part => Math.hypot(x - Math.max(part.x, Math.min(part.x + part.w, x)),
+        y - Math.max(part.y, Math.min(part.y + part.h, y))) < enemy.radius * .75);
+    if (blocked) { enemy.walkTarget = null; return; }
+    enemy.x = x; enemy.y = y;
+    enemy.walkDistance = (enemy.walkDistance ?? 0) + step;
+    enemy.walking = step > 0;
+  }
+
+  hitFrog(enemy) {
+    if (enemy.state !== 'sleep' || !this.weapon || !Object.hasOwn(SWORDS, this.weapon.type)
+      || this.enemyDamageProgress(enemy) !== null) return false;
+    this.weaponAttacks.push({ x: enemy.x, y: enemy.y, type: this.weapon.type, age: 0 });
+    if (--this.weapon.uses === 0) this.dropWeapon(true);
+    enemy.health--; enemy.fliesEaten = 0; enemy.asleep = false;
+    enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
+    enemy.state = 'hurt'; enemy.stateTime = 0;
+    if (enemy.health === 0) this.finishBossBattle(enemy);
+    return true;
+  }
+
+  finishBossBattle(enemy) {
+    this.bossDefeated = true;
+    this.bossProjectiles = []; this.frogFlies = []; this.frogPendingFlies = []; this.frogEffects = [];
+    enemy.tongue = null; enemy.shadow = null;
+    this.cat.vx = 0; this.cat.vy = 0; this.boosted = false; this.target = null;
+    this.defeatEnemy(enemy);
   }
 
   bossBrickTarget(destructive = false) {
@@ -5489,19 +5746,25 @@ class Game {
     this.bossProjectiles = this.bossProjectiles.filter(toast => {
       const oldX = toast.x, oldY = toast.y, dx = toast.vx * dt, dy = toast.vy * dt;
       let contact = Infinity, hitId = null;
-      if (toast.burnt || toast.blue) {
-        for (const part of parts.filter(part => toast.blue || part.id === toast.targetId)) {
+      if (toast.burnt || toast.blue || toast.type === 'frog-slime') {
+        for (const part of parts.filter(part => toast.blue || toast.type === 'frog-slime' || part.id === toast.targetId)) {
           const time = brickContact(oldX, oldY, dx, dy, toast.radius, part);
           if (time < contact) { contact = time; hitId = part.id; }
         }
       }
       const travel = Math.min(1, contact);
       toast.x += dx * travel; toast.y += dy * travel;
-      if (distanceToSegment(0, 0, oldX - startX, oldY - startY,
+      if (toast.type !== 'frog-slime' && distanceToSegment(0, 0, oldX - startX, oldY - startY,
         toast.x - this.cat.x, toast.y - this.cat.y) <= toast.radius + this.cat.radius) this.takeDamage();
       if (contact <= 1) {
         const brick = this.bricks[hitId];
-        if (toast.blue) {
+        if (toast.type === 'frog-slime') {
+          if (!['cinder', 'goal'].includes(brick.kind)) this.slimeBrick(brick, toast.color);
+          const speed = Math.hypot(toast.vx, toast.vy);
+          this.paintEffects.push({ color: SLIMES[toast.color].color, scale: .45, age: 0, duration: .8,
+            x: toast.x, y: toast.y, nx: -toast.vx / speed, ny: -toast.vy / speed,
+            members: parts.filter(part => part.id === hitId).map(part => ({ ...part })) });
+        } else if (toast.blue) {
           if (brick.kind !== 'cinder') {
             for (const member of this.bricks) {
               if (member.id !== brick.id && member.absorbedBy !== brick.id) continue;
@@ -5521,12 +5784,7 @@ class Game {
     enemy.health--;
     enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
     enemy.state = 'hurt'; enemy.stateTime = 0;
-    if (enemy.health === 0) {
-      this.bossDefeated = true;
-      this.bossProjectiles = [];
-      this.cat.vx = 0; this.cat.vy = 0; this.boosted = false; this.target = null;
-      this.defeatEnemy(enemy);
-    }
+    if (enemy.health === 0) this.finishBossBattle(enemy);
     return true;
   }
 
@@ -5682,7 +5940,7 @@ class Game {
 
   defeatEnemy(enemy, awardPoints = true, cause = null) {
     if (enemy.type === 'robo-love-bug' && cause !== 'isolation') return;
-    if (enemy.type === 'boss' && enemy.health > 0) return;
+    if (isBossType(enemy.type) && enemy.health > 0) return;
     if (enemy.type === 'robo-trash-bin') this.releaseTrashBinTarget(enemy);
     if (awardPoints) {
       this.enemies += enemy.defeatPoints ?? 1;
@@ -5930,6 +6188,24 @@ class Game {
     enemy.binTilt = 0;
   }
 
+  slimeBrick(brick, color) {
+    const portal = brick.portal;
+    this.barriers = this.barriers.filter(fence => fence.id !== brick.id);
+    if (this.activeTurret?.brickId === brick.id) this.exitTurret();
+    if (this.conveyorRide?.id === brick.id) this.conveyorRide = null;
+    for (const member of this.bricks) {
+      if (member.id === brick.id || member.absorbedBy === brick.id) {
+        for (const surface of CONTACT_SURFACES) member[surface] = ['portal', 'spawner', 'turret', 'hazard'].includes(surface) ? null : false;
+        member.slimed = true;
+        member.slimeColor = color;
+        member.slimeAppliedAt = this.elapsed;
+      } else if (portal && member.portal === portal) member.portal = null;
+    }
+    this.spawnerTouching.delete(brick.id);
+    this.spikeTouching.delete(brick.id);
+    this.brickRevision++;
+  }
+
   updateTrashBin(enemy, seconds, bounds) {
     const transitionDuration = .6;
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -6020,21 +6296,7 @@ class Game {
       enemy.binPourTime += step;
       seconds -= step;
       if (enemy.binPourTime < 3 - 1e-9) return;
-      const brick = this.bricks[enemy.binTarget], portal = brick.portal;
-      this.barriers = this.barriers.filter(fence => fence.id !== brick.id);
-      if (this.activeTurret?.brickId === brick.id) this.exitTurret();
-      if (this.conveyorRide?.id === brick.id) this.conveyorRide = null;
-      for (const member of this.bricks) {
-        if (member.id === brick.id || member.absorbedBy === brick.id) {
-          for (const surface of CONTACT_SURFACES) member[surface] = ['portal', 'spawner', 'turret', 'hazard'].includes(surface) ? null : false;
-          member.slimed = true;
-          member.slimeColor = enemy.binColor;
-          member.slimeAppliedAt = this.elapsed;
-        } else if (portal && member.portal === portal) member.portal = null;
-      }
-      this.spawnerTouching.delete(brick.id);
-      this.spikeTouching.delete(brick.id);
-      this.brickRevision++;
+      this.slimeBrick(this.bricks[enemy.binTarget], enemy.binColor);
       this.releaseTrashBinTarget(enemy);
       enemy.binState = 'recover';
       enemy.binPhaseTime = 0;
@@ -6771,8 +7033,8 @@ class Game {
       enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
       enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
     };
-    if (a.type === 'boss' || b.type === 'boss') {
-      const other = a.type === 'boss' ? b : a, sign = a.type === 'boss' ? -1 : 1;
+    if (isBossType(a.type) || isBossType(b.type)) {
+      const other = isBossType(a.type) ? b : a, sign = isBossType(a.type) ? -1 : 1;
       other.x += sign * nx * overlap; other.y += sign * ny * overlap;
       clamp(other);
       return;
@@ -6899,7 +7161,7 @@ class Game {
     for (let i = 0; i < this.robots.length; i++) {
       for (let j = i + 1; j < this.robots.length; j++) {
         const a = this.robots[i], b = this.robots[j], oldA = previous.get(a), oldB = previous.get(b);
-        if (a.type === 'robo-koshi' || b.type === 'robo-koshi') continue;
+        if (a.type === 'robo-koshi' || b.type === 'robo-koshi' || frogAirborne(a) || frogAirborne(b)) continue;
         // Goalie priority preserves the leader's full step; overlap resolution moves only the yielding guard.
         if (a.type === b.type && ['goalie', 'robo-trash-bin'].includes(a.type)) continue;
         const x = oldA.x - oldB.x, y = oldA.y - oldB.y, radius = a.radius + b.radius;
@@ -6926,7 +7188,7 @@ class Game {
       for (let i = 0; i < this.robots.length; i++) {
         for (let j = i + 1; j < this.robots.length; j++) {
           const a = this.robots[i], b = this.robots[j];
-          if (a.type === 'robo-koshi' || b.type === 'robo-koshi') continue;
+          if (a.type === 'robo-koshi' || b.type === 'robo-koshi' || frogAirborne(a) || frogAirborne(b)) continue;
           const x = a.x - b.x, y = a.y - b.y, distance = Math.hypot(x, y);
           const overlap = a.radius + b.radius - distance;
           if (overlap <= 1e-7) continue;
@@ -6970,7 +7232,7 @@ class Game {
       const reach = 114 + 24 + (other.type === 'snake' ? 114 + 24 : other.radius);
       return (snake.x - other.x) ** 2 + (snake.y - other.y) ** 2 <= reach * reach;
     };
-    const roaming = this.robots.filter(enemy => !['wheel', 'snake', 'robo-koshi'].includes(enemy.type));
+    const roaming = this.robots.filter(enemy => !['wheel', 'snake', 'robo-koshi'].includes(enemy.type) && !frogAirborne(enemy));
     for (const snake of snakes) {
       if (!roaming.length) break;
       const before = previous.get(snake).segments ?? this.snakeSegments({ ...snake, distance: previous.get(snake).distance });
@@ -6992,7 +7254,7 @@ class Game {
     for (let pass = 0; pass < 8; pass++) {
       let overlaps = false;
       for (const snake of snakes) {
-        const others = this.robots.filter(enemy => enemy !== snake && enemy.type !== 'robo-koshi' && nearby(snake, enemy));
+        const others = this.robots.filter(enemy => enemy !== snake && enemy.type !== 'robo-koshi' && !frogAirborne(enemy) && nearby(snake, enemy));
         if (!others.length) continue;
         for (const segment of segmentsFor(snake).slice(1)) {
           for (const actor of others) for (const other of actor.type === 'snake' ? segmentsFor(actor) : [actor]) {
@@ -7200,11 +7462,17 @@ class Game {
       ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}) });
     const previous = new Map(this.robots.map(enemy => [enemy, snapshot(enemy)]));
     for (const enemy of this.robots) {
-      if (enemy.type !== 'snake' && enemy.type !== 'robo-koshi') this.clearBarrierOverlap(enemy, fences);
+      if (enemy.type !== 'snake' && enemy.type !== 'robo-koshi' && enemy.type !== 'tom-frog') this.clearBarrierOverlap(enemy, fences);
       if (enemy.type !== 'goalie') previous.set(enemy, snapshot(enemy));
     }
     for (const enemy of this.robots) {
       enemy.age += dt;
+      if (enemy.type === 'tom-frog') {
+        const airborne = frogAirborne(enemy);
+        this.updateFrog(enemy, dt, startX, startY);
+        if (airborne && !frogAirborne(enemy)) previous.set(enemy, snapshot(enemy));
+        continue;
+      }
       if (enemy.type === 'boss') {
         enemy.asleep = false; enemy.afraid = false;
         this.updateBoss(enemy, dt);
@@ -7270,12 +7538,12 @@ class Game {
       }
     }
     for (const enemy of this.robots) {
-      if (enemy.type !== 'robo-koshi') this.blockEnemyWithObstructions(enemy, previous.get(enemy));
+      if (enemy.type !== 'robo-koshi' && enemy.type !== 'tom-frog') this.blockEnemyWithObstructions(enemy, previous.get(enemy));
     }
     this.resolveEnemyCollisions(previous);
     this.resolveSnakeBodyCollisions(previous);
     for (const enemy of this.robots) {
-      if (enemy.type === 'robo-koshi') continue;
+      if (enemy.type === 'robo-koshi' || enemy.type === 'tom-frog') continue;
       if (enemy.type === 'snake') this.blockSnakeWithBarriers(enemy, previous.get(enemy), fences);
       else {
         if (enemy.type !== 'robo-cow' || enemy.afraid) this.blockEnemyWithBarriers(enemy, previous.get(enemy), fences);
@@ -7285,6 +7553,7 @@ class Game {
     }
     for (const enemy of this.robots) {
       const old = previous.get(enemy);
+      if (enemy.type === 'tom-frog') continue;
       if (enemy.roboPathTarget) {
         enemy.x = enemy.roboPathTarget.x;
         enemy.y = enemy.roboPathTarget.y;
@@ -7343,9 +7612,14 @@ class Game {
         }
       }
       const distance = distanceToSegment(0, 0, startX - old.x, startY - old.y, this.cat.x - enemy.x, this.cat.y - enemy.y);
-      if (enemy.type === 'boss') {
-        if (!this.activeTurret && distance <= this.cat.radius + enemy.radius + 18 && this.hitBoss(enemy)) return enemy.health > 0;
-        if (distance <= this.cat.radius + enemy.radius && this.enemyDamageProgress(enemy) === null) this.takeDamage();
+      if (isBossType(enemy.type)) {
+        if (frogAirborne(enemy)) return true;
+        const hit = () => enemy.type === 'tom-frog' ? this.hitFrog(enemy) : this.hitBoss(enemy);
+        if (!this.activeTurret && distance <= this.cat.radius + enemy.radius + 18 && hit()) return enemy.health > 0;
+        // A landing is a ground impact, not a damaging path from the frog's old location.
+        const contactDistance = enemy.type === 'tom-frog'
+          ? Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) : distance;
+        if (enemy.state !== 'sleep' && contactDistance <= this.cat.radius + enemy.radius && this.enemyDamageProgress(enemy) === null) this.takeDamage();
         return true;
       }
       if (enemy.type !== 'robo-love-bug' && !this.activeTurret
@@ -7654,7 +7928,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (enemy.type === 'boss' ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -7755,6 +8029,10 @@ class Game {
       effect.age += seconds;
       return effect.age < effect.duration - 1e-9;
     });
+    this.frogEffects = this.frogEffects.filter(effect => {
+      effect.age += seconds;
+      return effect.age < effect.duration - 1e-9;
+    });
   }
 
   update(seconds) {
@@ -7766,7 +8044,7 @@ class Game {
       this.updateWeaponDrops(seconds);
       this.updatePaintEffects(seconds);
       this.updateBrickDestructions(seconds);
-      if (!this.enemyDeaths.some(enemy => enemy.type === 'boss')) {
+      if (!this.enemyDeaths.some(enemy => isBossType(enemy.type))) {
         this.state = 'won';
         this.checkCatBlockAchievement();
       }
@@ -8255,6 +8533,7 @@ api.HAZARDS = HAZARDS;
 api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;
 Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks });
+api.isBossType = isBossType;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

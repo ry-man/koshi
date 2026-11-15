@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 64);
+  assert.equal(LESSONS.length, 65);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -203,7 +203,7 @@ test('Anvil practice restores the selected sword, hammer or axe through a real p
 });
 
 test('attackable enemy lessons require defeating every robot type with a sword', () => {
-  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom', 'boss', 'robo-love-bug'].includes(type))) {
+  for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom', 'boss', 'tom-frog', 'robo-love-bug'].includes(type))) {
     const tutorial = practice(id);
     assert.equal(tutorial.observe(), false, `${id} is not complete at start`);
     aim(tutorial); wait(tutorial, 2);

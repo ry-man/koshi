@@ -154,7 +154,7 @@ test('Robo Koshi death lasts 1.1 seconds and draws extra smoke puffs', () => {
     },
     set(target, key, value) { operations.push([key, value]); target[key] = value; return true; },
   });
-  const context = vm.createContext({ ctx, drawRobot: (enemyArg, progress) => operations.push(['robot', progress]) });
+  const context = vm.createContext({ ctx, isBossType: require('../src/game.js').isBossType, drawRobot: (enemyArg, progress) => operations.push(['robot', progress]) });
   const visual = vm.createContext({ ctx });
   const visualStart = source.indexOf('function drawRoboKoshi(');
   const visualEnd = source.indexOf('function drawRobotBody(', visualStart);

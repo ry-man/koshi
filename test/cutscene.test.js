@@ -231,7 +231,8 @@ test('all campaign scenes validate and every campaign story character speaks', (
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => character !== 'robo-trash-bin').sort());
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['robo-trash-bin', 'tom-frog'].includes(character)).sort());
+  assert.ok(!speakers.has('tom-frog'), 'custom-only bosses do not change campaign scenes');
   assert.ok(!speakers.has('robo-trash-bin'), 'custom-only enemies do not change campaign scenes');
   const beforeWorldFour = new Set(LEVELS.filter(level => level.worldId !== '4')
     .flatMap(level => level.cutscene.lines.map(line => line.speaker)));

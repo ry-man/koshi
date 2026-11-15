@@ -247,7 +247,7 @@ test('Love Bug artwork matches the reference and cries before splitting into hea
       return (...args) => calls.push({ name, args, fill: target.fillStyle, stroke: target.strokeStyle, alpha: target.globalAlpha });
     },
   });
-  const context = vm.createContext({ ctx });
+  const context = vm.createContext({ ctx, isBossType: require('../src/game.js').isBossType });
   vm.runInContext(source.slice(source.indexOf('function drawRoboLoveBug('), source.indexOf('function drawRoboCrab('))
     + source.slice(source.indexOf('function drawRobotExplosion('), source.indexOf('function resize(')), context);
   context.drawRobot = (enemy, progress) => {

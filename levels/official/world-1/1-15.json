@@ -3,11 +3,12 @@
   "id": "Jog in the Park",
   "duration": 75,
   "goal": 0,
-  "heartCost": 15,
+  "heartCost": 12,
   "brickSet": 1,
   "events": [
     {
-      "time": 6,
+      "time": 0,
+      "spawnPercent": 5,
       "kind": "object",
       "type": "obstruction-rectangle",
       "x": 0.1625371144746744,
@@ -19,23 +20,8 @@
       "height": 280.41106719367593
     },
     {
-      "time": 2,
-      "kind": "food",
-      "type": "B",
-      "x": 0.08568776910554263,
-      "y": 0.7552883544867512,
-      "lifetime": 8
-    },
-    {
-      "time": 3,
-      "kind": "food",
-      "type": "B",
-      "x": 0.1140006858204859,
-      "y": 0.21019817412602984,
-      "lifetime": 8
-    },
-    {
-      "time": 5,
+      "time": 0,
+      "spawnPercent": 5,
       "kind": "weapon",
       "type": "bronze",
       "x": 0.14231360253542918,
@@ -163,7 +149,7 @@
       "time": 65,
       "kind": "enemy",
       "type": "mouse",
-      "x": 0.935075270553841,
+      "x": 0.9943975722422936,
       "y": 0.49877532843464706,
       "shield": null,
       "carriesItem": "key"
@@ -303,6 +289,186 @@
       "color": "#15803d",
       "patternColor": "#dbe6ed",
       "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "spawnPercent": 20,
+      "kind": "food",
+      "type": "P",
+      "x": 0.07894659845912756,
+      "y": 0.5308394566911601,
+      "group": {
+        "shape": "line",
+        "count": 5,
+        "angle": 55
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 0,
+      "spawnPercent": 5,
+      "kind": "food",
+      "type": "P",
+      "x": 0.10591128104478782,
+      "y": 0.370518815408595,
+      "group": {
+        "shape": "line",
+        "count": 5,
+        "angle": 140
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 0,
+      "spawnPercent": 5,
+      "kind": "food",
+      "type": "P",
+      "x": 0.1342241977597311,
+      "y": 0.5949677132041862,
+      "group": {
+        "shape": "line",
+        "count": 3,
+        "angle": 40
+      },
+      "lifetime": 8
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6371155279822951,
+      "y": 0.46671120017813406,
+      "color": "#f59e0b",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6452049327579932,
+      "y": 0.46671120017813406,
+      "color": "#15803d",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6411602303701441,
+      "y": 0.30639055889556893,
+      "color": "#84cc16",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6492496351458422,
+      "y": 0.30639055889556893,
+      "color": "#15803d",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6532943375336913,
+      "y": 0.46671120017813406,
+      "color": "#eab308",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6802590201193515,
+      "y": 0.9476731240258295,
+      "color": "#eab308",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.6843037225072005,
+      "y": 0.7873524827432643,
+      "color": "#84cc16",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.7058754685757287,
+      "y": 0.04987753284346471,
+      "color": "#15803d",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-hexagon",
+      "x": 0.7099201709635777,
+      "y": 0.21019817412602984,
+      "color": "#84cc16",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid"
+    },
+    {
+      "time": 47,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.8165029013593833,
+      "y": 0.5,
+      "color": "#84cc16",
+      "patternColor": "#dbe6ed",
+      "pattern": "solid",
+      "width": 1812.4299948335672,
+      "height": 48
+    },
+    {
+      "time": 0,
+      "spawnPercent": 15,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.7773318774277285,
+      "y": 0.21019817412602984,
+      "shield": null
+    },
+    {
+      "time": 0,
+      "spawnPercent": 15,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.8042965600133887,
+      "y": 0.8194166109997774,
+      "shield": null
+    },
+    {
+      "time": 0,
+      "spawnPercent": 15,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.8433953497625961,
+      "y": 0.21019817412602984,
+      "shield": null
+    },
+    {
+      "time": 0,
+      "spawnPercent": 15,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.8771012029946714,
+      "y": 0.8194166109997774,
+      "shield": null
     }
   ],
   "bossLevel": false,
@@ -324,6 +490,33 @@
     "trigger": {
       "type": "chest"
     }
+  },
+  "cutscene": {
+    "theme": "happy-meadows",
+    "lines": [
+      {
+        "speaker": "koshi",
+        "text": "I could use some exercise after all that eating! Time for a leisurely jog!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "mouse",
+        "text": "Let's see if we can catch up to him, guys! He's going pretty fast this time!",
+        "actors": [
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65
+          }
+        ]
+      }
+    ]
   },
   "brickTypes": [
     {
@@ -1309,69 +1502,6 @@
     },
     {
       "edge": "right",
-      "start": 0.9,
-      "end": 0.91,
-      "kind": "normal",
-      "crumbler": null,
-      "warped": null,
-      "slimeColor": "blue",
-      "conveyorDirection": "clockwise",
-      "slimed": true,
-      "springs": false,
-      "spikes": false,
-      "conveyor": false,
-      "power": false,
-      "portal": null,
-      "turret": null,
-      "hazard": null,
-      "toggle": null,
-      "boost": false,
-      "spawner": null
-    },
-    {
-      "edge": "left",
-      "start": 0.87,
-      "end": 0.88,
-      "kind": "normal",
-      "crumbler": null,
-      "warped": null,
-      "slimeColor": "blue",
-      "conveyorDirection": "clockwise",
-      "slimed": true,
-      "springs": false,
-      "spikes": false,
-      "conveyor": false,
-      "power": false,
-      "portal": null,
-      "turret": null,
-      "hazard": null,
-      "toggle": null,
-      "boost": false,
-      "spawner": null
-    },
-    {
-      "edge": "right",
-      "start": 0.84,
-      "end": 0.85,
-      "kind": "normal",
-      "crumbler": null,
-      "warped": null,
-      "slimeColor": "blue",
-      "conveyorDirection": "clockwise",
-      "slimed": true,
-      "springs": false,
-      "spikes": false,
-      "conveyor": false,
-      "power": false,
-      "portal": null,
-      "turret": null,
-      "hazard": null,
-      "toggle": null,
-      "boost": false,
-      "spawner": null
-    },
-    {
-      "edge": "right",
       "start": 0.69,
       "end": 0.7,
       "kind": "normal"
@@ -1813,6 +1943,69 @@
       "crumbler": null,
       "warped": null,
       "slimeColor": "blue",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.9,
+      "end": 0.91,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "left",
+      "start": 0.87,
+      "end": 0.88,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
+      "start": 0.84,
+      "end": 0.85,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
       "conveyorDirection": "clockwise",
       "slimed": true,
       "springs": false,

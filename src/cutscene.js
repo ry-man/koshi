@@ -521,6 +521,22 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#535d66', 23, 21 + bob, 6, talking ? 6 : 3);
     box('#c4cdd5', 24, 21 + bob, 1, 2); box('#c4cdd5', 26, 21 + bob, 1, 2);
     if (talking) { box('#c4cdd5', 24, 25 + bob, 1, 2); box('#c4cdd5', 26, 25 + bob, 1, 2); }
+  } else if (character === 'tom-frog') {
+    const bob = Math.round(Math.sin(time * 4));
+    box('#354638', 1, 4 + bob, 6, 26); box('#354638', 26, 2 + bob, 5, 28);
+    box('#879779', 2, 5 + bob, 4, 24); box('#879779', 27, 3 + bob, 3, 26);
+    box('#879779', 0, 28 + bob, 9, 3); box('#879779', 24, 28 + bob, 8, 3);
+    box('#96a286', 6, 11 + bob, 21, 16); box('#96a286', 9, 26 + bob, 15, 3);
+    box('#96a286', 9, 7 + bob, 6, 5); box('#96a286', 19, 7 + bob, 6, 5);
+    for (const x of [10, 20]) {
+      box('#18251b', x, 8 + bob, 5, 4);
+      box('#f5dc45', x + 1, 9 + bob, 3, blink ? 1 : 2);
+      if (!blink) box('#8e821e', x + 2, 9 + bob, 1, 2);
+    }
+    box('#354638', 10, 18 + bob, 1, 6); box('#354638', 23, 18 + bob, 1, 6);
+    box('#74846d', 9, 23 + bob, 4, 3); box('#74846d', 21, 23 + bob, 4, 3);
+    box('#29392d', 13, 18 + bob, 8, talking ? 5 : 1);
+    if (talking) box('#e76c7a', 15, 21 + bob, 4, 2);
   } else if (character === 'boss') {
     box('#6d7780', 5, 7, 24, 22); box('#abb5bd', 3, 7, 21, 22);
     box('#abb5bd', 6, 4, 15, 4);
@@ -850,7 +866,7 @@ class CutscenePlayer {
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
       ctx.scale(position.scale * height / width * 960 / 540, position.scale);
-      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, 'robo-trash-bin': 23, boss: 40 }[actor.character];
+      const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, 'robo-trash-bin': 23, boss: 40, 'tom-frog': 46 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, walking ? -Math.abs(Math.sin(animationTime * 14)) * 4

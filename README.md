@@ -1385,7 +1385,7 @@ playtest links, direct-file play, and the offline app.
 ### Level settings and placements
 
 **Boss level** selects a boss fight instead of score or survival objectives.
-Place exactly one **Tom the Toaster** enemy before saving, exporting, or
+Place exactly one **Tom the Toaster** or **Tom the Frog** enemy before saving, exporting, or
 playtesting. Draft editing may temporarily omit the boss; duplicate bosses,
 boss formations, shields, and boss brick spawners are not allowed. Other
 enemies and their spawners remain available. Boss fights have no time limit;
@@ -1402,6 +1402,34 @@ attributes. The second is black and turns a non-Boost brick into Cinder.
 Only a Boost launch during his rocking, red **ERROR!** eye display damages
 him. Six hits defeat him. The red, gold-bordered health bar below the counters
 tracks his health; his death animation finishes before Koshi celebrates.
+
+**Tom the Frog** (`tom-frog`) is available for custom boss levels, without changing
+the built-in campaign. His grey-green body follows the frog drawing, with yellow
+pixel eyes, and he draws above the bricks. Between attacks he slowly walks
+through open floor, swinging his little arms and shuffling his hind legs. He
+randomly jumps offscreen (his hind legs crouch and kick; a shadow tracks Koshi
+for two seconds, then locks before a fast, smoky slam), blinks five times before
+firing his red tongue (only while at least one fly is on the board), or opens his
+mouth to shoot one randomly red, green, or blue slime ball at any visible brick.
+Slime replaces the struck brick's surfaces using the same rules as Robo Trash
+Bin, recolors already slimed bricks, and makes a smaller paint splash. The tongue
+and slime are drawn on top of Tom. The tongue stops at the first brick, holds for
+one second, then sweeps a fixed-length quarter turn toward Koshi before
+retracting. A tongue hit damages Koshi with blue saliva.
+
+Up to three slow, wandering flies spawn every 5–15 seconds through the usual
+enemy skull cloud, at random positions at least one body width away from Tom.
+One in eight flies carries a heart; destroying that fly with a weapon or Boost
+drops the heart for Koshi, but Tom eats the heart if he eats the fly.
+They hurt Koshi on contact and can be destroyed with a weapon or Boost, but
+guiding any part of Tom's tongue into them makes him reel them in, eat, and lick
+his lips. He needs **1, 1, 2, 2, 3, 3** flies for successive damage openings.
+Each meal makes him sleep for eight seconds with scrolling pixel **ZZZZ...** eyes
+while his body flashes shades of green.
+Only a sword can damage him during sleep, once per opening; six hits defeat him.
+A missed opening consumes the meal. A bronze sword appears every random 10–20
+seconds, even while Koshi is armed, until three swords are in play (swords in the
+arena plus Koshi's weapon). Pausing freezes all battle timers.
 
 1. Set the level name, time limit, win condition, and optional heart cost (new levels
    default to 15; blank disables food-triggered hearts). Settings apply automatically when you change a selection

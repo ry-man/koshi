@@ -125,7 +125,7 @@ test('axe spawns validate, and on-screen lifetime does not shorten the equipped 
 test('editor strike totals handle timed scheduled axes, spawners and enemy drops without NaN', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ WEAPONS, FOODS, SHIELDS, level: {},
+  const context = vm.createContext({ WEAPONS, FOODS, SHIELDS, isBossType: require('../src/game.js').isBossType, level: {},
     document: { createElement: () => ({ dataset: {} }) }, $: selector => {
     if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.childElementCount = children.length; } });
     return nodes.get(selector);

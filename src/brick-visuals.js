@@ -55,6 +55,7 @@ const SYMBOLS = {
   'robo-crab': 'M-23 4 Q-23 -7 -12 -7 H12 Q23 -7 23 4 V8 Q23 19 12 19 H-12 Q-23 19 -23 8 Z M-23 2 H-35 V-24 H-29 M23 2 H35 V-24 H29 M-16 13 L-31 16 L-24 26 M16 13 L31 16 L24 26 M-10 -7 V-19 M10 -7 V-19 M-18 -23 H-2 V-15 H-18 Z M2 -23 H18 V-15 H2 Z M-13 12 V7 H13 V12 M-36 -24 L-37 -38 L-22 -38 L-30 -28 L-23 -31 V-24 Z M36 -24 L37 -38 L22 -38 L30 -28 L23 -31 V-24 Z',
   'robo-love-bug': 'M0 -9 C-30 -13 -30 25 0 25 C30 25 30 -13 0 -9 Z M0 -9 V25 M-22 -7 C-22 -31 22 -31 22 -7 Z M-10 -22 L-18 -33 M10 -22 L18 -33 M-21 -35 A3 3 0 1 1 -15 -35 A3 3 0 1 1 -21 -35 M15 -35 A3 3 0 1 1 21 -35 A3 3 0 1 1 15 -35 M-18 -4 L-27 -9 M-20 6 H-28 M-18 17 L-26 23 M18 -4 L27 -9 M20 6 H28 M18 17 L26 23 M-12 -19 H-5 V-12 H-12 Z M5 -19 H12 V-12 H5 Z M0 19 C-31 2 -13 -9 0 2 C13 -9 31 2 0 19 Z',
   boss: 'M-23 20 V-7 Q-23 -23 -7 -23 H7 Q23 -23 23 -7 V20 Z M-17 -10 H-5 V-3 H-17 Z M5 -10 H17 V-3 H5 Z M-15 10 H15 M24 -6 V15 M22 5 H28 V10 H22 M-15 -19 H15',
+  'tom-frog': 'M-27 23 V-18 L-20 -21 L-14 -10 H-11 V-17 H-3 V-11 H5 V-17 H13 V-10 H18 L24 -24 H28 V23 H20 V-4 L17 16 Q0 25 -17 16 L-20 -4 V23 Z M-10 -14 H-4 V-10 H-10 Z M6 -14 H12 V-10 H6 Z M-8 7 V3 H9 V7 M-14 3 V14 H-9 M14 3 V14 H9',
   'robo-unicorn': 'M-20 27 C-3 15 -12 4 -17 -7 C-27 -26 -8 -31 8 -21 C16 -16 15 -7 24 1 C35 10 25 21 17 15 C11 9 8 8 4 12 C2 20 -8 27 -20 27 Z M-9 -18 Q-18 -23 -10 -36 Q1 -28 -1 -20 Z M5 -21 L24 -40 L13 -16 Z M1 -14 Q7 -19 12 -12 Q7 -6 2 -9 Z M18 10 H27 V15 H18 Z',
   'bubble-blue': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
   'bubble-green': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
@@ -152,7 +153,7 @@ function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return WEAPONS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return spawn.type === 'robo-koshi' ? '#454d52' : ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
-    : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-trash-bin' ? '#008459' : spawn.type === 'robo-cow' ? '#9451bd' : spawn.type === 'robo-crab' ? '#929ba1'
+    : spawn.type === 'tom-frog' ? '#879779' : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-trash-bin' ? '#008459' : spawn.type === 'robo-cow' ? '#9451bd' : spawn.type === 'robo-crab' ? '#929ba1'
       : spawn.type === 'robo-love-bug' ? '#f29ac2' : spawn.type === 'robo-unicorn' ? '#ef9dca' : spawn.type === 'goalie' ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   if (spawn.kind === 'object') return spawn.color ?? OBJECTS[spawn.type].color;
@@ -921,19 +922,20 @@ function drawPaintSplash(ctx, effect) {
   const spread = 24 + 90 * expansion;
   ctx.save();
   ctx.globalAlpha *= Math.min(1, (1 - progress) / .45);
-  ctx.fillStyle = ITEMS[effect.type].color;
+  ctx.fillStyle = effect.color ?? ITEMS[effect.type].color;
   ctx.strokeStyle = '#26323c'; ctx.lineWidth = 2.5;
   ctx.save();
   ctx.beginPath();
   for (const part of effect.members) ctx.rect(part.x, part.y, part.w, part.h);
   ctx.clip();
   ctx.beginPath();
-  ctx.arc(effect.x, effect.y, 20 + 30 * expansion, 0, Math.PI * 2);
+  ctx.arc(effect.x, effect.y, (20 + 30 * expansion) * (effect.scale ?? 1), 0, Math.PI * 2);
   ctx.fill(); ctx.stroke();
   ctx.restore();
   // The spray escapes the brick face so it remains visible against freshly matching paint.
   ctx.translate(effect.x + effect.nx * 8, effect.y + effect.ny * 8);
   ctx.rotate(Math.atan2(effect.ny, effect.nx));
+  if (effect.scale !== undefined) ctx.scale(effect.scale, effect.scale);
   ctx.beginPath();
   for (let i = 0; i < 24; i++) {
     const angle = i * Math.PI * 2 / 24;

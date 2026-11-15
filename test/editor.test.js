@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, ITEMS, SHIELDS, SWORDS, WEAPONS, OBJECTS, CHARACTERS, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { isBossType } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -108,10 +109,11 @@ test('enemy palette separates bosses without changing category, selection, or re
   });
   const palette = node();
   const select = { value: 'boss', disabled: false, parentElement: {},
-    options: [{ value: 'mouse', textContent: 'Robo Mouse' }, { value: 'boss', textContent: 'Tom the Toaster' }] };
+    options: [{ value: 'mouse', textContent: 'Robo Mouse' }, { value: 'boss', textContent: 'Tom the Toaster' },
+      { value: 'tom-frog', textContent: 'Tom the Frog' }] };
   const entry = { select, palette, signature: null, buttons: [] };
   const context = vm.createContext({
-    palettes: new Map([['event-type', entry]]), MIXED: '',
+    palettes: new Map([['event-type', entry]]), MIXED: '', isBossType,
     readOnly: () => false,
     $: () => ({ value: 'enemy', parentElement: {} }),
     document: { createElement: node, querySelectorAll: () => [] },
@@ -124,6 +126,7 @@ test('enemy palette separates bosses without changing category, selection, or re
   assert.equal(section.attributes['aria-label'], 'Bosses');
   assert.equal(section.children[0].textContent, 'Bosses');
   assert.equal(section.children[1].children[0], entry.buttons[1]);
+  assert.equal(section.children[1].children[1], entry.buttons[2]);
   assert.equal(entry.buttons[1].attributes['aria-pressed'], 'true');
   assert.equal(select.value, 'boss');
   select.disabled = true;
@@ -932,7 +935,7 @@ test('random-spawn visibility filters random groups, multi-count events, and cam
   const context = vm.createContext({
     level: { events }, templates, $: () => ({ checked: showRandom }),
     previewGame: { customEventPoints: item => Array(item.group?.count ?? item.randomCount ?? 1).fill({ x: 100, y: 100 }) },
-    FOODS, SHIELDS, WEAPONS,
+    FOODS, SHIELDS, WEAPONS, isBossType,
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
   const totals = JSON.stringify(context.pointReference(events, []));
@@ -949,7 +952,7 @@ test('random-spawn visibility filters random groups, multi-count events, and cam
 test('point reference counts event groups, independent random events, shield values and spawners', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, level: blank(),
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, isBossType, level: blank(),
     document: { createElement: () => ({ dataset: {} }) }, $: selector => {
     if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.children = children; this.childElementCount = children.length; } });
     return nodes.get(selector);
@@ -986,7 +989,7 @@ test('point reference counts event groups, independent random events, shield val
 test('weapon budget includes grouped pickups, hammers, enemy drops and active spawning bricks without mutating levels', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, level: blank(),
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, isBossType, level: blank(),
     document: { createElement: () => ({ dataset: {} }) }, $: selector => {
     if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.children = children; this.childElementCount = children.length; } });
     return nodes.get(selector);
@@ -1080,7 +1083,7 @@ test('overlap picker deduplicates visible events, shares timeline details and se
   const before = JSON.stringify(events);
   const context = vm.createContext({
     document: { createElement: node }, level: { events }, selectedEvents: new Set(), selectedBricks: new Set(),
-    OBJECTS, FOODS, SHIELDS, WEAPONS,
+    OBJECTS, FOODS, SHIELDS, WEAPONS, isBossType,
     $: selector => ({ '#markers': { querySelectorAll: () => markers }, '#overlap-picker': dialog,
       '#overlap-events': list, '#overlap-close': close })[selector],
     description: event => `${event.type} · ${event.shield ?? 'no'} shield`,
@@ -1155,7 +1158,7 @@ test('timeline categories have subdued card colors and artwork while retaining s
   const events = kinds.map((kind, index) => ({ kind, type: { enemy: 'mouse', food: 'S', weapon: 'wood', item: 'battery', object: 'soccer-ball' }[kind],
     time: 5 - index, x: .5, y: .5 }));
   const context = vm.createContext({
-    level: { events }, selectedEvents: new Set([2]), OBJECTS, FOODS, SHIELDS, WEAPONS,
+    level: { events }, selectedEvents: new Set([2]), OBJECTS, FOODS, SHIELDS, WEAPONS, isBossType,
     timelineDetailIndex: null, renderTimelineDetails() {},
     $: selector => selector === '#event-list' ? list : selector === '#event-count' ? count
       : selector === '#event-timeline-view' ? { value: 'compact' } : selector === '#event-timeline-axis' ? {} : { dataset: {}, style: {} },
@@ -1415,7 +1418,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
     return nodes.get(selector);
   };
   $('#event-kind').value = 'enemy';
-  const context = vm.createContext({ $, MIXED: '', selectedEvents: new Set(), OBJECTS, CHARACTERS: require('../src/game.js').CHARACTERS,
+  const context = vm.createContext({ $, MIXED: '', selectedEvents: new Set(), OBJECTS, isBossType, CHARACTERS: require('../src/game.js').CHARACTERS,
     document: { createElement: () => ({}) }, picture: (value, control) => ({ value, control }) });
   vm.runInContext(source.slice(source.indexOf('function typeOptions('), source.indexOf('function readEvent(')), context);
   context.typeOptions();
@@ -1423,7 +1426,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
   for (const { value: type } of $('#event-type').options) {
     const enemy = { kind: 'enemy', type };
     const icon = context.icon(enemy);
-    if (['robo-snail', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'boss'].includes(type)) {
+    if (isBossType(type) || ['robo-snail', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin'].includes(type)) {
       assert.equal(icon.value, `enemy:${type}`);
       assert.equal(icon.control, 'brick-spawn-item');
     } else {
@@ -1439,6 +1442,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
   assert.ok(icons.has('robo-cow'));
   assert.ok(icons.has('robo-unicorn'));
   assert.ok(icons.has('boss'));
+  assert.ok(icons.has('tom-frog'));
   $('#event-kind').value = 'object';
   context.typeOptions();
   for (const type of ['bubble-blue', 'bubble-green', 'bubble-red']) {
@@ -1452,7 +1456,7 @@ test('campaign editor previews use every real schedule and preserve the original
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const before = JSON.stringify(LEVELS);
   const context = vm.createContext({
-    Game, carriedItem: event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : ''),
+    Game, isBossType, carriedItem: event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : ''),
   });
   vm.runInContext(source.slice(source.indexOf('function campaignPreview('), source.indexOf('function syncAccess(')), context);
   for (const [index, campaign] of LEVELS.entries()) {
@@ -1473,7 +1477,7 @@ test('campaign editor previews use every real schedule and preserve the original
       + campaign.items.length + campaign.weapons.length + (campaign.events?.length ?? 0));
     for (const event of campaign.events ?? []) assert.ok(preview.events.includes(event));
     for (const event of preview.events.filter(event => !campaign.events?.includes(event))) {
-      assert.equal(event.previewRandom, event.kind !== 'enemy' || event.type !== 'boss');
+      assert.equal(event.previewRandom, event.kind !== 'enemy' || !isBossType(event.type));
     }
     assert.equal(preview.events.filter(event => event.carriesItem === 'key').length,
       campaign.enemies.filter(entry => entry[4]?.carriesKey).length);

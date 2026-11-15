@@ -117,7 +117,7 @@ test('Ball rendering has orange seams, beady eyes, tooth grate, shrivel, popping
     },
     set(target, key, value) { operations.push([key, value]); target[key] = value; return true; },
   });
-  const context = vm.createContext({ ctx, drawScaredFace: () => operations.push(['scared']),
+  const context = vm.createContext({ ctx, isBossType: require('../src/game.js').isBossType, drawScaredFace: () => operations.push(['scared']),
     drawRobot: (enemy, progress) => context.drawRoboBall(enemy, progress) });
   vm.runInContext(source.slice(source.indexOf('function drawRoboBall('), source.indexOf('function drawEnemyDeath(')), context);
   context.drawRoboBall({});

@@ -140,6 +140,7 @@ const GUIDE = [
       ['Robo Unicorn', 'The Unicorn pauses to aim, then charges toward the nearest food and eats it. With no food left, it turns red and moves faster. Protect your food and use a sword or Boost to defeat it.', 'enemy:robo-unicorn'],
       ['Robo Koshi', 'This robotic copy waits one second, rushes to the place Koshi stood when it spawned, then follows Koshi’s recorded path a short time behind. Keep moving or change direction to avoid meeting your own trail; a sword or Boost can defeat it.', 'enemy:robo-koshi'],
       ['Tom the Toaster', 'Boss levels have one boss and no time limit. Dodge Tom’s spinning toast and rapid straight-line ricochets with no warning path. His charged attack fires blue toast that turns a non-Cinder brick blue, then black toast that destroys a non-Boost brick. After one to four attacks, his eyes scroll ERROR! and he rocks gently. Launch from a Boost brick to hit him then. Six hits empty his health bar; his death animation finishes before Koshi celebrates.', 'enemy:boss'],
+      ['Tom the Frog', 'A grey-green boss with yellow pixel eyes. Dodge his jump: his shadow follows Koshi for two seconds, then locks before he slams down. Five quick blinks warn of a straight tongue shot; hitting a brick makes it pause for a second, then sweep a fixed-length quarter turn toward Koshi. Guide the tongue through wandering flies so he eats them. Meals of 1, 1, 2, 2, 3, then 3 flies open eight-second sleeps with scrolling ZZZZ... eyes. Hit him with a sword once per sleep; six hits win. He also fires randomly colored slime balls at bricks. Up to three flies arrive every 5–15 seconds (one in eight carries a heart Koshi can free by destroying it), and bronze swords keep arriving every 10–20 seconds until three are in play.', 'enemy:tom-frog'],
       ['Damage & defeats', 'Unarmed contact with hostile robots costs one heart; Robo Goalie is harmless. After damage, Koshi looks upset and blinks red for exactly one second of protection from robots and spikes. When his normal face and colors return he can take damage again. Further contacts do not extend protection; pause freezes it. Staying overlapped does not repeatedly hurt, but separating and colliding again can. At zero hearts the level ends. Collect a sword, then approach an attackable robot to strike automatically. Love Bugs require Barrier isolation instead and can hurt Koshi even while he holds a weapon.'],
       ['Swords', 'Wood has 1 hit, bronze 3, silver 5, and gold 10. Each hit, including a shield hit, spends one use. Cannot damage Love Bugs or Tom the Toaster.', Object.entries(WEAPONS).filter(([, weapon]) => !weapon.hammer && !weapon.axe && !weapon.ropeDart).map(([type]) => `weapon:${type}`)],
       ['Hammers', 'Bronze has 3 hits, silver 5, and gold 10. Each contact spends as many hits as possible to damage an enemy shield or defeat an unshielded enemy, using no more hits than needed. Cannot damage Love Bugs or Tom the Toaster.', Object.entries(WEAPONS).filter(([, weapon]) => weapon.hammer).map(([type]) => `weapon:${type}`)],
@@ -201,6 +202,7 @@ const LESSONS = [
   { id: 'robo-unicorn', title: 'Robo Unicorn', instruction: 'Collect a sword and intercept the Unicorn. It aims at and eats food; with no food left it turns red and speeds up.' },
   { id: 'robo-koshi', title: 'Robo Koshi', instruction: 'Collect a sword, keep moving, and watch the robotic copy return to the place you stood before following your path.' },
   { id: 'boss', title: 'Tom the Toaster', instruction: 'Practice the boss fight. Dodge toast and rapid ricochets without warning paths. Blue toast turns bricks blue; black toast destroys them. Rest at a Boost brick, then launch through Tom when his eyes scroll ERROR! Six hits defeat him; swords cannot help.' },
+  { id: 'tom-frog', title: 'Tom the Frog', instruction: 'Guide Tom’s tongue into flies. After meals of 1, 1, 2, 2, 3, then 3 flies, he sleeps for eight seconds. Collect a bronze sword and hit him once per sleep. Dodge his locked jump shadow, tongue sweeps and slime shots. Six sword hits win.' },
   { id: 'ram', title: 'Robo Ram', instruction: 'Collect the sword, then watch the ram pause as its eyes sparkle and it aims at Koshi. It lines up before a fast straight charge. Avoid the rush or intercept it while armed; bricks make it ricochet and slow down.' },
   { id: 'bucket', title: 'Robo Bucket', instruction: 'Collect a sword and intercept the bucket. Its blue bombs bounce harmlessly for three seconds before their expanding red flames can hurt you.' },
   { id: 'ball', title: 'Robo Ball', instruction: 'Collect a sword and intercept the bouncing basketball robot. It rebounds off walls and other enemies; defeat it to see it shrivel and pop its eyes into the air.' },
@@ -268,6 +270,18 @@ class Tutorial {
     this.obstructionSeen = false;
     this.stampCaptured = false;
     this.currentComplete = false;
+    if (this.lesson.id === 'tom-frog') {
+      const game = new Game(Math.random, { ...options, customLevel: {
+        version: 1, id: 'Tom the Frog practice', bossLevel: true, duration: 60,
+        goal: 0, heartCost: null, brickSet: 1,
+        events: [{ time: 0, kind: 'enemy', type: 'tom-frog', x: .5, y: .5 }],
+      }, customCoordinateOrientation: 'viewport' });
+      this.target = game.bricks.find(brick => brickRegions(game.bricks, game.width, game.height).get(brick.id).edge === 'right');
+      this.origin = { x: game.cat.x, y: game.cat.y };
+      game.start();
+      this.game = game;
+      return game;
+    }
     if (this.lesson.id === 'boss') {
       const bossLevels = LEVELS.some(level => level.bossLevel) ? LEVELS : [engine.LEVEL_DATA['Tom the Toaster']];
       const game = new Game(() => .5, { ...options, levels: bossLevels, level: bossLevels.findIndex(level => level.bossLevel) });
@@ -556,6 +570,7 @@ class Tutorial {
       'robo-unicorn': game.enemies >= 1,
       'robo-koshi': game.enemies >= 1,
       boss: game.bossDefeated && game.state === 'won',
+      'tom-frog': game.bossDefeated && game.state === 'won',
       ram: game.enemies >= 1,
       bucket: game.enemies >= 1,
       ball: game.enemies >= 1,

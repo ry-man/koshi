@@ -31,7 +31,7 @@ function fixture(events, duration = 20) {
   const selections = [];
   const context = vm.createContext({
     level: { events, duration }, selectedEvents: new Set([1]),
-    previewGame: { bricks: [] }, FOODS, SHIELDS, WEAPONS,
+    previewGame: { bricks: [] }, FOODS, SHIELDS, WEAPONS, isBossType: require('../src/game.js').isBossType,
     timelineDetailIndex: null, timelineGesture: null, readOnly: () => false,
     $: selector => nodes[selector],
     document: { createElement: node, createElementNS: node },
@@ -154,7 +154,7 @@ test('relative view renders accessible compact boxes and switches back without c
 });
 
 test('weapon balance accumulates scheduled pickups, enemy points, drops, item cases, and active spawners', () => {
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS });
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, isBossType: require('../src/game.js').isBossType });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
   const events = [
     { kind: 'weapon', type: 'wood', time: 2, group: { count: 2 } },
@@ -192,7 +192,7 @@ test('weapon balance records every Official level 1-10 weapon and enemy appearan
   const authoredLevels = require('../src/official-levels.generated.js');
   const level = authoredLevels.find(entry => entry.id === 'official-1-10').level;
   const game = new Game(() => .5, { customLevel: level });
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS });
+  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, isBossType: require('../src/game.js').isBossType });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
   const points = context.weaponBalanceSeries(level.events, game.bricks, game, level.duration);
   const eventTimes = [...new Set(level.events.filter(event => ['enemy', 'weapon'].includes(event.kind))
