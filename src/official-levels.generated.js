@@ -11664,6 +11664,10 @@ const levels = [
           "shield": null
         }
       ],
+      "koshiStart": {
+        "x": 0.5051286775996561,
+        "y": 0.9156089957693164
+      },
       "bossLevel": true,
       "killGoal": 0,
       "survive": false,
@@ -11731,6 +11735,11 @@ const levels = [
                 "character": "tom-frog",
                 "x": 0.5,
                 "y": 0.65
+              },
+              {
+                "character": "robo-fly",
+                "x": 0.5,
+                "y": 0.65
               }
             ]
           },
@@ -11745,6 +11754,16 @@ const levels = [
               },
               {
                 "character": "tom-frog",
+                "x": 0.5,
+                "y": 0.65
+              },
+              {
+                "character": "robo-fly",
+                "x": 0.5,
+                "y": 0.65
+              },
+              {
+                "character": "robo-fly",
                 "x": 0.5,
                 "y": 0.65
               }
