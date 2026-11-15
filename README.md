@@ -834,6 +834,8 @@ the board; phones keep compact controls above it without scrolling away from pla
   leaving the window pauses automatically; resume explicitly when you return.
 - **Tab** through the bricks and press **Enter** or **Space** to aim at a
   brick's center. Mouse/touch controls allow precise off-center aiming.
+  Touches up to 10 screen pixels from a visible brick also aim at its nearest
+  edge.
 - **Restart** starts a fresh attempt of the selected level.
   Victory automatically returns to the level map and moves Koshi to the next
   stop through all three main worlds, ending at Level 3–14.

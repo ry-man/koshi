@@ -578,6 +578,36 @@ function brickClickPoint(event, brick) {
   };
 }
 
+function activateBrick(brick, x, y) {
+  const steering = tutorial ?? game;
+  if (!steering.steer(brick.id, x, y)) {
+    toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? ''
+      : !game.sunglassesActive && !brickEnabled(brick) ? `That toggle needs ${brick.toggleRemaining} more successful clicks of other bricks.`
+      : !game.sunglassesActive && brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
+      : !game.sunglassesActive && brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
+      : "Koshi can't move toward that spot. Pick another!";
+    toastUntil = performance.now() + 1800;
+  }
+}
+
+function nearbyTouchBrick(event) {
+  const point = boardPoint(event), camera = game.camera();
+  const scaleX = board.clientWidth / camera.width, scaleY = board.clientHeight / camera.height;
+  let nearest = null, distance = 10;
+  for (const part of game.brickParts()) {
+    const left = Math.max(part.x, camera.x), right = Math.min(part.x + part.w, camera.x + camera.width);
+    const top = Math.max(part.y, camera.y), bottom = Math.min(part.y + part.h, camera.y + camera.height);
+    if (left >= right || top >= bottom) continue;
+    const x = Math.max(left, Math.min(right, point.x)), y = Math.max(top, Math.min(bottom, point.y));
+    const gap = Math.hypot((point.x - x) * scaleX, (point.y - y) * scaleY);
+    if (gap <= distance && (!nearest || gap < distance)) {
+      nearest = { brick: game.bricks[part.id], x, y };
+      distance = gap;
+    }
+  }
+  return nearest;
+}
+
 function makeBrickButtons() {
   const container = document.querySelector('#bricks');
   for (const effect of game.brickDestructions) {
@@ -711,15 +741,7 @@ function makeBrickButtons() {
       if (game.state !== 'playing' || brick.kind === 'goal' || brick.kind === 'cinder') return;
       const { x, y } = brickClickPoint(event, brick);
       // Include clicks on the button border despite fractional CSS pixel rounding.
-      const steering = tutorial ?? game;
-      if (!steering.steer(brick.id, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)))) {
-        toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? ''
-          : !game.sunglassesActive && !brickEnabled(brick) ? `That toggle needs ${brick.toggleRemaining} more successful clicks of other bricks.`
-          : !game.sunglassesActive && brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
-          : !game.sunglassesActive && brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
-          : "Koshi can't move toward that spot. Pick another!";
-        toastUntil = performance.now() + 1800;
-      }
+      activateBrick(brick, Math.max(part.x, Math.min(part.x + part.w, x)), Math.max(part.y, Math.min(part.y + part.h, y)));
     });
     container.append(button);
     const spring = button.querySelector('.brick-spring');
@@ -771,13 +793,27 @@ function makeBrickButtons() {
   for (const ghost of destructionVisuals.values()) container.append(ghost);
 }
 
+let boardPointerType = '';
+document.addEventListener('pointerdown', event => { boardPointerType = event.pointerType; }, true);
+document.addEventListener('pointercancel', () => { boardPointerType = ''; }, true);
 board.addEventListener('click', event => {
-  if (event.detail === 0 || game.state !== 'playing' || !game.activeTurret) return;
-  const { x, y } = boardPoint(event);
-  const fired = game.fireTurretAt(x, y);
+  const touch = (event.pointerType || boardPointerType) === 'touch';
+  boardPointerType = '';
+  if (event.detail === 0 || game.state !== 'playing') return;
+  if (game.activeTurret) {
+    const { x, y } = boardPoint(event);
+    const fired = game.fireTurretAt(x, y);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (fired) syncUI();
+    return;
+  }
+  if (!touch || event.target.closest('.brick')) return;
+  const target = nearbyTouchBrick(event);
+  if (!target || target.brick.kind === 'goal' || target.brick.kind === 'cinder') return;
+  activateBrick(target.brick, target.x, target.y);
   event.preventDefault();
   event.stopImmediatePropagation();
-  if (fired) syncUI();
 }, true);
 
 function syncBrickDestructions() {

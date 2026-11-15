@@ -251,6 +251,124 @@ test('browser pointer coordinates add the camera offset without shrinking the vi
   close(point.y, HEIGHT / 2);
 });
 
+test('touch near misses select the nearest visible brick in scrolling and non-scrolling levels', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const handlers = {}, calls = [];
+  const bricks = [{ id: 0, kind: 'normal' }, { id: 1, kind: 'normal' }, { id: 2, kind: 'cinder' }];
+  const parts = [
+    { id: 0, x: 110, y: 210, w: 10, h: 10 },
+    { id: 0, x: 120, y: 210, w: 10, h: 10 },
+    { id: 1, x: 140, y: 210, w: 10, h: 10 },
+    { id: 2, x: 160, y: 210, w: 10, h: 10 },
+    { id: 1, x: 301, y: 210, w: 10, h: 10 },
+  ];
+  const game = {
+    state: 'playing', level: { autoscroll: {} }, bricks, activeTurret: null,
+    camera: () => ({ x: 100, y: 200, width: 200, height: 100 }),
+    brickParts: () => parts,
+    steer: (...args) => { calls.push(args); return true; },
+    fireTurretAt: (...args) => { calls.push(['turret', ...args]); return true; },
+  };
+  const board = {
+    clientLeft: 0, clientTop: 0, clientWidth: 400, clientHeight: 200,
+    getBoundingClientRect: () => ({ left: 30, top: 40 }),
+    addEventListener: (type, handler) => { handlers[`board:${type}`] = handler; },
+  };
+  const document = { addEventListener: (type, handler) => { handlers[`document:${type}`] = handler; } };
+  const context = vm.createContext({ game, board, document, tutorial: null, toast: {}, toastUntil: 0,
+    performance: { now: () => 0 }, syncUI() { calls.push(['sync']); } });
+  vm.runInContext(source.slice(source.indexOf('function boardPoint('), source.indexOf('function makeBrickButtons(')), context);
+  vm.runInContext(source.slice(source.indexOf("let boardPointerType ="), source.indexOf('\nfunction syncBrickDestructions(')), context);
+  const tap = (x, y, options = {}) => {
+    handlers['document:pointerdown']({ pointerType: options.downType ?? 'touch' });
+    const event = {
+      clientX: 30 + (x - 100) * 2, clientY: 40 + (y - 200) * 2, detail: options.detail ?? 1,
+      pointerType: options.pointerType,
+      target: { closest: () => options.onBrick ?? null },
+      preventDefault() {}, stopImmediatePropagation() {},
+    };
+    handlers['board:click'](event);
+  };
+
+  tap(125, 224); // Eight CSS pixels from the second member of a merged brick.
+  assert.deepEqual(calls.pop(), [0, 125, 220]);
+  tap(136, 215);
+  assert.deepEqual(calls.pop(), [1, 140, 215]);
+  tap(125, 225);
+  assert.deepEqual(calls.pop(), [0, 125, 220], 'ten CSS pixels is included');
+  tap(125, 225.5);
+  tap(165, 224); // An unselectable brick must not redirect to another brick.
+  tap(300, 215); // A completely offscreen part must not be selected.
+  tap(125, 224, { downType: 'mouse' });
+  tap(125, 224, { detail: 0 });
+  tap(125, 224, { onBrick: {} });
+  assert.equal(calls.length, 0);
+
+  parts.push({ id: 0, x: 295, y: 210, w: 10, h: 10 });
+  tap(299, 224);
+  assert.deepEqual(calls.pop(), [0, 299, 220], 'partly visible members use their visible portion');
+  handlers['document:pointerdown']({ pointerType: 'touch' });
+  handlers['document:pointercancel']();
+  handlers['board:click']({ clientX: 80, clientY: 88, detail: 1, target: { closest: () => null } });
+  assert.equal(calls.length, 0, 'cancelled touches do not enable the margin');
+
+  game.level.autoscroll = null;
+  tap(125, 224);
+  assert.deepEqual(calls.pop(), [0, 125, 220], 'non-scrolling levels use the same touch margin');
+  game.level.autoscroll = {};
+  game.state = 'paused';
+  tap(125, 224);
+  assert.equal(calls.length, 0);
+
+  game.state = 'playing';
+  game.activeTurret = {};
+  tap(125, 224);
+  assert.deepEqual(calls, [['turret', 125, 224], ['sync']]);
+});
+
+test('near-miss touch steering works with real scrolling and stationary games in both orientations', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  for (const customLevel of [blank(), scrolling()]) {
+    for (const portrait of [false, true]) {
+      const game = new Game(() => .5, { customLevel, portrait, scale: portrait ? .5 : 1 });
+      game.start();
+      const camera = game.camera(), handlers = {};
+      const board = {
+        clientLeft: 0, clientTop: 0,
+        clientWidth: portrait ? 390 : 624, clientHeight: portrait ? 624 : 390,
+        getBoundingClientRect: () => ({ left: 0, top: 0 }),
+        addEventListener: (type, handler) => { handlers[`board:${type}`] = handler; },
+      };
+      const document = { addEventListener: (type, handler) => { handlers[`document:${type}`] = handler; } };
+      const context = vm.createContext({ game, board, document, tutorial: null, toast: {}, toastUntil: 0,
+        performance: { now: () => 0 }, brickEnabled: () => true });
+      vm.runInContext(source.slice(source.indexOf('function boardPoint('), source.indexOf('function makeBrickButtons(')), context);
+      vm.runInContext(source.slice(source.indexOf('let boardPointerType ='), source.indexOf('\nfunction syncBrickDestructions(')), context);
+      const part = game.brickParts().find(part => game.bricks[part.id].kind === 'normal'
+        && part.x >= camera.x && part.x + part.w <= camera.x + camera.width
+        && part.y >= camera.y && part.y + part.h <= camera.y + camera.height);
+      assert.ok(part);
+      let x = part.x + part.w / 2, y = part.y + part.h / 2;
+      if (part.w < part.h) {
+        x = game.cat.x > x ? part.x + part.w + 5 * camera.width / board.clientWidth
+          : part.x - 5 * camera.width / board.clientWidth;
+      } else {
+        y = game.cat.y > y ? part.y + part.h + 5 * camera.height / board.clientHeight
+          : part.y - 5 * camera.height / board.clientHeight;
+      }
+      handlers['document:pointerdown']({ pointerType: 'touch' });
+      handlers['board:click']({
+        clientX: (x - camera.x) / camera.width * board.clientWidth,
+        clientY: (y - camera.y) / camera.height * board.clientHeight,
+        detail: 1, target: { closest: () => null }, preventDefault() {}, stopImmediatePropagation() {},
+      });
+      assert.equal(game.moves, 1, `${customLevel.autoscroll ? 'scrolling' : 'stationary'}, portrait=${portrait}`);
+      assert.equal(game.target.x >= part.x && game.target.x <= part.x + part.w, true);
+      assert.equal(game.target.y >= part.y && game.target.y <= part.y + part.h, true);
+    }
+  }
+});
+
 test('both canvas layers and brick controls use the same full-scale camera transform', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   for (const portrait of [false, true]) {
