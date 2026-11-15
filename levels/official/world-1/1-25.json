@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "id": "Tom The Frog",
+  "duration": 1,
+  "goal": 0,
+  "heartCost": 15,
+  "brickSet": 1,
+  "events": [
+    {
+      "time": 0,
+      "kind": "enemy",
+      "type": "tom-frog",
+      "x": 0.5051286775996561,
+      "y": 0.49877532843464706,
+      "shield": null
+    }
+  ],
+  "bossLevel": true,
+  "killGoal": 0,
+  "survive": false,
+  "cutscene": {
+    "theme": "garden",
+    "lines": [
+      {
+        "speaker": "tom-frog",
+        "text": "Rib-bit. I know this land is called Happy Meadows, however after I am done with you, we may need to rename it Unhappy Dead Cat Meadows!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom-frog",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "koshi",
+        "text": "That was clever for a robot, I guess. Who writes your material, Tom?",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom-frog",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "tom-frog",
+        "text": "Rib-bit. My LLM has been trained only on the cleverest areas of the interwebs. Rib-bit.",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom-frog",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "tom-frog",
+        "text": "Now let's get this show show on the road. I am getting sleepy. You caught me in the middle of a meal of my robo flies.",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom-frog",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "koshi",
+        "text": "Hmmm well maybe you should eat some more before your nap! I'd be happy to help put you to bed!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom-frog",
+            "x": 0.5,
+            "y": 0.65
+          }
+        ]
+      }
+    ]
+  }
+}
