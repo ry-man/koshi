@@ -12458,7 +12458,7 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "cutscene": {
-        "theme": "garden",
+        "theme": "happy-meadows",
         "lines": [
           {
             "speaker": "tom-frog",
