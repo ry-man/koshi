@@ -54,9 +54,23 @@
 .editor-main .scene-add-character:hover:enabled, .editor-main #info-add-page:hover:enabled { background: #3a704f; }
 .scene-cast { display: flex; flex-wrap: wrap; gap: 12px; }
 .scene-character { display: flex; flex: 0 1 190px; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; max-width: 100%; padding: 12px; border: 1px solid #ffffff25; border-radius: 8px; }
+.scene-character-grip { cursor: grab; touch-action: none; user-select: none; }
+.scene-character-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.scene-character-dragging { opacity: .65; border-color: var(--accent); }
+.scene-character-dragging .scene-character-grip { cursor: grabbing; }
+.scene-speaking-label { display: flex; align-items: center; gap: 8px; min-height: 32px; }
 .scene-accessory-summary { margin: 0; color: #b7c8cc; font-size: 12px; white-space: pre-line; overflow-wrap: anywhere; }
 .scene-accessory-dialog { width: min(1160px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 20px; border: 1px solid #ffffff25; border-radius: 8px; background: var(--panel); color: var(--text); }
 .scene-accessory-dialog::backdrop { background: #050a0dcc; }
+.scene-character-dialog { box-sizing: border-box; width: min(1160px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 20px; border: 1px solid #ffffff25; border-radius: 8px; background: var(--panel); color: var(--text); }
+.scene-character-dialog::backdrop { background: #050a0dcc; }
+.scene-character-dialog h2 { margin: 0 0 16px; }
+.scene-character-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.scene-character-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+.scene-character-group legend { margin-bottom: 8px; color: var(--accent); font-weight: 700; }
+.scene-character-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px 12px; }
+.scene-character-options .inline-label { min-width: 0; overflow-wrap: anywhere; }
+.scene-character-done { margin-top: 16px; }
 .scene-accessories-done { margin-top: 12px; }
 .scene-accessories { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr) minmax(0, 3fr); gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .scene-accessories legend { color: #b7c8cc; font-size: 12px; margin-bottom: 4px; }
@@ -68,9 +82,11 @@
 @media (max-width: 850px) {
   .scene-accessories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .scene-accessory-group:last-child { grid-column: 1 / -1; }
+  .scene-character-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 500px) {
   .scene-accessory-group:last-child .scene-accessory-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scene-character-groups { grid-template-columns: minmax(0, 1fr); }
 }
 .editor-workspace { display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 30vw, 560px); gap: 18px; align-items: start; }
 .stage-panel { container-type: inline-size; }

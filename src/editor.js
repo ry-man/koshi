@@ -3415,10 +3415,12 @@ for (const selector of ['#cat-block-trigger', '#cat-block-amount', '#cat-block-e
 let cutsceneError = null;
 let levelInfoError = null;
 function readSceneLine(row) {
+  const cast = row.querySelector('.scene-cast');
+  const speakingCard = [...cast.children].find(card => card.querySelector('.scene-speaking').checked);
   return {
-    speaker: row.querySelector('.scene-speaker').value,
+    speaker: speakingCard?.sceneActor.character ?? row.sceneSpeaker,
     text: row.querySelector('.scene-text').value,
-    actors: [...row.querySelector('.scene-cast').children].map(card => {
+    actors: [...cast.children].map(card => {
       const { accessories: previousAccessories, ...actor } = card.sceneActor;
       const accessories = [...card.querySelector('.scene-accessories').querySelectorAll('input')]
         .filter(input => input.checked).map(input => input.value);
@@ -3429,15 +3431,7 @@ function readSceneLine(row) {
 function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character: 'koshi', x: .28, y: .65 }, { character: 'mouse', x: .67, y: .65 }, { character: 'wheel', x: .82, y: .7 }] }) {
   const row = document.createElement('div');
   row.className = 'scene-line';
-  const speakerLabel = document.createElement('label');
-  speakerLabel.textContent = 'Speaker';
-  const speaker = document.createElement('select');
-  speaker.className = 'scene-speaker';
-  for (const [value, name] of Object.entries(CHARACTERS)) {
-    const option = document.createElement('option');
-    option.value = value; option.textContent = name; speaker.append(option);
-  }
-  speaker.value = line.speaker; speakerLabel.append(speaker);
+  row.sceneSpeaker = line.speaker;
   const textLabel = document.createElement('label');
   textLabel.textContent = 'Dialogue (up to 240 characters)';
   const text = document.createElement('textarea');
@@ -3447,30 +3441,168 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
   cast.setAttribute('aria-label', 'Characters on stage');
   const addCharacter = document.createElement('button');
   addCharacter.type = 'button'; addCharacter.className = 'scene-add-character';
-  addCharacter.textContent = 'Add character';
+  addCharacter.textContent = 'Character Select';
+  addCharacter.setAttribute('aria-haspopup', 'dialog');
   addCharacter.setAttribute('aria-expanded', 'false');
-  const characterPicker = document.createElement('select');
-  characterPicker.className = 'scene-character-picker'; characterPicker.hidden = true;
-  characterPicker.setAttribute('aria-label', 'Character to add');
-  const placeholder = document.createElement('option');
-  placeholder.value = ''; placeholder.textContent = 'Choose a character';
-  characterPicker.append(placeholder);
-  for (const [value, name] of Object.entries(CHARACTERS)) {
-    const option = document.createElement('option');
-    option.value = value; option.textContent = name; characterPicker.append(option);
+  const characterDialog = document.createElement('dialog');
+  characterDialog.className = 'scene-character-dialog';
+  characterDialog.setAttribute('aria-label', 'Character Select');
+  const characterHeading = document.createElement('h2');
+  characterHeading.textContent = 'Character Select';
+  const characterGroups = document.createElement('div');
+  characterGroups.className = 'scene-character-groups';
+  const characterInputs = [];
+  const groupedCharacters = [
+    ['Koshi', Object.entries(CHARACTERS).filter(([id]) => id === 'koshi')],
+    ['Non-boss enemies', Object.entries(CHARACTERS).filter(([id]) => id !== 'koshi' && !isBossType(id))],
+    ['Bosses', Object.entries(CHARACTERS).filter(([id]) => isBossType(id))],
+  ];
+  for (const [groupName, characters] of groupedCharacters) {
+    const group = document.createElement('fieldset');
+    group.className = 'scene-character-group';
+    const legend = document.createElement('legend');
+    legend.textContent = groupName;
+    const options = document.createElement('div');
+    options.className = 'scene-character-options';
+    for (const [value, name] of characters) {
+      const label = document.createElement('label');
+      label.className = 'inline-label';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'scene-character-select';
+      checkbox.value = value;
+      checkbox.addEventListener('change', () => {
+        if (readOnly()) return;
+        const selected = characterInputs.filter(input => input.checked);
+        const selectedCharacters = new Set(selected.map(input => input.value));
+        const actorCount = [...cast.children].filter(card => selectedCharacters.has(card.sceneActor.character)).length
+          + selected.filter(input => ![...cast.children].some(card => card.sceneActor.character === input.value)).length;
+        if (actorCount > 6) {
+          checkbox.checked = false;
+          message('Cutscenes support up to 6 characters per line.', true);
+          updateCharacterSelection();
+          return;
+        }
+        if (!checkbox.checked && selected.length === 0) {
+          checkbox.checked = true;
+          return;
+        }
+        for (const card of [...cast.children]) {
+          if (!selectedCharacters.has(card.sceneActor.character)) card.remove();
+        }
+        for (const [character] of Object.entries(CHARACTERS)) {
+          if (selectedCharacters.has(character)
+            && ![...cast.children].some(card => card.sceneActor.character === character)) {
+            addActor(newActor(character));
+          }
+        }
+        updateCast();
+        applyCutscene();
+      });
+      label.append(checkbox, name);
+      options.append(label);
+      characterInputs.push(checkbox);
+    }
+    group.append(legend, options);
+    characterGroups.append(group);
   }
+  const characterDone = document.createElement('button');
+  characterDone.type = 'button';
+  characterDone.className = 'scene-character-done';
+  characterDone.textContent = 'Done';
+  characterDialog.append(characterHeading, characterGroups, characterDone);
+  characterDone.addEventListener('click', () => {
+    characterDialog.close();
+    addCharacter.setAttribute('aria-expanded', 'false');
+  });
+  characterDialog.addEventListener('close', () => addCharacter.setAttribute('aria-expanded', 'false'));
   const updateCast = () => {
-    addCharacter.disabled = cast.children.length >= 6;
+    const checkedSpeaker = [...cast.children].find(card => card.querySelector('.scene-speaking').checked);
+    if (checkedSpeaker) row.sceneSpeaker = checkedSpeaker.sceneActor.character;
+    else {
+      const replacement = [...cast.children].find(card => card.sceneActor.character === row.sceneSpeaker) ?? cast.children[0];
+      if (replacement) {
+        replacement.querySelector('.scene-speaking').checked = true;
+        row.sceneSpeaker = replacement.sceneActor.character;
+      }
+    }
+    const selectedCharacters = new Set([...cast.children].map(card => card.sceneActor.character));
+    for (const checkbox of characterInputs) checkbox.checked = selectedCharacters.has(checkbox.value);
+    updateCharacterSelection();
     for (const card of cast.children) {
-      card.querySelector('.scene-remove-character').disabled = card.sceneActor.character === speaker.value
-        && [...cast.children].filter(entry => entry.sceneActor.character === speaker.value).length === 1;
+      card.querySelector('.scene-remove-character').disabled = cast.children.length === 1;
     }
   };
+  function updateCharacterSelection() {
+    for (const input of characterInputs) input.disabled = !input.checked && cast.children.length >= 6;
+  }
+  let drag = null;
+  cast.addEventListener('pointermove', event => {
+    if (!drag || event.pointerId !== drag.pointerId || readOnly()) return;
+    if (!drag.moved && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
+    drag.moved = true;
+    drag.wrapper.classList.add('scene-character-dragging');
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.scene-character');
+    if (!target || target === drag.wrapper || target.parentElement !== cast) return;
+    const bounds = target.getBoundingClientRect();
+    cast.insertBefore(drag.wrapper, event.clientX < bounds.left + bounds.width / 2 ? target : target.nextSibling);
+  });
+  const finishDrag = (event, cancelled = false) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const { wrapper, original, moved } = drag;
+    drag = null;
+    if (cast.hasPointerCapture(event.pointerId)) cast.releasePointerCapture(event.pointerId);
+    wrapper.classList.remove('scene-character-dragging');
+    if (cancelled || readOnly()) { cast.replaceChildren(...original); return; }
+    if (moved && original.some((card, index) => cast.children[index] !== card)) applyCutscene();
+  };
+  cast.addEventListener('pointerup', event => finishDrag(event));
+  cast.addEventListener('pointercancel', event => finishDrag(event, true));
+  cast.addEventListener('lostpointercapture', event => finishDrag(event, true));
   const addActor = actor => {
     const name = CHARACTERS[actor.character];
     const wrapper = document.createElement('div'); wrapper.className = 'scene-character';
     wrapper.sceneActor = { ...actor };
     const heading = document.createElement('strong'); heading.textContent = name;
+    heading.className = 'scene-character-grip';
+    heading.tabIndex = 0;
+    heading.setAttribute('role', 'button');
+    heading.setAttribute('aria-label', `Reorder ${name}`);
+    wrapper.addEventListener('pointerdown', event => {
+      if (readOnly() || drag || event.button !== 0 || event.target.closest('button, input, label, dialog')) return;
+      drag = { wrapper, pointerId: event.pointerId, x: event.clientX, y: event.clientY, original: [...cast.children], moved: false };
+      cast.setPointerCapture(event.pointerId);
+    });
+    heading.addEventListener('keydown', event => {
+      if (readOnly() || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      const cards = [...cast.children], index = cards.indexOf(wrapper);
+      const target = cards[index + (event.key === 'ArrowLeft' ? -1 : 1)];
+      if (!target) return;
+      cast.insertBefore(wrapper, event.key === 'ArrowLeft' ? target : target.nextSibling);
+      heading.focus();
+      applyCutscene();
+    });
+    const speakingLabel = document.createElement('label');
+    speakingLabel.className = 'scene-speaking-label';
+    const speaking = document.createElement('input');
+    speaking.type = 'checkbox';
+    speaking.className = 'scene-speaking';
+    speaking.checked = actor.character === row.sceneSpeaker
+      && ![...cast.children].some(card => card.querySelector('.scene-speaking').checked);
+    speakingLabel.append(speaking, 'Speaking');
+    speaking.addEventListener('change', () => {
+      if (readOnly()) return;
+      if (!speaking.checked) {
+        speaking.checked = true;
+        return;
+      }
+      for (const card of cast.children) card.querySelector('.scene-speaking').checked = false;
+      speaking.checked = true;
+      row.sceneSpeaker = actor.character;
+      updateCast();
+      applyCutscene();
+    });
     const accessoryButton = document.createElement('button');
     accessoryButton.type = 'button'; accessoryButton.className = 'scene-edit-accessories';
     accessoryButton.textContent = 'Accessories';
@@ -3535,8 +3667,7 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
       if (readOnly() || removeActor.disabled) return;
       wrapper.remove(); updateCast(); applyCutscene();
     });
-    wrapper.append(heading, accessoryButton, accessorySummary, removeActor, accessoryDialog); cast.append(wrapper);
-    updateCast();
+    wrapper.append(heading, speakingLabel, accessoryButton, accessorySummary, removeActor, accessoryDialog); cast.append(wrapper);
   };
   const newActor = character => {
     const occupied = [...cast.children].map(card => card.sceneActor.x);
@@ -3547,33 +3678,11 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
     return { character, x, y: .65 };
   };
   line.actors.forEach(addActor);
+  updateCast();
   addCharacter.addEventListener('click', () => {
     if (readOnly()) return;
-    characterPicker.hidden = !characterPicker.hidden;
-    addCharacter.setAttribute('aria-expanded', String(!characterPicker.hidden));
-    if (!characterPicker.hidden) characterPicker.focus();
-  });
-  characterPicker.addEventListener('change', () => {
-    if (readOnly() || !characterPicker.value) return;
-    if (cast.children.length >= 6) { message('Cutscenes support at most 6 characters per line.', true); return; }
-    addActor(newActor(characterPicker.value));
-    characterPicker.value = ''; characterPicker.hidden = true;
-    addCharacter.setAttribute('aria-expanded', 'false');
-    (addCharacter.disabled ? cast.lastElementChild.querySelector('.scene-edit-accessories') : addCharacter).focus();
-    applyCutscene();
-  });
-  let previousSpeaker = speaker.value;
-  speaker.addEventListener('change', () => {
-    if (readOnly()) return;
-    if (![...cast.children].some(card => card.sceneActor.character === speaker.value)) {
-      if (cast.children.length >= 6) {
-        speaker.value = previousSpeaker;
-        message('Remove a character before adding a new speaker (6 characters maximum).', true);
-        return;
-      }
-      addActor(newActor(speaker.value));
-    }
-    previousSpeaker = speaker.value; updateCast();
+    characterDialog.showModal();
+    addCharacter.setAttribute('aria-expanded', 'true');
   });
   const remove = document.createElement('button');
   remove.type = 'button'; remove.className = 'scene-remove-line'; remove.textContent = 'Remove line';
@@ -3582,7 +3691,7 @@ function addSceneLine(line = { speaker: 'koshi', text: '', actors: [{ character:
     row.remove();
     applyCutscene();
   });
-  row.append(speakerLabel, textLabel, addCharacter, characterPicker, cast, remove);
+  row.append(textLabel, addCharacter, characterDialog, cast, remove);
   $('#scene-lines').append(row);
 }
 function populateCutscene() {

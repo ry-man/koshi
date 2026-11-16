@@ -95,7 +95,7 @@ test('Official scene cropping covers the stage and preserves authored actor heig
         rotate() {},
         translate(x, y) { this.transform[4] += x * this.transform[0]; this.transform[5] += y * this.transform[3]; },
         scale(x, y) { this.transform[0] *= x; this.transform[3] *= y; },
-        beginPath() {}, fill() {},
+        beginPath() {}, fill() {}, fillRect() {},
         ellipse(x, y) { shadows.push(this.transform[5] + y * this.transform[3]); },
       };
       const player = Object.create(context.Player.prototype);
@@ -114,14 +114,15 @@ test('Official scene cropping covers the stage and preserves authored actor heig
           jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24,
           'robo-cow': 29, 'robo-unicorn': 33, boss: 40 }[actor.character];
         assert.ok(base !== undefined, `Expected Official actor: ${actor.character}`);
-        const expectedY = (actor.y * 540 + base * Math.min(2.4, width / height * 1.6)) * height / 540;
+        const scale = player.positions.get(actorKeys(campaign.cutscene.lines[0].actors)[index]).scale;
+        const zoom = scale / Math.min(2.4, width / height * 1.6);
+        const expectedY = (390 + (actor.y * 540 - 390) * zoom + base * scale) * height / 540;
         assert.ok(Math.abs(shadows[index] - expectedY) < 1e-9, `${campaign.id}: authored ${actor.character} position is preserved`);
         if (actor.y >= 390 / 540) {
           assert.ok(shadows[index] > groundY, `${campaign.id}: ground-positioned actor stays below the horizon`);
         }
       }
-      assert.ok(backgroundTransform[5] <= 0, 'background covers the top');
-      assert.ok(backgroundTransform[3] * 540 + backgroundTransform[5] >= height, 'background covers the bottom');
+      assert.ok(backgroundTransform[3] > 0, 'the zoomed background has a positive scale');
     }
   }
 });
@@ -156,7 +157,7 @@ test('Official backgrounds render distinctly and round-trip through custom level
   assert.equal(new Set(drawings).size, themes.length);
 });
 
-test('cutscenes reserve space on the left for Koshi and distribute the remaining cast', () => {
+test('cutscenes line up in editor array order regardless of authored x, character, or viewport', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
   const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
   const scales = [];
@@ -164,7 +165,7 @@ test('cutscenes reserve space on the left for Koshi and distribute the remaining
     get: (_, name) => (...args) => { if (name === 'scale') scales.push(args); },
   });
   const context = vm.createContext({ ctx, time: 0, drawTom() {} });
-  vm.runInContext(`function stage(line) { ${loop} }`, context);
+  vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
   const { OFFICIAL_LEVEL_DATA } = require('../src/campaign.js');
   const lines = [...LEVELS, ...Object.values(OFFICIAL_LEVEL_DATA)]
     .flatMap(level => level.cutscene?.lines ?? []);
@@ -193,33 +194,26 @@ test('cutscenes reserve space on the left for Koshi and distribute the remaining
           paused, drawCharacter() {},
         };
         context.stage.call(player, line);
+        const zoom = player.actorZoom.target / Math.min(2.4, width / height * 1.6);
         const ordered = line.actors.map((actor, i) => ({
           actor, position: player.positions.get(actorKeys(line.actors)[i]),
         })).sort((a, b) => a.position.x - b.position.x);
-        const redistributed = ordered.some(({ actor, position }) => Math.abs(position.x - actor.x * 960) > 1e-8);
+        const screenX = position => 480 + (position.x - 480) * zoom;
+        const redistributed = ordered.some(({ actor, position }) => Math.abs(screenX(position) - actor.x * 960) > 1e-8);
+        assert.deepEqual(ordered.map(entry => entry.actor), line.actors, 'left-to-right order matches editor cards');
         for (const { actor, position } of ordered) {
           assert.equal(position.y, actor.y * 540, 'authored height stays unchanged');
-          if (!redistributed) assert.equal(position.x, actor.x * 960);
+          if (!redistributed) assert.ok(Math.abs(screenX(position) - actor.x * 960) < 1e-8);
         }
         if (redistributed && ordered.length > 1) {
-          const koshi = ordered.filter(entry => entry.actor.character === 'koshi');
-          const others = ordered.filter(entry => entry.actor.character !== 'koshi');
-          if (koshi.length && others.length) {
-            assert.ok(koshi.every(entry => entry.position.x < others[0].position.x), 'Koshi stands left of every enemy');
-            assert.ok(Math.abs(koshi[0].position.x / 960 - .16) < 1e-9);
-            for (const [i, entry] of others.entries()) {
-              assert.ok(Math.abs(entry.position.x / 960 - (.32 + .58 * (i + .5) / others.length)) < 1e-9,
-                'actors occupy equally spaced centers in the remaining stage');
-            }
-          } else {
-            assert.ok(Math.abs(ordered[0].position.x / 960 - .16) < 1e-9);
-            assert.ok(Math.abs(ordered.at(-1).position.x / 960 - .84) < 1e-9);
+          for (const [i, entry] of ordered.entries()) {
+            assert.ok(Math.abs(screenX(entry.position) / 960 - (.16 + .68 * i / (ordered.length - 1))) < 1e-9,
+              'crowded cards occupy equally spaced screen positions');
           }
         }
         const expectedScale = Math.min(2.4, width / height * 1.6)
-          * (mobile ? Math.min(1, 4 / line.actors.length) : 1);
-        if (!redistributed) assert.ok(Math.abs(scales[0][1] - expectedScale) < 1e-9);
-        else assert.ok(scales[0][1] <= expectedScale);
+          * (mobile ? Math.min(1, 3 / line.actors.length) : 1);
+        assert.ok(player.positions.values().next().value.scale <= expectedScale);
         assert.equal(JSON.stringify(line), before, 'rendering does not modify level content');
       }
     }
@@ -231,7 +225,7 @@ test('crowded cutscene casts settle into distinct positions across dialogue and 
   const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
   const ctx = new Proxy({}, { get: () => () => {} });
   const context = vm.createContext({ ctx, width: 1440, height: 600, time: 0, reducedMotion: false, drawTom() {} });
-  vm.runInContext(`function stage(line) { ${loop} }`, context);
+  vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
   const player = { positions: new Map(), animationTime: 0, drawCharacter() {} };
   const cast = [
     { character: 'koshi', x: .28, y: .65 },
@@ -260,6 +254,149 @@ test('crowded cutscene casts settle into distinct positions across dialogue and 
   context.stage.call(player, second);
   player.animationTime = 6; context.stage.call(player, second); check();
   assert.equal(JSON.stringify([first, second]), before);
+});
+
+test('cutscene zoom fits six actors and smoothly retargets over one second without advancing on redraw', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
+  const ctx = new Proxy({}, { get: () => () => {} });
+  const context = vm.createContext({ ctx, time: 0, reducedMotion: false, drawTom() {} });
+  vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
+  const cast = ['koshi', 'tom-frog', 'boss', 'tom', 'goalie', 'robo-crab']
+    .map((character, i) => ({ character, x: .1 + i * .16, y: .65 }));
+  const small = { speaker: 'koshi', actors: cast.slice(0, 3) };
+  const large = { speaker: 'koshi', actors: cast };
+  const before = JSON.stringify([small, large]);
+  for (const [width, height] of [[320, 380], [390, 560], [844, 260], [1440, 600]]) {
+    Object.assign(context, { width, height, reducedMotion: false });
+    const player = { positions: new Map(), animationTime: 0, drawCharacter() {} };
+    const render = line => context.stage.call(player, line);
+    const scale = () => player.positions.get('koshi:0').scale;
+    render(small);
+    const close = scale();
+    render(large);
+    const far = player.actorZoom.target;
+    assert.ok(far < close, 'crowded casts need a wider view in both orientations');
+    assert.equal(scale(), close, 'joining actors do not snap the zoom');
+    render(large);
+    assert.equal(scale(), close, 'redrawing without animation time leaves zoom unchanged');
+    player.animationTime = .25;
+    render(large);
+    assert.ok(Math.abs(scale() - (close + (far - close) * .15625)) < 1e-9, 'zoom eases out of its starting scale');
+    player.animationTime = .5;
+    render(large);
+    assert.ok(Math.abs(scale() - (close + far) / 2) < 1e-9, 'zoom is halfway complete after half a second');
+    player.animationTime = .999;
+    render(large);
+    assert.ok(scale() > far, 'zoom is not complete before one second');
+    player.animationTime = 1;
+    render(large);
+    assert.equal(scale(), far, 'zoom completes after exactly one second');
+    player.animationTime = 3;
+    render(large);
+    assert.equal(player.positions.size, 6);
+    const widths = { koshi: 25, 'tom-frog': 75, boss: 48, tom: 50, goalie: 42, 'robo-crab': 40 };
+    const positions = [...player.positions.values()].sort((a, b) => a.x - b.x);
+    for (const [i, position] of positions.entries()) {
+      const halfWidth = widths[position.actor.character] * position.scale * height / width * 960 / 540;
+      const screenX = 480 + (position.x - 480) * far / Math.min(2.4, width / height * 1.6);
+      assert.ok(screenX - halfWidth >= 8 - 1e-9, 'artwork fits the left edge');
+      assert.ok(screenX + halfWidth <= 952 + 1e-9, 'artwork fits the right edge');
+      assert.equal(position.y, .65 * 540, 'zoom preserves authored heights');
+      if (i) {
+        const previous = positions[i - 1];
+        const previousWidth = widths[previous.actor.character] * previous.scale * height / width * 960 / 540;
+        assert.ok((position.x - previous.x) * far / Math.min(2.4, width / height * 1.6)
+          >= halfWidth + previousWidth + 8 - 1e-9, 'six large actors do not overlap on screen');
+      }
+    }
+    render(small);
+    assert.equal(scale(), far, 'departures do not snap the zoom');
+    player.animationTime = 3.5;
+    render(small);
+    assert.ok(Math.abs(scale() - (close + far) / 2) < 1e-9, 'departures smoothly zoom in');
+    const interrupted = scale();
+    render(large);
+    assert.equal(scale(), interrupted, 'an interrupted zoom starts at its current scale');
+    player.animationTime = 4.5;
+    render(large);
+    assert.equal(scale(), far);
+    context.width = 760; context.height = 600;
+    render(large);
+    assert.equal(scale(), far, 'resizing does not snap the cast scale');
+    player.animationTime = 5.5;
+    render(large);
+    assert.equal(scale(), player.actorZoom.target, 'resizing settles after one second');
+    context.reducedMotion = true;
+    render(small);
+    assert.equal(scale(), player.actorZoom.target, 'reduced motion applies zoom immediately');
+    assert.equal(player.positions.size, 3, 'reduced motion removes departing actors immediately');
+  }
+  assert.equal(JSON.stringify([small, large]), before, 'zoom never changes authored level data');
+});
+
+test('the entire background and cast share a smooth camera zoom with a fixed ground anchor', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
+  const classSource = source.slice(source.indexOf('class CutscenePlayer'), source.indexOf('CutscenePlayer.drawPortrait ='));
+  const context = vm.createContext({
+    window: { devicePixelRatio: 2 }, drawOfficialBackground() {}, drawTom() {}, drawPortrait() {},
+  });
+  vm.runInContext(`${classSource}\nglobalThis.Player = CutscenePlayer;`, context);
+  const actors = ['boss', 'mouse', 'koshi', 'tom-frog', 'goalie', 'robo-crab']
+    .map((character, i) => ({ character, x: .8 - i * .12, y: .65 }));
+  const first = { speaker: 'koshi', actors: actors.slice(0, 3) };
+  const second = { speaker: 'koshi', actors };
+  for (const theme of ['happy-meadows', 'garden', 'workshop', 'foundry']) {
+    for (const [width, height] of [[390, 560], [844, 260], [1440, 600]]) {
+      const transforms = [], actorTransforms = [], clears = [];
+      const ctx = new Proxy({
+        transform: [1, 0, 0, 1, 0, 0], saved: [],
+        setTransform(...args) { this.transform = args; transforms.push(args.slice()); },
+        save() { this.saved.push(this.transform.slice()); },
+        restore() { this.transform = this.saved.pop(); },
+        translate(x, y) { this.transform[4] += x * this.transform[0]; this.transform[5] += y * this.transform[3]; },
+        scale(x, y) { this.transform[0] *= x; this.transform[3] *= y; },
+        createLinearGradient() { return { addColorStop() {} }; },
+        fillRect(...args) { if (this.transform[0] === 1 && this.transform[3] === 1) clears.push(args); },
+      }, { get: (target, key) => key in target ? target[key] : () => {} });
+      const player = Object.create(context.Player.prototype);
+      Object.assign(player, {
+        stage: { clientWidth: width, clientHeight: height, getContext: () => ctx },
+        portrait: { getContext: () => ({}) }, positions: new Map(), animationTime: 0,
+        playback: { scene: { theme }, line: first, reducedMotion: false, elapsed: 0, typing: false },
+        drawCharacter(_, character) { actorTransforms.push({ character, transform: ctx.transform.slice() }); },
+      });
+      const render = (line, time) => {
+        player.playback.line = line; player.animationTime = time;
+        transforms.length = 0; actorTransforms.length = 0; clears.length = 0;
+        player.draw();
+        const zoom = player.positions.get('koshi:0').scale / Math.min(2.4, width / height * 1.6);
+        const background = transforms[1], camera = transforms[2];
+        const backgroundBase = Math.max(width * 2 / 960, height * 2 / 540);
+        assert.ok(Math.abs(background[0] / backgroundBase - zoom) < 1e-9, 'background zoom matches the cast zoom');
+        assert.ok(Math.abs(camera[0] / (width * 2 / 960) - zoom) < 1e-9, 'cast uses the same camera zoom');
+        assert.ok(Math.abs(camera[3] * 390 + camera[5] - height * 2 * 390 / 540) < 1e-9,
+          'the common camera pivots around the ground line');
+        const koshi = actorTransforms.find(entry => entry.character === 'koshi').transform;
+        assert.ok(Math.abs(Math.abs(koshi[0]) - Math.abs(koshi[3])) < 1e-9,
+          'characters remain undistorted during scene zoom, including when turning to walk');
+        assert.deepEqual(clears[0], [0, 0, width * 2, height * 2], 'each frame clears exposed background margins');
+        return background[0];
+      };
+      const close = render(first, 0);
+      assert.equal(render(second, 0), close, 'a new cast does not snap the background');
+      const middle = render(second, .5);
+      const far = render(second, 1);
+      assert.ok(far < middle && middle < close, 'the background shrinks smoothly with the cast');
+      assert.ok(Math.abs(middle - (close + far) / 2) < 1e-9, 'the background is halfway zoomed after half a second');
+      render(second, 3);
+      const lineup = actorTransforms.slice().sort((a, b) => a.transform[4] - b.transform[4]);
+      assert.deepEqual(lineup.map(entry => entry.character), actors.map(actor => actor.character),
+        'rendered positions match editor card order even when Koshi is in the middle');
+      assert.equal(render(first, 3), far, 'removing actors does not snap the background');
+      assert.equal(render(first, 4), close, 'the full scene zooms back in after one second');
+    }
+  }
 });
 
 test('cutscene Robo Fly draws a clear body, large dark eyes, flapping white wings and six legs', () => {
@@ -430,7 +567,7 @@ test('retained actors slide individual accessories vertically, including interru
       },
     }, { get: (target, key) => target[key] ?? (() => {}) });
     const context = vm.createContext({ ctx, width, height, time: 0, reducedMotion: false, drawTom() {} });
-    vm.runInContext(`function stage(line) { ${loop} }`, context);
+    vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
     const player = {
       positions: new Map(), animationTime: 0,
       drawCharacter(_, character, time, speaking, options) {
@@ -618,7 +755,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       const drawings = [];
       const ctx = new Proxy({}, { get: (_, name) => (...args) => drawings.push([name, ...args]) });
       const context = vm.createContext({ ctx, width, height, time: .2, reducedMotion: false, drawTom() {} });
-      vm.runInContext(`function stage(line) { ${loop} }`, context);
+      vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
       const player = {
         positions: new Map(), animationTime: 0, paused: false,
         drawCharacter: (_, character, time, speaking) => drawings.push(['draw', character, speaking]),
@@ -636,7 +773,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       assert.equal(player.positions.get('koshi:0').x, koshiX, 'array index changes do not restart retained actors');
       assert.ok(player.positions.get('ram:0').x > 960, 'right-side actor enters from beyond the stage');
       assert.ok(player.positions.get('bucket:0').x > 960, 'enemies enter from the right of Koshi');
-      assert.ok(player.positions.get('mouse:0').target.x > 960, 'enemies depart to the right of Koshi');
+      assert.ok(player.positions.get('mouse:0').target.x < 0, 'left-side actors depart to the left regardless of character');
       assert.ok(player.positions.get('wheel:0').target.x > 960);
       assert.ok(drawings.some(op => op[0] === 'draw' && op[1] === 'mouse' && !op[2]),
         'departing characters no longer speak');
@@ -648,7 +785,8 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       player.animationTime += .1;
       render(second);
       for (const key of ['ram:0', 'bucket:0']) assert.ok(player.positions.get(key).x < start.get(key).x);
-      for (const key of ['mouse:0', 'wheel:0']) assert.ok(player.positions.get(key).x > start.get(key).x);
+      assert.ok(player.positions.get('mouse:0').x < start.get('mouse:0').x);
+      assert.ok(player.positions.get('wheel:0').x > start.get('wheel:0').x);
       for (const [key, value] of start) assert.equal(player.positions.get(key).y, value.y, 'walking preserves authored height');
       assert.ok(drawings.some(op => op[0] === 'rotate' && op[1] !== 0), 'walking has a visible gait');
       const continuing = { ...second, actors: [...second.actors].reverse() };
@@ -683,7 +821,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       const drawings = [];
       const ctx = new Proxy({}, { get: (_, name) => (...args) => drawings.push([name, ...args]) });
       const context = vm.createContext({ ctx, width, height, time: 0, reducedMotion: false, drawTom() {} });
-      vm.runInContext(`function stage(line) { ${loop} }`, context);
+      vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
       const player = { positions: new Map(), animationTime: 0, paused: false, drawCharacter() {} };
       const koshi = { character: 'koshi', x: .3, y: .65 };
       const mouse = { character: 'mouse', x: .8, y: .65 };
@@ -719,10 +857,13 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       render(first);
       assert.deepEqual(point('koshi:0'), interrupted, 'leaving cast retargets from the current position');
       const departing = point('wheel:0');
+      const departureTarget = { ...player.positions.get('wheel:0').target };
       player.animationTime += .1;
       render(first);
       assertSpeed('koshi:0', interrupted);
-      assertSpeed('wheel:0', departing);
+      if (player.positions.has('wheel:0')) assertSpeed('wheel:0', departing);
+      else assert.ok(Math.hypot(departureTarget.x - departing.x, departureTarget.y - departing.y) <= 72,
+        'an interrupted arrival already near the screen edge can finish departing within this frame');
       const resumed = point('koshi:0');
       render({ ...first });
       assert.deepEqual(point('koshi:0'), resumed, 'a new dialogue line does not jump an unfinished move');
@@ -744,7 +885,8 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
       player.animationTime += .01;
       render(joined);
       const afterResize = point('wheel:0');
-      assert.deepEqual(afterResize, beforeResize, 'the reserved cast positions remain stable across viewport sizes');
+      assert.ok(Math.hypot(afterResize.x - beforeResize.x, afterResize.y - beforeResize.y) <= 7.2 + 1e-9,
+        'resize repositioning keeps the existing walking speed');
       context.reducedMotion = true;
       render(joined);
       assert.ok([...player.positions.values()].every(position => position.x === position.target.x
@@ -758,7 +900,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
     const loop = source.slice(source.indexOf('    const mobile ='), source.indexOf('    drawPortrait(this.portrait'));
     const ctx = new Proxy({}, { get: () => () => {} });
     const context = vm.createContext({ ctx, width: 1440, height: 600, time: 0, reducedMotion: false, drawTom() {} });
-    vm.runInContext(`function stage(line) { ${loop} }`, context);
+    vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
     const player = { positions: new Map(), animationTime: 0, paused: false, drawCharacter() {} };
     const first = { speaker: 'koshi', actors: [
       { character: 'mouse', x: .2, y: .6 }, { character: 'koshi', x: .5, y: .65 },
@@ -778,7 +920,7 @@ test('speaking mouse portraits show two front teeth without giving wheels the sa
     assert.equal(player.positions.size, 3, 'no duplicate or stale actors are created');
     player.animationTime = 2;
     context.stage.call(player, first);
-    assert.equal(player.positions.get('mouse:1').x, (.32 + .58 * 1.5 / 2) * 960);
+    assert.equal(player.positions.get('mouse:1').x, first.actors[2].x * 960);
   });
 
 test('stage shadows align with each character base and stay grounded while speakers bob', () => {
@@ -790,7 +932,7 @@ test('stage shadows align with each character base and stay grounded while speak
     ctx, width: 390, height: 560, reducedMotion: true, time: .2,
     drawTom: () => operations.push(['draw', 'tom']),
   });
-  vm.runInContext(`function stage(line) { ${loop} }`, context);
+  vm.runInContext(`function drawBackground() {} function stage(line) { ${loop} }`, context);
   const player = {
     positions: new Map(), paused: false,
     drawCharacter: (_, character) => operations.push(['draw', character]),

@@ -661,6 +661,7 @@ class CutscenePlayer {
     this.paused = document.hidden;
     this.positions = new Map();
     this.actorLine = null;
+    this.actorZoom = null;
     this.animationTime = 0;
     this.displayedIndex = -1;
     document.querySelector('#cutscene-heading').textContent = openingFinish ? "Koshi's Quest / Prologue"
@@ -736,68 +737,73 @@ class CutscenePlayer {
       drawOpeningScene(ctx, this.playback.index, time);
       return;
     }
-    const backgroundScale = Math.max(w / 960, h / 540);
-    const official = !['garden', 'workshop', 'foundry'].includes(scene.theme);
-    // Keep the Official ground line at the same stage height when the background is cropped.
-    const backgroundY = official ? (h / 540 - backgroundScale) * 390 : (h - 540 * backgroundScale) / 2;
-    ctx.setTransform(backgroundScale, 0, 0, backgroundScale, (w - 960 * backgroundScale) / 2, backgroundY);
-    if (official) {
-      drawOfficialBackground(ctx, scene.theme);
-    } else {
-      const garden = scene.theme === 'garden', foundry = scene.theme === 'foundry';
-      const sky = ctx.createLinearGradient(0, 0, 0, 540);
-      sky.addColorStop(0, garden ? '#264e60' : foundry ? '#1d1418' : '#18222f');
-      sky.addColorStop(1, garden ? '#a7bc8a' : foundry ? '#8a4a2c' : '#465957');
-      ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
-      if (garden) {
-        ctx.fillStyle = '#efdea0'; ctx.beginPath(); ctx.arc(780, 95, 48, 0, Math.PI * 2); ctx.fill();
-        for (const [x, y, r] of [[100,330,200],[430,360,260],[870,330,230]]) {
-          ctx.fillStyle = '#3e7160'; ctx.beginPath(); ctx.arc(x, y, r, Math.PI, 0); ctx.fill();
-        }
-        for (const x of [75, 885]) {
-          ctx.fillStyle = '#675448'; ctx.fillRect(x - 12, 150, 24, 230);
-          ctx.fillStyle = '#294f44'; ctx.beginPath(); ctx.arc(x, 160, 85, 0, Math.PI * 2); ctx.fill();
-        }
-      } else if (foundry) {
-        for (const [x, top] of [[90, 70], [240, 120], [720, 100], [870, 60]]) {
-          ctx.fillStyle = '#3a2a2a'; ctx.fillRect(x - 28, top, 56, 300 - top);
-          ctx.fillStyle = '#e8743a'; ctx.fillRect(x - 28, top, 56, 10);
-        }
-        ctx.strokeStyle = '#f0a04b88'; ctx.lineWidth = 6;
-        for (const x of [330, 630]) {
-          ctx.beginPath(); ctx.arc(x, 200, 52, 0, Math.PI * 2); ctx.stroke();
-          for (let i = 0; i < 8; i++) {
-            const a = i * Math.PI / 4;
-            ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 52, 200 + Math.sin(a) * 52);
-            ctx.lineTo(x + Math.cos(a) * 68, 200 + Math.sin(a) * 68); ctx.stroke();
-          }
-        }
-        ctx.fillStyle = '#f2c46b'; ctx.fillRect(370, 70, 220, 60);
-        ctx.fillStyle = '#2b1b1b'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('ROBOT FOUNDRY', 480, 108);
+    const drawBackground = zoom => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#10191f'; ctx.fillRect(0, 0, w, h);
+      const backgroundScale = Math.max(w / 960, h / 540);
+      const official = !['garden', 'workshop', 'foundry'].includes(scene.theme);
+      const anchorY = h * 390 / 540;
+      // Zoom the background and cast around the same ground-line anchor.
+      const backgroundY = official ? (h / 540 - backgroundScale) * 390 : (h - 540 * backgroundScale) / 2;
+      ctx.setTransform(backgroundScale * zoom, 0, 0, backgroundScale * zoom,
+        w / 2 - 480 * backgroundScale * zoom, backgroundY * zoom + anchorY * (1 - zoom));
+      if (official) {
+        drawOfficialBackground(ctx, scene.theme);
       } else {
-        ctx.strokeStyle = '#819b9855'; ctx.lineWidth = 12;
-        for (const x of [110, 475, 850]) { ctx.strokeRect(x, 50, 90, 260); }
-        ctx.fillStyle = '#718480';
-        for (let x = 30; x < 960; x += 80) { ctx.fillRect(x, 38, 6, 6); ctx.fillRect(x, 285, 6, 6); }
-        ctx.fillStyle = '#c9db8d'; ctx.fillRect(370, 85, 220, 60);
-        ctx.fillStyle = '#20302e'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('CLOCKWORK PANTRY', 480, 123);
+        const garden = scene.theme === 'garden', foundry = scene.theme === 'foundry';
+        const sky = ctx.createLinearGradient(0, 0, 0, 540);
+        sky.addColorStop(0, garden ? '#264e60' : foundry ? '#1d1418' : '#18222f');
+        sky.addColorStop(1, garden ? '#a7bc8a' : foundry ? '#8a4a2c' : '#465957');
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, 960, 540);
+        if (garden) {
+          ctx.fillStyle = '#efdea0'; ctx.beginPath(); ctx.arc(780, 95, 48, 0, Math.PI * 2); ctx.fill();
+          for (const [x, y, r] of [[100,330,200],[430,360,260],[870,330,230]]) {
+            ctx.fillStyle = '#3e7160'; ctx.beginPath(); ctx.arc(x, y, r, Math.PI, 0); ctx.fill();
+          }
+          for (const x of [75, 885]) {
+            ctx.fillStyle = '#675448'; ctx.fillRect(x - 12, 150, 24, 230);
+            ctx.fillStyle = '#294f44'; ctx.beginPath(); ctx.arc(x, 160, 85, 0, Math.PI * 2); ctx.fill();
+          }
+        } else if (foundry) {
+          for (const [x, top] of [[90, 70], [240, 120], [720, 100], [870, 60]]) {
+            ctx.fillStyle = '#3a2a2a'; ctx.fillRect(x - 28, top, 56, 300 - top);
+            ctx.fillStyle = '#e8743a'; ctx.fillRect(x - 28, top, 56, 10);
+          }
+          ctx.strokeStyle = '#f0a04b88'; ctx.lineWidth = 6;
+          for (const x of [330, 630]) {
+            ctx.beginPath(); ctx.arc(x, 200, 52, 0, Math.PI * 2); ctx.stroke();
+            for (let i = 0; i < 8; i++) {
+              const a = i * Math.PI / 4;
+              ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 52, 200 + Math.sin(a) * 52);
+              ctx.lineTo(x + Math.cos(a) * 68, 200 + Math.sin(a) * 68); ctx.stroke();
+            }
+          }
+          ctx.fillStyle = '#f2c46b'; ctx.fillRect(370, 70, 220, 60);
+          ctx.fillStyle = '#2b1b1b'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('ROBOT FOUNDRY', 480, 108);
+        } else {
+          ctx.strokeStyle = '#819b9855'; ctx.lineWidth = 12;
+          for (const x of [110, 475, 850]) { ctx.strokeRect(x, 50, 90, 260); }
+          ctx.fillStyle = '#718480';
+          for (let x = 30; x < 960; x += 80) { ctx.fillRect(x, 38, 6, 6); ctx.fillRect(x, 285, 6, 6); }
+          ctx.fillStyle = '#c9db8d'; ctx.fillRect(370, 85, 220, 60);
+          ctx.fillStyle = '#20302e'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.fillText('CLOCKWORK PANTRY', 480, 123);
+        }
+        ctx.fillStyle = garden ? '#54734b' : foundry ? '#3b2b26' : '#303e43'; ctx.fillRect(0, 375, 960, 165);
+        ctx.fillStyle = garden ? '#ad9873' : foundry ? '#6e5146' : '#596465'; ctx.beginPath();
+        ctx.moveTo(420, 300); ctx.lineTo(540, 300); ctx.lineTo(800, 540); ctx.lineTo(140, 540); ctx.fill();
+        for (let x = 0; x < 960; x += 80) {
+          ctx.fillStyle = ['#83bca1', '#7eacdb', '#df8c81'][x / 80 % 3];
+          ctx.fillRect(x + 3, 440, 74, 30);
+          ctx.strokeStyle = '#192c32'; ctx.lineWidth = 3; ctx.strokeRect(x + 3, 440, 74, 30);
+        }
       }
-      ctx.fillStyle = garden ? '#54734b' : foundry ? '#3b2b26' : '#303e43'; ctx.fillRect(0, 375, 960, 165);
-      ctx.fillStyle = garden ? '#ad9873' : foundry ? '#6e5146' : '#596465'; ctx.beginPath();
-      ctx.moveTo(420, 300); ctx.lineTo(540, 300); ctx.lineTo(800, 540); ctx.lineTo(140, 540); ctx.fill();
-      for (let x = 0; x < 960; x += 80) {
-        ctx.fillStyle = ['#83bca1', '#7eacdb', '#df8c81'][x / 80 % 3];
-        ctx.fillRect(x + 3, 440, 74, 30);
-        ctx.strokeStyle = '#192c32'; ctx.lineWidth = 3; ctx.strokeRect(x + 3, 440, 74, 30);
-      }
-    }
-    ctx.setTransform(w / 960, 0, 0, h / 540, 0, 0);
+      ctx.setTransform(w / 960 * zoom, 0, 0, h / 540 * zoom, w / 2 * (1 - zoom), anchorY * (1 - zoom));
+    };
     const mobile = width <= 760 || (width <= 1000 && height <= 500 && width > height);
-    let actorScale = Math.min(2.4, width / height * 1.6) * (mobile ? Math.min(1, 4 / line.actors.length) : 1);
+    const baseScale = Math.min(2.4, width / height * 1.6);
+    let actorScale = baseScale * (mobile ? Math.min(1, 3 / line.actors.length) : 1);
     const horizontalPositions = new Map();
-    const ordered = [...line.actors].sort((a, b) =>
-      Number(b.character === 'koshi') - Number(a.character === 'koshi') || a.x - b.x);
-    const koshiCount = ordered.filter(actor => actor.character === 'koshi').length;
+    const ordered = line.actors;
     const actorWidth = actor => ({
       koshi: 25, tom: 50, boss: 48, 'tom-frog': 75, 'robo-fly': 32,
       'robo-cow': 35, 'robo-unicorn': 38, 'robo-crab': 40, goalie: 42,
@@ -805,54 +811,67 @@ class CutscenePlayer {
     const horizontalScale = actorScale * height / width * 960 / 540;
     const overlappingPositions = ordered.some((actor, i) => i > 0
       && (actor.x - ordered[i - 1].x) * 960 < (actorWidth(actor) + actorWidth(ordered[i - 1])) * horizontalScale + 8);
-    if ((mobile || overlappingPositions || koshiCount > 0) && ordered.length > 1) {
-      if (koshiCount && koshiCount < ordered.length) {
-        ordered.forEach((actor, i) => {
-          const x = i < koshiCount ? .32 * (i + .5) / koshiCount
-            : .32 + .58 * (i - koshiCount + .5) / (ordered.length - koshiCount);
-          horizontalPositions.set(actor, x * 960);
-        });
-      } else {
-        ordered.forEach((actor, i) => horizontalPositions.set(actor, (.16 + .68 * i / (ordered.length - 1)) * 960));
-      }
+    if ((mobile || overlappingPositions) && ordered.length > 1) {
+      ordered.forEach((actor, i) => horizontalPositions.set(actor, (.16 + .68 * i / (ordered.length - 1)) * 960));
       const fit = ordered.slice(1).map((actor, i) =>
         (horizontalPositions.get(actor) - horizontalPositions.get(ordered[i]) - 8)
         / ((actorWidth(actor) + actorWidth(ordered[i])) * horizontalScale));
       actorScale *= Math.min(1, ...fit);
     }
+    for (const actor of ordered) {
+      const x = horizontalPositions.get(actor) ?? actor.x * 960;
+      const halfWidth = actorWidth(actor) * height / width * 960 / 540;
+      const top = actor.accessories?.length ? 120 : 85;
+      actorScale = Math.min(actorScale, (x - 8) / halfWidth, (952 - x) / halfWidth,
+        (actor.y * 540 - 8) / top, (532 - actor.y * 540) / 50);
+    }
     const animationTime = this.animationTime ?? 0;
+    const zoomScale = () => {
+      const zoom = this.actorZoom;
+      const progress = Math.min(1, Math.max(0, animationTime - zoom.start));
+      const eased = progress * progress * (3 - 2 * progress);
+      return progress === 1 ? zoom.target : zoom.from + (zoom.target - zoom.from) * eased;
+    };
+    if (!this.actorZoom || reducedMotion) {
+      this.actorZoom = { from: actorScale, target: actorScale, start: animationTime };
+    } else if (this.actorZoom.target !== actorScale) {
+      this.actorZoom = { from: zoomScale(), target: actorScale, start: animationTime };
+    }
+    const displayScale = zoomScale();
+    const zoom = displayScale / baseScale;
+    const targetZoom = actorScale / baseScale;
+    drawBackground(zoom);
     const changedLine = this.actorLine !== line;
     const initialLine = !this.actorLine;
     const occurrences = new Map();
     const present = new Set();
-    const offscreenX = (actor, scale) => {
-      const margin = 100 * scale * height / width * 960 / 540;
-      if (koshiCount || this.actorLine?.actors.some(entry => entry.character === 'koshi')) {
-        return actor.character === 'koshi' ? -margin : 960 + margin;
-      }
-      return actor.x < .5 ? -margin : 960 + margin;
+    const offscreenX = x => {
+      const margin = 100 * baseScale * height / width * 960 / 540;
+      const visibleZoom = Math.min(zoom, targetZoom);
+      return x < 480 ? 480 - 480 / visibleZoom - margin : 480 + 480 / visibleZoom + margin;
     };
     line.actors.forEach(actor => {
       const occurrence = occurrences.get(actor.character) ?? 0;
       occurrences.set(actor.character, occurrence + 1);
       const key = `${actor.character}:${occurrence}`;
       present.add(key);
-      const target = { x: horizontalPositions.get(actor) ?? actor.x * 960, y: actor.y * 540 };
+      const screenX = horizontalPositions.get(actor) ?? actor.x * 960;
+      const target = { x: 480 + (screenX - 480) / targetZoom, y: actor.y * 540 };
       let position = this.positions.get(key);
       if (changedLine || !position || position.target.x !== target.x || position.target.y !== target.y) {
         const entering = !initialLine && (!position || position.entering || position.leaving);
         const from = initialLine || reducedMotion ? target : position ? { x: position.x, y: position.y }
-          : { x: offscreenX(actor, actorScale), y: target.y };
+          : { x: offscreenX(target.x), y: target.y };
         position = {
           ...from, actor, target, from, start: animationTime,
           duration: Math.hypot(target.x - from.x, target.y - from.y) / 720,
-          entering, leaving: false, scale: actorScale,
+          entering, leaving: false, scale: displayScale,
           accessoryPositions: position?.accessoryPositions,
         };
       }
       position.target = target;
       position.actor = actor;
-      position.scale = actorScale;
+      position.scale = displayScale;
       if (!position.accessoryPositions) {
         position.accessoryPositions = new Map((actor.accessories ?? []).map(accessory =>
           [accessory, { offset: 0, target: 0, from: 0, start: animationTime, leaving: false }]));
@@ -864,7 +883,8 @@ class CutscenePlayer {
         if (!movement || movement.leaving !== leaving) {
           // Headwear comes from above; held props come from below the stage.
           const offscreen = accessory === 'magic-wand' || accessory.startsWith('weapon:') || accessory.startsWith('item:')
-            ? 540 - position.y + 120 * actorScale : -position.y - 120 * actorScale;
+            ? 390 + 150 / Math.min(zoom, targetZoom) - position.y + 120 * baseScale
+            : 390 - 390 / Math.min(zoom, targetZoom) - position.y - 120 * baseScale;
           const offset = movement?.offset ?? offscreen;
           movement = { offset, from: offset, target: leaving ? offscreen : 0, start: animationTime, leaving };
           position.accessoryPositions.set(accessory, movement);
@@ -873,11 +893,12 @@ class CutscenePlayer {
       this.positions.set(key, position);
     });
     for (const [key, position] of this.positions) {
+      position.scale = displayScale;
       if (!present.has(key)) {
         if (reducedMotion) { this.positions.delete(key); continue; }
         if (!position.leaving) {
           position.from = { x: position.x, y: position.y };
-          position.target = { x: offscreenX(position.actor, position.scale), y: position.y };
+          position.target = { x: offscreenX(position.x), y: position.y };
           position.start = animationTime;
           position.duration = Math.abs(position.target.x - position.x) / 720;
           position.leaving = true;
@@ -901,16 +922,16 @@ class CutscenePlayer {
       ctx.save();
       ctx.translate(position.x, position.y);
       // Counter the stage's aspect-ratio scaling so gameplay characters stay round.
-      ctx.scale(position.scale * height / width * 960 / 540, position.scale);
+      ctx.scale(baseScale * height / width * 960 / 540, baseScale);
       const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19, jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24, 'robo-fly': 20, 'robo-cow': 29, 'robo-unicorn': 33, 'robo-crab': 27, 'robo-love-bug': 25, 'robo-trash-bin': 23, boss: 40, 'tom-frog': 46 }[actor.character];
       ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(actor.character === 'tom' ? -7 : 0,
         base, snake ? 13 : 30, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.translate(0, walking ? -Math.abs(Math.sin(animationTime * 14)) * 4
-        : speaking ? Math.sin(time * 6) * 3 / position.scale : 0);
+        : speaking ? Math.sin(time * 6) * 3 / baseScale : 0);
       const drawActor = (accessory = null, offset = 0) => {
         ctx.save();
         // Translate before turning the actor, keeping accessory travel strictly vertical.
-        ctx.translate(0, offset / position.scale);
+        ctx.translate(0, offset / baseScale);
         if (walking) {
           const right = position.target.x > position.from.x;
           ctx.scale(actor.character === 'tom' ? right ? -1 : 1 : right ? 1 : -1, 1);

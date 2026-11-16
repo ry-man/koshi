@@ -567,15 +567,38 @@ test('Print, paste, and open JSON files use validated level import without draft
 test('cutscene cards preserve individual actors and new lines inherit the full scene', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   class Node {
-    constructor(tag) { this.tag = tag; this.children = []; this.listeners = {}; this.value = ''; this.checked = false; this.disabled = false; }
-    append(...children) { for (const child of children) if (typeof child !== 'string') { child.parentElement = this; this.children.push(child); } }
+    constructor(tag) {
+      this.tag = tag; this.children = []; this.listeners = {}; this.value = ''; this.checked = false; this.disabled = false;
+      this.classList = { add() {}, remove() {} };
+    }
+    append(...children) {
+      for (const child of children) if (typeof child !== 'string') {
+        if (child.parentElement) child.remove();
+        child.parentElement = this; this.children.push(child);
+      }
+    }
     replaceChildren(...children) { this.children = []; this.append(...children); }
+    insertBefore(child, reference) {
+      child.remove();
+      child.parentElement = this;
+      const index = reference ? this.children.indexOf(reference) : this.children.length;
+      this.children.splice(index, 0, child);
+    }
     addEventListener(type, handler) { this.listeners[type] = handler; }
     setAttribute(name, value) { this[name] = value; }
     remove() { this.parentElement.children = this.parentElement.children.filter(child => child !== this); }
     focus() {}
     showModal() { this.open = true; }
     close() { this.open = false; }
+    setPointerCapture(id) { this.pointerId = id; }
+    hasPointerCapture(id) { return this.pointerId === id; }
+    releasePointerCapture() { this.pointerId = null; }
+    getBoundingClientRect() { return { left: 0, width: 190 }; }
+    get nextSibling() { return this.parentElement.children[this.parentElement.children.indexOf(this) + 1] ?? null; }
+    closest(selector) {
+      if (selector === '.scene-character') return this.className === 'scene-character' ? this : this.parentElement?.closest(selector);
+      return selector.split(', ').includes(this.tag) ? this : this.parentElement?.closest(selector);
+    }
     get lastElementChild() { return this.children.at(-1); }
     querySelector(selector) { return this.querySelectorAll(selector)[0]; }
     querySelectorAll(selector) {
@@ -593,10 +616,14 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
     return nodes.get(selector);
   };
   let changes = 0;
+  let dropTarget;
   const context = vm.createContext({
-    $, level: blank(), CHARACTERS: { koshi: 'Koshi', mouse: 'Mouse', wheel: 'Wheel', ram: 'Ram' },
+    $, level: blank(), CHARACTERS: {
+      koshi: 'Koshi', mouse: 'Mouse', wheel: 'Wheel', ram: 'Ram', boss: 'Boss', 'tom-frog': 'Frog', tom: 'Tom',
+    },
+    isBossType: character => ['boss', 'tom-frog'].includes(character),
     SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS,
-    document: { createElement: tag => new Node(tag) },
+    document: { createElement: tag => new Node(tag), elementFromPoint: () => dropTarget },
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
     validateCustomLevel, readOnly: () => false, markChanged: () => changes++, selectedEvents: new Set(), touched: new Set(),
     message: (text, error) => { $('#editor-message').textContent = text; $('#editor-message').error = Boolean(error); },
@@ -616,10 +643,12 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
   context.populateCutscene();
   $('#scene-add-line').listeners.click();
   const row = $('#scene-lines').lastElementChild;
-  assert.equal(row.querySelector('.scene-speaker').value, 'mouse');
   assert.equal(row.querySelector('.scene-text').value, '');
   const cast = row.querySelector('.scene-cast');
   assert.deepEqual(cast.children.map(card => card.sceneActor.character), ['mouse', 'mouse', 'koshi']);
+  const initialSpeaking = cast.querySelectorAll('.scene-speaking').filter(input => input.checked);
+  assert.equal(initialSpeaking.length, 1);
+  assert.equal(initialSpeaking[0].parentElement.parentElement.sceneActor.character, 'mouse');
   assert.deepEqual(JSON.parse(JSON.stringify(context.readSceneLine(row).actors)), actors);
   const mouseAccessories = cast.children[0].querySelector('.scene-accessories');
   assert.equal(mouseAccessories.tag, 'fieldset');
@@ -690,32 +719,91 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
   $('#scene-theme').value = 'workshop';
   $('#cutscene-form').listeners.change();
   assert.equal(context.level.cutscene.theme, 'workshop');
-  row.querySelector('.scene-speaker').value = 'wheel';
-  row.querySelector('.scene-speaker').listeners.change();
-  $('#cutscene-form').listeners.change();
-  assert.equal(context.level.cutscene.lines[1].speaker, 'wheel');
-  assert.ok(context.level.cutscene.lines[1].actors.some(actor => actor.character === 'wheel'));
-  assert.equal(new Set(cast.children.map(card => card.sceneActor.x)).size, 4, 'adding a speaker chooses a distinct stage position');
-  assert.equal(cast.children.at(-1).querySelector('.scene-remove-character').disabled, true, 'the only speaking actor cannot be removed');
   const addCharacter = row.querySelector('.scene-add-character');
-  const picker = row.querySelector('.scene-character-picker');
+  assert.equal(addCharacter.textContent, 'Character Select');
   addCharacter.listeners.click();
-  assert.equal(picker.hidden, false);
-  picker.value = 'koshi'; picker.listeners.change();
+  const characterDialog = row.querySelector('.scene-character-dialog');
+  assert.equal(characterDialog.open, true);
+  const characterGroups = characterDialog.querySelectorAll('.scene-character-group');
+  assert.deepEqual(characterGroups.map(group => group.children[0].textContent), ['Koshi', 'Non-boss enemies', 'Bosses']);
+  const characterInputs = characterDialog.querySelectorAll('.scene-character-select');
+  const select = character => characterInputs.find(input => input.value === character);
+  select('wheel').checked = true;
+  select('wheel').listeners.change();
+  assert.equal(cast.children.length, 4);
+  assert.equal(new Set(cast.children.map(card => card.sceneActor.x)).size, 4, 'added actors have distinct stage positions');
+  const wheelCard = cast.children.find(card => card.sceneActor.character === 'wheel');
+  wheelCard.querySelector('.scene-speaking').checked = true;
+  wheelCard.querySelector('.scene-speaking').listeners.change();
+  assert.equal(context.readSceneLine(row).speaker, 'wheel');
+  assert.equal(cast.querySelectorAll('.scene-speaking').filter(input => input.checked).length, 1);
+  select('ram').checked = true;
+  select('ram').listeners.change();
   assert.equal(cast.children.length, 5);
-  assert.equal(picker.hidden, true);
-  picker.value = 'mouse'; picker.listeners.change();
+  assert.equal(select('boss').disabled, false, 'a sixth actor is available');
+  select('boss').checked = true;
+  select('boss').listeners.change();
   assert.equal(cast.children.length, 6);
-  assert.equal(new Set(cast.children.map(card => card.sceneActor.x)).size, 6, 'added actors have distinct stage positions');
-  assert.equal(addCharacter.disabled, true);
-  row.querySelector('.scene-speaker').value = 'ram';
-  row.querySelector('.scene-speaker').listeners.change();
-  assert.equal(row.querySelector('.scene-speaker').value, 'wheel', 'a new speaker cannot exceed the actor limit');
-  picker.value = 'mouse'; picker.listeners.change();
-  assert.equal(cast.children.length, 6, 'the actor limit is enforced');
-  cast.children.at(-1).querySelector('.scene-remove-character').listeners.click();
+  assert.equal(select('tom-frog').disabled, true, 'six actors including repeated characters reach the limit');
+  select('tom-frog').checked = true;
+  select('tom-frog').listeners.change();
+  assert.equal(select('tom-frog').checked, false, 'a seventh actor cannot be selected');
+  assert.equal(cast.children.length, 6);
+  assert.match($('#editor-message').textContent, /6 characters/);
+  select('ram').checked = false;
+  select('ram').listeners.change();
   assert.equal(cast.children.length, 5);
-  assert.equal(addCharacter.disabled, false);
+  assert.equal(select('tom-frog').disabled, false, 'removing an actor enables another selection');
+  select('tom-frog').checked = true;
+  select('tom-frog').listeners.change();
+  assert.equal(cast.children.length, 6);
+  assert.doesNotThrow(() => context.validateSavedLevel());
+  const koshiCard = cast.children.find(card => card.sceneActor.character === 'koshi');
+  koshiCard.querySelector('.scene-speaking').checked = true;
+  koshiCard.querySelector('.scene-speaking').listeners.change();
+  assert.equal(context.readSceneLine(row).speaker, 'koshi');
+  assert.equal(cast.querySelectorAll('.scene-speaking').filter(input => input.checked).length, 1);
+  const checkedSpeaking = koshiCard.querySelector('.scene-speaking');
+  checkedSpeaking.checked = false;
+  checkedSpeaking.listeners.change();
+  assert.equal(checkedSpeaking.checked, true, 'the scene retains one speaking character');
+  const originalCards = cast.children.slice();
+  const movedCard = originalCards[0], targetCard = originalCards.at(-1);
+  const grip = movedCard.querySelector('.scene-character-grip');
+  assert.equal(grip.role, 'button');
+  dropTarget = targetCard;
+  const pointer = { button: 0, pointerId: 7, clientX: 20, clientY: 20, target: grip };
+  movedCard.listeners.pointerdown(pointer);
+  cast.listeners.pointermove({ ...pointer, clientX: 180 });
+  cast.listeners.pointerup({ ...pointer, clientX: 180 });
+  assert.equal(cast.children.at(-1), movedCard, 'dragging a card moves its complete box');
+  assert.equal(context.level.cutscene.lines[1].actors.at(-1).character, movedCard.sceneActor.character);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.readSceneLine(row).actors.at(-1).accessories)), ['top-hat', 'magic-wand'],
+    'dragging preserves this actor’s selected accessories');
+  assert.equal(context.readSceneLine(row).speaker, 'koshi', 'ordering leaves the speaker unchanged');
+  const draggedOrder = cast.children.slice();
+  dropTarget = cast.children[0];
+  movedCard.listeners.pointerdown(pointer);
+  cast.listeners.pointermove({ ...pointer, clientX: 0 });
+  cast.listeners.pointercancel(pointer);
+  assert.deepEqual(cast.children, draggedOrder, 'cancelled pointer gestures restore card order');
+  grip.listeners.keydown({ key: 'ArrowLeft', preventDefault() {} });
+  assert.equal(cast.children.at(-2), movedCard, 'keyboard ordering moves the complete card');
+  context.readOnly = () => true;
+  const readOnlyOrder = cast.children.slice();
+  grip.listeners.keydown({ key: 'ArrowRight', preventDefault() {} });
+  movedCard.listeners.pointerdown(pointer);
+  cast.listeners.pointermove({ ...pointer, clientX: 180 });
+  cast.listeners.pointerup(pointer);
+  assert.deepEqual(cast.children, readOnlyOrder, 'read-only cards cannot be reordered');
+  context.readOnly = () => false;
+  $('#scene-add-line').listeners.click();
+  const inherited = $('#scene-lines').lastElementChild;
+  assert.deepEqual(JSON.parse(JSON.stringify(context.readSceneLine(inherited).actors)),
+    JSON.parse(JSON.stringify(context.readSceneLine(row).actors)), 'new lines inherit reordered cards and their accessories');
+  inherited.querySelector('.scene-remove-line').listeners.click();
+  characterDialog.querySelector('.scene-character-done').listeners.click();
+  assert.equal(characterDialog.open, false);
   row.children.at(-1).listeners.click();
   assert.equal(context.level.cutscene.lines.length, 1);
   context.readOnly = () => true;

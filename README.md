@@ -1324,11 +1324,17 @@ Reduced-motion mode shows each complete line immediately and disables animation.
 Screen readers receive complete dialogue lines rather than individual letters.
 
 In the editor, enable **Optional pre-level cutscene**, choose the world
-background, and add dialogue lines with a speaker and on-stage cast. Use **Add
-character** to choose an actor; only characters on stage appear below the dialogue,
-each with an **Accessories** button, currently applied accessories listed one per line, and
+background, and add dialogue lines with a speaker and on-stage cast. **Character
+Select** opens a screen-fitting popup with checkboxes grouped into Koshi, non-boss
+enemies, and bosses. Select up to six characters; existing repeated actors count
+toward that limit. Only characters on stage appear below the dialogue,
+each with a **Speaking** checkbox, an **Accessories** button, currently applied accessories listed one per line, and
 a **Remove character** button. Newly added characters use an unoccupied stage
-position. **Accessories** opens a scrollable popup of
+position. Drag a character card by its name to reorder the cast, including on
+touchscreens; keyboard users can focus its name and press Left or Right.
+The cards' order is the scene's left-to-right lineup. Reordering carries the
+character's accessories with it and is inherited by the next dialogue line.
+**Accessories** opens a scrollable popup of
 checkboxes; click or tap any accessory to toggle it independently, then choose
 **Done** or press Escape to close. **Other** contains non-game accessories;
 **Weapons** and **Items** list the complete game catalogs, including future
@@ -1337,7 +1343,9 @@ item; selecting a different weapon or item replaces the previous selection.
 These appear as visual props and do not grant gameplay effects. Existing JSON
 with multiple game props remains playable; selecting a new prop replaces them.
 Changes apply immediately; no Ctrl key is needed. The current
-speaker must remain on stage, and each line supports up to six actors.
+speaker must remain on stage, and each line supports up to six actors. Checking
+**Speaking** on one character unchecks all others. Removing the speaking character
+selects a remaining actor as the speaker.
 Changes apply automatically, and each new dialogue line inherits the previous
 line's speaker, characters, positions, and individual accessory selections.
 Accessories added or removed on a retained character slide vertically onto or off
@@ -1378,11 +1386,19 @@ height in portrait and landscape; `y: 0.8` places Koshi on the foreground path.
 Accessory IDs use `weapon:<weapon ID>` and `item:<item ID>` for game props;
 the existing `sunglasses`, `top-hat`, and `magic-wand` IDs remain unchanged.
 Per-line positions animate between dialogue beats. Characters added to or removed
-from a line's `actors` walk on or off the nearest screen edge, using their authored
-`x` position to choose the side and preserving their height. Characters that remain
+from a line's `actors` walk on or off the nearest screen edge of their displayed
+lineup, preserving their authored height. Characters that remain
 on stage are matched by character ID (and occurrence for repeated actors), not
 their array index. The initial cast appears in place; reduced-motion mode changes
-the cast immediately. Old level JSON without
+the cast immediately. Cast artwork fits the available screen with room between
+characters; phone scenes with more than three characters zoom out as needed.
+The entire scene, including the background, characters, shadows, and accessories,
+zooms together around the ground line. Zoom changes ease in and out over one
+second as the cast joins, leaves, or the screen resizes, without changing level
+JSON. Actor array order determines the lineup; horizontal positions are adjusted
+at runtime when needed to honor that order and fit the screen. The initial
+scene uses its fitted zoom immediately, and reduced-motion mode applies zoom
+changes without animation. Old level JSON without
 `cutscene` remains compatible. Scenes are included in printed/loaded JSON,
 playtest links, direct-file play, and the offline app.
 
