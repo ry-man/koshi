@@ -1417,6 +1417,8 @@ randomly jumps offscreen (his hind legs crouch and kick; a shadow tracks Koshi
 for two seconds, then locks for 0.325 seconds before a smoky slam), blinks five times before
 firing his red tongue (only while at least one fly is on the board), or opens his
 mouth to shoot one randomly red, green, or blue slime ball at any visible brick.
+After at most three jumps or slime attacks since his last tongue attempt, he
+tries his tongue next if a fly is on the board.
 Slime replaces the struck brick's surfaces using the same rules as Robo Trash
 Bin, recolors already slimed bricks, and makes a smaller paint splash. The tongue
 and slime are drawn on top of Tom. The tongue stops at the first brick, holds for
@@ -1435,8 +1437,10 @@ his lips. Every eaten fly opens a sleep window; six flies can provide the six
 damage openings needed to defeat him.
 Each meal makes him sleep for eight seconds with scrolling pixel **ZZZZ...** eyes
 while his body flashes shades of green.
-Only a sword can damage him during sleep, once per opening; he bounces away
-after each non-final hit, and six hits defeat him.
+Only a sword can damage him during sleep, once per opening; after each non-final
+hit he bounces in a randomized direction opposite Koshi's movement (or away from
+stationary Koshi), prioritizing screen bounds and safe separation. He cannot hurt
+Koshi on contact for two seconds after being hit. Six hits defeat him.
 A missed opening consumes the meal. A bronze sword appears every random 10–20
 seconds, even while Koshi is armed, until three swords are in play (swords in the
 arena plus Koshi's weapon). Pausing freezes all battle timers.

@@ -5412,7 +5412,7 @@ class Game {
   initializeFrog(enemy) {
     Object.assign(enemy, {
       radius: 48, name: CHARACTERS['tom-frog'], health: 6, maxHealth: 6,
-      shield: null, state: 'rest', stateTime: 0, fliesEaten: 0, tongue: null,
+      shield: null, state: 'rest', stateTime: 0, fliesEaten: 0, tongue: null, attacksSinceTongue: 0,
       nextFlyAt: this.elapsed + 5 + this.random() * 10,
       nextSwordAt: this.elapsed + 10 + this.random() * 10,
     });
@@ -5423,7 +5423,9 @@ class Game {
     enemy.stateTime = 0; enemy.walking = false; enemy.walkTarget = null;
     // The tongue is how Tom eats flies, so he only uses it while one is on the board.
     const attacks = this.frogFlies.length ? ['jump-up', 'tongue-blink', 'slime-charge'] : ['jump-up', 'slime-charge'];
-    enemy.state = attacks[Math.floor(this.random() * attacks.length)];
+    enemy.state = this.frogFlies.length && enemy.attacksSinceTongue >= 3
+      ? 'tongue-blink' : attacks[Math.floor(this.random() * attacks.length)];
+    enemy.attacksSinceTongue = enemy.state === 'tongue-blink' ? 0 : Math.min(3, enemy.attacksSinceTongue + 1);
     if (enemy.state === 'jump-up') enemy.jumpOrigin = { x: enemy.x, y: enemy.y };
   }
 
@@ -5656,13 +5658,13 @@ class Game {
     enemy.walking = step > 0;
   }
 
-  hitFrog(enemy) {
+  hitFrog(enemy, startX = this.cat.x, startY = this.cat.y) {
     if (enemy.state !== 'sleep' || !this.weapon || !Object.hasOwn(SWORDS, this.weapon.type)
       || this.enemyDamageProgress(enemy) !== null) return false;
     this.weaponAttacks.push({ x: enemy.x, y: enemy.y, type: this.weapon.type, age: 0 });
     if (--this.weapon.uses === 0) this.dropWeapon(true);
     enemy.health--; enemy.fliesEaten = 0; enemy.asleep = false;
-    enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
+    enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION * 2;
     enemy.state = 'hurt'; enemy.stateTime = 0;
     if (enemy.health === 0) this.finishBossBattle(enemy);
     else {
@@ -5672,25 +5674,33 @@ class Game {
         top: camera.y + 72, bottom: camera.y + camera.height - 54 };
       const origin = { x: enemy.x, y: enemy.y }, cat = this.cat;
       const clearance = radius + cat.radius + 12, travel = clearance * 2;
-      const angle = this.random() * Math.PI * 2;
-      let target = null;
+      const moveX = cat.x - startX, moveY = cat.y - startY;
+      const vx = moveX || moveY ? moveX : cat.vx, vy = moveX || moveY ? moveY : cat.vy;
+      const moving = Math.hypot(vx, vy) > 1e-9;
+      const awayX = moving ? -vx : origin.x - cat.x, awayY = moving ? -vy : origin.y - cat.y;
+      const angle = moving ? Math.atan2(awayY, awayX) + (this.random() - .5) * Math.PI * .8
+        : this.random() * Math.PI * 2;
+      const candidates = [];
       for (let i = 0; i < 64; i++) {
         const direction = angle + i * Math.PI / 32;
         const x = Math.max(area.left, Math.min(area.right, origin.x + Math.cos(direction) * travel));
         const y = Math.max(area.top, Math.min(area.bottom, origin.y + Math.sin(direction) * travel));
-        if ((x - origin.x) * (origin.x - cat.x) + (y - origin.y) * (origin.y - cat.y) < 0
-          || Math.hypot(x - origin.x, y - origin.y) < clearance
-          || Math.hypot(x - cat.x, y - cat.y) < clearance) continue;
-        target = { x, y };
-        break;
+        candidates.push({ x, y });
       }
-      if (!target) {
-        target = [
-          { x: area.left, y: area.top }, { x: area.right, y: area.top },
-          { x: area.left, y: area.bottom }, { x: area.right, y: area.bottom },
-        ].sort((a, b) => Math.min(Math.hypot(b.x - origin.x, b.y - origin.y), Math.hypot(b.x - cat.x, b.y - cat.y))
-          - Math.min(Math.hypot(a.x - origin.x, a.y - origin.y), Math.hypot(a.x - cat.x, a.y - cat.y)))[0];
-      }
+      const corners = [
+        { x: area.left, y: area.top }, { x: area.right, y: area.top },
+        { x: area.left, y: area.bottom }, { x: area.right, y: area.bottom },
+      ].sort((a, b) => Math.min(Math.hypot(b.x - origin.x, b.y - origin.y), Math.hypot(b.x - cat.x, b.y - cat.y))
+        - Math.min(Math.hypot(a.x - origin.x, a.y - origin.y), Math.hypot(a.x - cat.x, a.y - cat.y)));
+      candidates.push(...corners);
+      const safe = point => Math.hypot(point.x - origin.x, point.y - origin.y) >= clearance
+        && Math.hypot(point.x - cat.x, point.y - cat.y) >= clearance;
+      const away = point => {
+        const dot = (point.x - origin.x) * awayX + (point.y - origin.y) * awayY;
+        return moving ? dot > 1e-9 : dot >= 0;
+      };
+      // Screen bounds and separation take priority if there is no room to bounce opposite Koshi.
+      const target = candidates.find(point => safe(point) && away(point)) ?? candidates.find(safe) ?? corners[0];
       enemy.bounceOrigin = origin; enemy.bounceTarget = target;
     }
     return true;
@@ -6028,7 +6038,7 @@ class Game {
 
   enemyDamageProgress(enemy) {
     return enemy.invulnerableUntil > this.elapsed + 1e-9
-      ? 1 - (enemy.invulnerableUntil - this.elapsed) / DAMAGE_DURATION : null;
+      ? 1 - (enemy.invulnerableUntil - this.elapsed) / (DAMAGE_DURATION * (enemy.type === 'tom-frog' ? 2 : 1)) : null;
   }
 
   initializeRam(enemy) {
@@ -7664,7 +7674,7 @@ class Game {
       const distance = distanceToSegment(0, 0, startX - old.x, startY - old.y, this.cat.x - enemy.x, this.cat.y - enemy.y);
       if (isBossType(enemy.type)) {
         if (frogAirborne(enemy)) return true;
-        const hit = () => enemy.type === 'tom-frog' ? this.hitFrog(enemy) : this.hitBoss(enemy);
+        const hit = () => enemy.type === 'tom-frog' ? this.hitFrog(enemy, startX, startY) : this.hitBoss(enemy);
         if (!this.activeTurret && distance <= this.cat.radius + enemy.radius + 18 && hit()) return enemy.health > 0;
         // A landing is a ground impact, not a damaging path from the frog's old location.
         const contactDistance = enemy.type === 'tom-frog'

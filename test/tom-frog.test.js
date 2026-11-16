@@ -383,6 +383,43 @@ test('Tom never starts a tongue attack unless a fly is on the board', () => {
   }
 });
 
+test('Tom attempts his tongue after at most three other attacks and resets the count on each attempt', () => {
+  for (const roll of [0, .999]) {
+    const game = arena(), boss = game.boss;
+    game.random = () => roll;
+    game.frogFlies = [fly(50, 50)];
+    for (let cycle = 0; cycle < 3; cycle++) {
+      for (let attack = 1; attack <= 3; attack++) {
+        game.startFrogAttack(boss);
+        assert.equal(boss.state, roll === 0 ? 'jump-up' : 'slime-charge');
+        assert.equal(boss.attacksSinceTongue, attack);
+      }
+      game.startFrogAttack(boss);
+      assert.equal(boss.state, 'tongue-blink');
+      assert.equal(boss.attacksSinceTongue, 0, 'even a missed tongue attack resets the count');
+    }
+    game.startFrogAttack(boss);
+    game.random = () => .5;
+    game.startFrogAttack(boss);
+    assert.equal(boss.state, 'tongue-blink', 'random tongue attacks can still happen before the cap');
+    assert.equal(boss.attacksSinceTongue, 0);
+  }
+});
+
+test('a tongue attempt overdue while flies are absent happens as soon as a fly is available', () => {
+  const game = arena(), boss = game.boss;
+  game.random = () => 0;
+  game.frogPendingFlies = [{ x: 50, y: 50, time: 10 }];
+  for (let attack = 0; attack < 10; attack++) {
+    game.startFrogAttack(boss);
+    assert.equal(boss.state, 'jump-up', 'pending flies do not make a tongue attack valid');
+  }
+  assert.equal(boss.attacksSinceTongue, 3);
+  game.frogFlies = [fly(50, 50)];
+  game.startFrogAttack(boss);
+  assert.equal(boss.state, 'tongue-blink');
+});
+
 test('render draws Tom above the bricks, then his tongue and slime, and ignores slime splashes for the paintbrush swing', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const render = source.slice(source.indexOf('function render('));
@@ -499,6 +536,33 @@ test('real swept combat damages only a sleeping frog with a sword and consumes i
   assert.equal(game.weaponAttacks[0].type, 'wood');
 });
 
+test('post-hit contact protection lasts exactly two seconds with normalized damage progress', () => {
+  const game = arena(), boss = game.boss;
+  game.elapsed = 10;
+  boss.state = 'sleep';
+  boss.nextFlyAt = Infinity; boss.nextSwordAt = Infinity;
+  game.weapon = { type: 'bronze', uses: 3 };
+  assert.equal(game.hitFrog(boss), true);
+  assert.equal(boss.invulnerableUntil, 12);
+  assert.equal(game.enemyDamageProgress(boss), 0);
+  assert.equal(game.enemyDamageProgress({ type: 'boss', invulnerableUntil: 11 }), 0,
+    'other enemies retain their one-second duration');
+  game.weapon = null;
+  game.invulnerableUntil = 0;
+  game.elapsed = 11;
+  game.updateFrog(boss, 1);
+  assert.equal(boss.state, 'rest', 'recovery timing is unchanged');
+  assert.equal(game.enemyDamageProgress(boss), .5);
+  assert.equal(game.enemyDamageProgress({ type: 'boss', invulnerableUntil: 11 }), null);
+  for (const elapsed of [11, 11.999, 12]) {
+    game.elapsed = elapsed;
+    Object.assign(game.cat, { x: boss.x, y: boss.y, vx: 0, vy: 0 });
+    game.combatEnemies(0, game.cat.x, game.cat.y);
+    assert.equal(game.hearts, elapsed < 12 ? 3 : 2, `contact at ${elapsed - 10} seconds after the hit`);
+  }
+  assert.equal(game.enemyDamageProgress(boss), null);
+});
+
 for (const options of [{}, { portrait: true, scale: .3 }]) {
   test(`frog bounces safely away from stationary Koshi near every screen edge (${options.portrait ? 'portrait' : 'landscape'})`, () => {
     const game = arena(options), boss = game.boss;
@@ -525,8 +589,8 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
       game.elapsed = .275;
       game.combatEnemies(.275, catX, catY);
       assert.ok(Math.hypot(boss.x - x, boss.y - y) > 0, 'bounce moves rather than teleporting');
-      game.elapsed = 1.01;
-      game.combatEnemies(.735, catX, catY);
+      game.elapsed = 2.01;
+      game.combatEnemies(1.735, catX, catY);
       assert.equal(boss.state, 'rest');
       assert.ok(Math.hypot(boss.x - x, boss.y - y) > radius + game.cat.radius);
       assert.equal(game.hearts, 3, 'Koshi remains safe after the invulnerability expires');
@@ -548,6 +612,63 @@ test('frog bounce chooses randomized directions away from the attacking side', (
     targets.push(`${boss.bounceTarget.x.toFixed(2)},${boss.bounceTarget.y.toFixed(2)}`);
   }
   assert.ok(new Set(targets).size > 1);
+});
+
+for (const options of [{}, { portrait: true, scale: .3 }]) {
+  test(`moving Koshi makes Tom bounce randomly in the opposite half-plane (${options.portrait ? 'portrait' : 'landscape'})`, () => {
+    for (const [vx, vy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      const targets = new Set();
+      for (const random of [0, .13, .5, .75, .999]) {
+        const game = arena(options), boss = game.boss, camera = game.camera();
+        const origin = { x: camera.x + camera.width / 2, y: camera.y + camera.height / 2 };
+        Object.assign(boss, origin, { state: 'sleep' });
+        Object.assign(game.cat, { x: origin.x - vx * 50, y: origin.y - vy * 50, vx, vy });
+        game.weapon = { type: 'bronze', uses: 3 }; game.random = () => random;
+        assert.equal(game.hitFrog(boss), true);
+        const target = boss.bounceTarget;
+        assert.ok((target.x - origin.x) * vx + (target.y - origin.y) * vy < 0);
+        assert.ok(Math.hypot(target.x - game.cat.x, target.y - game.cat.y) >= boss.radius + game.cat.radius + 12);
+        assert.ok(target.x >= camera.x + 75 && target.x <= camera.x + camera.width - 75);
+        assert.ok(target.y >= camera.y + 72 && target.y <= camera.y + camera.height - 54);
+        targets.add(`${target.x.toFixed(2)},${target.y.toFixed(2)}`);
+      }
+      assert.ok(targets.size > 1, `direction ${vx},${vy} remains randomized`);
+    }
+  });
+
+  test(`moving Koshi cannot force Tom's bounce offscreen at an edge (${options.portrait ? 'portrait' : 'landscape'})`, () => {
+    const game = arena(options), boss = game.boss, camera = game.camera();
+    for (const x of [camera.x + 75, camera.x + camera.width - 75])
+      for (const y of [camera.y + 72, camera.y + camera.height - 54])
+        for (const [vx, vy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1]])
+          for (const random of [0, .5, .999]) {
+      Object.assign(boss, { x, y, state: 'sleep', health: 6, invulnerableUntil: 0 });
+      Object.assign(game.cat, { x, y, vx, vy });
+      game.weapon = { type: 'bronze', uses: 3 }; game.random = () => random;
+      assert.equal(game.hitFrog(boss), true);
+      const target = boss.bounceTarget;
+      assert.ok(target.x >= camera.x + 75 && target.x <= camera.x + camera.width - 75);
+      assert.ok(target.y >= camera.y + 72 && target.y <= camera.y + camera.height - 54);
+      assert.ok(Math.hypot(target.x - x, target.y - y) >= boss.radius + game.cat.radius + 12);
+      const corners = [[camera.x + 75, camera.y + 72], [camera.x + camera.width - 75, camera.y + 72],
+        [camera.x + 75, camera.y + camera.height - 54], [camera.x + camera.width - 75, camera.y + camera.height - 54]];
+      if (corners.some(([cx, cy]) => (cx - x) * vx + (cy - y) * vy < 0
+        && Math.hypot(cx - x, cy - y) >= boss.radius + game.cat.radius + 12)) {
+        assert.ok((target.x - x) * vx + (target.y - y) * vy < 0, 'opposes movement whenever room permits');
+      }
+    }
+  });
+}
+
+test('swept sword combat uses Koshi movement during the hit rather than his changed velocity', () => {
+  const game = arena(), boss = game.boss;
+  const origin = { x: boss.x, y: boss.y };
+  boss.state = 'sleep';
+  Object.assign(game.cat, { x: origin.x + 50, y: origin.y, vx: -100, vy: 0 });
+  game.weapon = { type: 'bronze', uses: 3 };
+  game.combatEnemies(0, origin.x - 100, origin.y);
+  assert.equal(boss.health, 5);
+  assert.ok(boss.bounceTarget.x < origin.x, 'bounce opposes the rightward swept hit');
 });
 
 test('frog practice uses the real six-hit boss battle and only completes after victory', () => {
