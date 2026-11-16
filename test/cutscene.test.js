@@ -112,7 +112,7 @@ test('Official scene cropping covers the stage and preserves authored actor heig
       for (const [index, actor] of campaign.cutscene.lines[0].actors.entries()) {
         const base = { koshi: 23, tom: 46, mouse: 19, wheel: 24, ram: 19, bucket: 21, ball: 19,
           jackolantern: 20, snake: 19, goalie: 39, 'robo-koshi': 23, 'robo-snail': 24,
-          'robo-cow': 29, 'robo-unicorn': 33, boss: 40 }[actor.character];
+          'robo-cow': 29, 'robo-unicorn': 33, boss: 40, 'tom-frog': 46 }[actor.character];
         assert.ok(base !== undefined, `Expected Official actor: ${actor.character}`);
         const scale = player.positions.get(actorKeys(campaign.cutscene.lines[0].actors)[index]).scale;
         const zoom = scale / Math.min(2.4, width / height * 1.6);
