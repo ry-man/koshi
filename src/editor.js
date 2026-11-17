@@ -36,7 +36,7 @@ const OBSTRUCTION_COLORS = [
   '#fecdd3', '#b7707d', '#f43f5e', '#be123c', '#4c0519',
   '#ead8c5', '#a58b73', '#a66b36', '#704522', '#29190d',
 ];
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-fly': { name: 'Robo Fly' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' }, 'robo-crab': { name: 'Robo Crab' }, 'robo-love-bug': { name: 'Robo Love Bug' }, 'robo-trash-bin': { name: 'Robo Trash Bin' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-fly': { name: 'Robo Fly' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' }, 'robo-crab': { name: 'Robo Crab' }, 'robo-love-bug': { name: 'Robo Love Bug' }, 'robo-trash-bin': { name: 'Robo Trash Bin' }, 'robo-moon': { name: 'Robo Moon' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -719,7 +719,7 @@ function description(event) {
 }
 
 function icon(event) {
-  if (event.kind === 'enemy' && (isBossType(event.type) || ['robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'enemy' && (isBossType(event.type) || ['robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon

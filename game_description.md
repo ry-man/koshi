@@ -237,6 +237,21 @@ Without a Goal brick he immediately dies with no enemy-point award. He supports
 custom placements, enemy spawners, editor icons and custom cutscene actors.
 Built-in level content and schedules are unchanged.
 
+Robo Moon is a purple floating crescent with dark purple craters, pixelated
+yellow eyes and an opening/closing yellow mouth. It wanders without targeting
+Koshi for four seconds, stops, and smoothly becomes a full moon over 0.8 seconds.
+A yellow aura glows as a rectangular purple tide creeps in from all four level
+borders over two seconds, behind bricks and every other game element. Water
+reaches just beyond the inner brick surfaces, holds for one second, then
+retreats over 1.5 seconds as the glow switches off. The moon remains full until
+the water is gone, then smoothly becomes a crescent and wanders again.
+Touching the water hurts Koshi, including while it retreats. Swords and Boost
+defeat the moon normally and immediately send its tide back offscreen. Each
+moon has an independent tide. Music Box pauses its cycle; Spooky Mask makes
+it flee and interrupts its active tide. Available for custom placements, enemy
+spawners, guide pictures, tutorial practice and cutscenes, without changing
+existing levels.
+
 ### Learning Menus
 
 The title screen offers **How to play** and **Tutorial**.

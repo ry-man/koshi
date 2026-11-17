@@ -139,6 +139,7 @@ const GUIDE = [
       ['Robo Snail', 'The green, spiral-shelled Snail wanders continuously and does not pause like a Mouse. Defeating it freezes all brick cooldowns for 20 seconds; cooldowns already running resume afterward, and new ones wait until the freeze ends. Available in the campaign and custom levels.', 'enemy:robo-snail'],
       ['Robo Fly', 'A small mechanical insect with fluttering metal wings, red sensor eyes and six legs. It flies continuously through the arena in curving paths at 105 board units per second and never pauses. Its quick turns make it dangerous to approach, but a sword or Boost can defeat it. Available in custom levels and enemy spawners.', 'enemy:robo-fly'],
       ['Robo Trash Bin', 'This floating green bin rocks as it wanders. Every 3 to 5 seconds it claims an unclaimed non-slime brick other than Cinder or Goal, turns feet-first as it approaches, and pours for three seconds, replacing its contact surface with equally likely red, green or blue slime. Bins push one another according to a stable random priority. On scrolling boards they target visible bricks. Sleep pauses them and fear interrupts their pour. Available in custom levels and enemy spawners.', 'enemy:robo-trash-bin'],
+      ['Robo Moon', 'A purple crescent with dark craters and an animated yellow face. It wanders without chasing Koshi, then stops and smoothly becomes a full moon with a yellow aura. Purple water creeps in behind the bricks from every level border, reaching just past their inner surfaces. It holds for one second, then the glow stops and the water retreats. Only once the water is gone does the moon shrink back into a crescent and wander again. Water hurts on contact, including during retreat. Swords and Boost defeat the moon and immediately send its tide back. Music Box pauses its cycle; Spooky Mask makes it flee and sends an active tide back. Available in custom levels and enemy spawners.', 'enemy:robo-moon'],
       ['Robo Crab', 'A grey robot with red arms and pincers and blinking green pixel eyes. Each crab shuffles back and forth horizontally or vertically, alternating between 45 and 150 board units per second. Each speed lasts a random 3 to 15 seconds; a wide-open mouth warns during the final 0.65 seconds before either change. Defeat it with a sword or Boost: its eyes and pincers fly off, it opens a big frown, and a smoke puff fades away. Sleep and fear work normally. Available in custom levels and enemy spawners.', 'enemy:robo-crab'],
       ['Robo Love Bug', 'Pink wings form a purple heart beneath a dark grey head with square red eyes, dark red legs and antennae. Love Bugs shuffle and bounce like Robo Balls at 120 board units per second. Swords, hammers, Boost and turret attacks cannot damage them or their shields. Instead, isolate them with Barrier fences: a lone visible Love Bug, or the only bug in a closed barrier region, dies automatically. An open route around a fence still connects companions; other enemy types and spawn previews do not count. Its eyes swell with blue tears, then its head and two wings split apart before a Wheel-style explosion. Sleep and fear affect movement but do not prevent isolation. Available in custom levels, spawners and barrier practice.', 'enemy:robo-love-bug'],
       ['Robo Cow', 'The Cow walks only along the board perimeter. After walking past several brick lengths, it stops to eat a boundary brick; after five seconds, that brick and its merged group become Cinder. Cinder and Goal bricks cannot be eaten. A Spooky Mask cancels eating and makes it flee. It can be defeated with a sword or Boost.', 'enemy:robo-cow'],
@@ -202,6 +203,7 @@ const LESSONS = [
   { id: 'robo-snail', title: 'Robo Snail', instruction: 'Collect a sword and defeat the continuously wandering Snail. Watch every brick cooldown freeze for 20 seconds after the defeat.' },
   { id: 'robo-fly', title: 'Robo Fly', instruction: 'Collect a sword and intercept the small Robo Fly. Its quick curved flight never pauses, so aim ahead or use Boost when it comes close.' },
   { id: 'robo-trash-bin', title: 'Robo Trash Bin', instruction: 'Collect a sword and intercept the floating Trash Bin before it pours colored slime onto a brick.' },
+  { id: 'robo-moon', title: 'Robo Moon', instruction: 'Collect a sword and defeat Robo Moon. Keep clear of the purple water when it becomes a glowing full moon.' },
   { id: 'robo-crab', title: 'Robo Crab', instruction: 'Collect a sword and intercept the shuffling Crab. Its wide-open mouth warns before switching between slow and fast patrols.' },
   { id: 'robo-love-bug', title: 'Robo Love Bug', instruction: 'Select the outlined Barrier brick and let its fence cross the arena. Separate the two Love Bugs: attacks cannot defeat them, but each dies when isolated.' },
   { id: 'robo-cow', title: 'Robo Cow', instruction: 'Collect a sword and intercept the Cow on the perimeter. If left alone, it eats a boundary brick and turns it into Cinder after five seconds.' },
@@ -424,7 +426,7 @@ class Tutorial {
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-fly', 'robo-trash-bin', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
       'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(id)) {
       addSword();
       if (['wheel', 'snake', 'robo-cow'].includes(id)) {
@@ -596,6 +598,7 @@ class Tutorial {
       'robo-snail': game.enemies >= 1 && game.snailStreamUntil > game.elapsed,
       'robo-fly': game.enemies >= 1,
       'robo-trash-bin': game.enemies >= 1,
+      'robo-moon': game.enemies >= 1,
       'robo-crab': game.enemies >= 1,
       'robo-love-bug': game.enemies >= 2,
       'robo-cow': game.enemies >= 1,

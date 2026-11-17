@@ -284,7 +284,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-fly': 'Robo Fly', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-fly': 'Robo Fly', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', 'robo-moon': 'Robo Moon', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
 CHARACTERS['tom-frog'] = 'Tom the Frog';
 const isBossType = type => type === 'boss' || type === 'tom-frog';
 const frogAirborne = enemy => enemy.type === 'tom-frog' && ['jump-up', 'jump-track', 'jump-fall'].includes(enemy.state);
@@ -2101,7 +2101,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
@@ -2284,7 +2284,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -3467,6 +3467,7 @@ class Game {
     this.pickups = [];
     this.foodId = 0;
     this.robots = [];
+    this.moonTides = [];
     this.trashBinClaims = new Map();
     this.trashBinPrioritySequence = 0;
     this.enemyDeaths = [];
@@ -5087,6 +5088,7 @@ class Game {
     if (event.type === 'robo-cow') this.initializeRoboCow(enemy);
     if (event.type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
     if (event.type === 'robo-trash-bin') this.initializeTrashBin(enemy);
+    if (event.type === 'robo-moon') this.initializeRoboMoon(enemy);
     if (isBossType(event.type)) {
       if (event.type === 'tom-frog') this.initializeFrog(enemy);
       else this.initializeBoss(enemy);
@@ -5600,6 +5602,7 @@ class Game {
       if (type === 'robo-cow') this.initializeRoboCow(enemy);
       if (type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
       if (type === 'robo-trash-bin') this.initializeTrashBin(enemy);
+      if (type === 'robo-moon') this.initializeRoboMoon(enemy);
       this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       if (isBossType(type)) {
         if (type === 'tom-frog') this.initializeFrog(enemy);
@@ -6215,6 +6218,14 @@ class Game {
     if (enemy.type === 'robo-love-bug' && cause !== 'isolation') return;
     if (isBossType(enemy.type) && enemy.health > 0) return;
     if (enemy.type === 'robo-trash-bin') this.releaseTrashBinTarget(enemy);
+    if (enemy.type === 'robo-moon') {
+      enemy.moonGlow = 0;
+      if (enemy.moonTide) {
+        enemy.moonTide.state = 'retreat';
+        enemy.moonTide.owner = null;
+        enemy.moonTide = null;
+      }
+    }
     if (awardPoints) {
       this.enemies += enemy.defeatPoints ?? 1;
       this.catBlockProgress.defeated[enemy.type] = (this.catBlockProgress.defeated[enemy.type] ?? 0) + 1;
@@ -6253,6 +6264,125 @@ class Game {
   enemyDamageProgress(enemy) {
     return enemy.invulnerableUntil > this.elapsed + 1e-9
       ? 1 - (enemy.invulnerableUntil - this.elapsed) / (DAMAGE_DURATION * (enemy.type === 'tom-frog' ? 2 : 1)) : null;
+  }
+
+  initializeRoboMoon(enemy) {
+    enemy.moonState = 'wander';
+    enemy.moonTime = 0;
+    enemy.moonFullness = 0;
+    enemy.moonGlow = 0;
+    enemy.moonTide = null;
+  }
+
+  createMoonTide(enemy) {
+    const depths = { left: 0, right: 0, top: 0, bottom: 0 };
+    const regions = brickRegions(this.bricks, this.width, this.height);
+    for (const part of this.brickParts()) {
+      const edge = regions.get(part.sourceId ?? part.id)?.edge;
+      const depth = edge === 'left' ? part.x + part.w : edge === 'right' ? this.width - part.x
+        : edge === 'top' ? part.y + part.h : this.height - part.y;
+      if (edge) depths[edge] = Math.max(depths[edge], depth);
+    }
+    for (const edge of Object.keys(depths)) depths[edge] += 12;
+    const tide = { owner: enemy, depths, progress: 0, state: 'rise', time: 0 };
+    this.moonTides.push(tide);
+    return tide;
+  }
+
+  moonWaterRects(tide, progress = tide.progress) {
+    if (progress <= 0) return [];
+    const { left, right, top, bottom } = tide.depths;
+    const t = top * progress, b = bottom * progress, l = left * progress, r = right * progress;
+    return [
+      { x: 0, y: 0, w: this.width, h: t },
+      { x: 0, y: this.height - b, w: this.width, h: b },
+      { x: 0, y: t, w: l, h: this.height - t - b },
+      { x: this.width - r, y: t, w: r, h: this.height - t - b },
+    ];
+  }
+
+  updateMoonTides(seconds, startX, startY) {
+    this.moonTides = this.moonTides.filter(tide => {
+      const owner = tide.owner;
+      if (owner?.afraid || owner && this.maskActive) {
+        tide.state = 'retreat';
+        owner.moonGlow = 0;
+      }
+      const previous = tide.progress;
+      let remaining = owner && this.enemiesSleepUntil > this.elapsed + 1e-9 ? 0 : seconds;
+      while (remaining > 1e-9) {
+        if (tide.state === 'rise') {
+          const step = Math.min(remaining, (1 - tide.progress) * 2);
+          tide.progress = Math.min(1, tide.progress + step / 2);
+          remaining -= step;
+          if (tide.progress >= 1 - 1e-9) {
+            tide.progress = 1;
+            tide.state = 'hold';
+          }
+        } else if (tide.state === 'hold') {
+          const step = Math.min(remaining, 1 - tide.time);
+          tide.time += step;
+          remaining -= step;
+          if (tide.time >= 1 - 1e-9) {
+            tide.state = 'retreat';
+            if (owner) owner.moonGlow = 0;
+          }
+        } else {
+          tide.progress = Math.max(0, tide.progress - remaining / 1.5);
+          remaining = 0;
+        }
+      }
+      // Sweep Koshi against the largest occupied band this step, including a receding tide.
+      for (const rect of this.moonWaterRects(tide, Math.max(previous, tide.progress))) {
+        if (circleTouchesBrick(startX, startY, this.cat.radius, rect)
+          || circleTouchesBrick(this.cat.x, this.cat.y, this.cat.radius, rect)
+          || brickContact(startX, startY, this.cat.x - startX, this.cat.y - startY, this.cat.radius, rect) <= 1) {
+          this.takeDamage();
+          break;
+        }
+      }
+      if (tide.state !== 'retreat' || tide.progress > 0) return true;
+      if (owner) {
+        owner.moonTide = null;
+        owner.moonState = 'wane';
+        owner.moonTime = 0;
+      }
+      return false;
+    });
+  }
+
+  updateRoboMoon(enemy, seconds, bounds) {
+    if (enemy.moonState === 'tide') return;
+    enemy.moonTime += seconds;
+    enemy.resting = enemy.moonState !== 'wander';
+    if (enemy.moonState === 'wander') {
+      enemy.phase += Math.sin(enemy.age * 1.3 + enemy.phase) * seconds * .7;
+      enemy.x += Math.cos(enemy.phase) * 65 * seconds;
+      enemy.y += Math.sin(enemy.phase) * 65 * seconds;
+      if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+      if (enemy.moonTime >= 4) {
+        enemy.moonState = 'wax';
+        enemy.moonTime = 0;
+        enemy.resting = true;
+      }
+    } else {
+      const fraction = Math.min(1, enemy.moonTime / .8);
+      const smooth = fraction * fraction * (3 - 2 * fraction);
+      enemy.moonFullness = enemy.moonState === 'wax' ? smooth : 1 - smooth;
+      enemy.moonGlow = enemy.moonState === 'wax' ? smooth : 0;
+      if (fraction < 1) return;
+      enemy.moonTime = 0;
+      if (enemy.moonState === 'wax') {
+        enemy.moonState = 'tide';
+        enemy.moonTide = this.createMoonTide(enemy);
+      } else {
+        enemy.moonState = 'wander';
+        enemy.resting = false;
+      }
+    }
   }
 
   initializeRam(enemy) {
@@ -7646,6 +7776,7 @@ class Game {
 
   combat(dt, startX, startY) {
     this.clearBlockedPickups();
+    this.updateMoonTides(dt, startX, startY);
     if (this.weapon && this.weapon.expires <= this.elapsed + 1e-9) this.dropWeapon(true);
     this.strikeItemCases(startX, startY);
     const collected = [];
@@ -7775,6 +7906,8 @@ class Game {
         this.updateRoboCow(enemy, dt);
       } else if (enemy.type === 'robo-trash-bin') {
         this.updateTrashBin(enemy, dt, bounds);
+      } else if (enemy.type === 'robo-moon') {
+        this.updateRoboMoon(enemy, dt, bounds);
       } else if (enemy.type === 'robo-unicorn') {
         this.updateRoboUnicorn(enemy, dt, bounds);
       } else if (enemy.type === 'robo-crab') {

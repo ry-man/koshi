@@ -465,6 +465,14 @@ function drawPortrait(ctx, character, speaking, time) {
     }
     box('#202a30', 10, 20, 13, talking ? 5 : 1);
     box('#202a30', 10, 21, 1, 3); box('#202a30', 22, 21, 1, 3);
+  } else if (character === 'robo-moon') {
+    for (let y = 2; y < 31; y++) for (let x = 1; x < 30; x++) {
+      if ((x - 16) ** 2 + (y - 16) ** 2 <= 14 ** 2
+        && (x - 24) ** 2 + (y - 11) ** 2 > 15 ** 2) box('#9855cf', x, y, 1, 1);
+    }
+    for (const [x, y] of [[9, 8], [5, 18], [13, 27]]) box('#59277d', x, y, 2, 2);
+    for (let row = 0; row < 4; row++) box('#ffe54e', 8, 10 + row * 2, blink ? 2 : row + 1, 1);
+    box('#ffe54e', 8, 21, 8, talking ? 4 : 1);
   } else if (character === 'robo-trash-bin') {
     box('#202b28', 3, 5, 26, 5);
     box('#005b40', 5, 10, 22, 20); box('#008459', 7, 10, 18, 19);

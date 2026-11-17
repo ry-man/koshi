@@ -1692,7 +1692,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
-    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-trash-bin', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-trash-bin', 'robo-moon', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
     'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives', 'anvil',
   ].includes(tutorial.lesson.id);
   makeBrickButtons();
@@ -2509,6 +2509,42 @@ function cameraBoundsVisible(camera, x, y, width = 0, height = 0, margin = 0) {
     && y + height >= camera.y - margin && y <= camera.y + camera.height + margin;
 }
 
+function drawMoonWater() {
+  for (const tide of game.moonTides) {
+    ctx.save();
+    ctx.fillStyle = '#722cbd';
+    for (const rect of game.moonWaterRects(tide)) ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    const { left, right, top, bottom } = tide.depths;
+    const p = tide.progress;
+    if (p > 0) {
+      ctx.strokeStyle = `rgba(217,150,255,${.6 + Math.sin(game.elapsed * 4) * .15})`;
+      ctx.lineWidth = 1.5;
+      const x1 = left * p, x2 = game.width - right * p;
+      const y1 = top * p, y2 = game.height - bottom * p;
+      const edges = [
+        [x1, y1, x2, y1, 0, -1], [x2, y1, x2, y2, 1, 0],
+        [x2, y2, x1, y2, 0, 1], [x1, y2, x1, y1, -1, 0],
+      ];
+      for (const [ax, ay, bx, by, nx, ny] of edges) {
+        const length = Math.hypot(bx - ax, by - ay), steps = Math.ceil(length / 8);
+        ctx.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps, distance = t * length;
+          // Keep the ripples inside the damaging water band.
+          const ripple = (3 + Math.sin(distance * .1 - game.elapsed * 3) * 1.3
+            + Math.sin(distance * .23 + game.elapsed * 2) * .5) * Math.min(1, p * 8) * Math.sin(t * Math.PI);
+          const x = ax + (bx - ax) * t + nx * ripple;
+          const y = ay + (by - ay) * t + ny * ripple;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
 function render(now) {
   const WIDTH = game.width, HEIGHT = game.height;
   const camera = game.camera();
@@ -2528,6 +2564,7 @@ function render(now) {
   for (const { brick, button, members } of buttons) button.inert = !game.brickVisible(brick, members);
   ctx = boardCtx;
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
+  drawMoonWater();
   for (const terrain of game.terrains) globalThis.KoshiBrickVisuals.drawTerrain(ctx, terrain, game.elapsed);
   for (const track of game.catTracks) globalThis.KoshiBrickVisuals.drawCatTrack(ctx, track);
   for (const fence of game.barrierSegments()) {
@@ -4368,6 +4405,61 @@ function drawRobot(enemy, deathProgress = null, damageProgress = null) {
   ctx.restore();
 }
 
+function drawRoboMoon(enemy, deathProgress = null, damageColor = null) {
+  const full = enemy.moonFullness ?? 0;
+  const age = enemy.asleep || deathProgress !== null ? 0 : enemy.age ?? 0;
+  const glow = deathProgress === null ? enemy.moonGlow ?? 0 : 0;
+  ctx.save();
+  if (deathProgress !== null) {
+    ctx.rotate(deathProgress * 2);
+    ctx.scale(1 - deathProgress, 1 - deathProgress);
+  } else if (enemy.moonState === 'wander' || !enemy.moonState) {
+    ctx.rotate(Math.sin(age * 2) * .08);
+  }
+  if (glow > 0) {
+    const halo = ctx.createRadialGradient(0, 0, 19, 0, 0, 58);
+    halo.addColorStop(0, `rgba(255,230,71,${glow * .7})`);
+    halo.addColorStop(.55, `rgba(255,220,53,${glow * .25})`);
+    halo.addColorStop(1, 'rgba(255,220,53,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, 58, 0, Math.PI * 2); ctx.fill();
+  }
+  const tip = 1 - full;
+  ctx.beginPath(); ctx.moveTo(9 * tip, -27);
+  ctx.bezierCurveTo(-36, -27, -36, 27, 13 * tip, 27);
+  ctx.bezierCurveTo(-5 + 41 * full, 14 + 13 * full, -16 + 52 * full, -6 - 21 * full, 9 * tip, -27);
+  ctx.closePath();
+  ctx.fillStyle = damageColor ?? '#9855cf';
+  ctx.strokeStyle = '#4c216e'; ctx.lineWidth = 2;
+  ctx.fill(); ctx.stroke();
+  ctx.clip();
+  ctx.fillStyle = '#59277d';
+  for (const [x, y, radius] of [[-8, -20, 2.8], [-21, -1, 2.4], [-15, 17, 2.3],
+    [0, 22, 3], [13, -19, 3.2], [22, -1, 2.5], [16, 18, 3.4], [3, -23, 1.4]]) {
+    ctx.beginPath(); ctx.ellipse(x, y, radius, radius * .7, -.5, 0, Math.PI * 2); ctx.fill();
+  }
+  const squint = Math.sin(age * 5) * 1.2;
+  ctx.fillStyle = '#ffe54e';
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.globalAlpha *= side === 1 ? full : 1;
+    for (let row = 0; row < 4; row++) {
+      for (let column = 0; column <= row; column++) {
+        const x = -15 + column * 2.6;
+        ctx.fillRect(side === -1 ? x : -x - 2, -13 + row * 2.6 + squint * (3 - row) / 3, 2, 2);
+      }
+    }
+    ctx.restore();
+  }
+  const open = 3 + (Math.sin(age * 7) + 1) * 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-16, 7);
+  ctx.lineTo(1 + full * 16, 5);
+  ctx.lineTo(-2 + full * 2, 8 + open);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
 function drawRoboTrashBin(enemy, deathProgress = null, damageColor = null) {
   const progress = deathProgress ?? 0;
   ctx.save();
@@ -5197,6 +5289,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   }
   if (enemy.type === 'robo-fly') {
     drawRoboFly(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
+  if (enemy.type === 'robo-moon') {
+    drawRoboMoon(enemy, deathProgress, damageColor);
     ctx.restore(); return;
   }
   if (enemy.type === 'robo-trash-bin') {

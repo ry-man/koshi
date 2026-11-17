@@ -1517,7 +1517,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
   for (const { value: type } of $('#event-type').options) {
     const enemy = { kind: 'enemy', type };
     const icon = context.icon(enemy);
-    if (isBossType(type) || ['robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin'].includes(type)) {
+    if (isBossType(type) || ['robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon'].includes(type)) {
       assert.equal(icon.value, `enemy:${type}`);
       assert.equal(icon.control, 'brick-spawn-item');
     } else {

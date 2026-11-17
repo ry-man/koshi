@@ -2398,6 +2398,23 @@ a big frown, and a smoke puff expands and fades. Available in custom placements,
 enemy spawners, the guide, tutorial practice and cutscenes; no existing campaign
 levels are changed.
 
+Robo Moon (`robo-moon`) is available in custom levels, enemy spawners, the
+guide, tutorial practice and cutscenes. It wanders without chasing Koshi for
+four seconds, then stops and smoothly changes from a purple crescent into a
+full moon over 0.8 seconds. Dark purple craters, symmetric triangular pixelated
+yellow eyes and an opening/closing yellow mouth follow the supplied moon sketches. A yellow aura
+shines while purple water advances from all four level borders over two seconds.
+The rectangular tide has subtle animated surface ripples, stays behind all game
+elements and reaches 12 board units past the inner brick surfaces.
+At its peak it rests for exactly one second;
+then the aura goes out and the water retreats over 1.5 seconds. The moon stays
+full and stationary until the water is gone, morphs back over 0.8 seconds, and
+resumes wandering. Water hurts on contact during both advance and retreat.
+Defeating the moon immediately extinguishes its glow and starts its tide
+retreating, even after its death animation ends. Each moon owns its own tide.
+Sleep pauses the cycle; fear interrupts an active tide and makes the moon flee.
+Restart clears all tides. Existing campaign levels are unchanged.
+
 Robo Trash Bin (`robo-trash-bin`) is available in custom levels and enemy
 spawners. It rocks while floating, waits a random 3–5 seconds, then travels to
 a randomly selected non-slime brick other than Cinder or Goal. Each bin claims
