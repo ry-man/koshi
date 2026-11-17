@@ -2076,10 +2076,13 @@ ends in defeat.
 
 Surf Boards (`surf-board-red`, `surf-board-green`, `surf-board-blue`) let Koshi
 glide across water without damage for 5, 15, or 30 seconds, respectively.
-The ridden board touches the bottom of his body in a horizontal side view with an integer
-countdown centered inside. It turns white evenly from left to right, reaching
+The ridden board is drawn in front of Koshi in a horizontal side view, with the
+bottom of his body centered within its thickness and an integer countdown inside.
+Its silhouette has a pointed nose, a stubby tail, and a rear underside fin in a darker shade of its color within
+the same overall dimensions.
+It turns white evenly from left to right, reaching
 white at expiry; pickups keep their top-down artwork. Picking up another board
-replaces the board and refreshes the new color's duration; it does not replace
+replaces any board or Ice Skate and refreshes the new color's duration; it does not replace
 his weapon or equipped item. Pause freezes the timer; restart clears the effect.
 If the timer expires while on water, he sinks normally. Boards do not protect
 against lava. All three are available for custom-level placements and spawners;
@@ -2091,11 +2094,20 @@ one boot with a body-width opening and a protruding toe, with a silver blade clo
 to his body's bottom. It covers his face just below the eyes and hides his whiskers
 without changing his hitbox. The boot displays a number-only countdown
 and turns white continuously from top to bottom as the timer expires. Another
-skate replaces and refreshes this effect independently of Surf Boards, weapons,
-and equipped items. Pause freezes the timer; restart clears it. When it expires
+skate replaces any skate or Surf Board and refreshes its timer without replacing
+weapons or equipped items. Only one of these two rides can be active at a time.
+Pause freezes the timer; restart clears it. When it expires
 on ice, the normal direction lock returns. Skates do not protect against water or
 lava. All variants are available in the editor, guide, and tutorial without
 changing existing levels.
+
+Both rides face Koshi's horizontal movement direction, retaining their last
+facing when stopped or moving vertically. Reversing triggers a quick 140 ms
+flip while the countdown stays upright and readable. The flip freezes on pause;
+pickups keep their static artwork.
+At expiry, each ride turns fully white and fades away over 400 ms, with a
+zero countdown. Protection and ice steering end immediately at expiry, not
+after the fade. Pause freezes the fade; replacing a ride removes the old visual.
 
 Falling into water throws up a large animated splash with droplets and an
 expanding ripple at the entry point, while Koshi sinks. Surfing avoids the fall

@@ -8046,8 +8046,10 @@ class Game {
     } else if (ITEMS[item.type]?.catShield) {
       this.catShield = ITEMS[item.type].catShield;
     } else if (ITEMS[item.type]?.surfSeconds) {
+      this.iceSkate = null;
       this.surfBoard = { type: item.type, expires: this.elapsed + ITEMS[item.type].surfSeconds };
     } else if (ITEMS[item.type]?.skateSeconds) {
+      this.surfBoard = null;
       this.iceSkate = { type: item.type, expires: this.elapsed + ITEMS[item.type].skateSeconds };
       this.iceDirectionLocked = false;
     } else if (ITEMS[item.type]?.seconds) this.timeBonus += ITEMS[item.type].seconds;

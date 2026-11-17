@@ -216,29 +216,217 @@ test('Surf Board color drains continuously along its length to white with an int
   assert.deepEqual(sample(.5, true).labels, [['3', 0, 1]], 'countdown is centered inside the ridden board');
 });
 
-test('the ridden Surf Board deck touches the bottom of Koshi at different body sizes', () => {
+test('the ridden Surf Board has a pointed nose, stubby tail and matching darker fin without increasing its size', () => {
+  const paths = [], fillColors = [];
+  let current = [];
+  const ctx = new Proxy({
+    beginPath() { current = []; paths.push(current); },
+    moveTo(...args) { current.push(['move', ...args]); },
+    lineTo(...args) { current.push(['line', ...args]); },
+    quadraticCurveTo(...args) { current.push(['curve', ...args]); },
+    fill() { fillColors.push(this.fillStyle); },
+  }, {
+    get(target, key) { return key in target ? target[key] : () => {}; },
+  });
+  drawSurfBoard(ctx, '#ed5555', 1, '5', true);
+  const [fin, hull] = paths;
+  assert.ok(fin.some(([method, , , x, y]) => method === 'curve' && x === -29 && y === 7),
+    'rear fin projects down beneath the left-hand tail');
+  assert.deepEqual(hull[0], ['move', -32, -4]);
+  assert.deepEqual(hull.at(-1), ['curve', -20, 4, -32, 1], 'tail has a blunt vertical end');
+  assert.ok(hull.some(([method, , , x, y]) => method === 'curve' && x === 32 && y === -8),
+    'right-hand nose comes to an upturned point');
+  const points = paths.flatMap(commands => commands.flatMap(([, ...coords]) =>
+    Array.from({ length: coords.length / 2 }, (_, index) => coords.slice(index * 2, index * 2 + 2))));
+  assert.deepEqual([Math.min(...points.map(([x]) => x)), Math.max(...points.map(([x]) => x)),
+    Math.min(...points.map(([, y]) => y)), Math.max(...points.map(([, y]) => y))], [-32, 32, -8, 7],
+    'hull and fin preserve the original 64-by-15 silhouette bounds');
+  for (const color of ['#ed5555', '#63d877', '#519eff']) {
+    fillColors.length = 0;
+    drawSurfBoard(ctx, color, 1, '5', true);
+    const channels = hex => hex.slice(1).match(/../g).map(channel => parseInt(channel, 16));
+    const original = channels(color);
+    const ratios = channels(fillColors[0]).map((channel, index) => channel / original[index]);
+    assert.ok(ratios.every(ratio => ratio > .3 && ratio < .8), 'fin is darker, but not near-black');
+    assert.ok(Math.max(...ratios) - Math.min(...ratios) < .02, 'fin preserves its board color hue');
+  }
+});
+
+test('rides mirror their artwork and keep countdowns upright during the turning animation', () => {
+  for (const facing of [1, -1, .3, -.3]) {
+    for (const board of [false, true]) {
+      let scaleX = 1;
+      const stack = [], points = [], labels = [], fills = [];
+      const ctx = new Proxy({
+        save() { stack.push(scaleX); },
+        restore() { scaleX = stack.pop(); },
+        scale(x) { scaleX *= x; },
+        moveTo(x, y) { points.push([x * scaleX, y]); },
+        lineTo(x, y) { points.push([x * scaleX, y]); },
+        quadraticCurveTo(_cx, _cy, x, y) { points.push([x * scaleX, y]); },
+        fillText(text, x, y) { labels.push([text, x * scaleX, y, scaleX]); },
+        fillRect(x, y, width, height) {
+          fills.push({ color: this.fillStyle, x: x * scaleX, width: width * scaleX, y, height });
+        },
+      }, {
+        get(target, key) { return key in target ? target[key] : () => {}; },
+      });
+      if (board) drawSurfBoard(ctx, '#ed5555', .5, '12', true, facing);
+      else drawIceSkate(ctx, '#519eff', .5, '12', facing);
+      assert.ok(points.some(([x, y]) => x === 32 * facing && y === (board ? -8 : 17)),
+        'nose or toe follows the animated facing scale');
+      assert.deepEqual(labels, [['12', board ? 0 : -6 * facing, board ? 1 : 12, 1]],
+        'countdown follows the item but is never mirrored or squashed');
+      if (board) {
+        const color = fills.find(fill => fill.color === '#ed5555');
+        assert.ok(Math.min(color.x, color.x + color.width) >= 0,
+          'board meter still turns white from screen-left to screen-right when facing left');
+      }
+      assert.equal(scaleX, 1);
+      assert.equal(stack.length, 0);
+    }
+  }
+});
+
+test('ride facing flips smoothly within 140 ms, preserves direction at rest, and freezes on pause', () => {
   const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  const source = app.slice(app.indexOf('  drawTerrainAffected(() => {'), app.indexOf('  for (const turret of game.turretFades)'));
+  const source = app.slice(app.indexOf('const rideFacingAnimations ='), app.indexOf('function drawWornIceSkate('));
+  const context = vm.createContext({});
+  vm.runInContext(source, context);
+  for (const type of ['surf-board-blue', 'ice-skate-blue']) {
+    const game = arena([]);
+    game.cat.vx = 120;
+    game.collectItem({ type });
+    const ride = game.surfBoard ?? game.iceSkate;
+    const facing = () => context.rideFacingScale(game, ride);
+    assert.equal(facing(), 1);
+    game.cat.vx = -120;
+    assert.equal(facing(), 1, 'reversal starts without snapping');
+    game.elapsed += .035;
+    assert.ok(facing() > 0 && facing() < 1);
+    game.elapsed += .035;
+    assert.ok(Math.abs(facing()) < 1e-9, 'halfway through the flip the item is edge-on');
+    game.pause();
+    const pausedScale = facing();
+    game.update(.5);
+    assert.equal(facing(), pausedScale);
+    game.resume();
+    game.cat.vx = 120;
+    assert.equal(facing(), pausedScale, 'reversing mid-animation remains continuous');
+    game.elapsed += .14;
+    assert.equal(facing(), 1);
+    game.cat.vx = -120;
+    facing();
+    game.elapsed += .14;
+    assert.equal(facing(), -1, 'flip reaches the new direction within 140 ms');
+    game.cat.vx = 0;
+    game.cat.vy = 120;
+    assert.equal(facing(), -1, 'vertical travel keeps the previous horizontal direction');
+    game.cat.vy = 0;
+    assert.equal(facing(), -1, 'stopping keeps the last direction');
+    game.reset();
+    game.start();
+    game.collectItem({ type });
+    assert.equal(context.rideFacingScale(game, game.surfBoard ?? game.iceSkate), 1,
+      'a fresh ride does not inherit a previous run animation');
+  }
+});
+
+test('the ridden Surf Board overlays Koshi with its thickness centered on his body bottom', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = app.indexOf('  drawTerrainAffected(() => {', app.indexOf('  if (game.activeTurret) drawTurretBase'));
+  const source = app.slice(start, app.indexOf('  if (game.bubbleTrap)', start));
   const game = arena([]);
   game.collectItem({ type: 'surf-board-red' });
   let offsetY = 0;
-  const deckHeights = [];
+  const deckHeights = [], drawOrder = [];
   const ctx = new Proxy({
+    globalAlpha: 1,
     translate(_x, y) { offsetY += y; },
-    lineTo(x, y) { if (x === 16 && y === -3) deckHeights.push(offsetY + y); },
+    lineTo(x, y) {
+      if (x === 16 && y === -3 || x === -8 && y === 7) deckHeights.push(offsetY + y);
+    },
+    fillText(label) { drawOrder.push(`timer:${label}`); },
   }, {
     get(target, key) { return key in target ? target[key] : () => {}; },
   });
   const context = vm.createContext({
     game, ctx, ITEMS: { 'surf-board-red': { color: '#ed5555', surfSeconds: 5 } },
-    drawSurfBoard, drawTerrainAffected: draw => draw(), drawWornCape() {},
+    drawSurfBoard, drawTerrainAffected: draw => draw(), drawWornIceSkate() {},
+    drawCat() { drawOrder.push('cat'); },
   });
+  vm.runInContext(app.slice(app.indexOf('const rideFacingAnimations ='), app.indexOf('function drawWornIceSkate(')), context);
   for (const radius of [21, 12]) {
     game.cat.radius = radius;
     offsetY = 0;
     deckHeights.length = 0;
+    drawOrder.length = 0;
     vm.runInContext(source, context);
-    assert.deepEqual(deckHeights, [game.cat.y + radius], 'board deck meets the body without a gap');
+    assert.deepEqual(deckHeights, [game.cat.y + radius - 5, game.cat.y + radius + 5],
+      'body bottom lies halfway through the board thickness');
+    assert.deepEqual(drawOrder, ['cat', 'timer:5'], 'countdown is drawn over Koshi rather than behind him');
+  }
+});
+
+test('expired rides fade out over 400 ms without extending effects or fading Koshi', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const start = app.indexOf('  drawTerrainAffected(() => {', app.indexOf('  if (game.activeTurret) drawTurretBase'));
+  const render = app.slice(start, app.indexOf('  if (game.bubbleTrap)', start));
+  const helpers = app.slice(app.indexOf('const rideFacingAnimations ='), app.indexOf('function drawFoodBadge('));
+  for (const type of ['surf-board-red', 'ice-skate-red']) {
+    const game = arena([]);
+    game.collectItem({ type });
+    const ride = game.surfBoard ?? game.iceSkate;
+    const draws = [], stack = [];
+    const ctx = new Proxy({
+      globalAlpha: .6,
+      save() { stack.push(this.globalAlpha); },
+      restore() { this.globalAlpha = stack.pop(); },
+    }, {
+      get(target, key) { return key in target ? target[key] : () => {}; },
+    });
+    const record = (_ctx, _color, fraction, label) => draws.push({ alpha: ctx.globalAlpha, fraction, label });
+    const context = vm.createContext({
+      game, ctx, ITEMS: {
+        'surf-board-red': { color: '#ed5555', surfSeconds: 5 },
+        'ice-skate-red': { color: '#ed5555', skateSeconds: 5 },
+      },
+      drawSurfBoard: record, drawIceSkate: record, drawTerrainAffected: draw => draw(),
+      drawCat() { assert.equal(ctx.globalAlpha, .6, 'Koshi keeps his own opacity'); },
+    });
+    vm.runInContext(helpers, context);
+    for (const [age, opacity] of [[-.1, 1], [0, 1], [.2, .5], [.4, 0], [.5, 0]]) {
+      game.elapsed = ride.expires + age;
+      draws.length = 0;
+      vm.runInContext(render, context);
+      assert.equal(draws.length, opacity > 0 ? 1 : 0);
+      if (opacity > 0) {
+        assert.ok(Math.abs(draws[0].alpha - .6 * opacity) < 1e-9);
+        if (age >= 0) {
+          assert.equal(draws[0].fraction, 0, 'expired item is completely white');
+          assert.equal(draws[0].label, '0', 'expired item never shows a negative countdown');
+        }
+      }
+      if (age >= 0) {
+        assert.equal(game.surfBoardActive, false);
+        assert.equal(game.iceSkateActive, false);
+      }
+      assert.equal(ctx.globalAlpha, .6, 'ride fade does not leak to other artwork');
+      assert.equal(stack.length, 0);
+    }
+    game.elapsed = ride.expires + .2;
+    game.pause();
+    const pausedOpacity = context.rideOpacity(ride, game.elapsed);
+    game.update(1);
+    assert.equal(context.rideOpacity(ride, game.elapsed), pausedOpacity);
+    game.resume();
+    game.collectItem({ type: type === 'surf-board-red' ? 'ice-skate-red' : 'surf-board-red' });
+    assert.equal(game.surfBoard === ride || game.iceSkate === ride, false,
+      'replacing a fading ride removes the old visual instead of showing two rides');
+    draws.length = 0;
+    vm.runInContext(render, context);
+    assert.equal(draws.length, 1);
+    assert.equal(draws[0].alpha, .6, 'new ride starts fully visible');
   }
 });
 
@@ -269,7 +457,7 @@ test('Ice Skates redirect immediately on ice and restore the ice lock at each co
   }
 });
 
-test('Ice Skates refresh independently of Surf Boards and equipped tools and never protect against water or lava', () => {
+test('Ice Skates refresh without replacing equipped tools and never protect against water or lava', () => {
   const game = arena([]);
   game.collectItem({ type: 'chisel' });
   game.collectItem({ type: 'surf-board-blue' });
@@ -278,8 +466,7 @@ test('Ice Skates refresh independently of Surf Boards and equipped tools and nev
   game.collectItem({ type: 'ice-skate-red' });
   assert.equal(game.iceSkate.type, 'ice-skate-red');
   assert.ok(Math.abs(game.iceSkate.expires - game.elapsed - 5) < 1e-9);
-  assert.equal(game.surfBoard.type, 'surf-board-blue');
-  assert.equal(game.surfBoard.expires, 30);
+  assert.equal(game.surfBoard, null);
   assert.equal(game.equippedItem, 'chisel');
   assert.equal(game.timeBonus, 0);
   game.reset();
@@ -291,6 +478,40 @@ test('Ice Skates refresh independently of Surf Boards and equipped tools and nev
     hazard.update(.01);
     assert.equal(hazard.terrainImpact?.type, type);
   }
+});
+
+test('Surf Boards and Ice Skates replace each other and immediately end the previous ride effect', () => {
+  for (const [color, duration] of [['red', 5], ['green', 15], ['blue', 30]]) {
+    const game = arena([]);
+    game.collectItem({ type: 'ice-skate-blue' });
+    game.update(1);
+    game.collectItem({ type: `surf-board-${color}` });
+    assert.equal(game.iceSkate, null);
+    assert.equal(game.iceSkateActive, false);
+    assert.equal(game.surfBoardActive, true);
+    assert.equal(game.surfBoard.expires, game.elapsed + duration);
+    game.update(1);
+    game.collectItem({ type: `ice-skate-${color}` });
+    assert.equal(game.surfBoard, null);
+    assert.equal(game.surfBoardActive, false);
+    assert.equal(game.iceSkateActive, true);
+    assert.equal(game.iceSkate.expires, game.elapsed + duration);
+  }
+  const water = arena([region('water')]);
+  water.collectItem({ type: 'surf-board-blue' });
+  water.collectItem({ type: 'ice-skate-green' });
+  water.update(.01);
+  assert.equal(water.terrainImpact?.type, 'water', 'switching to a skate removes water protection');
+
+  const ice = arena([region('ice', .2, .2, .8, .8)]);
+  ice.cat.vx = 120;
+  ice.collectItem({ type: 'ice-skate-blue' });
+  ice.collectItem({ type: 'surf-board-green' });
+  ice.update(.01);
+  assert.equal(ice.iceDirectionLocked, true);
+  assert.equal(clickBrick(ice, brickToward(ice, 'left')), true);
+  assert.ok(ice.iceSteer, 'switching to a board restores the normal ice direction lock');
+  assert.ok(ice.cat.vx > 0);
 });
 
 test('the Ice Skate has a body-width opening and extended toe with a number-only color timer', () => {

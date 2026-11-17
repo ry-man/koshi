@@ -891,16 +891,28 @@ function drawTerrain(ctx, terrain, time = 0) {
   ctx.restore();
 }
 
-function drawSurfBoard(ctx, color, remaining = 1, label, sideView = false) {
+function drawSurfBoard(ctx, color, remaining = 1, label, sideView = false, facing = 1) {
   const fraction = Math.max(0, Math.min(1, remaining));
   ctx.save();
+  ctx.save();
+  ctx.scale(sideView ? facing : 1, 1);
+  if (sideView) {
+    ctx.beginPath(); ctx.moveTo(-25, 0);
+    ctx.quadraticCurveTo(-25, 3, -29, 7);
+    ctx.quadraticCurveTo(-22, 7, -17, 3); ctx.closePath();
+    const finColor = color.replace(/[0-9a-f]{2}/gi,
+      channel => Math.round(parseInt(channel, 16) * .55).toString(16).padStart(2, '0'));
+    ctx.fillStyle = finColor; ctx.fill();
+    ctx.strokeStyle = finColor; ctx.lineWidth = 2; ctx.stroke();
+  }
   ctx.beginPath();
   if (sideView) {
-    ctx.moveTo(-32, -7);
-    ctx.quadraticCurveTo(-22, -3, -8, -3);
+    ctx.moveTo(-32, -4);
+    ctx.quadraticCurveTo(-23, -3, -8, -3);
     ctx.lineTo(16, -3); ctx.quadraticCurveTo(26, -3, 32, -8);
-    ctx.quadraticCurveTo(31, 7, 18, 7); ctx.lineTo(-18, 7);
-    ctx.quadraticCurveTo(-28, 7, -32, -7);
+    ctx.quadraticCurveTo(30, 0, 20, 5);
+    ctx.quadraticCurveTo(16, 7, 8, 7); ctx.lineTo(-8, 7);
+    ctx.quadraticCurveTo(-20, 4, -32, 1);
   } else {
     ctx.moveTo(0, -39);
     ctx.bezierCurveTo(23, -20, 20, 23, 9, 37);
@@ -914,20 +926,21 @@ function drawSurfBoard(ctx, color, remaining = 1, label, sideView = false) {
   if (sideView) ctx.fillRect(-32, -8, 64, 15);
   else ctx.fillRect(-24, -39, 48, 76);
   ctx.fillStyle = color;
-  if (sideView) ctx.fillRect(32 - 64 * fraction, -8, 64 * fraction, 15);
+  if (sideView) ctx.fillRect(facing < 0 ? -32 : 32 - 64 * fraction, -8, 64 * fraction, 15);
   else ctx.fillRect(-24, 37 - 76 * fraction, 48, 76 * fraction);
   ctx.restore();
   ctx.strokeStyle = '#344451'; ctx.lineWidth = 2;
   ctx.stroke();
   if (sideView) {
     ctx.strokeStyle = '#ffffff88'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(-23, 4); ctx.lineTo(21, 4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-17, 4); ctx.lineTo(14, 4); ctx.stroke();
   } else {
     ctx.strokeStyle = '#ffffff88'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-6, -23); ctx.quadraticCurveTo(-12, 0, -7, 23); ctx.stroke();
     ctx.strokeStyle = '#34445166'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, -29); ctx.lineTo(0, 29); ctx.stroke();
   }
+  ctx.restore();
   if (label !== undefined) {
     ctx.font = sideView ? 'bold 11px sans-serif' : 'bold 14px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -939,9 +952,10 @@ function drawSurfBoard(ctx, color, remaining = 1, label, sideView = false) {
   ctx.restore();
 }
 
-function drawIceSkate(ctx, color, remaining = 1, label) {
+function drawIceSkate(ctx, color, remaining = 1, label, facing = 1) {
   const fraction = Math.max(0, Math.min(1, remaining));
   ctx.save();
+  ctx.save(); ctx.scale(facing, 1);
   ctx.beginPath();
   ctx.moveTo(-21, 2); ctx.lineTo(21, 2); ctx.lineTo(21, 8);
   ctx.quadraticCurveTo(21, 11, 26, 11);
@@ -967,11 +981,12 @@ function drawIceSkate(ctx, color, remaining = 1, label) {
   ctx.beginPath(); ctx.moveTo(-22, 25); ctx.lineTo(28, 25);
   ctx.quadraticCurveTo(33, 25, 34, 22); ctx.stroke();
   ctx.strokeStyle = '#d9e7ef'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
   if (label !== undefined) {
     ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = '#253340'; ctx.lineWidth = 2;
-    ctx.strokeText(label, -6, 12);
-    ctx.fillStyle = '#ffffff'; ctx.fillText(label, -6, 12);
+    ctx.strokeText(label, -6 * facing, 12);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(label, -6 * facing, 12);
   }
   ctx.restore();
 }

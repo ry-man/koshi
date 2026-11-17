@@ -2749,13 +2749,6 @@ function render(now) {
     ctx.restore();
   };
   drawTerrainAffected(() => {
-    if (game.surfBoardActive) {
-      const item = ITEMS[game.surfBoard.type];
-      const seconds = Math.max(0, game.surfBoard.expires - game.elapsed);
-      ctx.save(); ctx.translate(game.cat.x, game.cat.y + game.cat.radius + 3);
-      drawSurfBoard(ctx, item.color, seconds / item.surfSeconds, String(Math.ceil(seconds)), true);
-      ctx.restore();
-    }
     drawWornCape(game, game.cat.x, game.cat.y);
     if (game.catShield) drawEquippedCatShield(game.cat.x, game.cat.y, game.cat.radius + 9, CAT_SHIELDS[game.catShield].color);
   });
@@ -2777,6 +2770,15 @@ function render(now) {
       drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
     }
     drawWornIceSkate(game);
+    const surfOpacity = rideOpacity(game.surfBoard, game.elapsed);
+    if (surfOpacity > 0) {
+      const item = ITEMS[game.surfBoard.type];
+      const seconds = Math.max(0, game.surfBoard.expires - game.elapsed);
+      ctx.save(); ctx.translate(game.cat.x, game.cat.y + game.cat.radius - 2);
+      ctx.globalAlpha *= surfOpacity;
+      drawSurfBoard(ctx, item.color, seconds / item.surfSeconds, String(Math.ceil(seconds)), true, rideFacingScale(game, game.surfBoard));
+      ctx.restore();
+    }
   });
   if (game.bubbleTrap) drawTerrainAffected(() => drawBubble({ ...game.bubbleTrap, x: game.cat.x, y: game.cat.y, radius: 24 }, true));
   for (const pop of game.bubblePops) drawBubblePop(pop);
@@ -2875,14 +2877,41 @@ function render(now) {
   ctx = boardCtx;
 }
 
+const rideFacingAnimations = new WeakMap();
+
+function rideOpacity(ride, elapsed) {
+  if (!ride || elapsed >= ride.expires + .4) return 0;
+  return Math.min(1, (ride.expires + .4 - elapsed) / .4);
+}
+
+function rideFacingScale(game, ride) {
+  let animation = rideFacingAnimations.get(ride);
+  const direction = Math.abs(game.cat.vx) > 1e-5 ? Math.sign(game.cat.vx) : animation?.direction ?? 1;
+  if (!animation) {
+    animation = { direction, from: direction, started: game.elapsed };
+    rideFacingAnimations.set(ride, animation);
+  }
+  const progress = Math.max(0, Math.min(1, (game.elapsed - animation.started) / .14));
+  const eased = progress * progress * (3 - 2 * progress);
+  const scale = animation.from + (animation.direction - animation.from) * eased;
+  if (direction !== animation.direction) {
+    animation.from = scale;
+    animation.direction = direction;
+    animation.started = game.elapsed;
+  }
+  return scale;
+}
+
 function drawWornIceSkate(game) {
-  if (!game.iceSkateActive) return;
+  const opacity = rideOpacity(game.iceSkate, game.elapsed);
+  if (opacity <= 0) return;
   const item = ITEMS[game.iceSkate.type];
   const seconds = Math.max(0, game.iceSkate.expires - game.elapsed);
   ctx.save(); ctx.translate(game.cat.x, game.cat.y);
   const scale = game.cat.radius / 21;
   ctx.scale(scale, scale);
-  drawIceSkate(ctx, item.color, seconds / item.skateSeconds, String(Math.ceil(seconds)));
+  ctx.globalAlpha *= opacity;
+  drawIceSkate(ctx, item.color, seconds / item.skateSeconds, String(Math.ceil(seconds)), rideFacingScale(game, game.iceSkate));
   ctx.restore();
 }
 
