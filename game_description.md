@@ -540,6 +540,24 @@ the center and squash against it; a colored ripple shows the transformation.
 Pickup while resting waits for a new landing, and Spring bounces cannot capture
 a source because Koshi does not stop. Midair redirects retain the captured copy. Duplicate
 pickups do not stack, and a held saw takes priority without consuming the stamp.
+A Chisel (`chisel`) is a steel chisel with a wooden handle, angled like the
+carpenter's tool it is based on. It floats beside Koshi until he touches a
+merged brick, splitting that group into individual bricks with matching type
+and attributes. A puff of smoke appears along the new joints. Touching a
+single brick leaves the Chisel held. The Chisel, Ditto Stamp, and paintbrushes
+share one equipped-item slot; picking up a different one replaces the current
+one.
+Immediate-use power-ups stack without replacing it. Weapons have a separate
+single slot carried on Koshi's right, while equipped items are carried on his
+left. Chisels are available for custom-level placements and spawners only.
+The Scrambler (`scrambler`) is a wacky, shaded purple egg with small, separate
+spiral eyes and a cracked seam. On pickup, every brick fades to black, its
+gameplay attributes are shuffled among the brick groups, then sparkles and smoke
+appear at full blackout. A fast light wave swirls around the board as the bricks
+fade back in. Positions, sizes and merged shapes do not change; the type and
+modifiers can move between large and small shapes. Transient cooldowns, Crumbler
+uses, Toggle counters, spawner state and warp timers restart fresh. It is
+available for custom-level placements and spawners only.
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask are available in the editor for
 custom levels and introduced individually in Levels 2-11 through 2-21.
@@ -556,7 +574,8 @@ red/Fast (3s), green/Normal (8s), blue/Slow (15s), making the brick ready while
 preserving other attributes, spent state, and merged geometry.
 Matching-color contacts neither activate the brush nor spend uses or refresh
 cooldowns. Goal and Cinder contacts do not spend uses. Springs and Portals count, but
-continuous contact does not. New brush pickups replace the held brush and uses.
+continuous contact does not. Another equipped item replaces the held brush and
+uses.
 The brush floats beside Koshi with its remaining count. Saw Blade takes priority;
 Ditto Stamp acts before paint. Random and reserved spawns and item spawners
 use Ditto Stamp's clearance from all brick parts; explicit editor placements

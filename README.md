@@ -2166,8 +2166,26 @@ geometry. Midair redirects and Portal travel retain the captured source.
 Picking up a stamp while already resting waits for a new landing; Spring
 bounces do not capture a source because Koshi does not stop. Extra pickups
 do not stack; a held Saw Blade takes priority and preserves the stamp.
-Both presses travel to the brick center and squash against it; a colored ripple
-marks the destination transformation.
+The Chisel, Ditto Stamp, and all paintbrushes share a single equipped-item
+slot: picking up a different equipped item replaces the current one. Immediate-use
+power-ups stack without replacing the equipped item. Weapons use a separate
+single slot, carried on Koshi's right; the equipped item is carried on his left.
+The Chisel (`chisel`) is a steel blade with a wooden handle, based on a
+carpenter's chisel. It floats beside Koshi until his next merged-brick touch,
+then splits that group into individual bricks matching the merged brick's type
+and attributes. Smoke puffs appear along the new seams. Touching an unmerged
+brick does not use it; a different equipped item replaces it. It is available for
+custom-level placements and spawners only.
+The Scrambler (`scrambler`) is a wacky purple egg with small, separate spiral
+eyes and a cracked seam. On pickup, all bricks quickly fade to black as their
+gameplay attributes shuffle between brick groups. Sparkles and smoke burst out
+at full blackout, followed by a fast light wave swirling around the board as the
+bricks fade back in. Positions, sizes, and merged shapes stay fixed, so a small
+brick can receive the attributes of a large one. Transient cooldowns and
+counters restart fresh. It is available for custom-level placements and
+spawners only.
+Both Ditto Stamp presses travel to the brick center and squash against it; a
+colored ripple marks the destination transformation.
 Pause freezes the animation; reset clears the item and restores level bricks.
 Timed placements, optional lifetimes and spawn bricks are supported in the editor.
 
@@ -2183,8 +2201,8 @@ Crumbler/Toggle/spawner state, and merged geometry. Matching-color contacts
 do not activate the brush, spend uses, or refresh the brick's cooldown.
 Goal and Cinder contacts
 do not spend paint. Spring bounces and Portal contacts count; staying against
-a brick does not spend repeated uses. Another brush replaces the held brush
-and remaining uses. A Saw Blade takes priority without using paint; Ditto Stamp
+a brick does not spend repeated uses. Another equipped item replaces the held
+brush and remaining uses. A Saw Blade takes priority without using paint; Ditto Stamp
 acts before paint. The held brush and remaining count appear beside Koshi.
 Each successful recoloring swings the brush and bursts matching red, green,
 or blue paint outward from the exact brick face Koshi touches. A large outlined

@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 66);
+  assert.equal(LESSONS.length, 68);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -62,7 +62,7 @@ test('guide illustrates every brick, enemy, heart, weapon, and power-up without 
     ...Object.keys(HAZARDS).map(type => `special:hazard:${type}`),
     ...Object.keys(HAZARDS).flatMap(type => ['yellow', 'black'].map(power => `special:hazard:${type}:${power}`)),
     'enemy:mouse', 'enemy:wheel', 'enemy:ram', 'enemy:bucket', ...Object.keys(WEAPONS).map(type => `weapon:${type}`),
-    'item:smiley-cookie', 'item:stopwatch', 'item:stopwatch-green', 'item:stopwatch-blue', 'item:battery', 'item:music-box', 'item:eggplant', 'item:saw-blade', 'item:magic-sunglasses', 'item:ditto-stamp', 'item:spooky-mask',
+    'item:smiley-cookie', 'item:stopwatch', 'item:stopwatch-green', 'item:stopwatch-blue', 'item:battery', 'item:music-box', 'item:eggplant', 'item:saw-blade', 'item:chisel', 'item:scrambler', 'item:magic-sunglasses', 'item:ditto-stamp', 'item:spooky-mask',
   ]) assert.ok(pictures.includes(picture), `missing illustration: ${picture}`);
   assert.equal(new Set(pictures).size, pictures.length);
   for (const chapter of GUIDE) {
@@ -230,7 +230,7 @@ test('Love Bug practice teaches barrier isolation instead of sword attacks', () 
 test('new item and object lessons complete only after their mechanic is used', () => {
   for (const id of [
     'cookie', 'stopwatch', 'boom-time', 'battery', 'music-box', 'spooky-mask', 'kitty-cape',
-    'eggplant', 'saw-blade', 'paintbrush', 'keys',
+    'eggplant', 'saw-blade', 'chisel', 'paintbrush', 'keys',
   ]) {
     const tutorial = practice(id);
     assert.equal(tutorial.observe(), false, `${id} is not complete at start`);

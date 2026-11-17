@@ -289,7 +289,7 @@ test('spring contacts paint before bouncing, and a brush picked up during flight
   assert.ok(game.cat.vy > 0, 'spring still reflects flight');
 });
 
-test('Portal contacts paint only the entrance and preserve travel, while Ditto captures before painting', () => {
+test('Portal contacts paint only the entrance; Ditto replaces the brush and copies on landing', () => {
   const game = arena(), source = middle(game, 'top'), destination = middle(game, 'bottom');
   source.portal = 'red'; destination.portal = 'red';
   game.collectItem({ type: 'paint-wide-blue' });
@@ -303,16 +303,56 @@ test('Portal contacts paint only the entrance and preserve travel, while Ditto c
   const right = middle(game, 'right');
   right.kind = 'fast';
   game.collectItem({ type: 'ditto-stamp' });
+  assert.equal(game.paintBrush, null);
   land(game, right);
   assert.equal(game.dittoSource.kind, 'fast', 'Ditto captured original properties');
-  assert.equal(right.kind, 'slow'); assert.equal(game.paintBrush.uses, 1);
+  assert.equal(right.kind, 'fast');
   const left = middle(game, 'left');
   left.slimed = true;
   land(game, left);
   assert.equal(game.dittoStamp, false);
+  assert.equal(game.equippedItem, null);
   assert.ok(!left.slimed, 'Ditto still copied other properties');
-  assert.equal(left.kind, 'slow', 'paint is applied after the Ditto copy');
+  assert.equal(left.kind, 'fast', 'Ditto copied the captured kind');
   assert.equal(game.paintBrush, null);
+});
+
+test('equipped tools replace one another while immediate power-ups stack alongside them', () => {
+  const game = arena();
+  game.collectItem({ type: 'chisel' });
+  game.collectItem({ type: 'ditto-stamp' });
+  assert.equal(game.equippedItem, 'ditto-stamp');
+  assert.equal(game.chisel, false);
+  game.dittoSource = { kind: 'fast' };
+  game.collectItem({ type: 'ditto-stamp' });
+  assert.deepEqual(game.dittoSource, { kind: 'fast' }, 'duplicate stamps preserve a captured source');
+  game.collectItem({ type: 'paint-wide-blue' });
+  assert.equal(game.equippedItem, 'paint-wide-blue');
+  assert.equal(game.dittoStamp, false);
+  assert.equal(game.dittoSource, null);
+  assert.deepEqual(game.paintBrush, { type: 'paint-wide-blue', uses: 3 });
+  game.collectItem({ type: 'chisel' });
+  assert.equal(game.equippedItem, 'chisel');
+  assert.equal(game.paintBrush, null);
+  game.collectItem({ type: 'music-box' });
+  game.collectItem({ type: 'spooky-mask' });
+  game.collectItem({ type: 'magic-sunglasses' });
+  game.collectItem({ type: 'kitty-cape' });
+  assert.equal(game.equippedItem, 'chisel');
+  assert.equal(game.chisel, true);
+  assert.equal(game.musicStreamUntil, 10);
+  assert.equal(game.maskUntil, 10);
+  assert.equal(game.sunglassesUntil, 10);
+  assert.equal(game.capeUntil, 10);
+});
+
+test('weapons stay on the right while equipped items render on the left', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  assert.ok(source.includes('ctx.translate(game.cat.x + 30, game.cat.y - 20)'), 'weapon uses the right-hand position');
+  assert.ok(source.includes('ctx.translate(game.cat.x - 32, game.cat.y - 22'), 'Chisel uses the left-hand position');
+  assert.ok(source.includes('ctx.translate(game.cat.x - 33, game.cat.y - 22'), 'Ditto Stamp uses the left-hand position');
+  assert.ok(source.includes('ctx.translate(game.cat.x - 34, game.cat.y - 18'), 'paintbrush uses the left-hand position');
+  assert.ok(source.includes('const homeX = game ? game.cat.x - 33'), 'Ditto Stamp returns to the left-hand position');
 });
 
 test('paint art distinguishes a thin painted tip, dripping wide brush and soaked dripping roller', () => {

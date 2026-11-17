@@ -33,13 +33,15 @@ const GUIDE = [
       [ITEMS['kitty-cape'].name, 'A green cape like Koshi’s title-screen cape doubles his movement speed for ten seconds, including his current flight. Boost launches double that speed again; conveyors keep their normal pace. A translucent banner of cat heads and lightning bolts scrolls behind the arena for the whole effect. Another cape refreshes ten seconds without stacking. Pause freezes the power and animation; restart clears both. Available for custom-level placements and spawners.', 'item:kitty-cape'],
       [ITEMS.eggplant.name, 'A harmful pickup: subtracts 10 food points, but never lowers your score below zero.', 'item:eggplant'],
       [ITEMS['saw-blade'].name, 'Koshi instantly grows a ring of ears shaped into rapidly spinning saw teeth. His next brick contact other than Cinder or Goal permanently turns the entire current brick shape into Cinder, overriding its contact effects. It shakes, smokes, and fades into concrete, then Koshi returns to normal. Existing Cinder and Goal bricks do not use the saw; extra saw pickups do not stack. Cracker Causeway introduces it.', 'item:saw-blade'],
+      [ITEMS.chisel.name, 'A steel blade and wooden handle float beside Koshi. His next touch on a merged brick splits it into separate bricks, all matching the merged brick’s type and attributes, with smoke puffing along the new seams. Touching a single brick does not use it; a different equipped item replaces it, while power-ups can stack. Available for custom-level placements and spawners only.', 'item:chisel'],
+      [ITEMS.scrambler.name, 'A wacky purple egg fades every brick to black, then sparkles and smoke burst out as a fast light wave swirls around the board and the shuffled bricks fade back in. Brick positions, sizes, and merged shapes stay put, so a small brick can inherit the attributes of a large one. Available for custom-level placements and spawners only.', 'item:scrambler'],
       [ITEMS['ditto-stamp'].name, 'An orange wooden stamp follows Koshi without sparkles. His first stop after pickup captures that brick’s properties with a press onto its center. The stamp returns beside him with matching ink, then presses onto his next landing brick’s center to copy the properties before contact effects run, preserving destination size and merged shape. Cooldown, Crumbler uses, Toggle counter, spawner and warp timers start fresh. Portals never act as sources or consume the stamp; merging Warped bricks can be copied. Spring bounces do not capture a source because Koshi does not stop. Pickup while resting waits for a new landing. Midair redirects keep the captured copy. Extra stamps do not stack. A colored ripple marks the change. A held Saw Blade takes priority and leaves the stamp unused.', 'item:ditto-stamp'],
       ...['pencil', 'wide', 'roller'].map(brush => {
         const variants = Object.entries(ITEMS).filter(([, item]) => item.brush === brush);
         const item = variants[0][1];
         return [
           { pencil: 'Thin Paintbrush', wide: 'Wide Paintbrush', roller: 'Paint Roller' }[brush],
-          `Paints the next ${item.paintUses} eligible brick contact${item.paintUses === 1 ? '' : 's'} the brush color: red gives a ${COOLDOWNS.fast}-second cooldown, green ${COOLDOWNS.normal}, and blue ${COOLDOWNS.slow}. It makes the brick ready, preserving its other attributes and merged shape. Matching-color bricks do not spend paint or refresh cooldowns. Goal and Cinder bricks do not spend paint. Spring and Portal contacts count; remaining against a brick does not spend more uses. Another brush replaces the held brush and its uses. A Saw Blade takes priority; Ditto Stamp acts before paint. Pause freezes play; restart clears paint. Available for custom levels and spawners only.`,
+          `Paints the next ${item.paintUses} eligible brick contact${item.paintUses === 1 ? '' : 's'} the brush color: red gives a ${COOLDOWNS.fast}-second cooldown, green ${COOLDOWNS.normal}, and blue ${COOLDOWNS.slow}. It makes the brick ready, preserving its other attributes and merged shape. Matching-color bricks do not spend paint or refresh cooldowns. Goal and Cinder bricks do not spend paint. Spring and Portal contacts count; remaining against a brick does not spend more uses. Another equipped item replaces the brush; power-ups can stack. A Saw Blade takes priority; Ditto Stamp acts before paint. Pause freezes play; restart clears paint. Available for custom levels and spawners only.`,
           variants.map(([type]) => `item:${type}`),
         ];
       }),
@@ -241,6 +243,8 @@ const LESSONS = [
   { id: 'magic-sunglasses', title: 'Magical Sunglasses', instruction: 'Collect the glasses while traveling, then select the outlined recharging brick. Sunglasses bypass cooldowns, but Cinder and Goal bricks remain unselectable.' },
   { id: 'eggplant', title: 'Eggplant', instruction: 'Collect the Eggplant to see its penalty: it subtracts ten food points, but never takes your score below zero.' },
   { id: 'saw-blade', title: 'Saw Blade', instruction: 'Collect the Saw Blade, then touch the outlined brick. Its whole merged shape becomes permanent Cinder.' },
+  { id: 'chisel', title: 'Chisel', instruction: 'Collect the Chisel, then touch the outlined merged brick. It splits into individual bricks with matching attributes.' },
+  { id: 'scrambler', title: 'Scrambler', instruction: 'Collect the purple egg and watch all brick attributes shuffle as the level fades out and back in. Brick sizes and merged shapes stay unchanged.' },
   { id: 'ditto-stamp', title: 'Ditto Stamp', instruction: 'Collect the stamp and land on one brick to copy its properties. Land on another to apply them; the destination keeps its shape.' },
   { id: 'paintbrush', title: 'Paintbrushes', instruction: 'Collect the green brush, then touch a different brick. It changes that brick to a ready Normal brick; red paints Fast and blue paints Slow.' },
   { id: 'keys', title: 'Keys, chests & Cat Blocks', instruction: 'Collect the key, then touch the chest to spend it and collect the Cat Block. Campaign Cat Blocks are kept only after a win.' },
@@ -363,6 +367,11 @@ class Tutorial {
       this.target.warped = 8;
       this.target.crumbler = 1;
       this.target.usesLeft = 1;
+    }
+    if (id === 'chisel') {
+      this.target.warped = 10;
+      game.absorbNeighbor(this.target);
+      this.target.warped = null;
     }
     if (id.startsWith('slime-')) { this.target.slimed = true; this.target.slimeColor = id.slice(6); }
     if (id === 'springs') this.target.springs = true;
@@ -497,6 +506,8 @@ class Tutorial {
     }
     if (id === 'eggplant') { game.score = 10; addItem('eggplant'); }
     if (id === 'saw-blade' || id === 'ditto-stamp') addItem(id);
+    if (id === 'chisel') addItem(id, .45);
+    if (id === 'scrambler') addItem(id);
     if (id === 'paintbrush') addItem('paint-wide-green');
     if (id === 'keys') {
       addItem('key');
@@ -617,6 +628,8 @@ class Tutorial {
       'magic-sunglasses': game.sunglassesActive && this.actions > 1 && this.lastBrick === this.target.id,
       eggplant: game.score === 0,
       'saw-blade': this.target.kind === 'cinder',
+      chisel: !game.chisel && game.brickSplits.length > 0,
+      scrambler: game.scrambleCount > 0,
       'ditto-stamp': this.stampCaptured && this.actions > 1 && !game.dittoStamp && game.dittoSource === null,
       paintbrush: this.target.kind === 'normal',
       keys: game.catBlockCollected && game.catBlockEvents.includes('chest'),

@@ -50,6 +50,8 @@ const ITEMS = {
   'music-box': { name: 'Music Box', icon: '🎵', color: '#d989b8' },
   eggplant: { name: 'Eggplant (-10 food)', icon: '🍆', color: '#8956aa' },
   'saw-blade': { name: 'Saw Blade', icon: '⚙', color: '#c4cdd5' },
+  chisel: { name: 'Chisel', icon: '⚒', color: '#c9955c' },
+  scrambler: { name: 'Scrambler', icon: '🥚', color: '#8f55bd' },
   'magic-sunglasses': { name: 'Magical Sunglasses', icon: '🕶', color: '#d989ff' },
   'kitty-cape': { name: 'Kitty Cape', icon: '⚡', color: '#b5d77c' },
   'ditto-stamp': { name: 'Ditto Stamp', icon: '▣', color: '#f59a50' },
@@ -158,7 +160,8 @@ const OBJECTS = {
   'obstruction-oval': { name: 'Oval Obstruction', icon: '\u2b2d', color: '#718596', obstruction: 'oval', width: 144, height: 96 },
 };
 function needsBrickSpawnClearance(type) {
-  return type === 'ditto-stamp' || type === 'saw-blade' || Boolean(ITEMS[type]?.paintUses);
+  return type === 'ditto-stamp' || type === 'saw-blade' || type === 'chisel' || type === 'scrambler'
+    || Boolean(ITEMS[type]?.paintUses);
 }
 const SOCCER_FRICTION = 100;
 // Minimum distance between randomly placed pickups (food, weapons, items and hearts).
@@ -219,6 +222,7 @@ const HAZARDS = {
 };
 const CONTACT_SURFACES = ['slimed', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'turret', 'hazard'];
 const DITTO_PROPERTIES = ['kind', 'crumbler', 'warped', 'toggle', 'power', 'slimeColor', 'conveyorDirection', ...CONTACT_SURFACES];
+const SCRAMBLER_FADE_DURATION = .72;
 
 function dittoProperties(brick) {
   return Object.fromEntries(DITTO_PROPERTIES.map(key => [key,
@@ -3349,6 +3353,11 @@ class Game {
     this.batteries = 0;
     this.sawStartedAt = null;
     this.brickDestructions = [];
+    this.equippedItem = null;
+    this.chisel = false;
+    this.brickSplits = [];
+    this.scramblerEffect = null;
+    this.scrambleCount = 0;
     this.dittoStamp = false;
     this.dittoSource = null;
     this.brickStamps = [];
@@ -7792,19 +7801,41 @@ class Game {
     if (this.catBlockAchievementSatisfied) this.collectCatBlock('achievement');
   }
 
+  clearEquippedItem() {
+    this.equippedItem = null;
+    this.chisel = false;
+    this.dittoStamp = false;
+    this.dittoSource = null;
+    this.paintBrush = null;
+    this.brickStamps = this.brickStamps.filter(effect => !effect.capturing);
+  }
+
+  equipItem(type) {
+    if (type === 'ditto-stamp' && this.dittoStamp) return;
+    this.clearEquippedItem();
+    this.equippedItem = type;
+    if (type === 'chisel') this.chisel = true;
+    else if (type === 'ditto-stamp') this.dittoStamp = true;
+    else this.paintBrush = { type, uses: ITEMS[type].paintUses };
+  }
+
   collectItem(item) {
     if (item.type === 'cat-block') {
       return this.collectCatBlock(item.source ?? 'item');
-    } else if (item.type === 'key') this.keys++;
-    else if (item.type === 'treasure-chest') {
+    }
+    if (item.type === 'treasure-chest') {
       if (this.catBlockCollected) return false;
       const keysRequired = item.keysRequired ?? 1;
       if (this.keys < keysRequired) return false;
       if (!this.collectCatBlock('chest')) return false;
       this.keys -= keysRequired;
-    } else if (ITEMS[item.type]?.paintUses) {
-      this.paintBrush = { type: item.type, uses: ITEMS[item.type].paintUses };
-    } else if (item.type === 'smiley-cookie') {
+    }
+    if (item.type === 'chisel' || item.type === 'ditto-stamp' || ITEMS[item.type]?.paintUses) {
+      this.equipItem(item.type);
+      return;
+    }
+    if (item.type === 'key') this.keys++;
+    else if (item.type === 'smiley-cookie') {
       this.cookieActive = true;
       this.cookieLickUntil = 0;
     } else if (ITEMS[item.type]?.catShield) {
@@ -7829,10 +7860,7 @@ class Game {
     }
     else if (item.type === 'eggplant') this.score = Math.max(0, this.score - 10);
     else if (item.type === 'saw-blade' && this.sawStartedAt === null) this.sawStartedAt = this.elapsed;
-    else if (item.type === 'ditto-stamp' && !this.dittoStamp) {
-      this.dittoStamp = true;
-      this.dittoSource = null;
-    }
+    else if (item.type === 'scrambler') this.startScramblerEffect();
     else if (item.type === 'spooky-mask') {
       this.maskUntil = this.elapsed + MASK_DURATION;
       this.maskPickup = { x: item.x ?? this.cat.x, y: item.y ?? this.cat.y, age: 0 };
@@ -7912,7 +7940,7 @@ class Game {
       }, null);
       this.paintEffects.push({ type: this.paintBrush.type, age: 0, duration: 1.4,
         x: contact.x, y: contact.y, nx: contact.nx, ny: contact.ny, members });
-      if (--this.paintBrush.uses === 0) this.paintBrush = null;
+      if (--this.paintBrush.uses === 0) this.clearEquippedItem();
     }
   }
 
@@ -7932,7 +7960,7 @@ class Game {
     this.brickStamps.push({ id: brick.id, members, kind: properties.kind, capturing,
       x: (left + right) / 2, y: (top + bottom) / 2,
       angle: { top: Math.PI, bottom: 0, left: Math.PI / 2, right: -Math.PI / 2 }[edge],
-      fromX: this.cat.x + 33, fromY: this.cat.y - 22, age: 0 });
+      fromX: this.cat.x - 33, fromY: this.cat.y - 22, age: 0 });
     if (capturing) return true;
     this.barriers = this.barriers.filter(fence => fence.id !== brick.id);
     for (const member of this.bricks) {
@@ -7951,8 +7979,54 @@ class Game {
     }
     this.spawnerTouching.delete(brick.id);
     this.spikeTouching.delete(brick.id);
-    this.dittoStamp = false;
-    this.dittoSource = null;
+    this.clearEquippedItem();
+    this.brickRevision++;
+    return true;
+  }
+
+  splitBrick(brick) {
+    if (!this.chisel) return false;
+    const members = this.bricks.filter(member => member.id === brick.id || member.absorbedBy === brick.id);
+    if (members.length < 2) return false;
+    const properties = dittoProperties(brick);
+    const state = {
+      readyAt: brick.readyAt, usesLeft: brick.usesLeft,
+      toggleRemaining: brick.toggleRemaining, powerOn: brick.powerOn, spawned: brick.spawned,
+    };
+    const seams = [];
+    const gapLimit = 8 + 1e-6;
+    for (let i = 0; i < members.length; i++) {
+      const a = members[i];
+      for (let j = i + 1; j < members.length; j++) {
+        const b = members[j];
+        const verticalStart = Math.max(a.y, b.y), verticalEnd = Math.min(a.y + a.h, b.y + b.h);
+        const horizontalStart = Math.max(a.x, b.x), horizontalEnd = Math.min(a.x + a.w, b.x + b.w);
+        const horizontalGap = Math.max(0, a.x - b.x - b.w, b.x - a.x - a.w);
+        const verticalGap = Math.max(0, a.y - b.y - b.h, b.y - a.y - a.h);
+        if (horizontalGap <= gapLimit && verticalEnd > verticalStart) {
+          const x = (Math.min(a.x + a.w, b.x + b.w) + Math.max(a.x, b.x)) / 2;
+          seams.push({ x1: x, y1: verticalStart, x2: x, y2: verticalEnd });
+        } else if (verticalGap <= gapLimit && horizontalEnd > horizontalStart) {
+          const y = (Math.min(a.y + a.h, b.y + b.h) + Math.max(a.y, b.y)) / 2;
+          seams.push({ x1: horizontalStart, y1: y, x2: horizontalEnd, y2: y });
+        }
+      }
+    }
+    this.brickSplits.push({ seams, age: 0 });
+    const ids = new Set(members.map(member => member.id));
+    this.barriers = this.barriers.filter(fence => !ids.has(fence.id));
+    if (this.conveyorRide && ids.has(this.conveyorRide.id)) this.conveyorRide = null;
+    for (const member of members) {
+      Object.assign(member, dittoProperties(properties), state);
+      member.warpUntil = null;
+      member.hitAt = null; member.hitNormal = null; member.hitPoint = null;
+      member.initialOwner = null;
+      member.absorbedBy = null;
+      this.spawnerTouching.delete(member.id);
+      this.spikeTouching.delete(member.id);
+      this.paintTouching.delete(member.id);
+    }
+    this.clearEquippedItem();
     this.brickRevision++;
     return true;
   }
@@ -7966,6 +8040,95 @@ class Game {
       effect.age += seconds;
       return effect.age < .65 - 1e-9;
     });
+    this.brickSplits = this.brickSplits.filter(effect => {
+      effect.age += seconds;
+      return effect.age < .65 - 1e-9;
+    });
+  }
+
+  startScramblerEffect() {
+    if (this.scramblerEffect && !this.scramblerEffect.applied) {
+      this.applyScramblerEffect(this.scramblerEffect);
+    }
+    const groups = this.bricks.filter(brick => brick.absorbedBy === null).map(brick => ({
+      id: brick.id,
+      members: this.bricks.filter(member => member.id === brick.id || member.absorbedBy === brick.id)
+        .map(member => member.id),
+    }));
+    const attributes = groups.map(group => dittoProperties(this.bricks[group.id]));
+    const order = groups.map((_, index) => index);
+    for (let index = order.length - 1; index > 0; index--) {
+      const swap = Math.floor(this.random() * (index + 1));
+      [order[index], order[swap]] = [order[swap], order[index]];
+    }
+    if (order.length > 1 && order.every((source, index) => source === index)) {
+      order.push(order.shift());
+    }
+    this.scramblerEffect = {
+      age: 0, opacity: 0, duration: SCRAMBLER_FADE_DURATION, applied: false,
+      assignments: groups.map((group, index) => ({
+        members: group.members, attributes: attributes[order[index]],
+      })),
+    };
+  }
+
+  applyScramblerEffect(effect) {
+    for (const assignment of effect.assignments) {
+      for (const id of assignment.members) {
+        const brick = this.bricks[id];
+        Object.assign(brick, dittoProperties(assignment.attributes));
+        brick.readyAt = this.elapsed;
+        brick.usesLeft = brick.crumbler ?? null;
+        brick.toggleRemaining = brick.toggle ?? 0;
+        brick.powerOn = this.powerOn;
+        brick.spawned = false;
+        brick.warpUntil = null;
+        brick.slimeAppliedAt = brick.slimed ? this.elapsed : undefined;
+        brick.hitAt = null; brick.hitNormal = null; brick.hitPoint = null;
+      }
+    }
+    this.barriers = [];
+    this.conveyorRide = null;
+    this.activeTurret = null;
+    this.hazardTimers.clear();
+    this.spawnerTouching.clear();
+    this.spikeTouching.clear();
+    this.paintTouching.clear();
+    this.stuckUntil = 0;
+    this.releasedAt = null;
+    this.brickPartsCache = null;
+    this.brickRevision++;
+    this.scrambleCount++;
+    const camera = this.camera();
+    const variation = seed => {
+      const value = Math.sin((this.scrambleCount + seed) * 127.1) * 43758.5453;
+      return value - Math.floor(value);
+    };
+    const particlePoint = (columns, rows, index) => ({
+      x: camera.x + ((index % columns) + .5 + (variation(index * 2) - .5) * .35) * camera.width / columns,
+      y: camera.y + (Math.floor(index / columns) + .5 + (variation(index * 2 + 1) - .5) * .35)
+        * camera.height / rows,
+    });
+    effect.smoke = Array.from({ length: 8 }, (_, index) => ({
+      ...particlePoint(4, 2, index), radius: 11 + variation(index + 32) * 12,
+      delay: variation(index + 40) * .05,
+    }));
+    effect.sparkles = Array.from({ length: 24 }, (_, index) => ({
+      ...particlePoint(6, 4, index), size: 2 + variation(index + 64) * 2.5,
+      phase: variation(index + 88) * Math.PI * 2, delay: variation(index + 112) * .08,
+    }));
+    effect.applied = true;
+  }
+
+  updateScramblerEffect(seconds) {
+    const effect = this.scramblerEffect;
+    if (!effect) return;
+    effect.age = Math.min(effect.duration, effect.age + seconds);
+    const midpoint = effect.duration / 2;
+    if (!effect.applied && effect.age >= midpoint) this.applyScramblerEffect(effect);
+    const progress = effect.age / effect.duration;
+    effect.opacity = progress < .5 ? progress * 2 : (1 - progress) * 2;
+    if (effect.age >= effect.duration - 1e-9) this.scramblerEffect = null;
   }
 
   attractFoodToCat(seconds, x, y) {
@@ -8103,6 +8266,7 @@ class Game {
       this.updateGlassBreaks(seconds);
       this.updateWeaponDrops(seconds);
       this.updatePaintEffects(seconds);
+      this.updateScramblerEffect(seconds);
       this.updateBrickDestructions(seconds);
       if (!this.enemyDeaths.some(enemy => isBossType(enemy.type))) {
         this.state = 'won';
@@ -8117,6 +8281,7 @@ class Game {
       this.updateGlassBreaks(seconds);
       this.updateWeaponDrops(seconds);
       this.updatePaintEffects(seconds);
+      this.updateScramblerEffect(seconds);
       this.updatePickups(seconds);
       this.updateBrickDestructions(seconds);
       this.updateObstructionDestructions(seconds);
@@ -8147,6 +8312,7 @@ class Game {
     this.updateGlassBreaks(dt);
     this.updateWeaponDrops(dt);
     this.updatePaintEffects(dt);
+    this.updateScramblerEffect(dt);
     this.updatePickups(dt);
     this.updateBrickDestructions(dt);
     this.updateObstructionDestructions(dt);
@@ -8458,6 +8624,11 @@ class Game {
       if (stampTarget) this.stampBrick(stampTarget, parts);
     }
     this.paintBricks(contacts, sawed);
+    if (!sawed && this.chisel) {
+      for (const part of contacts) {
+        if (this.splitBrick(this.bricks[part.id])) break;
+      }
+    }
     for (const part of contacts) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
     if (sawing || stamping) {
       for (const part of contacts) if (this.bricks[part.id].spikes) spikeIds.add(part.id);

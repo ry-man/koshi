@@ -1249,6 +1249,21 @@ function syncUI() {
       }
     }
     if (!visible) continue;
+    const scramblerOpacity = game.scramblerEffect?.opacity ?? 0;
+    if (scramblerOpacity > 0) {
+      if (item.scramblerOpacity !== scramblerOpacity) {
+        item.scramblerOpacity = scramblerOpacity;
+        button.style.setProperty('--scrambler-opacity', String(scramblerOpacity));
+      }
+      if (!item.scramblerActive) {
+        button.classList.add('scrambler-fade');
+        item.scramblerActive = true;
+      }
+    } else if (item.scramblerActive) {
+      button.classList.remove('scrambler-fade');
+      item.scramblerActive = false;
+      item.scramblerOpacity = 0;
+    }
     syncSunglassesGlow(item);
     if (brick.slimed && brick.slimeAppliedAt !== undefined) {
       button.querySelector('.brick-slime').style.opacity = Math.min(1, Math.max(0, (game.elapsed - brick.slimeAppliedAt) / .7));
@@ -2637,6 +2652,7 @@ function render(now) {
   }
   ctx = actorCtx;
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
+  drawScramblerTransition(game, camera);
   // Tom stands above the brick layer; his tongue and slime then leave his mouth on top of him.
   const frogs = visibleRobots.filter(enemy => enemy.type === 'tom-frog');
   for (const enemy of frogs) drawRobot(enemy, null, game.enemyDamageProgress(enemy));
@@ -2686,6 +2702,7 @@ function render(now) {
   for (const effect of game.brickDestructions) {
     if (!game.level.autoscroll || effect.members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 40))) drawBrickDestructionSmoke(effect);
   }
+  for (const effect of game.brickSplits ?? []) drawBrickSplitSmoke(effect);
   for (const drop of game.weaponDrops) if (visible(drop, 100)) drawWeaponDrop(drop);
   for (const pickup of game.pickups) if (visible(pickup, 160)) drawPickupPop(pickup);
   if (ending?.game === game && ending.state === game.state && !endingMotion.matches) {
@@ -2731,10 +2748,14 @@ function render(now) {
   if (game.maskPickup) drawWornMask(game);
   if (game.sunglassesPickup) drawWornSunglasses(game);
   if (game.boomHelmet) drawBoomHelmet(game);
+  if (game.chisel) {
+    ctx.save(); ctx.translate(game.cat.x - 32, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
+    ctx.rotate(-Math.PI / 4); ctx.scale(.45, .45); drawChisel(); ctx.restore();
+  }
   for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
   if (game.dittoStamp && !game.brickStamps.some(effect => effect.capturing)) {
     ctx.save();
-    ctx.translate(game.cat.x + 33, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
+    ctx.translate(game.cat.x - 33, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
     ctx.scale(.65, .65); ctx.rotate(-.2);
     drawDittoStamp(colors[game.dittoSource?.kind] ?? '#696879');
     ctx.restore();
@@ -2870,6 +2891,79 @@ function drawDittoStamp(ink = '#929399') {
   ctx.restore();
 }
 
+function drawScrambler() {
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const shell = ctx.createLinearGradient(-24, -10, 22, 8);
+  shell.addColorStop(0, '#35144e'); shell.addColorStop(.24, '#7336a1');
+  shell.addColorStop(.52, '#bc83df'); shell.addColorStop(.76, '#8040ad');
+  shell.addColorStop(1, '#321346');
+  ctx.fillStyle = shell; ctx.strokeStyle = '#321344'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -29);
+  ctx.bezierCurveTo(14, -28, 23, -14, 23, 2);
+  ctx.bezierCurveTo(24, 18, 12, 29, 0, 30);
+  ctx.bezierCurveTo(-14, 29, -23, 18, -23, 2);
+  ctx.bezierCurveTo(-23, -14, -13, -28, 0, -29);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  const shine = ctx.createLinearGradient(-19, -10, -7, 11);
+  shine.addColorStop(0, '#f0d7ff'); shine.addColorStop(1, '#9d5ec3');
+  ctx.strokeStyle = shine; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(-15, -18); ctx.bezierCurveTo(-21, -7, -20, 8, -15, 15); ctx.stroke();
+  ctx.strokeStyle = '#351643'; ctx.lineWidth = 1.4;
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(side * 8, -10); ctx.scale(side, 1);
+    ctx.beginPath(); ctx.moveTo(-3.5, 2.5);
+    ctx.bezierCurveTo(-5.3, 1.7, -5.3, -3.6, -2.8, -5.6);
+    ctx.bezierCurveTo(-.5, -7.2, 2.8, -5.1, 2.8, -2.4);
+    ctx.bezierCurveTo(2.8, .2, .9, 2.2, -1.2, 1.4);
+    ctx.bezierCurveTo(-3.2, .6, -2.5, -2.2, -.8, -2.8);
+    ctx.bezierCurveTo(.8, -3.4, 1.8, -2, .8, -1.2);
+    ctx.stroke(); ctx.restore();
+  }
+  ctx.strokeStyle = '#321344'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-22, 2); ctx.lineTo(-15, -3); ctx.lineTo(-8, 2);
+  ctx.lineTo(-1, -4); ctx.lineTo(7, 2); ctx.lineTo(14, -3); ctx.lineTo(22, 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#dfbaf6'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-20, 1); ctx.lineTo(-15, -2); ctx.lineTo(-8, 3);
+  ctx.lineTo(-1, -3); ctx.lineTo(7, 3); ctx.lineTo(14, -2); ctx.lineTo(20, 1);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawChisel() {
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const steel = ctx.createLinearGradient(-18, -35, 18, -4);
+  steel.addColorStop(0, '#f4f3ee'); steel.addColorStop(.28, '#aeb4b6');
+  steel.addColorStop(.56, '#e1e3df'); steel.addColorStop(1, '#737c80');
+  ctx.fillStyle = steel; ctx.strokeStyle = '#50595d'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-14, -5); ctx.lineTo(-18, -29); ctx.lineTo(0, -41);
+  ctx.lineTo(18, -23); ctx.lineTo(14, -5); ctx.lineTo(8, 1); ctx.lineTo(-8, 1);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(-15, -28); ctx.lineTo(-1, -37); ctx.lineTo(13, -23);
+  ctx.moveTo(-10, -5); ctx.lineTo(10, -5); ctx.stroke();
+  ctx.fillStyle = '#aeb5b7'; ctx.strokeStyle = '#596165'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.roundRect(-8, -3, 16, 11, 3); ctx.fill(); ctx.stroke();
+  const wood = ctx.createLinearGradient(-11, 7, 11, 34);
+  wood.addColorStop(0, '#edc486'); wood.addColorStop(.42, '#bd8550'); wood.addColorStop(1, '#8a5735');
+  ctx.fillStyle = wood; ctx.strokeStyle = '#67442e'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(-7, 6); ctx.quadraticCurveTo(-10, 9, -9, 14);
+  ctx.lineTo(-6, 32); ctx.quadraticCurveTo(0, 39, 6, 32);
+  ctx.lineTo(9, 14); ctx.quadraticCurveTo(10, 9, 7, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d3d5d3'; ctx.strokeStyle = '#62696b';
+  ctx.beginPath(); ctx.roundRect(-9, 5, 18, 5, 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(-7, 31, 14, 5, 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#f2d6a5'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-4, 13); ctx.quadraticCurveTo(-2, 20, -4, 27); ctx.stroke();
+  ctx.restore();
+}
+
 function drawSpookyMask() {
   ctx.save();
   ctx.strokeStyle = '#5b1727'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
@@ -3000,7 +3094,7 @@ function drawBrickStamp(effect, game) {
   }
   const arriving = Math.min(1, effect.age / .18);
   const returning = Math.max(0, Math.min(1, (effect.age - .3) / .35));
-  const homeX = game ? game.cat.x + 33 : effect.fromX ?? effect.x;
+  const homeX = game ? game.cat.x - 33 : effect.fromX ?? effect.x;
   const homeY = game ? game.cat.y - 22 : effect.fromY ?? effect.y - 40;
   const squash = Math.sin(Math.min(1, Math.max(0, (effect.age - .18) / .12)) * Math.PI) * .18;
   const scale = .65 + arriving * .35 - (effect.capturing ? returning * .35 : 0);
@@ -3037,6 +3131,107 @@ function drawBrickDestructionSmoke(effect) {
       ctx.beginPath(); ctx.arc(x, y, 4 + progress * 10, 0, Math.PI * 2); ctx.fill();
     }
   }
+  ctx.restore();
+}
+
+function drawBrickSplitSmoke(effect) {
+  const progress = Math.min(1, effect.age / .65);
+  if (progress >= 1) return;
+  ctx.save(); ctx.globalAlpha = (1 - progress) * .75;
+  for (const seam of effect.seams) {
+    const length = Math.hypot(seam.x2 - seam.x1, seam.y2 - seam.y1);
+    const count = Math.max(2, Math.ceil(length / 18));
+    for (let i = 0; i < count; i++) {
+      const fraction = (i + .5) / count;
+      const x = seam.x1 + (seam.x2 - seam.x1) * fraction;
+      const y = seam.y1 + (seam.y2 - seam.y1) * fraction - progress * (8 + i % 3 * 3);
+      ctx.fillStyle = i % 2 ? '#d5d8d8' : '#929b9f';
+      ctx.beginPath(); ctx.arc(x + Math.sin(effect.age * 9 + i) * progress * 3, y,
+        2 + progress * 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e5e7e5';
+      ctx.beginPath(); ctx.arc(x + 3, y - 2, 1.5 + progress * 2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawScramblerTransition(game, camera) {
+  const effect = game.scramblerEffect;
+  if (!effect?.applied) return;
+  const midpoint = effect.duration / 2;
+  const elapsed = effect.age - midpoint;
+  if (elapsed < 0 || elapsed >= midpoint) return;
+  const progress = elapsed / midpoint;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (const puff of effect.smoke ?? []) {
+    const age = elapsed - puff.delay;
+    if (age < 0 || age >= .38) continue;
+    const life = age / .38;
+    ctx.globalAlpha = (1 - life) * .32;
+    ctx.fillStyle = '#d5cde4'; ctx.shadowColor = '#d5cde4'; ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.ellipse(puff.x, puff.y, puff.radius * (.7 + life * .75),
+      puff.radius * (.5 + life * .45), life * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  drawScramblerWave(camera, progress);
+  for (const sparkle of effect.sparkles ?? []) {
+    const age = elapsed - sparkle.delay;
+    if (age < 0 || age >= .3) continue;
+    const life = age / .3;
+    const size = sparkle.size * (1 + Math.sin(life * Math.PI) * .6);
+    ctx.save(); ctx.translate(sparkle.x, sparkle.y);
+    ctx.rotate(sparkle.phase + elapsed * 5);
+    ctx.globalAlpha = Math.sin(life * Math.PI) * .9;
+    ctx.fillStyle = '#fff8d8';
+    ctx.beginPath();
+    ctx.moveTo(0, -size); ctx.lineTo(size * .28, -size * .28);
+    ctx.lineTo(size, 0); ctx.lineTo(size * .28, size * .28);
+    ctx.lineTo(0, size); ctx.lineTo(-size * .28, size * .28);
+    ctx.lineTo(-size, 0); ctx.lineTo(-size * .28, -size * .28);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawScramblerWave(camera, progress) {
+  const inset = Math.min(20, camera.width * .04, camera.height * .04);
+  const left = camera.x + inset, right = camera.x + camera.width - inset;
+  const top = camera.y + inset, bottom = camera.y + camera.height - inset;
+  const width = right - left, height = bottom - top;
+  if (width <= 0 || height <= 0) return;
+  const perimeter = 2 * (width + height);
+  const head = progress * perimeter;
+  const trail = Math.min(perimeter * .16, head);
+  if (trail <= 0) return;
+  const pointAt = distance => {
+    const offset = (distance % perimeter + perimeter) % perimeter;
+    if (offset < width) return [left + offset, top];
+    if (offset < width + height) return [right, top + offset - width];
+    if (offset < 2 * width + height) return [right - (offset - width - height), bottom];
+    return [left, bottom - (offset - 2 * width - height)];
+  };
+  const steps = Math.max(2, Math.ceil(trail / 12));
+  const trace = () => {
+    ctx.beginPath();
+    const start = pointAt(head - trail);
+    ctx.moveTo(start[0], start[1]);
+    for (let index = 1; index <= steps; index++) {
+      const point = pointAt(head - trail + trail * index / steps);
+      ctx.lineTo(point[0], point[1]);
+    }
+    ctx.stroke();
+  };
+  ctx.save();
+  ctx.globalAlpha = .9 - progress * .35;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.shadowColor = '#a4f5ff'; ctx.shadowBlur = 20;
+  ctx.strokeStyle = '#54ddff'; ctx.lineWidth = 12; trace();
+  ctx.shadowBlur = 5;
+  ctx.strokeStyle = '#fff7de'; ctx.lineWidth = 3; trace();
   ctx.restore();
 }
 
@@ -3546,6 +3741,10 @@ function drawGameItem(item) {
     drawKittyCape(game?.elapsed ?? 0);
   } else if (item.type === 'ditto-stamp') {
     drawDittoStamp();
+  } else if (item.type === 'chisel') {
+    ctx.save(); ctx.rotate(-Math.PI / 4); ctx.scale(.45, .45); drawChisel(); ctx.restore();
+  } else if (item.type === 'scrambler') {
+    ctx.save(); ctx.scale(.8, .8); drawScrambler(); ctx.restore();
   } else if (item.type === 'spooky-mask') {
     drawSpookyMask();
   } else if (item.type === 'music-box') {

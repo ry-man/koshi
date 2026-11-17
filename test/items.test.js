@@ -22,7 +22,7 @@ function gameWithItem(type, duration = 30) {
 
 test('the original 19 levels retain their item schedules and spawn bricks', () => {
   const removed = new Set(['smiley-cookie', 'stopwatch', 'stopwatch-green', 'stopwatch-blue',
-    'battery', 'music-box', 'eggplant', 'saw-blade', 'magic-sunglasses', 'ditto-stamp', 'spooky-mask',
+    'battery', 'music-box', 'eggplant', 'saw-blade', 'chisel', 'scrambler', 'magic-sunglasses', 'ditto-stamp', 'spooky-mask',
     'cat-shield-red', 'cat-shield-green', 'cat-shield-blue']);
   for (const level of LEVELS.slice(0, 19)) {
     assert.ok((level.items ?? []).every(([, type]) => !removed.has(type)), level.name);
