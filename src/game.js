@@ -54,6 +54,12 @@ const ITEMS = {
   scrambler: { name: 'Scrambler', icon: '🥚', color: '#8f55bd' },
   'magic-sunglasses': { name: 'Magical Sunglasses', icon: '🕶', color: '#d989ff' },
   'kitty-cape': { name: 'Kitty Cape', icon: '⚡', color: '#b5d77c' },
+  'surf-board-red': { name: 'Red Surf Board', icon: '🏄', color: '#ed5555', surfSeconds: 5 },
+  'surf-board-green': { name: 'Green Surf Board', icon: '🏄', color: '#63d877', surfSeconds: 15 },
+  'surf-board-blue': { name: 'Blue Surf Board', icon: '🏄', color: '#519eff', surfSeconds: 30 },
+  'ice-skate-red': { name: 'Red Ice Skate', icon: '⛸️', color: '#ed5555', skateSeconds: 5 },
+  'ice-skate-green': { name: 'Green Ice Skate', icon: '⛸️', color: '#63d877', skateSeconds: 15 },
+  'ice-skate-blue': { name: 'Blue Ice Skate', icon: '⛸️', color: '#519eff', skateSeconds: 30 },
   'ditto-stamp': { name: 'Ditto Stamp', icon: '▣', color: '#f59a50' },
   'spooky-mask': { name: 'Spooky Mask', icon: '👹', color: '#d73642' },
   'cat-shield-red': { name: 'Red Cat Shield', icon: '🛡️', color: '#ed5555', catShield: 'red' },
@@ -1845,6 +1851,125 @@ function validateCatTracks(tracks) {
   });
 }
 
+function terrainContains(terrain, point) {
+  const nodes = terrain.path?.nodes ?? terrain.nodes;
+  let inside = false;
+  for (let i = 0, j = nodes.length - 1; i < nodes.length; j = i++) {
+    const a = nodes[j], b = nodes[i];
+    const cross = (point.x - a.x) * (b.y - a.y) - (point.y - a.y) * (b.x - a.x);
+    if (Math.abs(cross) <= 1e-7 && point.x >= Math.min(a.x, b.x) - 1e-7
+      && point.x <= Math.max(a.x, b.x) + 1e-7 && point.y >= Math.min(a.y, b.y) - 1e-7
+      && point.y <= Math.max(a.y, b.y) + 1e-7) return true;
+    if ((a.y > point.y) !== (b.y > point.y)
+      && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+function terrainEntry(terrain, start, end) {
+  if (terrainContains(terrain, start)) return { t: 0 };
+  const dx = end.x - start.x, dy = end.y - start.y;
+  if (!dx && !dy) return null;
+  const nodes = terrain.path?.nodes ?? terrain.nodes;
+  let first = Infinity;
+  for (let i = 0; i < nodes.length; i++) {
+    const a = nodes[i], b = nodes[(i + 1) % nodes.length];
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const denominator = dx * ey - dy * ex;
+    if (Math.abs(denominator) < 1e-12) continue;
+    const ox = a.x - start.x, oy = a.y - start.y;
+    const t = (ox * ey - oy * ex) / denominator;
+    const u = (ox * dy - oy * dx) / denominator;
+    if (t >= -1e-9 && t <= 1 + 1e-9 && u >= -1e-9 && u <= 1 + 1e-9) {
+      first = Math.min(first, Math.max(0, t));
+    }
+  }
+  if (terrainContains(terrain, end)) first = Math.min(first, 1);
+  return Number.isFinite(first) ? { t: first } : null;
+}
+
+function terrainExitPoint(terrain, point, dx, dy, distance) {
+  const speed = Math.hypot(dx, dy);
+  if (speed > 1e-9) return { x: point.x - dx / speed * distance, y: point.y - dy / speed * distance };
+  const nodes = terrain.path?.nodes ?? terrain.nodes;
+  let nearest = null, gap = Infinity;
+  for (let i = 0; i < nodes.length; i++) {
+    const a = nodes[i], b = nodes[(i + 1) % nodes.length], ex = b.x - a.x, ey = b.y - a.y;
+    const t = Math.max(0, Math.min(1, ((point.x - a.x) * ex + (point.y - a.y) * ey) / (ex * ex + ey * ey)));
+    const x = a.x + ex * t, y = a.y + ey * t, nextGap = Math.hypot(point.x - x, point.y - y);
+    if (nextGap < gap) {
+      const area = nodes.reduce((sum, node, index) => {
+        const next = nodes[(index + 1) % nodes.length];
+        return sum + node.x * next.y - next.x * node.y;
+      }, 0);
+      const side = area > 0 ? 1 : -1;
+      const length = Math.hypot(ex, ey);
+      nearest = { x: x + side * ey / length * distance, y: y - side * ex / length * distance };
+      gap = nextGap;
+    }
+  }
+  return nearest ?? point;
+}
+
+function validateTerrainRegions(terrains) {
+  const fail = message => { throw new TypeError(`Terrain: ${message}`); };
+  if (!Array.isArray(terrains) || terrains.length > 100) fail('expected at most 100 regions.');
+  const ids = new Set();
+  const cross = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const on = (a, b, c) => Math.abs(cross(a, b, c)) <= 1e-12
+    && c.x >= Math.min(a.x, b.x) - 1e-12 && c.x <= Math.max(a.x, b.x) + 1e-12
+    && c.y >= Math.min(a.y, b.y) - 1e-12 && c.y <= Math.max(a.y, b.y) + 1e-12;
+  const intersects = (a, b, c, d) => on(a, b, c) || on(a, b, d) || on(c, d, a) || on(c, d, b)
+    || cross(a, b, c) * cross(a, b, d) < 0 && cross(c, d, a) * cross(c, d, b) < 0;
+  const validated = terrains.map(terrain => {
+    if (!terrain || typeof terrain !== 'object' || Array.isArray(terrain)) fail('each region must be an object.');
+    if (typeof terrain.id !== 'string' || !terrain.id.trim() || terrain.id.length > 60 || ids.has(terrain.id)) {
+      fail('region IDs must be unique, nonempty strings of at most 60 characters.');
+    }
+    ids.add(terrain.id);
+    if (!['ice', 'water', 'lava'].includes(terrain.type)) fail(`${terrain.id}: type must be ice, water or lava.`);
+    if (!Array.isArray(terrain.nodes) || terrain.nodes.length < 3 || terrain.nodes.length > 100) {
+      fail(`${terrain.id}: use 3–100 vertices.`);
+    }
+    const nodes = terrain.nodes.map(node => {
+      if (!node || typeof node !== 'object' || Array.isArray(node)
+        || !['x', 'y'].every(axis => typeof node[axis] === 'number' && Number.isFinite(node[axis])
+          && node[axis] >= 0 && node[axis] <= 1)) fail(`${terrain.id}: vertex coordinates must be from 0 to 1.`);
+      return { x: node.x, y: node.y };
+    });
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      if (Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y) < 1e-6) {
+        fail(`${terrain.id}: vertices must be distinct; polygons close automatically.`);
+      }
+    }
+    const area = nodes.reduce((sum, node, index) => {
+      const next = nodes[(index + 1) % nodes.length];
+      return sum + node.x * next.y - next.x * node.y;
+    }, 0) / 2;
+    if (Math.abs(area) < 1e-10) fail(`${terrain.id}: the region must enclose an area.`);
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[(i + 1) % nodes.length];
+      const c = nodes[j], d = nodes[(j + 1) % nodes.length];
+      const adjacent = j === i + 1 || i === 0 && j === nodes.length - 1;
+      if (adjacent) {
+        const shared = j === i + 1 ? b : a;
+        const first = j === i + 1 ? a : b, last = j === i + 1 ? d : c;
+        if (on(shared, first, last) || on(shared, last, first)) fail(`${terrain.id}: edges cannot overlap.`);
+      } else if (intersects(a, b, c, d)) fail(`${terrain.id}: the boundary cannot intersect itself.`);
+    }
+    return { id: terrain.id, type: terrain.type, nodes };
+  });
+  for (let i = 0; i < validated.length; i++) for (let j = i + 1; j < validated.length; j++) {
+    const first = validated[i].nodes, second = validated[j].nodes;
+    const intersectsBoundary = first.some((a, index) => second.some((c, otherIndex) =>
+      intersects(a, first[(index + 1) % first.length], c, second[(otherIndex + 1) % second.length])));
+    if (intersectsBoundary || terrainContains(validated[i], second[0]) || terrainContains(validated[j], first[0])) {
+      fail(`${validated[i].id} and ${validated[j].id}: regions cannot overlap or touch.`);
+    }
+  }
+  return validated;
+}
+
 function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompleteBoss = false, requireCatBlockConsistency = false } = {}) {
   const fail = message => { throw new TypeError(message); };
   const number = (v, min, max, name) => {
@@ -1940,6 +2065,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   if (heartCost !== null && !Number.isInteger(heartCost)) fail('Heart cost must be a whole number or null.');
   if (![1, 3].includes(value.brickSet)) fail('Brick set must be 1 or 3 (slow and fast bricks each).');
   const tracks = validateCatTracks(value.tracks === undefined ? [] : value.tracks);
+  const terrains = validateTerrainRegions(value.terrains === undefined ? [] : value.terrains);
   if (!Array.isArray(value.events) || value.events.length > 2000) fail('Events must be an array of at most 2000 placements.');
   const events = value.events.map((event, i) => {
     const name = `Event ${i + 1}`;
@@ -2027,6 +2153,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     result.koshiStart = { x: number(start.x, 0, 1, 'Koshi starting X'), y: number(start.y, 0, 1, 'Koshi starting Y') };
   }
   if (value.tracks !== undefined) result.tracks = tracks;
+  if (value.terrains !== undefined) result.terrains = terrains;
   if (value.bossLevel !== undefined) result.bossLevel = value.bossLevel;
   const bosses = events.filter(event => event.kind === 'enemy' && isBossType(event.type));
   if (bosses.length && !value.bossLevel) fail('Enable Boss level before placing a boss.');
@@ -3313,6 +3440,7 @@ class Game {
     this.catBlockProgress = { defeated: {}, swords: 0, hearts: 0, selected: new Set(), touched: new Set() };
     this.tookDamage = false;
     this.invulnerableUntil = 0;
+    this.terrainImpact = null;
     this.nextEvent = 0;
     this.food = [];
     this.items = [];
@@ -3328,6 +3456,8 @@ class Game {
     this.catHistory = [{ time: 0, x: this.cat.x, y: this.cat.y }];
     this.tickStart = null;
     this.target = null;
+    this.iceSteer = null;
+    this.iceDirectionLocked = false;
     this.stuckUntil = 0;
     this.stuckColor = 'green';
     this.releasedAt = null;
@@ -3392,6 +3522,8 @@ class Game {
     this.capeUntil = 0;
     this.capePickup = null;
     this.capeFlightMultiplier = 1;
+    this.surfBoard = null;
+    this.iceSkate = null;
     this.maskUntil = 0;
     this.maskPickup = null;
     this.healing = [];
@@ -3436,6 +3568,8 @@ class Game {
     this.catTracks = (this.level.tracks ?? []).map(track => ({ ...track,
       path: catTrackPath(track, node => this.campaignEventPoint(node.x, node.y)) }));
     this.catTracksById = new Map(this.catTracks.map(track => [track.id, track]));
+    this.terrains = (this.level.terrains ?? []).map(terrain => ({ ...terrain,
+      path: { nodes: terrain.nodes.map(node => this.campaignEventPoint(node.x, node.y)) } }));
     this.customEvents = (this.customLevel?.events ?? this.level.events ?? [])
       .map(event => event.spawnPercent === undefined ? event : { ...event, time: this.eventAppearanceTime(event) })
       .sort((a, b) => a.time - b.time);
@@ -3457,6 +3591,70 @@ class Game {
   get sunglassesActive() { return this.sunglassesStart !== null && this.elapsed < this.sunglassesUntil - 1e-9; }
   get maskActive() { return this.maskPickup !== null && this.elapsed < this.maskUntil - 1e-9; }
   get capeActive() { return this.capeStart !== null && this.elapsed < this.capeUntil - 1e-9; }
+  get surfBoardActive() { return this.surfBoard !== null && this.elapsed < this.surfBoard.expires - 1e-9; }
+  get iceSkateActive() { return this.iceSkate !== null && this.elapsed < this.iceSkate.expires - 1e-9; }
+
+  terrainAt(x, y) {
+    return this.terrains.find(terrain => terrainContains(terrain, { x, y })) ?? null;
+  }
+
+  firstHazardTerrainEntry(start, end) {
+    let first = null;
+    for (const terrain of this.terrains) {
+      if (terrain.type === 'ice' || (terrain.type === 'water' && this.surfBoardActive)) continue;
+      const entry = terrainEntry(terrain, start, end);
+      if (entry && (!first || entry.t < first.t)) first = { ...entry, terrain };
+    }
+    return first;
+  }
+
+  resolveTerrainContact(terrain, x, y, dx, dy) {
+    const cat = this.cat;
+    cat.x = x; cat.y = y;
+    cat.vx = 0; cat.vy = 0;
+    this.target = null;
+    this.iceSteer = null;
+    this.iceDirectionLocked = false;
+    this.conveyorRide = null;
+    this.boosted = false;
+    this.terrainImpact = {
+      type: terrain.type,
+      x,
+      y,
+      exit: terrain.type === 'water'
+        ? terrainExitPoint(terrain, { x, y }, dx, dy, cat.radius + 2)
+        : null,
+      age: 0,
+      sinkDuration: .42,
+      riseDuration: .22,
+      reappeared: false,
+    };
+  }
+
+  updateTerrainImpact(dt) {
+    const impact = this.terrainImpact;
+    if (!impact) return;
+    impact.age += dt;
+    if (impact.type === 'water') {
+      if (!impact.reappeared && impact.age >= impact.sinkDuration) {
+        this.cat.x = impact.exit.x;
+        this.cat.y = impact.exit.y;
+        impact.reappeared = true;
+        this.invulnerableUntil = this.elapsed;
+        this.takeDamage();
+        if (this.hearts <= 0) {
+          this.terrainImpact = null;
+          this.state = 'lost';
+        }
+      }
+      if (impact.age >= impact.sinkDuration + impact.riseDuration) this.terrainImpact = null;
+    } else if (impact.age >= impact.sinkDuration) {
+      this.terrainImpact = null;
+      this.hearts = 0;
+      this.tookDamage = true;
+      this.state = 'lost';
+    }
+  }
 
   setCapeSpeed(multiplier) {
     if (this.conveyorRide) {
@@ -3495,7 +3693,7 @@ class Game {
 
   steer(id, x, y) {
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.activeTurret || (this.ropeDart && this.ropeDart.phase !== 'returning')
+    if (this.state !== 'playing' || this.terrainImpact || this.activeTurret || (this.ropeDart && this.ropeDart.phase !== 'returning')
       || this.bubbleTrap || this.catCircleTrap
       || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick) || !this.brickVisible(brick)) return false;
     if (this.level.autoscroll) {
@@ -3515,6 +3713,13 @@ class Game {
     if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
     if (this.spikeParts(parts).some(({ triangle }) =>
       spikeContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, triangle) <= 1e-9)) return false;
+    const onIce = !this.iceSkateActive && this.terrainAt(this.cat.x, this.cat.y)?.type === 'ice';
+    if (onIce && this.iceDirectionLocked && (this.cat.vx || this.cat.vy)) {
+      this.iceSteer = { id, x, y };
+      return true;
+    }
+    this.iceSteer = null;
+    this.iceDirectionLocked = onIce;
     this.recordCatBrickTypes(brick, this.catBlockProgress.selected);
     if (!this.sunglassesActive) {
       brick.readyAt = this.elapsed + COOLDOWNS[brick.kind]
@@ -7840,6 +8045,11 @@ class Game {
       this.cookieLickUntil = 0;
     } else if (ITEMS[item.type]?.catShield) {
       this.catShield = ITEMS[item.type].catShield;
+    } else if (ITEMS[item.type]?.surfSeconds) {
+      this.surfBoard = { type: item.type, expires: this.elapsed + ITEMS[item.type].surfSeconds };
+    } else if (ITEMS[item.type]?.skateSeconds) {
+      this.iceSkate = { type: item.type, expires: this.elapsed + ITEMS[item.type].skateSeconds };
+      this.iceDirectionLocked = false;
     } else if (ITEMS[item.type]?.seconds) this.timeBonus += ITEMS[item.type].seconds;
     else if (ITEMS[item.type]?.counts && this.activationsRemaining !== null && this.state === 'playing') {
       this.activationsRemaining += ITEMS[item.type].counts;
@@ -8338,6 +8548,11 @@ class Game {
     this.prepareSpawns();
     this.spawnCustomEvents();
     if (this.state !== 'playing') { this.tickStart = null; return; }
+    if (this.terrainImpact) {
+      this.updateTerrainImpact(dt);
+      this.tickStart = null;
+      return;
+    }
     while (this.nextEvent < this.level.food.length && this.level.food[this.nextEvent][0] <= this.elapsed + 1e-9) {
       this.spawn(this.level.food[this.nextEvent++]);
     }
@@ -8429,6 +8644,9 @@ class Game {
       const motion = { x: cat.x + dx, y: cat.y + dy, radius: cat.radius };
       this.moveAroundObstructions(motion, cat, true);
       dx = motion.x - cat.x; dy = motion.y - cat.y;
+      if (Math.hypot(dx, dy) < 1e-5 && this.terrainAt(cat.x, cat.y)?.type === 'ice') {
+        cat.vx = 0; cat.vy = 0;
+      }
     }
     for (const id of this.paintTouching) {
       if (!parts.some(part => part.id === id && Math.hypot(
@@ -8554,6 +8772,17 @@ class Game {
       bumperTime = Infinity;
       bubbleHit = null;
     }
+    const terrainContact = this.firstHazardTerrainEntry(
+      { x: cat.x, y: cat.y }, { x: cat.x + dx, y: cat.y + dy });
+    let terrainHit = null;
+    if (terrainContact && terrainContact.t <= contact + 1e-9) {
+      contact = terrainContact.t;
+      contacts = [];
+      bumperContacts = [];
+      bubbleHit = null;
+      collectingSaw = false;
+      terrainHit = terrainContact;
+    }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
     for (const part of contacts) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
     this.attractFoodToCat(dt * contact, endX, endY);
@@ -8568,6 +8797,13 @@ class Game {
       const event = { time: this.elapsed + 1 };
       this.pendingSpawns.set(event, { kind: 'heart', time: event.time, items: [this.randomPickupPoint(event.time)] });
       this.nextHeart += this.level.heartCost;
+    }
+    if (terrainHit) {
+      this.resolveTerrainContact(terrainHit.terrain, endX, endY, dx, dy);
+      this.checkCatBlockAchievement();
+      this.recordCatPosition();
+      this.tickStart = null;
+      return;
     }
     const startX = cat.x, startY = cat.y;
     cat.x = endX; cat.y = endY;
@@ -8736,6 +8972,18 @@ class Game {
       && Math.hypot(cat.x - this.catCircleIgnore.x, cat.y - this.catCircleIgnore.y)
         > this.catCircleIgnore.radius + cat.radius + 1e-6) this.catCircleIgnore = null;
     if (!cat.vx && !cat.vy) this.boosted = false;
+    if (this.state === 'playing' && this.hearts > 0) {
+      const onIce = !this.iceSkateActive && this.terrainAt(cat.x, cat.y)?.type === 'ice';
+      if (onIce && (cat.vx || cat.vy)) this.iceDirectionLocked = true;
+      else {
+        this.iceDirectionLocked = false;
+        if (this.iceSteer) {
+          const queued = this.iceSteer;
+          this.iceSteer = null;
+          this.steer(queued.id, queued.x, queued.y);
+        }
+      }
+    }
     this.clearBlockedPickups();
     if (this.checkOffscreenDeath()) {
       this.checkCatBlockAchievement();
@@ -8763,7 +9011,7 @@ const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEME
 api.HAZARDS = HAZARDS;
 api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;
-Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks });
+Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks, terrainContains, validateTerrainRegions });
 api.isBossType = isBossType;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;

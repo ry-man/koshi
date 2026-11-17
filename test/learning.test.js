@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 10);
-  assert.equal(LESSONS.length, 68);
+  assert.equal(LESSONS.length, 70);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -120,6 +120,8 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
   }
   for (const type of Object.keys(ITEMS)) {
     const id = type.startsWith('cat-shield-') ? 'cat-shield'
+      : type.startsWith('surf-board-') ? 'surf-board'
+      : type.startsWith('ice-skate-') ? 'ice-skate'
       : type.startsWith('stopwatch') ? 'stopwatch'
       : type.startsWith('boom-time') ? 'boom-time'
         : type.startsWith('paint-') ? 'paintbrush'
@@ -149,6 +151,31 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
   const objectives = GUIDE.find(chapter => chapter.title === 'Objectives');
   for (const level of LEVELS) {
     assert.equal(objectives.sections.find(([title]) => title === `Level ${level.number}`)[1], `${levelObjective(level)}.`);
+  }
+});
+
+test('Surf Board practice demonstrates collecting a board and riding across water', () => {
+  for (const options of [{}, { portrait: true, scale: .5 }]) {
+    const tutorial = practice('surf-board', options);
+    assert.equal(tutorial.observe(), false);
+    assert.equal(aim(tutorial), true);
+    wait(tutorial, 1);
+    assert.equal(tutorial.completed.has('surf-board'), true);
+    assert.equal(tutorial.game.hearts, 3);
+    assert.equal(tutorial.game.terrainImpact, null);
+  }
+});
+
+test('Ice Skate practice requires a real redirect while skating on ice', () => {
+  for (const options of [{}, { portrait: true, scale: .5 }]) {
+    const tutorial = practice('ice-skate', options);
+    assert.equal(aim(tutorial), true);
+    for (let frame = 0; frame < 120 && !tutorial.game.iceSkateActive; frame++) wait(tutorial, 1 / 120);
+    assert.equal(tutorial.game.iceSkateActive, true);
+    assert.equal(tutorial.observe(), false);
+    assert.equal(aim(tutorial, opposite(tutorial)), true);
+    assert.equal(tutorial.observe(), true);
+    assert.ok(tutorial.game.cat.vx < 0);
   }
 });
 

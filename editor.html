@@ -139,7 +139,7 @@
             <div id="editor-bricks" role="group" aria-label="Editable boundary bricks"></div>
             <div id="playable-area" aria-hidden="true"></div>
             <svg id="alignment-guides" aria-hidden="true"></svg>
-            <svg id="cat-tracks" aria-label="Cat Tracks"></svg>
+            <svg id="cat-tracks" aria-label="Terrain and Cat Tracks"></svg>
             <div id="markers"></div>
             <button id="koshi-start-marker" class="marker koshi-start-marker" type="button" aria-label="Koshi starting point"><img src="./icons/koshi.svg" alt=""><small>Start</small></button>
             <svg id="spawn-links" aria-hidden="true"></svg>
@@ -213,6 +213,21 @@
               </form>
             </fieldset>
             <output id="track-attachments" aria-live="polite"></output>
+          </section>
+          <section id="terrain-panel" class="cat-tracks-panel" aria-label="Terrain" hidden>
+            <h2>Terrain</h2>
+            <label>Region <select id="terrain-choice"><option value="">New region</option></select></label>
+            <fieldset id="terrain-access" class="access-fields">
+              <form id="terrain-form">
+                <label>Type<select id="terrain-type"><option value="ice">Ice</option><option value="water">Water</option><option value="lava">Lava</option></select></label>
+                <div class="tool-group">
+                  <button id="terrain-draw" type="button" aria-pressed="false">Draw replacement nodes</button>
+                  <button type="submit">Apply region</button>
+                  <button id="terrain-reset" type="button">Cancel edits</button>
+                  <button id="terrain-delete" type="button">Delete region</button>
+                </div>
+              </form>
+            </fieldset>
           </section>
           <section id="brick-panel" class="brick-inspector" aria-label="Brick inspector" hidden>
             <h2>Bricks &amp; surfaces</h2>

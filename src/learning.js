@@ -31,6 +31,8 @@ const GUIDE = [
       [ITEMS.anvil.name, 'A shaded black iron anvil with grey and blue highlights and a thin bright outline fully restores your held weapon: original strikes for swords and hammers, original shots for Rope Darts, or a fresh full timer for axes. It does not stack extra strikes, shots or time, replace the weapon, or affect the level clock. Collected with no effect when unarmed.', 'item:anvil'],
       [ITEMS['music-box'].name, 'Puts enemies to sleep for ten seconds. Most sleeping enemies cannot hurt Koshi, but Robo Snake’s spiked body remains dangerous. A scrolling musical score lasts for the whole effect; another box refreshes ten seconds. Simultaneous timed power-up banners occupy separate rows. Pause freezes the effect and animation.', 'item:music-box'],
       [ITEMS['kitty-cape'].name, 'A green cape like Koshi’s title-screen cape doubles his movement speed for ten seconds, including his current flight. Boost launches double that speed again; conveyors keep their normal pace. A translucent banner of cat heads and lightning bolts scrolls behind the arena for the whole effect. Another cape refreshes ten seconds without stacking. Pause freezes the power and animation; restart clears both. Available for custom-level placements and spawners.', 'item:kitty-cape'],
+      ['Surf Board', 'Ride across water without sinking or taking water damage: red lasts 5 seconds, green 15, and blue 30. The board sits horizontally underneath Koshi in side view, with an integer countdown centered inside and color turning white evenly from left to right. A new board replaces the current board and restarts its timer without replacing a weapon or equipped item. Pause freezes the timer; lava remains deadly. Available for custom levels and spawners.', ['item:surf-board-red', 'item:surf-board-green', 'item:surf-board-blue']],
+      ['Ice Skate', 'A skate with a body-width opening and a protruding toe covers Koshi just below the eyes and hides his whiskers, with its blade close to his body and no hitbox change. He can redirect while moving on ice. Red lasts 5 seconds, green 15, and blue 30. The boot shows an integer countdown and turns white steadily from top to bottom. A new skate refreshes its own timer without replacing a Surf Board, weapon, or equipped item. Pause freezes the timer; restart clears it. Water and lava are still dangerous. Available for custom levels and spawners.', ['item:ice-skate-red', 'item:ice-skate-green', 'item:ice-skate-blue']],
       [ITEMS.eggplant.name, 'A harmful pickup: subtracts 10 food points, but never lowers your score below zero.', 'item:eggplant'],
       [ITEMS['saw-blade'].name, 'Koshi instantly grows a ring of ears shaped into rapidly spinning saw teeth. His next brick contact other than Cinder or Goal permanently turns the entire current brick shape into Cinder, overriding its contact effects. It shakes, smokes, and fades into concrete, then Koshi returns to normal. Existing Cinder and Goal bricks do not use the saw; extra saw pickups do not stack. Cracker Causeway introduces it.', 'item:saw-blade'],
       [ITEMS.chisel.name, 'A steel blade and wooden handle float beside Koshi. His next touch on a merged brick splits it into separate bricks, all matching the merged brick’s type and attributes, with smoke puffing along the new seams. Touching a single brick does not use it; a different equipped item replaces it, while power-ups can stack. Available for custom-level placements and spawners only.', 'item:chisel'],
@@ -240,6 +242,8 @@ const LESSONS = [
   { id: 'music-box', title: 'Music Box', instruction: 'Collect the Music Box to put the nearby robot to sleep for ten seconds. Sleeping enemies are usually harmless; watch out for the Robo Snake’s body.' },
   { id: 'spooky-mask', title: 'Spooky Mask', instruction: 'Collect the mask to frighten the robot. Enemies flee and most attacks stop for ten seconds; the Robo Snake’s body remains dangerous.' },
   { id: 'kitty-cape', title: 'Kitty Cape', instruction: 'Collect the cape and steer. Your current movement and the next launches travel at double speed for ten seconds.' },
+  { id: 'surf-board', title: 'Surf Board', instruction: 'Aim at the outlined brick to collect the red board and glide across the water. Red lasts 5 seconds, green 15, and blue 30; the number and fading board color show the time remaining.' },
+  { id: 'ice-skate', title: 'Ice Skate', instruction: 'Aim at the outlined brick to collect the skate, then select another brick while moving on ice to turn immediately. Red lasts 5 seconds, green 15, and blue 30; the boot turns white from top to bottom as time runs out.' },
   { id: 'magic-sunglasses', title: 'Magical Sunglasses', instruction: 'Collect the glasses while traveling, then select the outlined recharging brick. Sunglasses bypass cooldowns, but Cinder and Goal bricks remain unselectable.' },
   { id: 'eggplant', title: 'Eggplant', instruction: 'Collect the Eggplant to see its penalty: it subtracts ten food points, but never takes your score below zero.' },
   { id: 'saw-blade', title: 'Saw Blade', instruction: 'Collect the Saw Blade, then touch the outlined brick. Its whole merged shape becomes permanent Cinder.' },
@@ -501,6 +505,20 @@ class Tutorial {
     }
     if (id === 'music-box' || id === 'spooky-mask') addItem(id);
     if (id === 'kitty-cape') addItem(id);
+    if (id === 'surf-board') {
+      addItem('surf-board-red', .25);
+      const left = along(.5).x, right = along(.8).x;
+      const nodes = [{ x: left, y: start.y - 45 }, { x: right, y: start.y - 45 },
+        { x: right, y: start.y + 45 }, { x: left, y: start.y + 45 }];
+      game.terrains.push({ id: 'surf-water', type: 'water', path: { nodes } });
+    }
+    if (id === 'ice-skate') {
+      addItem('ice-skate-red', .25);
+      const left = start.x - 30, right = along(.95).x;
+      const nodes = [{ x: left, y: start.y - 60 }, { x: right, y: start.y - 60 },
+        { x: right, y: start.y + 60 }, { x: left, y: start.y + 60 }];
+      game.terrains.push({ id: 'skate-ice', type: 'ice', path: { nodes } });
+    }
     if (id === 'magic-sunglasses') {
       game.items.push(game.createCollectible(0, id, null, { x: game.cat.x - 50, y: game.cat.y }));
     }
@@ -625,6 +643,10 @@ class Tutorial {
       'music-box': game.musicStreamUntil > game.elapsed,
       'spooky-mask': game.maskActive && game.robots.some(enemy => enemy.afraid),
       'kitty-cape': game.capeActive,
+      'surf-board': game.surfBoardActive && game.terrainAt(game.cat.x, game.cat.y)?.type === 'water'
+        && !game.tookDamage,
+      'ice-skate': game.iceSkateActive && game.moves > 1
+        && game.terrainAt(game.cat.x, game.cat.y)?.type === 'ice',
       'magic-sunglasses': game.sunglassesActive && this.actions > 1 && this.lastBrick === this.target.id,
       eggplant: game.score === 0,
       'saw-blade': this.target.kind === 'cinder',

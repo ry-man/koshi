@@ -264,8 +264,9 @@ test('editor authors, attaches, detaches and deletes tracks transactionally, pre
   let locked = false;
   const context = vm.createContext({ $, level: { ...blank(), events: [{ ...object(), track: undefined }] },
     selectedTrackId: '', trackDrawing: false, trackDrawNodes: [], selectedEvents: new Set([0]),
+    selectedTerrainId: '', terrainDrawing: false, terrainDrawNodes: [], terrainNodeGesture: null,
     selectedBricks: new Set(), placing: true, connectingSpawn: null, trackObjectAction: null, OBJECTS,
-    activeCategory: 'tracks', previewGame: { width: 960, height: 600, catTracks: [] },
+    activeCategory: 'tracks', previewGame: { width: 960, height: 600, catTracks: [], terrains: [] },
     document: { createElement: () => ({}) },
     readOnly: () => locked, selectedList: () => [0], validateDraft: validateCustomLevel,
     attempt: action => { try { action(); } catch (error) { errors.push(error.message); } },
@@ -346,7 +347,7 @@ test('editor moves individual saved nodes transactionally and rejects self-inter
     previewGame: new Game(() => .5, { customLevel: blank() }),
     $: () => ({ querySelector: () => ({ focus() {} }) }),
   });
-  vm.runInContext(source.slice(source.indexOf('function saveTrackNodeMove('), source.indexOf("$('#track-choice').addEventListener")), context);
+  vm.runInContext(source.slice(source.indexOf('function saveTrackNodeMove('), source.indexOf('function saveTerrainNodeMove(')), context);
   vm.runInContext(source.slice(source.indexOf('function placementStep('), source.indexOf('function moveEvent(')), context);
   const pointer = (extra = {}) => ({ button: 0, pointerId: 1, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {}, ...extra });
   context.startTrackNodeDrag(pointer(), 1);

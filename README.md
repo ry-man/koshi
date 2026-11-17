@@ -2056,6 +2056,67 @@ These are fields within a complete level, not a standalone level file. Tracks,
 attachments, and nodes survive JSON printing/loading and playtest links in both
 orientations, including scrolling levels. Existing campaign levels are unchanged.
 
+### Terrain
+
+Custom levels can define closed polygon regions of ice, water, or lava. Choose
+**Terrain** in the editor, select a type, choose **Draw replacement nodes**, and
+click the board to place vertices. Polygons close automatically. Select a region
+to drag or keyboard-move its numbered vertices, change its type, or delete it.
+Regions cannot overlap or touch; invalid drafts are rejected.
+
+Ice does not stop Koshi, but locks his direction while he is moving across it.
+The latest selection made on ice is queued and takes effect when he leaves or
+stops moving, including when blocked by an obstruction. A stopped Koshi can
+choose a new direction without leaving the ice. Terrain corners are rounded and the
+surfaces are textured: semi-transparent ice has crystalline streaks, water has moving waves, and
+lava has slower waves and bubbles. Entering water makes Koshi sink, then pop up
+just outside the side where he entered; he takes one damage and gains temporary
+invulnerability as he reappears. Entering lava makes him sink before the level
+ends in defeat.
+
+Surf Boards (`surf-board-red`, `surf-board-green`, `surf-board-blue`) let Koshi
+glide across water without damage for 5, 15, or 30 seconds, respectively.
+The ridden board touches the bottom of his body in a horizontal side view with an integer
+countdown centered inside. It turns white evenly from left to right, reaching
+white at expiry; pickups keep their top-down artwork. Picking up another board
+replaces the board and refreshes the new color's duration; it does not replace
+his weapon or equipped item. Pause freezes the timer; restart clears the effect.
+If the timer expires while on water, he sinks normally. Boards do not protect
+against lava. All three are available for custom-level placements and spawners;
+existing campaign levels are unchanged.
+
+Ice Skates (`ice-skate-red`, `ice-skate-green`, `ice-skate-blue`) allow immediate
+direction changes while moving on ice for 5, 15, or 30 seconds. Koshi rides inside
+one boot with a body-width opening and a protruding toe, with a silver blade close
+to his body's bottom. It covers his face just below the eyes and hides his whiskers
+without changing his hitbox. The boot displays a number-only countdown
+and turns white continuously from top to bottom as the timer expires. Another
+skate replaces and refreshes this effect independently of Surf Boards, weapons,
+and equipped items. Pause freezes the timer; restart clears it. When it expires
+on ice, the normal direction lock returns. Skates do not protect against water or
+lava. All variants are available in the editor, guide, and tutorial without
+changing existing levels.
+
+Falling into water throws up a large animated splash with droplets and an
+expanding ripple at the entry point, while Koshi sinks. Surfing avoids the fall
+and splash.
+
+Version 1 JSON optionally contains `terrains` (up to 100 regions). Each region
+has a unique `id`, a `type` of `"ice"`, `"water"`, or `"lava"`, and `nodes`
+(3–100 normalized `x`/`y` vertices from 0 to 1). The polygon closes implicitly:
+
+```json
+{
+  "terrains": [{
+    "id": "terrain-1",
+    "type": "ice",
+    "nodes": [{"x": 0.2, "y": 0.3}, {"x": 0.4, "y": 0.3}, {"x": 0.35, "y": 0.5}]
+  }]
+}
+```
+
+Terrain is a custom-level feature and does not change existing campaign layouts.
+
 Duration is 1–3600 seconds, food/enemy/soccer goals are whole numbers from 0 to 100000,
 heart costs are positive integers up to
 100000, and a level supports up to 2000 events. Appearance times must be

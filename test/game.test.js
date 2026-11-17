@@ -10,7 +10,7 @@ test('Koshi artwork matches his circular collision radius without a weapon halo'
   const source = app.slice(app.indexOf('function drawCat('), app.indexOf('\nfunction updateEnding('));
   const game = new Game(() => .5);
   let scale = 1;
-  const stack = [], circles = [];
+  const stack = [], circles = [], lines = [];
   const ctx = new Proxy({
     save() { stack.push(scale); },
     restore() { scale = stack.pop(); },
@@ -19,16 +19,25 @@ test('Koshi artwork matches his circular collision radius without a weapon halo'
   }, {
     get(target, key) { return key in target ? target[key] : () => {}; },
   });
-  const context = vm.createContext({ game, ctx, line() {}, SWORDS: { wood: { color: '#765432' } } });
+  const context = vm.createContext({ game, ctx, line(...args) { lines.push(args); }, SWORDS: { wood: { color: '#765432' } } });
   vm.runInContext(source, context);
   for (const hurt of [null, .5]) {
-    circles.length = 0;
-    game.weapon = { type: 'wood' };
-    context.drawCat(game.cat.x, game.cat.y, 0, hurt);
-    assert.deepEqual(circles, [game.cat.radius], 'weapon pickups do not draw a circle around Koshi');
-    assert.equal(scale, 1, 'drawing restores the canvas scale');
-    assert.equal(stack.length, 0);
+    for (const skating of [false, true]) {
+      circles.length = 0;
+      lines.length = 0;
+      game.weapon = { type: 'wood' };
+      game.iceSkate = skating ? { type: 'ice-skate-red', expires: game.elapsed + 5 } : null;
+      context.drawCat(game.cat.x, game.cat.y, 0, hurt);
+      assert.deepEqual(circles, [game.cat.radius], 'weapon pickups do not draw a circle around Koshi');
+      assert.equal(lines.filter(([, , width]) => width === 1.2).length, skating ? 0 : 8,
+        'only a skating Koshi hides his whiskers');
+      assert.equal(scale, 1, 'drawing restores the canvas scale');
+      assert.equal(stack.length, 0);
+    }
   }
+  lines.length = 0;
+  context.drawCat(game.cat.x + 10, game.cat.y, 0);
+  assert.equal(lines.filter(([, , width]) => width === 1.2).length, 8, 'other cat artwork retains whiskers');
 });
 
 test('direct-file startup uses ordered classic scripts and exposes the browser engine', () => {

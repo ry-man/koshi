@@ -681,6 +681,47 @@ restores initial positions. Tracks and attachments round-trip through level JSON
 the editor timeline previews movement using the starting power color. Existing
 campaign content is unchanged.
 
+## Terrain
+
+Custom levels may include closed polygon regions of ice, water, and lava.
+Koshi keeps his direction while moving on ice; the latest selected destination
+is queued until he leaves the icy region or stops moving. Obstructions that
+stop him on ice release the steering lock so he can choose a new direction.
+Ice is semi-transparent with white and blue streaks. Water
+and lava regions have rounded, textured edges; water waves animate while lava
+waves move at half speed with bubbles. On water, Koshi sinks, then pops up just
+outside the side where he entered, taking one damage and starting temporary
+invulnerability as he reappears. On lava, he sinks before the usual defeat
+animation begins. Terrain regions cannot overlap or touch, and no terrain is
+added to existing campaign levels.
+
+**Surf Board** comes in red (`surf-board-red`, 5 seconds), green
+(`surf-board-green`, 15 seconds), and blue (`surf-board-blue`, 30 seconds).
+While riding, Koshi glides over water without sinking or taking water damage.
+The ridden board is drawn horizontally in side view touching his body's bottom, with an
+integer countdown centered inside and no unit. It turns white steadily from
+left to right until fully white at expiry; pickup artwork stays top-down.
+A new board replaces and refreshes this effect independently of weapons,
+equipped items, and other power-ups. Pause freezes its timer; restart clears it.
+Expiry on water causes the normal sinking response; lava is never protected.
+Boards are available in custom levels without changing the existing campaign.
+
+**Ice Skate** is one boot with a body-width opening and a protruding toe,
+covering Koshi's face just below his eyes and hiding his whiskers. Its silver
+blade stays close to his body's bottom, with no hitbox change.
+Red (`ice-skate-red`) lasts 5 seconds, green
+(`ice-skate-green`) 15, and blue (`ice-skate-blue`) 30. It allows immediate
+redirects while moving on ice; the ordinary ice lock resumes at expiry.
+An integer countdown is printed on the boot, whose color drains to white from
+top to bottom. A new skate refreshes its own timer independently of Surf Boards,
+weapons, and equipped items. Pause freezes it; restart clears it. Skates do not
+protect against water or lava. Custom-level placement, spawners, guide, and a
+practice lesson support all variants without changing existing levels.
+
+Water falls produce a large splash of water, airborne droplets, and an expanding
+ripple at the entry point during the sinking animation. Surfing prevents both
+the fall and its splash.
+
 ## Enemies
 
 **Robo Jackolantern** (`jackolantern`) is an orange pumpkin robot with grey

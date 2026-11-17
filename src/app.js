@@ -3,7 +3,7 @@
 
 const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { isBossType } = globalThis.KoshiGame;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash, drawSurfBoard, drawIceSkate, drawWaterSplash } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = globalThis.KoshiCollectibles;
@@ -2160,8 +2160,10 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     ctx.beginPath(); ctx.moveTo(2, 10); ctx.lineTo(6, 10); ctx.lineTo(5, 16); ctx.lineTo(3, 16); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
-  for (const sign of [-1, 1]) {
-    for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], hurt ? '#ffd3d5' : '#d7dfdc', 1.2);
+  if (!playerCharacter || !game.iceSkateActive) {
+    for (const sign of [-1, 1]) {
+      for (let i = 0; i < 4; i++) line([[sign * 13, 5 + i * 2], [sign * (34 - Math.abs(i - 1.5)), -2 + i * 7]], hurt ? '#ffd3d5' : '#d7dfdc', 1.2);
+    }
   }
   ctx.restore();
 }
@@ -2526,6 +2528,7 @@ function render(now) {
   for (const { brick, button, members } of buttons) button.inert = !game.brickVisible(brick, members);
   ctx = boardCtx;
   ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
+  for (const terrain of game.terrains) globalThis.KoshiBrickVisuals.drawTerrain(ctx, terrain, game.elapsed);
   for (const track of game.catTracks) globalThis.KoshiBrickVisuals.drawCatTrack(ctx, track);
   for (const fence of game.barrierSegments()) {
     const endX = fence.x + fence.nx * fence.length, endY = fence.y + fence.ny * fence.length;
@@ -2723,8 +2726,39 @@ function render(now) {
     ctx.fillStyle = `rgba(169,189,180,${Math.max(0, .14 * (1 - (now - point.born) / .22))})`;
     ctx.beginPath(); ctx.arc(point.x, point.y, 16, 0, Math.PI * 2); ctx.fill();
   }
-  drawWornCape(game, game.cat.x, game.cat.y);
-  if (game.catShield) drawEquippedCatShield(game.cat.x, game.cat.y, game.cat.radius + 9, CAT_SHIELDS[game.catShield].color);
+  const terrainImpactVisual = () => {
+    const impact = game.terrainImpact;
+    if (!impact) return { scale: 1, alpha: 1, offsetY: 0 };
+    if (!impact.reappeared) {
+      const progress = Math.min(1, impact.age / impact.sinkDuration);
+      return { scale: 1 - progress, alpha: 1 - progress, offsetY: progress * 10 };
+    }
+    const progress = Math.min(1, (impact.age - impact.sinkDuration) / impact.riseDuration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    return { scale: .35 + eased * .65, alpha: .45 + eased * .55, offsetY: (1 - eased) * 12 };
+  };
+  const drawTerrainAffected = draw => {
+    const { scale, alpha, offsetY } = terrainImpactVisual();
+    ctx.save();
+    ctx.translate(game.cat.x, game.cat.y);
+    ctx.translate(0, offsetY);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha *= alpha;
+    ctx.translate(-game.cat.x, -game.cat.y);
+    draw();
+    ctx.restore();
+  };
+  drawTerrainAffected(() => {
+    if (game.surfBoardActive) {
+      const item = ITEMS[game.surfBoard.type];
+      const seconds = Math.max(0, game.surfBoard.expires - game.elapsed);
+      ctx.save(); ctx.translate(game.cat.x, game.cat.y + game.cat.radius + 3);
+      drawSurfBoard(ctx, item.color, seconds / item.surfSeconds, String(Math.ceil(seconds)), true);
+      ctx.restore();
+    }
+    drawWornCape(game, game.cat.x, game.cat.y);
+    if (game.catShield) drawEquippedCatShield(game.cat.x, game.cat.y, game.cat.radius + 9, CAT_SHIELDS[game.catShield].color);
+  });
   for (const turret of game.turretFades) {
     const opacity = Math.max(0, 1 - turret.age / .4);
     drawTurretBase(ctx, turret, opacity);
@@ -2732,78 +2766,90 @@ function render(now) {
     drawTurretOnscreenCounter(ctx, turret, opacity);
   }
   if (game.activeTurret) drawTurretBase(ctx, game.activeTurret);
-  if (game.activeTurret) {
-    const drawSeatedKoshi = () => {
+  drawTerrainAffected(() => {
+    if (game.activeTurret) {
+      const drawSeatedKoshi = () => {
+        drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
+      };
+      if (game.activeTurret.entry) drawSeatedKoshi();
+      else drawClippedToTurret(ctx, game.activeTurret, drawSeatedKoshi);
+    } else {
       drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
-    };
-    if (game.activeTurret.entry) drawSeatedKoshi();
-    else drawClippedToTurret(ctx, game.activeTurret, drawSeatedKoshi);
-  } else {
-    drawCat(game.cat.x, game.cat.y, game.elapsed, game.damageProgress, game.boostReady);
-  }
-  if (game.bubbleTrap) drawBubble({ ...game.bubbleTrap, x: game.cat.x, y: game.cat.y, radius: 24 }, true);
+    }
+    drawWornIceSkate(game);
+  });
+  if (game.bubbleTrap) drawTerrainAffected(() => drawBubble({ ...game.bubbleTrap, x: game.cat.x, y: game.cat.y, radius: 24 }, true));
   for (const pop of game.bubblePops) drawBubblePop(pop);
   if (game.activeTurret) drawTurretRim(ctx, game.activeTurret);
   if (game.activeTurret) drawTurretOnscreenCounter(ctx, game.activeTurret);
-  if (game.maskPickup) drawWornMask(game);
-  if (game.sunglassesPickup) drawWornSunglasses(game);
-  if (game.boomHelmet) drawBoomHelmet(game);
-  if (game.chisel) {
-    ctx.save(); ctx.translate(game.cat.x - 32, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
-    ctx.rotate(-Math.PI / 4); ctx.scale(.45, .45); drawChisel(); ctx.restore();
-  }
-  for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
-  if (game.dittoStamp && !game.brickStamps.some(effect => effect.capturing)) {
-    ctx.save();
-    ctx.translate(game.cat.x - 33, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
-    ctx.scale(.65, .65); ctx.rotate(-.2);
-    drawDittoStamp(colors[game.dittoSource?.kind] ?? '#696879');
-    ctx.restore();
-  }
-  const paintSwing = [...game.paintEffects].reverse().find(effect => Object.hasOwn(ITEMS, effect.type ?? '') && effect.age < .18);
-  if (game.paintBrush || paintSwing) {
-    const type = game.paintBrush?.type ?? paintSwing.type;
-    const age = paintSwing?.type === type ? paintSwing.age : null;
-    const swingAngle = age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4;
-    ctx.save();
-    ctx.translate(game.cat.x - 34, game.cat.y - 18 + Math.sin(game.elapsed * 3) * 3);
-    ctx.save(); ctx.scale(.7, .7); ctx.rotate(-.3 - swingAngle);
-    drawPaintbrush(ctx, ITEMS[type]); ctx.restore();
-    ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 3;
-    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
-    if (game.paintBrush) {
-      ctx.strokeText(String(game.paintBrush.uses), 0, 29);
-      ctx.fillText(String(game.paintBrush.uses), 0, 29);
+  drawTerrainAffected(() => {
+    if (game.maskPickup) drawWornMask(game);
+    if (game.sunglassesPickup) drawWornSunglasses(game);
+    if (game.boomHelmet) drawBoomHelmet(game);
+    if (game.chisel) {
+      ctx.save(); ctx.translate(game.cat.x - 32, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
+      ctx.rotate(-Math.PI / 4); ctx.scale(.45, .45); drawChisel(); ctx.restore();
     }
-    ctx.restore();
-  }
-  if (game.batteries > 0) {
-    const angle = game.elapsed * 1.8;
-    const x = game.cat.x + Math.cos(angle) * 34, y = game.cat.y + Math.sin(angle) * 28;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(angle + Math.PI / 2);
-    ctx.fillStyle = '#ffe34a'; ctx.strokeStyle = '#593f0a'; ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(2, -10); ctx.lineTo(-5, 1); ctx.lineTo(0, 1); ctx.lineTo(-2, 10); ctx.lineTo(6, -2); ctx.lineTo(1, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.restore();
-  }
-  if (game.boosted) drawBoost(ctx, game.cat.x, game.cat.y, game.elapsed);
-  const stuck = game.stuckUntil > game.elapsed + 1e-9;
-  const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
-  if (stuck || releaseAge < .65) {
-    ctx.save();
-    ctx.strokeStyle = SLIMES[game.stuckColor].color;
-    ctx.globalAlpha = stuck ? 1 : 1 - releaseAge / .65;
-    ctx.lineWidth = 3;
-    const remaining = stuck ? Math.max(0, Math.min(1, (game.stuckUntil - game.elapsed) / SLIMES[game.stuckColor].duration)) : 1;
-    ctx.beginPath();
-    ctx.arc(game.cat.x, game.cat.y, game.cat.radius + 5 + (stuck ? 0 : releaseAge * 28),
-      -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * remaining);
-    ctx.stroke();
-    if (!stuck) {
-      ctx.fillStyle = '#d3ff9e'; ctx.textAlign = 'center'; ctx.font = 'bold 12px sans-serif';
-      ctx.fillText('FREE!', game.cat.x, game.cat.y - game.cat.radius - 14);
+    for (const effect of game.brickStamps ?? []) drawBrickStamp(effect, game);
+    if (game.dittoStamp && !game.brickStamps.some(effect => effect.capturing)) {
+      ctx.save();
+      ctx.translate(game.cat.x - 33, game.cat.y - 22 + Math.sin(game.elapsed * 3) * 3);
+      ctx.scale(.65, .65); ctx.rotate(-.2);
+      drawDittoStamp(colors[game.dittoSource?.kind] ?? '#696879');
+      ctx.restore();
     }
-    ctx.restore();
-  }
+    const paintSwing = [...game.paintEffects].reverse().find(effect => Object.hasOwn(ITEMS, effect.type ?? '') && effect.age < .18);
+    if (game.paintBrush || paintSwing) {
+      const type = game.paintBrush?.type ?? paintSwing.type;
+      const age = paintSwing?.type === type ? paintSwing.age : null;
+      const swingAngle = age === null ? 0 : Math.sin(age / .18 * Math.PI) * Math.PI / 4;
+      ctx.save();
+      ctx.translate(game.cat.x - 34, game.cat.y - 18 + Math.sin(game.elapsed * 3) * 3);
+      ctx.save(); ctx.scale(.7, .7); ctx.rotate(-.3 - swingAngle);
+      drawPaintbrush(ctx, ITEMS[type]); ctx.restore();
+      ctx.fillStyle = '#fff8e6'; ctx.strokeStyle = '#17212a'; ctx.lineWidth = 3;
+      ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+      if (game.paintBrush) {
+        ctx.strokeText(String(game.paintBrush.uses), 0, 29);
+        ctx.fillText(String(game.paintBrush.uses), 0, 29);
+      }
+      ctx.restore();
+    }
+    if (game.batteries > 0) {
+      const angle = game.elapsed * 1.8;
+      const x = game.cat.x + Math.cos(angle) * 34, y = game.cat.y + Math.sin(angle) * 28;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle + Math.PI / 2);
+      ctx.fillStyle = '#ffe34a'; ctx.strokeStyle = '#593f0a'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(2, -10); ctx.lineTo(-5, 1); ctx.lineTo(0, 1); ctx.lineTo(-2, 10); ctx.lineTo(6, -2); ctx.lineTo(1, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+    if (game.boosted) drawBoost(ctx, game.cat.x, game.cat.y, game.elapsed);
+    const stuck = game.stuckUntil > game.elapsed + 1e-9;
+    const releaseAge = game.releasedAt === null ? 1 : game.elapsed - game.releasedAt;
+    if (stuck || releaseAge < .65) {
+      ctx.save();
+      ctx.strokeStyle = SLIMES[game.stuckColor].color;
+      ctx.globalAlpha = stuck ? 1 : 1 - releaseAge / .65;
+      ctx.lineWidth = 3;
+      const remaining = stuck ? Math.max(0, Math.min(1, (game.stuckUntil - game.elapsed) / SLIMES[game.stuckColor].duration)) : 1;
+      ctx.beginPath();
+      ctx.arc(game.cat.x, game.cat.y, game.cat.radius + 5 + (stuck ? 0 : releaseAge * 28),
+        -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * remaining);
+      ctx.stroke();
+      if (!stuck) {
+        ctx.fillStyle = '#d3ff9e'; ctx.textAlign = 'center'; ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('FREE!', game.cat.x, game.cat.y - game.cat.radius - 14);
+      }
+      ctx.restore();
+    }
+  });
+  const { scale, alpha, offsetY } = terrainImpactVisual();
+  ctx.save();
+  ctx.translate(game.cat.x, game.cat.y);
+  ctx.translate(0, offsetY);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha *= alpha;
+  ctx.translate(-game.cat.x, -game.cat.y);
   const swing = [...game.weaponAttacks].reverse().find(attack => attack.age < .18 && !attack.weaponExpired);
   if ((game.weapon || swing) && !game.ropeDart) {
     const type = game.weapon?.type ?? swing.type;
@@ -2817,14 +2863,27 @@ function render(now) {
         : []));
     ctx.restore();
   }
+  ctx.restore();
   if (game.ropeDart) drawFlyingRopeDart(game);
   for (const attack of game.weaponAttacks) {
     const age = attack.age;
     if (age >= 0 && age < .55 && visible(attack, 64)) drawAttackPop(attack, age);
   }
+  if (game.terrainImpact) drawWaterSplash(ctx, game.terrainImpact);
   drawTurretEffects(ctx, game.level.autoscroll ? camera : null);
   drawHazards(ctx, game.level.autoscroll ? camera : null);
   ctx = boardCtx;
+}
+
+function drawWornIceSkate(game) {
+  if (!game.iceSkateActive) return;
+  const item = ITEMS[game.iceSkate.type];
+  const seconds = Math.max(0, game.iceSkate.expires - game.elapsed);
+  ctx.save(); ctx.translate(game.cat.x, game.cat.y);
+  const scale = game.cat.radius / 21;
+  ctx.scale(scale, scale);
+  drawIceSkate(ctx, item.color, seconds / item.skateSeconds, String(Math.ceil(seconds)));
+  ctx.restore();
 }
 
 function drawFoodBadge(type) {
@@ -3644,6 +3703,14 @@ function drawGameItem(item) {
     drawPaintbrush(ctx, ITEMS[item.type]);
   } else if (ITEMS[item.type]?.catShield) {
     drawCatShield(0, 0, ITEMS[item.type].color, .7);
+  } else if (ITEMS[item.type]?.surfSeconds) {
+    ctx.save(); ctx.rotate(Math.PI / 6); ctx.scale(.7, .7);
+    drawSurfBoard(ctx, ITEMS[item.type].color);
+    ctx.restore();
+  } else if (ITEMS[item.type]?.skateSeconds) {
+    ctx.save(); ctx.scale(.85, .85); ctx.translate(0, -14);
+    drawIceSkate(ctx, ITEMS[item.type].color);
+    ctx.restore();
   } else if (item.type === 'smiley-cookie') {
     ctx.fillStyle = '#c78d50'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff8ec'; ctx.beginPath(); ctx.arc(0, 0, 15.5, 0, Math.PI * 2); ctx.fill();

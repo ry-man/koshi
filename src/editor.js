@@ -6,7 +6,7 @@ const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { isBossType } = globalThis.KoshiGame;
 const { SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS } = globalThis.KoshiGame;
-const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE, TERRAIN_COLORS, terrainPathData } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : '');
 const board = $('#editor-board');
@@ -78,13 +78,18 @@ let trackDrawing = false;
 let trackDrawNodes = [];
 let selectedTrackNode = -1;
 let trackNodeGesture = null;
+let selectedTerrainId = '';
+let terrainDrawing = false;
+let terrainDrawNodes = [];
+let selectedTerrainNode = -1;
+let terrainNodeGesture = null;
 let obstructionTool = null;
 let obstructionTexture = null;
 let timelineDetailIndex = null;
 let timelineGesture = null;
 let timelineCursorPointerId = null;
 const readOnly = () => campaignIndex !== null;
-const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access', '#camera-access'];
+const accessFields = ['#settings-access', '#cutscene-access', '#level-info-access', '#inspector-access', '#files-access', '#camera-access', '#terrain-access'];
 const writeButtons = ['#place-mode', '#new-level'];
 for (const [index, campaign] of LEVELS.entries()) {
   const option = document.createElement('option');
@@ -141,6 +146,7 @@ function selectEditorLevel() {
   if (value !== 'custom' && !readOnly()) {
     customWorkspace = { level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks,
       selectedTrackId, trackDrawing, trackDrawNodes,
+      selectedTerrainId, terrainDrawing, terrainDrawNodes,
       sceneLines: [...$('#scene-lines').childNodes],
       sceneFieldsDisabled: $('#scene-fields').disabled,
       infoPages: [...$('#info-pages').childNodes], infoFieldsDisabled: $('#info-fields').disabled,
@@ -152,12 +158,14 @@ function selectEditorLevel() {
     if (!customWorkspace) return;
     campaignIndex = null;
     ({ level, committed, dirty, placing, activeCategory, selectedEvents, selectedBricks,
-      selectedTrackId, trackDrawing, trackDrawNodes } = customWorkspace);
+      selectedTrackId, trackDrawing, trackDrawNodes,
+      selectedTerrainId, terrainDrawing, terrainDrawNodes } = customWorkspace);
   } else {
     campaignIndex = Number(value);
     level = campaignPreview(campaignIndex);
     placing = false; selectedEvents = new Set(); selectedBricks = new Set();
     selectedTrackId = ''; populateTrackForm();
+    selectedTerrainId = ''; terrainDrawing = false; terrainDrawNodes = [];
     $('#timeline').value = 0;
   }
   gesture = null; $('#selection-box').hidden = true;
@@ -241,6 +249,11 @@ function picture(value, control) {
     svg.setAttribute('viewBox', '-28 -18 56 36'); svg.setAttribute('aria-hidden', 'true');
     path.setAttribute('d', 'M-22 10 L-8 -10 L8 8 L22 -8');
     path.setAttribute('stroke-dasharray', '1 5'); svg.append(path); image.append(svg);
+  } else if (value === 'terrain') {
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
+    svg.setAttribute('viewBox', '-28 -18 56 36'); svg.setAttribute('aria-hidden', 'true');
+    path.setAttribute('d', 'M-22 8 L-12 -12 L5 -8 L22 4 L12 13 L-5 10 Z');
+    path.setAttribute('fill', '#63bde0'); path.setAttribute('stroke', '#e3f7ff'); svg.append(path); image.append(svg);
   } else if (item?.kind === 'object' && OBJECTS[item.type]?.bumper) {
     const canvas = document.createElement('canvas');
     canvas.width = 56; canvas.height = 56; canvas.setAttribute('aria-hidden', 'true');
@@ -368,7 +381,7 @@ function choiceButton(value, name, control, action) {
 }
 
 function setupPalettes() {
-  for (const [category, name] of [['koshi', 'Koshi'], ['brick', 'Bricks'], ['food', 'Food'], ['enemy', 'Enemies'], ['item', 'Items'], ['object', 'Objects'], ['tracks', 'Tracks'], ['weapon', 'Weapons']]) {
+  for (const [category, name] of [['koshi', 'Koshi'], ['brick', 'Bricks'], ['food', 'Food'], ['enemy', 'Enemies'], ['item', 'Items'], ['object', 'Objects'], ['terrain', 'Terrain'], ['tracks', 'Tracks'], ['weapon', 'Weapons']]) {
     const button = choiceButton(category === 'brick' ? 'normal' : category, name, category === 'brick' ? 'brick-kind' : 'event-kind', () => {
       if (category === 'brick') {
         selectedEvents = new Set();
@@ -378,13 +391,16 @@ function setupPalettes() {
         showCategory(category); setSelection([], []);
       } else if (category === 'tracks') {
         showCategory(category); render();
+      } else if (category === 'terrain') {
+        showCategory(category); render();
       } else {
         $('#event-kind').value = category;
         $('#event-kind').dispatchEvent(new Event('change'));
       }
     });
     button.dataset.category = category;
-    button.setAttribute('aria-controls', category === 'brick' ? 'brick-panel' : category === 'tracks' ? 'track-panel' : category === 'koshi' ? 'koshi-panel' : 'event-panel');
+    button.setAttribute('aria-controls', category === 'brick' ? 'brick-panel' : category === 'tracks' ? 'track-panel'
+      : category === 'terrain' ? 'terrain-panel' : category === 'koshi' ? 'koshi-panel' : 'event-panel');
     $('#category-palette').append(button);
   }
   showCategory(activeCategory);
@@ -417,10 +433,12 @@ function showCategory(category) {
   if (category !== 'tracks') trackObjectAction = null;
   activeCategory = category;
   $('#brick-panel').hidden = category !== 'brick';
-  $('#event-panel').hidden = category === 'brick' || category === 'tracks' || category === 'koshi';
+  $('#event-panel').hidden = category === 'brick' || category === 'tracks' || category === 'terrain' || category === 'koshi';
   $('#koshi-panel').hidden = category !== 'koshi';
   $('#track-panel').hidden = category !== 'tracks';
+  $('#terrain-panel').hidden = category !== 'terrain';
   $('#cat-tracks').dataset.editable = String(category === 'tracks' && !readOnly());
+  $('#cat-tracks').dataset.terrainEditable = String(category === 'terrain' && !readOnly());
   for (const button of $('#category-palette').children) {
     button.setAttribute('aria-pressed', String(button.dataset.category === category));
   }
@@ -430,6 +448,8 @@ function syncPalettes() {
   const families = [
     ['Stopwatch', 'stopwatch', 'stopwatch-green', 'stopwatch-blue'],
     ['Cat Shield', 'cat-shield-red', 'cat-shield-green', 'cat-shield-blue'],
+    ['Surf Board', 'surf-board-red', 'surf-board-green', 'surf-board-blue'],
+    ['Ice Skate', 'ice-skate-red', 'ice-skate-green', 'ice-skate-blue'],
     ['Boom Time', 'boom-time-red', 'boom-time-green', 'boom-time-blue'],
     ...['pencil', 'wide', 'roller'].map(brush => [
       { pencil: 'Thin Paintbrush', wide: 'Wide Paintbrush', roller: 'Paint Roller' }[brush],
@@ -2140,6 +2160,99 @@ function populateTrackForm() {
   trackDrawNodes = (track?.nodes ?? []).map(node => ({ ...node }));
 }
 
+function populateTerrainForm() {
+  terrainDrawing = false;
+  selectedTerrainNode = -1;
+  terrainNodeGesture = null;
+  const terrain = (level.terrains ?? []).find(region => region.id === selectedTerrainId);
+  $('#terrain-type').value = terrain?.type ?? 'ice';
+  terrainDrawNodes = (terrain?.nodes ?? []).map(node => ({ ...node }));
+}
+
+function renderTerrainOverlay(svg, ns) {
+  const terrains = level.terrains ?? [], choice = $('#terrain-choice');
+  if (selectedTerrainId && !terrains.some(region => region.id === selectedTerrainId)) {
+    selectedTerrainId = ''; populateTerrainForm();
+  }
+  choice.replaceChildren(...[['', 'New region'], ...terrains.map(region => [region.id, region.id])].map(([value, name]) => {
+    const option = document.createElement('option');
+    option.value = value; option.textContent = name;
+    return option;
+  }));
+  choice.value = selectedTerrainId;
+  $('#terrain-delete').disabled = !selectedTerrainId;
+  $('#terrain-draw').setAttribute('aria-pressed', String(terrainDrawing));
+  $('#terrain-draw').textContent = terrainDrawing ? 'Done drawing nodes' : 'Draw replacement nodes';
+  if (terrains.length || terrainDrawNodes.length) {
+    const defs = document.createElementNS(ns, 'defs');
+    const patterns = {
+      ice: '<path d="M2 5L19 11M29 17L46 24M8 27L18 30M29 2L38 8" fill="none" stroke="#fff" stroke-width="2" opacity=".7"/><path d="M8 14L18 19M34 28L44 31" fill="none" stroke="#2aa7d0" stroke-width="1.5" opacity=".65"/>',
+      water: '<path d="M-12 9Q0 3 12 9T36 9T60 9M-12 25Q0 19 12 25T36 25T60 25" fill="none" stroke="#c8f5ff" stroke-width="2" opacity=".7"/>',
+      lava: '<path d="M-12 9Q0 3 12 9T36 9T60 9M-12 25Q0 19 12 25T36 25T60 25" fill="none" stroke="#ffb54d" stroke-width="2.5" opacity=".75"/><circle cx="12" cy="17" r="3" fill="#ffe58c"/><circle cx="38" cy="1" r="2" fill="#ff9c36"/>',
+    };
+    for (const [type, content] of Object.entries(patterns)) {
+      const pattern = document.createElementNS(ns, 'pattern');
+      pattern.setAttribute('id', `terrain-pattern-${type}`);
+      pattern.setAttribute('width', '48'); pattern.setAttribute('height', '32');
+      pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+      pattern.innerHTML = content;
+      defs.append(pattern);
+    }
+    svg.append(defs);
+  }
+  const draw = (region, nodes, selected) => {
+    const points = nodes.map(node => previewGame.campaignEventPoint(node.x, node.y));
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', terrainPathData(points));
+    path.setAttribute('fill', TERRAIN_COLORS[region.type]?.fill ?? TERRAIN_COLORS.ice.fill);
+    path.setAttribute('fill-opacity', '.28');
+    path.setAttribute('stroke', TERRAIN_COLORS[region.type]?.stroke ?? TERRAIN_COLORS.ice.stroke);
+    path.setAttribute('stroke-width', '3');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('class', 'terrain-region');
+    path.setAttribute('data-selected', String(selected));
+    if (region.id) path.addEventListener('pointerdown', event => {
+      if (readOnly() || activeCategory !== 'terrain' || terrainDrawing || event.button !== 0) return;
+      event.preventDefault(); event.stopPropagation();
+      selectedTerrainId = region.id; populateTerrainForm(); renderBoard();
+    });
+    svg.append(path);
+    const texture = document.createElementNS(ns, 'path');
+    texture.setAttribute('d', terrainPathData(points));
+    texture.setAttribute('fill', `url(#terrain-pattern-${region.type})`);
+    texture.setAttribute('opacity', '.9');
+    texture.setAttribute('pointer-events', 'none');
+    texture.setAttribute('class', 'terrain-region-texture');
+    svg.append(texture);
+    if (selected || !region.id) points.forEach((point, index) => {
+      const circle = document.createElementNS(ns, 'circle');
+      circle.setAttribute('cx', point.x); circle.setAttribute('cy', point.y); circle.setAttribute('r', '5');
+      circle.setAttribute('fill', index ? TERRAIN_COLORS[region.type]?.stroke ?? TERRAIN_COLORS.ice.stroke : '#f4d885');
+      circle.setAttribute('class', 'terrain-node');
+      circle.setAttribute('data-node', String(index));
+      circle.setAttribute('role', 'button');
+      circle.setAttribute('aria-label', `${region.id || 'New region'} vertex ${index + 1}`);
+      circle.setAttribute('aria-pressed', String(selectedTerrainNode === index));
+      if (!readOnly() && activeCategory === 'terrain' && !terrainDrawing) circle.setAttribute('tabindex', '0');
+      circle.addEventListener('pointerdown', event => startTerrainNodeDrag(event, index));
+      circle.addEventListener('keydown', event => moveTerrainNodeWithKeyboard(event, index));
+      svg.append(circle);
+      const label = document.createElementNS(ns, 'text');
+      label.setAttribute('x', point.x + 8); label.setAttribute('y', point.y - 8);
+      label.setAttribute('fill', '#f4d885'); label.setAttribute('font-size', '12');
+      label.textContent = String(index + 1); svg.append(label);
+    });
+  };
+  for (const terrain of previewGame.terrains) {
+    const nodes = terrain.id === selectedTerrainId
+      ? terrainNodeGesture?.nodes ?? terrainDrawNodes : null;
+    draw(terrain, nodes ?? terrain.nodes, terrain.id === selectedTerrainId);
+  }
+  if (!selectedTerrainId && terrainDrawNodes.length) {
+    draw({ id: '', type: $('#terrain-type').value }, terrainNodeGesture?.nodes ?? terrainDrawNodes, false);
+  }
+}
+
 function renderCatTracks() {
   const tracks = level.tracks ?? [], choice = $('#track-choice');
   if (selectedTrackId && !tracks.some(track => track.id === selectedTrackId)) {
@@ -2166,8 +2279,10 @@ function renderCatTracks() {
   $('#track-attachments').textContent = attached.length ? `Linked event IDs: ${attached.join(', ')}` : '';
   const svg = $('#cat-tracks'), ns = 'http://www.w3.org/2000/svg';
   svg.dataset.editable = String(activeCategory === 'tracks' && !readOnly() && !trackObjectAction);
+  svg.dataset.terrainEditable = String(activeCategory === 'terrain' && !readOnly());
   svg.replaceChildren();
   svg.setAttribute('viewBox', `0 0 ${previewGame.width} ${previewGame.height}`);
+  renderTerrainOverlay(svg, ns);
   const draw = (track, nodes) => {
     const path = document.createElementNS(ns, 'polyline');
     const points = track.closed && nodes.length > 2 ? [...nodes, nodes[0]] : nodes;
@@ -2268,6 +2383,106 @@ function finishTrackNodeDrag(event) {
   });
   renderBoard(); focusTrackNode(current.index);
 }
+
+function saveTerrainNodeMove(index, point) {
+  const nodes = terrainDrawNodes.map((node, i) => i === index ? point : node);
+  if (selectedTerrainId && !terrainDrawing) {
+    const terrains = level.terrains.map(region => region.id === selectedTerrainId ? { ...region, nodes } : region);
+    level = validateDraft({ ...level, terrains });
+    markChanged();
+  }
+  terrainDrawNodes = nodes;
+}
+
+function focusTerrainNode(index) {
+  $('#cat-tracks').querySelector(`[data-node="${index}"].terrain-node`)?.focus({ preventScroll: true });
+}
+
+function startTerrainNodeDrag(event, index) {
+  if (readOnly() || activeCategory !== 'terrain' || terrainDrawing || event.button !== 0 || gesture || terrainNodeGesture) return;
+  event.preventDefault(); event.stopPropagation();
+  pausePreview();
+  selectedTerrainNode = index;
+  terrainNodeGesture = { index, pointerId: event.pointerId, nodes: terrainDrawNodes.map(node => ({ ...node })) };
+  board.setPointerCapture(event.pointerId);
+  renderCatTracks();
+}
+
+function moveTerrainNodeWithKeyboard(event, index) {
+  if (readOnly() || activeCategory !== 'terrain' || terrainDrawing) return;
+  const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+  if (!direction) return;
+  event.preventDefault(); event.stopPropagation();
+  pausePreview();
+  selectedTerrainNode = index;
+  attempt(() => {
+    const node = terrainDrawNodes[index], step = placementStep(direction);
+    saveTerrainNodeMove(index, placementPosition(node.x + step.x, node.y + step.y));
+  });
+  renderBoard(); focusTerrainNode(index);
+}
+
+function dragTerrainNode(event) {
+  if (!terrainNodeGesture || terrainNodeGesture.pointerId !== event.pointerId) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  const point = pointerPosition(event);
+  terrainNodeGesture.nodes[terrainNodeGesture.index] = placementPosition(point.x, point.y);
+  renderCatTracks();
+}
+
+function finishTerrainNodeDrag(event) {
+  if (!terrainNodeGesture || terrainNodeGesture.pointerId !== event.pointerId) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  const current = terrainNodeGesture;
+  terrainNodeGesture = null;
+  if (board.hasPointerCapture(event.pointerId)) board.releasePointerCapture(event.pointerId);
+  if (event.type !== 'pointercancel') attempt(() => {
+    saveTerrainNodeMove(current.index, current.nodes[current.index]);
+  });
+  renderBoard(); focusTerrainNode(current.index);
+}
+
+$('#terrain-choice').addEventListener('change', () => {
+  selectedTerrainId = $('#terrain-choice').value;
+  populateTerrainForm(); renderBoard();
+});
+$('#terrain-reset').addEventListener('click', () => { populateTerrainForm(); renderBoard(); });
+$('#terrain-draw').addEventListener('click', () => {
+  if (readOnly()) return;
+  if (!terrainDrawing) { terrainDrawNodes = []; selectedTerrainNode = -1; }
+  terrainDrawing = !terrainDrawing;
+  renderBoard();
+  message(terrainDrawing ? 'Terrain drawing started.' : 'Terrain drawing stopped.');
+});
+$('#terrain-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (readOnly()) return;
+  attempt(() => {
+    let id = selectedTerrainId;
+    if (!id) {
+      let next = 1;
+      while ((level.terrains ?? []).some(region => region.id === `terrain-${next}`)) next++;
+      id = `terrain-${next}`;
+    }
+    const region = { id, type: $('#terrain-type').value, nodes: terrainDrawNodes };
+    const terrains = [...(level.terrains ?? []).filter(existing => existing.id !== id), region];
+    level = validateDraft({ ...level, terrains });
+    selectedTerrainId = id; populateTerrainForm(); markChanged(); render();
+    message(`Applied ${id}.`);
+  });
+});
+$('#terrain-delete').addEventListener('click', () => {
+  if (readOnly() || !selectedTerrainId) return;
+  attempt(() => {
+    const terrains = (level.terrains ?? []).filter(region => region.id !== selectedTerrainId);
+    const candidate = { ...level };
+    if (terrains.length) candidate.terrains = terrains;
+    else delete candidate.terrains;
+    level = validateDraft(candidate);
+    selectedTerrainId = ''; populateTerrainForm(); markChanged(); render();
+    message('Terrain region deleted.');
+  });
+});
 
 $('#track-choice').addEventListener('change', () => {
   selectedTrackId = $('#track-choice').value;
@@ -2583,6 +2798,18 @@ function placeAt(event) {
   if (readOnly()) return;
   if (activeCategory === 'tracks') {
     message('Choose Draw replacement nodes to place a track, or drag an existing track node.');
+    return;
+  }
+  if (activeCategory === 'terrain') {
+    if (!terrainDrawing) return;
+    attempt(() => {
+      const point = pointerPosition(event);
+      if (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) {
+        throw new Error('Place Terrain vertices inside the playable area.');
+      }
+      terrainDrawNodes = [...terrainDrawNodes, placementPosition(point.x, point.y)];
+      renderBoard();
+    });
     return;
   }
   if (activeCategory === 'brick') {
@@ -3826,6 +4053,7 @@ function replaceLevel(value) {
   const candidate = validateDraft(value);
   pausePreview();
   level = candidate; selectedTrackId = ''; populateTrackForm();
+  selectedTerrainId = ''; terrainDrawing = false; terrainDrawNodes = [];
   placing = true; markChanged(); populateSettings(); populateCutscene(); populateLevelInfo(); setSelection([], []);
 }
 let previewPlayback = null;
@@ -3939,6 +4167,7 @@ $('#full-grid').addEventListener('change', renderBoard);
 new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
 function validateSavedLevel() {
   if (trackDrawing) throw new Error('Apply the Cat Track or Cancel edits before printing JSON or playtesting.');
+  if (terrainDrawing) throw new Error('Apply the terrain region or Cancel edits before printing JSON or playtesting.');
   if (cutsceneError) throw cutsceneError;
   if (levelInfoError) throw levelInfoError;
   if (selectedEvents.size && touched.size) throw new Error('Finish or correct the selected event changes before printing JSON or playtesting.');
@@ -3993,6 +4222,9 @@ board.addEventListener('pointerdown', addTrackNode, true);
 board.addEventListener('pointermove', dragTrackNode, true);
 board.addEventListener('pointerup', finishTrackNodeDrag, true);
 board.addEventListener('pointercancel', finishTrackNodeDrag, true);
+board.addEventListener('pointermove', dragTerrainNode, true);
+board.addEventListener('pointerup', finishTerrainNodeDrag, true);
+board.addEventListener('pointercancel', finishTerrainNodeDrag, true);
 setupPalettes();
 setupObstructionColors();
 typeOptions();

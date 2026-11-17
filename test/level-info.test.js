@@ -416,6 +416,7 @@ test('campaign inspection preserves unapplied custom information and every multi
     level: blank(), campaignIndex: null, committed: null, dirty: false, placing: true, activeCategory: 'bricks',
     selectedEvents: new Set(), selectedBricks: new Set(), customWorkspace: null, gesture: null,
     selectedTrackId: 'track-1', trackDrawing: true, trackDrawNodes: [{ x: .2, y: .3 }],
+    selectedTerrainId: 'terrain-1', terrainDrawing: true, terrainDrawNodes: [{ x: .4, y: .5 }],
     readOnly: () => context.campaignIndex !== null, campaignPreview: () => ({ id: 'campaign' }),
     populateLevelInfo() { $('#info-pages').replaceChildren(); $('#info-enabled').checked = false; },
   };
@@ -432,6 +433,9 @@ test('campaign inspection preserves unapplied custom information and every multi
   assert.equal(context.selectedTrackId, 'track-1');
   assert.equal(context.trackDrawing, true);
   assert.deepEqual(context.trackDrawNodes, [{ x: .2, y: .3 }]);
+  assert.equal(context.selectedTerrainId, 'terrain-1');
+  assert.equal(context.terrainDrawing, true);
+  assert.deepEqual(context.terrainDrawNodes, [{ x: .4, y: .5 }]);
   assert.equal($('#info-enabled').checked, true);
   assert.equal($('#info-fields').disabled, false);
   assert.equal($('#info-pages').childNodes[0], originalPages[0]);

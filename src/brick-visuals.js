@@ -6,6 +6,11 @@ const HAZARD_FLAME = 'M-24 18 Q-12 12 -20 -2 L-10 -18 Q-13 -2 -4 -8 L3 -17 Q12 -
 const MISSILE_BODY = 'M-14 -7 H9 Q24 -7 24 0 Q24 7 9 7 H-14 Z';
 const MISSILE_FINS = 'M-15 -6 L-25 -16 L-5 -10 V-6 M-15 6 L-25 16 L-5 10 V6 M-22 0 H-4';
 const FLAME = 'M0 20 C-24 16 -22 -6 -10 -12 Q-8 -2 -3 -5 Q7 -14 3 -24 C26 -7 26 16 0 20 Z';
+const TERRAIN_COLORS = {
+  ice: { fill: '#83e7ff', stroke: '#c4f6ff' },
+  water: { fill: '#268bd2', stroke: '#70c8ff' },
+  lava: { fill: '#f06432', stroke: '#ffd36b' },
+};
 const FENCE = 'M-22 -6 H22 M-22 6 H22 M-18 -14 V14 M-6 -14 V14 M6 -14 V14 M18 -14 V14';
 const BOOM_TIME_TYPES = new Set(['boom-time-red', 'boom-time-green', 'boom-time-blue']);
 const TURRET_USED_COLOR = '#8a9399';
@@ -87,6 +92,8 @@ const SYMBOLS = {
   scrambler: 'M0 -22 C14 -22 19 -7 18 6 C16 18 8 23 0 23 C-10 23 -18 14 -18 2 C-18 -10 -11 -22 0 -22 Z M-17 1 L-12 -2 L-6 2 L-1 -3 L6 2 L12 -2 L17 1 M-4.5 -7.5 C-2.7 -8.3 -2.7 -13.6 -5.2 -15.6 C-7.5 -17.2 -10.8 -15.1 -10.8 -12.4 C-10.8 -9.8 -8.9 -7.8 -6.8 -8.6 C-4.8 -9.4 -5.5 -12.2 -7.2 -12.8 C-8.8 -13.4 -9.8 -12 -8.8 -11.2 M4.5 -7.5 C2.7 -8.3 2.7 -13.6 5.2 -15.6 C7.5 -17.2 10.8 -15.1 10.8 -12.4 C10.8 -9.8 8.9 -7.8 6.8 -8.6 C4.8 -9.4 5.5 -12.2 7.2 -12.8 C8.8 -13.4 9.8 -12 8.8 -11.2 M-13 -13 Q-15 -5 -13 6',
   'magic-sunglasses': 'M-23 -7 H-4 V2 Q-13 14 -22 2 Z M4 -7 H23 L22 2 Q13 14 4 2 Z M-4 -3 Q0 -7 4 -3 M-23 -7 L-27 -11 M23 -7 L27 -11',
   'kitty-cape': 'M-10 -18 Q0 -12 10 -18 L23 20 Q10 15 0 22 Q-10 15 -23 20 Z M-10 -18 Q0 -28 10 -18 M-6 -10 L-13 12 M6 -10 L13 12',
+  'surf-board': 'M0 -29 C18 -15 15 17 7 28 L-7 28 C-15 17 -18 -15 0 -29 Z M0 -22 V23 M-8 15 Q0 11 8 15',
+  'ice-skate': 'M-21 -23 H9 V1 Q11 7 23 7 Q31 7 29 18 H-21 Z M-24 19 H28 M-16 20 V26 M18 20 V26 M-26 26 H27 Q32 26 33 21 M-4 -14 H10 M-4 -6 H10 M-4 2 H11',
   'ditto-stamp': 'M-20 16 H20 V23 H-20 Z M-20 3 H20 Q22 3 22 5 V14 Q22 16 20 16 H-20 Q-22 16 -22 14 V5 Q-22 3 -20 3 Z M-5 -8 C-18 -12 -15 -28 0 -28 C15 -28 18 -12 5 -8 L8 3 Q0 6 -8 3 Z M-18 9 C-7 5 3 13 18 8 M-15 13 C-6 10 5 15 14 12',
   chisel: 'M-25 -18 L-12 -32 L5 -16 L-3 -8 L-17 -22 L-22 -13 Z M-13 -13 L-5 -21 L12 -4 L4 4 Z M3 2 L11 -6 L18 1 L11 8 Z M11 8 L18 1 L32 15 Q36 19 31 24 L26 29 Q22 33 18 28 Z M7 4 L14 -3 M15 12 L22 5 M20 23 L27 16',
   'paint-pencil': 'M-3 23 H3 L4 -9 H-4 Z M-4 -9 H4 V-15 H-4 Z M-4 -15 Q0 -20 0 -25 Q5 -21 4 -15 Z',
@@ -100,7 +107,9 @@ function spawnSymbol(spawn) {
     : spawn.kind === 'item' && BOOM_TIME_TYPES.has(spawn.type) ? 'boom-time'
       : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch'
         : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}`
-          : spawn.kind === 'item' && ITEMS[spawn.type]?.catShield ? 'cat-shield' : spawn.type];
+          : spawn.kind === 'item' && ITEMS[spawn.type]?.catShield ? 'cat-shield'
+            : spawn.kind === 'item' && ITEMS[spawn.type]?.surfSeconds ? 'surf-board'
+              : spawn.kind === 'item' && ITEMS[spawn.type]?.skateSeconds ? 'ice-skate' : spawn.type];
 }
 
 function drawPaintbrush(ctx, item) {
@@ -717,6 +726,288 @@ function drawCatTrack(ctx, track) {
   ctx.restore();
 }
 
+function terrainCorners(nodes, radius) {
+  return nodes.map((point, index) => {
+    const previous = nodes[(index + nodes.length - 1) % nodes.length];
+    const next = nodes[(index + 1) % nodes.length];
+    const previousLength = Math.hypot(previous.x - point.x, previous.y - point.y);
+    const nextLength = Math.hypot(next.x - point.x, next.y - point.y);
+    const dot = ((previous.x - point.x) * (next.x - point.x)
+      + (previous.y - point.y) * (next.y - point.y)) / (previousLength * nextLength);
+    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+    const tangent = Math.tan(angle / 2);
+    const distance = Math.min(tangent > 1e-6 ? radius / tangent : 0, previousLength / 2, nextLength / 2);
+    return {
+      before: {
+        x: point.x + (previous.x - point.x) / previousLength * distance,
+        y: point.y + (previous.y - point.y) / previousLength * distance,
+      },
+      after: {
+        x: point.x + (next.x - point.x) / nextLength * distance,
+        y: point.y + (next.y - point.y) / nextLength * distance,
+      },
+    };
+  });
+}
+
+function terrainPathData(nodes, radius = 20) {
+  if (nodes.length < 3) return '';
+  const corners = terrainCorners(nodes, radius);
+  const first = corners[0].after;
+  return `M${first.x} ${first.y} ${corners.slice(1).map((corner, offset) => {
+    const point = nodes[offset + 1];
+    return `L${corner.before.x} ${corner.before.y} Q${point.x} ${point.y} ${corner.after.x} ${corner.after.y}`;
+  }).join(' ')} L${corners[0].before.x} ${corners[0].before.y} Q${nodes[0].x} ${nodes[0].y} ${first.x} ${first.y} Z`;
+}
+
+function traceTerrainPath(ctx, nodes, radius = 20) {
+  const corners = terrainCorners(nodes, radius);
+  const first = corners[0].after;
+  ctx.beginPath();
+  ctx.moveTo(first.x, first.y);
+  for (let index = 1; index < nodes.length; index++) {
+    const corner = corners[index], point = nodes[index];
+    ctx.lineTo(corner.before.x, corner.before.y);
+    ctx.quadraticCurveTo(point.x, point.y, corner.after.x, corner.after.y);
+  }
+  ctx.lineTo(corners[0].before.x, corners[0].before.y);
+  ctx.quadraticCurveTo(nodes[0].x, nodes[0].y, first.x, first.y);
+  ctx.closePath();
+}
+
+function terrainBounds(nodes) {
+  return {
+    left: Math.min(...nodes.map(node => node.x)),
+    top: Math.min(...nodes.map(node => node.y)),
+    right: Math.max(...nodes.map(node => node.x)),
+    bottom: Math.max(...nodes.map(node => node.y)),
+  };
+}
+
+function drawTerrainWaves(ctx, bounds, time, colors) {
+  const { left, top, right, bottom } = bounds;
+  let row = 0;
+  for (let y = top + 16; y < bottom; y += 26, row++) {
+    ctx.beginPath();
+    for (let x = left - 12; x <= right + 12; x += 24) {
+      const waveY = y + Math.sin(x * .022 + time + row * .8) * 3.2;
+      if (x === left - 12) ctx.moveTo(x, waveY);
+      else ctx.lineTo(x, waveY);
+    }
+    ctx.strokeStyle = colors[row % colors.length];
+    ctx.lineWidth = row % 3 === 0 ? 3 : 1.5;
+    ctx.stroke();
+  }
+}
+
+function drawTerrainIce(ctx, bounds) {
+  const { left, top, right, bottom } = bounds;
+  let row = 0;
+  for (let y = top - 20; y < bottom + 20; y += 32, row++) {
+    for (let x = left - 28 + row % 2 * 18; x < right + 20; x += 48) {
+      const length = 20 + (row + Math.round(x)) % 4 * 8;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + length, y + length * .35);
+      ctx.strokeStyle = (row + Math.round(x)) % 2 ? '#f5ffffaa' : '#2aa7d088';
+      ctx.lineWidth = 1 + (row % 3) * .7;
+      ctx.stroke();
+      if (row % 2 === 0) {
+        ctx.beginPath();
+        ctx.moveTo(x + 5, y + 7);
+        ctx.lineTo(x + length * .55, y + length * .55);
+        ctx.strokeStyle = '#ffffff88';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawTerrainBubbles(ctx, bounds, time) {
+  const { left, top, right, bottom } = bounds;
+  const height = Math.max(1, bottom - top);
+  for (let index = 0; index < 12; index++) {
+    const x = left + ((index * 47 + 19) % Math.max(1, right - left));
+    const phase = ((time * .45 + index * .173) % 1 + 1) % 1;
+    const y = bottom - phase * height;
+    const radius = 2 + index % 4;
+    ctx.globalAlpha *= .48 + index % 3 * .12;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = index % 2 ? '#ffb34e' : '#ffed91';
+    ctx.fill();
+    ctx.globalAlpha /= .48 + index % 3 * .12;
+    ctx.beginPath();
+    ctx.arc(x - radius * .25, y - radius * .3, Math.max(1, radius * .25), 0, Math.PI * 2);
+    ctx.fillStyle = '#fff2b0';
+    ctx.fill();
+  }
+}
+
+function drawTerrain(ctx, terrain, time = 0) {
+  const colors = TERRAIN_COLORS[terrain.type];
+  if (!colors || terrain.path.nodes.length < 3) return;
+  ctx.save();
+  const nodes = terrain.path.nodes;
+  const bounds = terrainBounds(nodes);
+  const gradient = ctx.createLinearGradient(bounds.left, bounds.top, bounds.right, bounds.bottom);
+  if (terrain.type === 'ice') {
+    gradient.addColorStop(0, '#d7fbff');
+    gradient.addColorStop(.48, colors.fill);
+    gradient.addColorStop(1, '#4fa9d8');
+  } else if (terrain.type === 'water') {
+    gradient.addColorStop(0, '#4ab3e8');
+    gradient.addColorStop(.5, colors.fill);
+    gradient.addColorStop(1, '#145d9b');
+  } else {
+    gradient.addColorStop(0, '#ffb43f');
+    gradient.addColorStop(.48, colors.fill);
+    gradient.addColorStop(1, '#9d281e');
+  }
+  traceTerrainPath(ctx, nodes);
+  const alpha = ctx.globalAlpha;
+  const opacity = terrain.type === 'ice' ? .42 : .72;
+  ctx.globalAlpha = alpha * opacity;
+  ctx.fillStyle = gradient;
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  ctx.globalAlpha = alpha * (terrain.type === 'ice' ? .55 : 1);
+  if (terrain.type === 'ice') drawTerrainIce(ctx, bounds);
+  else {
+    const waveTime = time * (terrain.type === 'lava' ? 1.15 : 2.3);
+    drawTerrainWaves(ctx, bounds, waveTime, terrain.type === 'lava'
+      ? ['#ffcc6a88', '#ff763d77', '#a9261e99']
+      : ['#b8f4ff99', '#59c4f588', '#d2faff66']);
+    if (terrain.type === 'lava') drawTerrainBubbles(ctx, bounds, time);
+  }
+  ctx.restore();
+  traceTerrainPath(ctx, nodes);
+  ctx.globalAlpha = alpha * .9;
+  ctx.strokeStyle = colors.stroke;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSurfBoard(ctx, color, remaining = 1, label, sideView = false) {
+  const fraction = Math.max(0, Math.min(1, remaining));
+  ctx.save();
+  ctx.beginPath();
+  if (sideView) {
+    ctx.moveTo(-32, -7);
+    ctx.quadraticCurveTo(-22, -3, -8, -3);
+    ctx.lineTo(16, -3); ctx.quadraticCurveTo(26, -3, 32, -8);
+    ctx.quadraticCurveTo(31, 7, 18, 7); ctx.lineTo(-18, 7);
+    ctx.quadraticCurveTo(-28, 7, -32, -7);
+  } else {
+    ctx.moveTo(0, -39);
+    ctx.bezierCurveTo(23, -20, 20, 23, 9, 37);
+    ctx.lineTo(-9, 37);
+    ctx.bezierCurveTo(-20, 23, -23, -20, 0, -39);
+  }
+  ctx.closePath();
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = '#ffffff';
+  if (sideView) ctx.fillRect(-32, -8, 64, 15);
+  else ctx.fillRect(-24, -39, 48, 76);
+  ctx.fillStyle = color;
+  if (sideView) ctx.fillRect(32 - 64 * fraction, -8, 64 * fraction, 15);
+  else ctx.fillRect(-24, 37 - 76 * fraction, 48, 76 * fraction);
+  ctx.restore();
+  ctx.strokeStyle = '#344451'; ctx.lineWidth = 2;
+  ctx.stroke();
+  if (sideView) {
+    ctx.strokeStyle = '#ffffff88'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-23, 4); ctx.lineTo(21, 4); ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#ffffff88'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-6, -23); ctx.quadraticCurveTo(-12, 0, -7, 23); ctx.stroke();
+    ctx.strokeStyle = '#34445166'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, -29); ctx.lineTo(0, 29); ctx.stroke();
+  }
+  if (label !== undefined) {
+    ctx.font = sideView ? 'bold 11px sans-serif' : 'bold 14px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = '#253340'; ctx.lineWidth = sideView ? 2 : 3;
+    const labelY = sideView ? 1 : 27;
+    ctx.strokeText(label, 0, labelY);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(label, 0, labelY);
+  }
+  ctx.restore();
+}
+
+function drawIceSkate(ctx, color, remaining = 1, label) {
+  const fraction = Math.max(0, Math.min(1, remaining));
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(-21, 2); ctx.lineTo(21, 2); ctx.lineTo(21, 8);
+  ctx.quadraticCurveTo(21, 11, 26, 11);
+  ctx.quadraticCurveTo(32, 11, 32, 17);
+  ctx.quadraticCurveTo(32, 20, 28, 20); ctx.lineTo(-19, 20);
+  ctx.quadraticCurveTo(-21, 20, -21, 18); ctx.closePath();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(-22, 2, 55, 18);
+  ctx.fillStyle = color; ctx.fillRect(-22, 20 - 18 * fraction, 55, 18 * fraction);
+  ctx.restore();
+  ctx.strokeStyle = '#344451'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-18, 5); ctx.lineTo(-18, 17); ctx.stroke();
+  ctx.strokeStyle = '#344451'; ctx.lineWidth = 1;
+  for (let y = 7; y <= 17; y += 5) {
+    ctx.beginPath(); ctx.moveTo(8, y - 1.5); ctx.lineTo(15, y + 1.5);
+    ctx.moveTo(8, y + 1.5); ctx.lineTo(15, y - 1.5); ctx.stroke();
+  }
+  ctx.fillStyle = '#526371'; ctx.fillRect(-20, 20, 50, 2);
+  ctx.fillStyle = '#a4b7c5';
+  ctx.fillRect(-16, 22, 3, 3); ctx.fillRect(22, 22, 3, 3);
+  ctx.strokeStyle = '#344451'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-22, 25); ctx.lineTo(28, 25);
+  ctx.quadraticCurveTo(33, 25, 34, 22); ctx.stroke();
+  ctx.strokeStyle = '#d9e7ef'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (label !== undefined) {
+    ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = '#253340'; ctx.lineWidth = 2;
+    ctx.strokeText(label, -6, 12);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(label, -6, 12);
+  }
+  ctx.restore();
+}
+
+function drawWaterSplash(ctx, impact) {
+  if (impact.type !== 'water') return;
+  const progress = impact.age / .6;
+  if (progress <= 0 || progress >= 1) return;
+  const spread = 14 + progress * 56;
+  const lift = Math.sin(progress * Math.PI) * 65;
+  ctx.save(); ctx.translate(impact.x, impact.y);
+  ctx.globalAlpha *= Math.min(1, progress * 12) * (1 - progress);
+  ctx.fillStyle = '#55bdf2cc'; ctx.strokeStyle = '#c9f5ff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-spread, 8);
+  for (let index = 0; index <= 8; index++) {
+    const x = -spread + index / 8 * spread * 2;
+    const y = index % 2 ? -lift * (index === 3 || index === 5 ? 1 : .65) : -lift * .18;
+    ctx.lineTo(x, y);
+  }
+  ctx.quadraticCurveTo(spread * .8, 20, 0, 15);
+  ctx.quadraticCurveTo(-spread * .8, 20, -spread, 8);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (let index = 0; index < 12; index++) {
+    const angle = Math.PI + (index + .5) / 12 * Math.PI;
+    const distance = 15 + progress * (65 + index % 3 * 12);
+    const x = Math.cos(angle) * distance;
+    const y = Math.sin(angle) * distance + progress * progress * 60;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 3 + index % 3, 5 + index % 2 * 3, angle + Math.PI / 2, 0, Math.PI * 2);
+    ctx.fillStyle = index % 2 ? '#a8eaff' : '#58c6ff'; ctx.fill();
+  }
+  ctx.strokeStyle = '#a9eaff'; ctx.lineWidth = 3 * (1 - progress);
+  ctx.beginPath(); ctx.ellipse(0, 9, spread, spread * .23, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
 function drawBarrier(ctx, fence) {
   ctx.save(); ctx.translate(fence.x, fence.y); ctx.rotate(Math.atan2(fence.ny, fence.nx));
   ctx.strokeStyle = '#174f36'; ctx.fillStyle = '#174f36'; ctx.globalAlpha *= .65;
@@ -1060,7 +1351,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, drawCatTrack, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, TERRAIN_COLORS, terrainPathData, drawCatTrack, drawTerrain, drawSurfBoard, drawIceSkate, drawWaterSplash, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

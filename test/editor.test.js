@@ -507,7 +507,7 @@ test('Print, paste, and open JSON files use validated level import without draft
   const messages = [], errors = [], confirmations = [];
   let allowImport = true;
   const context = vm.createContext({
-    $, level: blank(), validateCustomLevel, cutsceneError: null, levelInfoError: null, trackDrawing: false, selectedEvents: new Set(), touched: new Set(),
+    $, level: blank(), validateCustomLevel, cutsceneError: null, levelInfoError: null, trackDrawing: false, terrainDrawing: false, selectedEvents: new Set(), touched: new Set(),
     confirm: text => { confirmations.push(text); return allowImport; },
     message: (text, error = false) => messages.push({ text, error }),
     console: { error: (...args) => errors.push(args) },
@@ -627,7 +627,7 @@ test('cutscene cards preserve individual actors and new lines inherit the full s
     validateDraft: value => validateCustomLevel(value, { allowUnpairedPortals: true, allowIncompleteBoss: true }),
     validateCustomLevel, readOnly: () => false, markChanged: () => changes++, selectedEvents: new Set(), touched: new Set(),
     message: (text, error) => { $('#editor-message').textContent = text; $('#editor-message').error = Boolean(error); },
-    console: { error() {} }, dirty: false, trackDrawing: false,
+    console: { error() {} }, dirty: false, trackDrawing: false, terrainDrawing: false,
   });
   vm.runInContext(source.slice(source.indexOf('function attempt('), source.indexOf('function markChanged(')), context);
   vm.runInContext(source.slice(source.indexOf('let cutsceneError = null;'), source.indexOf('function addInfoPage(')), context);
@@ -859,7 +859,7 @@ test('information edits apply automatically, preserve focused controls, and bloc
     COOLDOWNS: {}, picture: () => new Node(), level: blank(), levelInfoError: null,
     validateDraft: validateCustomLevel, validateCustomLevel, readOnly: () => false,
     markChanged: () => changes++, message: text => { $('#editor-message').textContent = text; },
-    console: { error() {} }, cutsceneError: null, trackDrawing: false,
+    console: { error() {} }, cutsceneError: null, trackDrawing: false, terrainDrawing: false,
     selectedEvents: new Set(), touched: new Set(),
   });
   vm.runInContext(source.slice(source.indexOf('function attempt('), source.indexOf('function markChanged(')), context);
@@ -1337,11 +1337,11 @@ test('the event category pane contains its complete form and actions', () => {
 
 test('editor category navigation opens bricks or the chosen event menu exclusively', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
-  const categories = ['koshi', 'brick', 'food', 'enemy', 'item', 'object', 'tracks', 'weapon'];
+  const categories = ['koshi', 'brick', 'food', 'enemy', 'item', 'object', 'terrain', 'tracks', 'weapon'];
   const buttons = categories.map(category => ({
     dataset: { category }, setAttribute(name, value) { this[name] = value; },
   }));
-  const nodes = { '#brick-panel': {}, '#event-panel': {}, '#track-panel': {}, '#koshi-panel': {},
+  const nodes = { '#brick-panel': {}, '#event-panel': {}, '#track-panel': {}, '#terrain-panel': {}, '#koshi-panel': {},
     '#cat-tracks': { dataset: {} }, '#category-palette': { children: buttons } };
   const context = vm.createContext({ $: selector => nodes[selector], activeCategory: 'food', readOnly: () => false });
   vm.runInContext(source.slice(source.indexOf('function showCategory('), source.indexOf('function syncPalettes(')), context);
@@ -1349,8 +1349,9 @@ test('editor category navigation opens bricks or the chosen event menu exclusive
     context.showCategory(category);
     assert.equal(context.activeCategory, category);
     assert.equal(nodes['#brick-panel'].hidden, category !== 'brick');
-    assert.equal(nodes['#event-panel'].hidden, ['brick', 'tracks', 'koshi'].includes(category));
+    assert.equal(nodes['#event-panel'].hidden, ['brick', 'tracks', 'terrain', 'koshi'].includes(category));
     assert.equal(nodes['#track-panel'].hidden, category !== 'tracks');
+    assert.equal(nodes['#terrain-panel'].hidden, category !== 'terrain');
     assert.equal(nodes['#koshi-panel'].hidden, category !== 'koshi');
     assert.deepEqual(buttons.filter(button => button['aria-pressed'] === 'true').map(button => button.dataset.category), [category]);
   }
