@@ -124,7 +124,7 @@ test('scrolling render skips distant artwork but draws visible attacks from dist
   delete game.level.autoscroll;
   calls.clear();
   layers.clear();
-  vm.runInNewContext(`${helper}\n${render}\nrender(0);`, context);
+  context.render(0);
   for (const name of ['drawRobot', 'drawFoodBadge', 'drawFireWave', 'drawBomb', 'drawBarrier']) {
     assert.equal(calls.get(name).length, 2, `${name} retains non-scrolling rendering`);
   }
