@@ -420,7 +420,7 @@ const levels = [
             "size": 0.5,
             "angle": 45
           },
-          "lifetime": 5
+          "lifetime": 8
         },
         {
           "time": 8,
@@ -433,7 +433,7 @@ const levels = [
             "size": 0.5,
             "angle": 135
           },
-          "lifetime": 5
+          "lifetime": 8
         },
         {
           "time": 10,
@@ -455,7 +455,7 @@ const levels = [
           "type": "P",
           "x": 0.8589153000429949,
           "y": 0.1781340458695168,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 20,
@@ -463,7 +463,7 @@ const levels = [
           "type": "P",
           "x": 0.8589153000429949,
           "y": 0.7873524827432643,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 20,
@@ -471,7 +471,7 @@ const levels = [
           "type": "P",
           "x": 0.15134205515631718,
           "y": 0.7873524827432643,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 20,
@@ -479,7 +479,7 @@ const levels = [
           "type": "P",
           "x": 0.15134205515631718,
           "y": 0.1781340458695168,
-          "lifetime": 5
+          "lifetime": 10
         },
         {
           "time": 30,
@@ -524,7 +524,7 @@ const levels = [
             "size": 0.8,
             "angle": 25
           },
-          "lifetime": 5
+          "lifetime": 8
         },
         {
           "time": 45,
@@ -537,7 +537,7 @@ const levels = [
             "size": 0.8,
             "angle": 25
           },
-          "lifetime": 5
+          "lifetime": 8
         }
       ],
       "bossLevel": false,
@@ -3243,11 +3243,11 @@ const levels = [
       "brickSet": 1,
       "events": [
         {
-          "time": 109,
+          "time": 110,
           "kind": "item",
           "type": "treasure-chest",
-          "x": 0.8132493621926816,
-          "y": 0.434647071921621,
+          "x": 0.8849326822622428,
+          "y": 0.46671120017813406,
           "keysRequired": 5
         },
         {
@@ -6148,7 +6148,7 @@ const levels = [
             "size": 0.5,
             "angle": 90
           },
-          "lifetime": 8
+          "lifetime": 10
         },
         {
           "time": 10,
@@ -6162,7 +6162,7 @@ const levels = [
             "size": 0.5,
             "angle": 90
           },
-          "lifetime": 8
+          "lifetime": 10
         },
         {
           "time": 15,
@@ -6195,7 +6195,7 @@ const levels = [
             "size": 0.8,
             "angle": 0
           },
-          "lifetime": 8
+          "lifetime": 10
         },
         {
           "time": 35,
@@ -6209,7 +6209,7 @@ const levels = [
             "size": 1,
             "angle": 0
           },
-          "lifetime": 8
+          "lifetime": 10
         },
         {
           "time": 40,
@@ -6264,14 +6264,14 @@ const levels = [
             "size": 1,
             "angle": 0
           },
-          "lifetime": 8
+          "lifetime": 10
         }
       ],
       "bossLevel": false,
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Defeat no more than 0 of enemy type Robo Wheel.",
+        "description": "To earn Cat Brick: Defeat no more than 1 of enemy type Robo Wheel.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
@@ -6280,7 +6280,7 @@ const levels = [
         },
         "trigger": {
           "type": "enemyMax",
-          "amount": 0,
+          "amount": 1,
           "enemyType": "wheel"
         }
       },
@@ -6773,7 +6773,7 @@ const levels = [
           "shield": null
         },
         {
-          "time": 37,
+          "time": 35,
           "kind": "weapon",
           "type": "bronze",
           "x": 0.5758860020883239,
@@ -6845,7 +6845,7 @@ const levels = [
           "lifetime": 18
         },
         {
-          "time": 35,
+          "time": 30,
           "kind": "item",
           "type": "treasure-chest",
           "x": 0.9827406178981635,
@@ -7750,17 +7750,17 @@ const levels = [
                 "y": 0.65
               },
               {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              },
+              {
                 "character": "mouse",
                 "x": 0.67,
                 "y": 0.65,
                 "accessories": [
                   "top-hat"
                 ]
-              },
-              {
-                "character": "tom",
-                "x": 0.5,
-                "y": 0.65
               }
             ]
           },
@@ -7774,6 +7774,11 @@ const levels = [
                 "y": 0.65
               },
               {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              },
+              {
                 "character": "mouse",
                 "x": 0.67,
                 "y": 0.65,
@@ -7789,11 +7794,6 @@ const levels = [
                   "top-hat",
                   "magic-wand"
                 ]
-              },
-              {
-                "character": "tom",
-                "x": 0.5,
-                "y": 0.65
               }
             ]
           },
@@ -7807,6 +7807,11 @@ const levels = [
                 "y": 0.65
               },
               {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              },
+              {
                 "character": "mouse",
                 "x": 0.67,
                 "y": 0.65,
@@ -7822,11 +7827,6 @@ const levels = [
                   "top-hat",
                   "magic-wand"
                 ]
-              },
-              {
-                "character": "tom",
-                "x": 0.5,
-                "y": 0.65
               }
             ]
           },
@@ -7840,6 +7840,11 @@ const levels = [
                 "y": 0.65
               },
               {
+                "character": "tom",
+                "x": 0.5,
+                "y": 0.65
+              },
+              {
                 "character": "mouse",
                 "x": 0.67,
                 "y": 0.65,
@@ -7855,11 +7860,6 @@ const levels = [
                   "top-hat",
                   "magic-wand"
                 ]
-              },
-              {
-                "character": "tom",
-                "x": 0.5,
-                "y": 0.65
               }
             ]
           }
@@ -8440,23 +8440,23 @@ const levels = [
           "type": "C",
           "x": 0.027516737301148578,
           "y": 0.9476731240258295,
-          "lifetime": 15
+          "lifetime": 20
         },
         {
           "time": 70,
           "kind": "food",
           "type": "C",
-          "x": 0.9650512867759966,
-          "y": 0.04987753284346471,
-          "lifetime": 15
+          "x": 0.8412259689208279,
+          "y": 0.5629035849476731,
+          "lifetime": 20
         },
         {
           "time": 70,
           "kind": "food",
           "type": "C",
-          "x": 0.027516737301148578,
-          "y": 0.04987753284346471,
-          "lifetime": 15
+          "x": 0.15134205515631718,
+          "y": 0.434647071921621,
+          "lifetime": 20
         },
         {
           "time": 70,
@@ -8464,7 +8464,7 @@ const levels = [
           "type": "C",
           "x": 0.9650512867759966,
           "y": 0.9476731240258295,
-          "lifetime": 15
+          "lifetime": 20
         },
         {
           "time": 60,
@@ -9222,7 +9222,7 @@ const levels = [
       "killGoal": 15,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level in under 60 seconds.",
+        "description": "To earn Cat Brick: Complete the level in under 70 seconds.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
@@ -9231,7 +9231,7 @@ const levels = [
         },
         "trigger": {
           "type": "time",
-          "amount": 60
+          "amount": 70
         }
       },
       "cutscene": {
@@ -9645,8 +9645,8 @@ const levels = [
           "spawnPercent": 5,
           "kind": "weapon",
           "type": "bronze",
-          "x": 0.14231360253542918,
-          "y": 0.7552883544867512
+          "x": 0.13961713427686315,
+          "y": 0.6270318414606991
         },
         {
           "time": 11,
@@ -9917,7 +9917,7 @@ const levels = [
           "kind": "food",
           "type": "P",
           "x": 0.07894659845912756,
-          "y": 0.5308394566911601,
+          "y": 0.49877532843464706,
           "group": {
             "shape": "line",
             "count": 5,
@@ -9931,11 +9931,11 @@ const levels = [
           "kind": "food",
           "type": "P",
           "x": 0.10591128104478782,
-          "y": 0.370518815408595,
+          "y": 0.49877532843464706,
           "group": {
             "shape": "line",
             "count": 5,
-            "angle": 140
+            "angle": 125
           },
           "lifetime": 8
         },
@@ -9944,12 +9944,12 @@ const levels = [
           "spawnPercent": 5,
           "kind": "food",
           "type": "P",
-          "x": 0.1342241977597311,
-          "y": 0.5949677132041862,
+          "x": 0.1328759636304481,
+          "y": 0.402582943665108,
           "group": {
             "shape": "line",
             "count": 3,
-            "angle": 40
+            "angle": 55
           },
           "lifetime": 8
         },
@@ -10044,7 +10044,7 @@ const levels = [
           "pattern": "solid"
         },
         {
-          "time": 47,
+          "time": 0,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.8165029013593833,
@@ -11579,6 +11579,27 @@ const levels = [
         },
         {
           "edge": "right",
+          "start": 0.84,
+          "end": 0.85,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": true,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
           "start": 0.9,
           "end": 0.91,
           "kind": "normal",
@@ -11586,7 +11607,7 @@ const levels = [
           "warped": null,
           "slimeColor": "green",
           "conveyorDirection": "clockwise",
-          "slimed": true,
+          "slimed": false,
           "springs": false,
           "spikes": false,
           "conveyor": false,
@@ -11607,28 +11628,7 @@ const levels = [
           "warped": null,
           "slimeColor": "green",
           "conveyorDirection": "clockwise",
-          "slimed": true,
-          "springs": false,
-          "spikes": false,
-          "conveyor": false,
-          "power": false,
-          "portal": null,
-          "turret": null,
-          "hazard": null,
-          "toggle": null,
-          "boost": false,
-          "spawner": null
-        },
-        {
-          "edge": "right",
-          "start": 0.84,
-          "end": 0.85,
-          "kind": "normal",
-          "crumbler": null,
-          "warped": null,
-          "slimeColor": "green",
-          "conveyorDirection": "clockwise",
-          "slimed": true,
+          "slimed": false,
           "springs": false,
           "spikes": false,
           "conveyor": false,
