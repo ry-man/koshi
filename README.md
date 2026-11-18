@@ -2419,6 +2419,11 @@ Robo Trash Bin (`robo-trash-bin`) is available in custom levels and enemy
 spawners. It rocks while floating, waits a random 3–5 seconds, then travels to
 a randomly selected non-slime brick other than Cinder or Goal. Each bin claims
 its own target and turns feet-first only when within roughly one brick length.
+If its average movement speed falls below 15% of normal for one second while
+roaming or travelling, it releases any claim and moves for two seconds in a
+direction chosen away from nearby obstructions, bricks and enemies before
+trying another eligible brick. It cannot pass through the boundary bricks,
+even when pushed by obstructions or other enemies.
 It opens its lid and tips sideways before pouring, then rights itself and closes
 the lid. Bins use a random, stable push priority to avoid blocking one another.
 After a three-second pour, the brick and its merged group gain red, green, or

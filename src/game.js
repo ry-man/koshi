@@ -15,6 +15,7 @@ const MASK_DURATION = 10;
 const FEAR_SPEED = 64;
 const COW_SPEED = 190;
 const COW_EAT_DURATION = 5;
+const TRASH_BIN_SPEED = 75;
 const OBSTRUCTION_RADIUS = 48;
 const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
 const OBSTRUCTION_PRESETS = {
@@ -6577,6 +6578,78 @@ class Game {
     if (this.trashBinClaims.get(enemy.binTarget) === enemy) this.trashBinClaims.delete(enemy.binTarget);
   }
 
+  trashBinBounds(enemy) {
+    const bounds = this.bounds();
+    const inset = 8 + (this.portrait ? 45 / this.scale : 45) + enemy.radius;
+    return { left: Math.max(bounds.left, inset), right: Math.min(bounds.right, this.width - inset),
+      top: Math.max(bounds.top, inset), bottom: Math.min(bounds.bottom, this.height - inset) };
+  }
+
+  containTrashBin(enemy, old) {
+    const bounds = this.trashBinBounds(enemy);
+    const x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+    const y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+    if ((x !== enemy.x || y !== enemy.y) && old
+      && old.x >= bounds.left && old.x <= bounds.right && old.y >= bounds.top && old.y <= bounds.bottom
+      && this.obstructions.some(obstruction => obstructionSurface(x, y, obstruction).gap < enemy.radius - 1e-6)
+      && this.obstructions.every(obstruction => obstructionSurface(old.x, old.y, obstruction).gap >= enemy.radius - 1e-6)) {
+      enemy.x = old.x; enemy.y = old.y;
+    } else {
+      enemy.x = x; enemy.y = y;
+    }
+  }
+
+  chooseTrashBinEscapeDirection(enemy) {
+    const nearby = [], reach = 40, bounds = this.trashBinBounds(enemy);
+    const add = (gap, nx, ny) => {
+      if (gap < reach) nearby.push({ gap: Math.max(0, gap), nx, ny });
+    };
+    add(enemy.x - bounds.left, 1, 0);
+    add(bounds.right - enemy.x, -1, 0);
+    add(enemy.y - bounds.top, 0, 1);
+    add(bounds.bottom - enemy.y, 0, -1);
+    for (const obstacle of [...this.obstructions, ...this.bumpers]) {
+      const { gap, nx, ny } = obstructionSurface(enemy.x, enemy.y, obstacle);
+      add(gap - enemy.radius, nx, ny);
+    }
+    for (const part of this.barrierParts()) {
+      const x = enemy.x - Math.max(part.x, Math.min(part.x + part.w, enemy.x));
+      const y = enemy.y - Math.max(part.y, Math.min(part.y + part.h, enemy.y));
+      const distance = Math.hypot(x, y);
+      if (distance > 1e-9) add(distance - enemy.radius, x / distance, y / distance);
+    }
+    for (const other of this.robots) {
+      if (other === enemy) continue;
+      const x = enemy.x - other.x, y = enemy.y - other.y, distance = Math.hypot(x, y);
+      if (distance > 1e-9) add(distance - enemy.radius - other.radius, x / distance, y / distance);
+    }
+    const start = this.random() * Math.PI * 2;
+    let best = -Infinity, angle = start;
+    // Favor the direction with the best worst-case clearance from nearby surfaces.
+    for (let i = 0; i < 32; i++) {
+      const candidate = start + i * Math.PI * 2 / 32;
+      const x = Math.cos(candidate), y = Math.sin(candidate);
+      const score = Math.min(1, ...nearby.map(surface =>
+        x * surface.nx + y * surface.ny + surface.gap / reach));
+      if (score > best) { best = score; angle = candidate; }
+    }
+    enemy.phase = angle;
+  }
+
+  startTrashBinEscape(enemy) {
+    if (enemy.binTarget !== null) {
+      enemy.binBlockedTargets.add(enemy.binTarget);
+      enemy.binLastBlockedTarget = enemy.binTarget;
+      this.releaseTrashBinTarget(enemy);
+      enemy.binTarget = null;
+    }
+    enemy.binState = 'escape';
+    enemy.binEscapeTime = 2;
+    enemy.binProgressTime = 0;
+    enemy.binProgress = 0;
+    this.chooseTrashBinEscapeDirection(enemy);
+  }
+
   initializeTrashBin(enemy) {
     this.releaseTrashBinTarget(enemy);
     if (enemy.binPriority === undefined) {
@@ -6589,6 +6662,11 @@ class Game {
     enemy.binPourTime = 0;
     enemy.binPhaseTime = 0;
     enemy.binTilt = 0;
+    enemy.binBlockedTargets = new Set();
+    enemy.binLastBlockedTarget = null;
+    enemy.binProgressTime = 0;
+    enemy.binProgress = 0;
+    enemy.binEscapeTime = 0;
   }
 
   slimeBrick(brick, color) {
@@ -6614,14 +6692,30 @@ class Game {
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const eligible = brick => brick && brick.absorbedBy === null && !brick.slimed
       && !['cinder', 'goal'].includes(brick.kind) && this.brickVisible(brick);
-    if (!['roam', 'recover'].includes(enemy.binState) && !eligible(this.bricks[enemy.binTarget])) {
+    if (!['roam', 'escape', 'recover'].includes(enemy.binState) && !eligible(this.bricks[enemy.binTarget])) {
       this.initializeTrashBin(enemy);
+    }
+    if (enemy.binState === 'escape') {
+      const step = Math.min(seconds, enemy.binEscapeTime);
+      enemy.x += Math.cos(enemy.phase) * TRASH_BIN_SPEED * step;
+      enemy.y += Math.sin(enemy.phase) * TRASH_BIN_SPEED * step;
+      if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+      enemy.x = clamp(enemy.x, bounds.left, bounds.right);
+      enemy.y = clamp(enemy.y, bounds.top, bounds.bottom);
+      enemy.binEscapeTime -= step;
+      if (enemy.binEscapeTime > 1e-9) return;
+      seconds -= step;
+      enemy.binState = 'roam';
+      enemy.binWait = 0;
+      enemy.binProgressTime = 0;
+      enemy.binProgress = 0;
     }
     if (enemy.binState === 'roam') {
       enemy.binWait -= seconds;
       enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * seconds;
-      enemy.x += Math.cos(enemy.phase) * 75 * seconds;
-      enemy.y += Math.sin(enemy.phase) * 75 * seconds;
+      enemy.x += Math.cos(enemy.phase) * TRASH_BIN_SPEED * seconds;
+      enemy.y += Math.sin(enemy.phase) * TRASH_BIN_SPEED * seconds;
       if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
       if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
       enemy.x = clamp(enemy.x, bounds.left, bounds.right);
@@ -6633,7 +6727,13 @@ class Game {
       }));
       const candidates = this.bricks.filter(brick => eligible(brick) && !claimed.has(brick.id));
       if (!candidates.length) { enemy.binWait = 3 + this.random() * 2; return; }
-      const brick = candidates[Math.floor(this.random() * candidates.length)];
+      let available = candidates.filter(brick => !enemy.binBlockedTargets.has(brick.id));
+      if (!available.length) {
+        enemy.binBlockedTargets.clear();
+        available = candidates.filter(brick => brick.id !== enemy.binLastBlockedTarget);
+        if (!available.length) available = candidates;
+      }
+      const brick = available[Math.floor(this.random() * available.length)];
       const camera = this.camera();
       const part = this.brickParts().find(part => part.id === brick.id && part.sourceId !== undefined
         && (!this.level.autoscroll || this.entityIntersectsBounds(part, camera)));
@@ -6661,6 +6761,8 @@ class Game {
       };
       this.trashBinClaims.set(brick.id, enemy);
       enemy.binState = 'travel';
+      enemy.binProgressTime = 0;
+      enemy.binProgress = 0;
       return;
     }
     if (enemy.binState !== 'recover') {
@@ -6674,11 +6776,11 @@ class Game {
           enemy.binPourTime = 0;
           enemy.binTilt = 0;
         }
-        const step = Math.min(distance, 75 * seconds);
+        const step = Math.min(distance, TRASH_BIN_SPEED * seconds);
         enemy.x += dx / distance * step;
         enemy.y += dy / distance * step;
         if (step < distance) return;
-        seconds -= step / 75;
+        seconds -= step / TRASH_BIN_SPEED;
       }
       if (enemy.binState === 'travel') {
         enemy.binState = 'prepare';
@@ -7863,10 +7965,12 @@ class Game {
     const bounds = this.bounds(), parts = this.robots.some(enemy => ['ram', 'bucket', 'ball', 'robo-love-bug', 'jackolantern'].includes(enemy.type))
       ? [...this.brickParts(), ...fences] : [];
     const snapshot = enemy => ({ x: enemy.x, y: enemy.y, distance: enemy.distance,
+      ...(enemy.type === 'robo-trash-bin' ? { binState: enemy.binState, binTarget: enemy.binTarget } : {}),
       ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}) });
     const previous = new Map(this.robots.map(enemy => [enemy, snapshot(enemy)]));
     for (const enemy of this.robots) {
       if (enemy.type !== 'snake' && enemy.type !== 'robo-koshi' && enemy.type !== 'tom-frog') this.clearBarrierOverlap(enemy, fences);
+      if (enemy.type === 'robo-trash-bin') this.containTrashBin(enemy);
       if (enemy.type !== 'goalie') previous.set(enemy, snapshot(enemy));
     }
     for (const enemy of this.robots) {
@@ -7905,7 +8009,7 @@ class Game {
       } else if (enemy.type === 'robo-cow') {
         this.updateRoboCow(enemy, dt);
       } else if (enemy.type === 'robo-trash-bin') {
-        this.updateTrashBin(enemy, dt, bounds);
+        this.updateTrashBin(enemy, dt, this.trashBinBounds(enemy));
       } else if (enemy.type === 'robo-moon') {
         this.updateRoboMoon(enemy, dt, bounds);
       } else if (enemy.type === 'robo-unicorn') {
@@ -7983,6 +8087,57 @@ class Game {
         if (!enemy.asleep) this.updateRoboCowFacing(enemy, dt);
       }
       if (enemy.type !== 'robo-koshi') this.blockEnemyWithObstructions(enemy, old);
+      if (enemy.type === 'robo-trash-bin') this.containTrashBin(enemy, old);
+      if (enemy.type === 'robo-trash-bin' && !enemy.asleep && !enemy.afraid
+        && old.binState === 'travel' && old.binTarget === enemy.binTarget
+        && ['travel', 'prepare'].includes(enemy.binState)) {
+        const destination = enemy.binDestination;
+        const remaining = Math.hypot(destination.x - enemy.x, destination.y - enemy.y);
+        if (remaining > 1e-5) {
+          if (enemy.binState === 'prepare') {
+            enemy.binState = 'travel';
+            enemy.binPhaseTime = 0;
+            enemy.binPourTime = 0;
+            enemy.binTilt = 0;
+          }
+          enemy.binProgressTime += dt;
+          enemy.binProgress += Math.hypot(enemy.x - old.x, enemy.y - old.y);
+          if (enemy.binProgressTime >= 1 - 1e-9) {
+            if (enemy.binProgress < TRASH_BIN_SPEED * .15 * enemy.binProgressTime) {
+              this.startTrashBinEscape(enemy);
+            } else {
+              enemy.binBlockedTargets.clear();
+            }
+            enemy.binProgressTime = 0;
+            enemy.binProgress = 0;
+          }
+        }
+      }
+      if (enemy.type === 'robo-trash-bin' && !enemy.asleep && !enemy.afraid
+        && old.binState === 'roam' && enemy.binState === 'roam') {
+        enemy.binProgressTime += dt;
+        enemy.binProgress += Math.hypot(enemy.x - old.x, enemy.y - old.y);
+        if (enemy.binProgressTime >= 1 - 1e-9) {
+          if (enemy.binProgress < TRASH_BIN_SPEED * .15 * enemy.binProgressTime) {
+            this.startTrashBinEscape(enemy);
+          } else {
+            enemy.binProgressTime = 0;
+            enemy.binProgress = 0;
+          }
+        }
+      }
+      if (enemy.type === 'robo-trash-bin' && !enemy.asleep && !enemy.afraid
+        && old.binState === 'escape' && enemy.binState === 'escape') {
+        enemy.binProgressTime += dt;
+        enemy.binProgress += Math.hypot(enemy.x - old.x, enemy.y - old.y);
+        if (enemy.binProgressTime >= .25 - 1e-9) {
+          if (enemy.binProgress < TRASH_BIN_SPEED * .15 * enemy.binProgressTime) {
+            this.chooseTrashBinEscapeDirection(enemy);
+          }
+          enemy.binProgressTime = 0;
+          enemy.binProgress = 0;
+        }
+      }
       if (enemy.type === 'robo-unicorn' && enemy.unicornState === 'charge' && enemy.mouthOpen) {
         let ateFood = false;
         this.food = this.food.filter(food => {

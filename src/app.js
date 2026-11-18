@@ -4464,7 +4464,7 @@ function drawRoboTrashBin(enemy, deathProgress = null, damageColor = null) {
   const progress = deathProgress ?? 0;
   ctx.save();
   if (deathProgress === null) {
-    if (enemy.binState && enemy.binState !== 'roam') {
+    if (enemy.binState && !['roam', 'escape'].includes(enemy.binState)) {
       const rock = Math.sin((enemy.age ?? 0) * 3) * .12;
       const distance = enemy.binDestination ? Math.hypot(enemy.x - enemy.binDestination.x, enemy.y - enemy.binDestination.y) : 0;
       const turn = enemy.binState === 'travel' ? Math.max(0, Math.min(1, 1 - distance / enemy.binTurnDistance)) : 1;
