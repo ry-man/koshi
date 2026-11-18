@@ -234,17 +234,17 @@
             "y": 0.65
           },
           {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          },
+          {
             "character": "mouse",
             "x": 0.67,
             "y": 0.65,
             "accessories": [
               "top-hat"
             ]
-          },
-          {
-            "character": "tom",
-            "x": 0.5,
-            "y": 0.65
           }
         ]
       },
@@ -258,6 +258,11 @@
             "y": 0.65
           },
           {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          },
+          {
             "character": "mouse",
             "x": 0.67,
             "y": 0.65,
@@ -273,11 +278,6 @@
               "top-hat",
               "magic-wand"
             ]
-          },
-          {
-            "character": "tom",
-            "x": 0.5,
-            "y": 0.65
           }
         ]
       },
@@ -291,6 +291,11 @@
             "y": 0.65
           },
           {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          },
+          {
             "character": "mouse",
             "x": 0.67,
             "y": 0.65,
@@ -306,11 +311,6 @@
               "top-hat",
               "magic-wand"
             ]
-          },
-          {
-            "character": "tom",
-            "x": 0.5,
-            "y": 0.65
           }
         ]
       },
@@ -324,6 +324,11 @@
             "y": 0.65
           },
           {
+            "character": "tom",
+            "x": 0.5,
+            "y": 0.65
+          },
+          {
             "character": "mouse",
             "x": 0.67,
             "y": 0.65,
@@ -339,11 +344,6 @@
               "top-hat",
               "magic-wand"
             ]
-          },
-          {
-            "character": "tom",
-            "x": 0.5,
-            "y": 0.65
           }
         ]
       }

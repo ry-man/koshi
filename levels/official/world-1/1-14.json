@@ -259,7 +259,7 @@
     },
     "trigger": {
       "type": "time",
-      "amount": 60
+      "amount": 70
     }
   },
   "cutscene": {

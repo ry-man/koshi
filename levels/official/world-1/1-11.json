@@ -70,7 +70,7 @@
       "shield": null
     },
     {
-      "time": 37,
+      "time": 35,
       "kind": "weapon",
       "type": "bronze",
       "x": 0.5758860020883239,
@@ -142,7 +142,7 @@
       "lifetime": 18
     },
     {
-      "time": 35,
+      "time": 30,
       "kind": "item",
       "type": "treasure-chest",
       "x": 0.9827406178981635,

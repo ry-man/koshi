@@ -24,8 +24,8 @@
       "spawnPercent": 5,
       "kind": "weapon",
       "type": "bronze",
-      "x": 0.14231360253542918,
-      "y": 0.7552883544867512
+      "x": 0.13961713427686315,
+      "y": 0.6270318414606991
     },
     {
       "time": 11,
@@ -296,7 +296,7 @@
       "kind": "food",
       "type": "P",
       "x": 0.07894659845912756,
-      "y": 0.5308394566911601,
+      "y": 0.49877532843464706,
       "group": {
         "shape": "line",
         "count": 5,
@@ -310,11 +310,11 @@
       "kind": "food",
       "type": "P",
       "x": 0.10591128104478782,
-      "y": 0.370518815408595,
+      "y": 0.49877532843464706,
       "group": {
         "shape": "line",
         "count": 5,
-        "angle": 140
+        "angle": 125
       },
       "lifetime": 8
     },
@@ -323,12 +323,12 @@
       "spawnPercent": 5,
       "kind": "food",
       "type": "P",
-      "x": 0.1342241977597311,
-      "y": 0.5949677132041862,
+      "x": 0.1328759636304481,
+      "y": 0.402582943665108,
       "group": {
         "shape": "line",
         "count": 3,
-        "angle": 40
+        "angle": 55
       },
       "lifetime": 8
     },
@@ -423,7 +423,7 @@
       "pattern": "solid"
     },
     {
-      "time": 47,
+      "time": 0,
       "kind": "object",
       "type": "obstruction-rectangle",
       "x": 0.8165029013593833,
@@ -1958,6 +1958,27 @@
     },
     {
       "edge": "right",
+      "start": 0.84,
+      "end": 0.85,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": true,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "right",
       "start": 0.9,
       "end": 0.91,
       "kind": "normal",
@@ -1965,7 +1986,7 @@
       "warped": null,
       "slimeColor": "green",
       "conveyorDirection": "clockwise",
-      "slimed": true,
+      "slimed": false,
       "springs": false,
       "spikes": false,
       "conveyor": false,
@@ -1986,28 +2007,7 @@
       "warped": null,
       "slimeColor": "green",
       "conveyorDirection": "clockwise",
-      "slimed": true,
-      "springs": false,
-      "spikes": false,
-      "conveyor": false,
-      "power": false,
-      "portal": null,
-      "turret": null,
-      "hazard": null,
-      "toggle": null,
-      "boost": false,
-      "spawner": null
-    },
-    {
-      "edge": "right",
-      "start": 0.84,
-      "end": 0.85,
-      "kind": "normal",
-      "crumbler": null,
-      "warped": null,
-      "slimeColor": "green",
-      "conveyorDirection": "clockwise",
-      "slimed": true,
+      "slimed": false,
       "springs": false,
       "spikes": false,
       "conveyor": false,

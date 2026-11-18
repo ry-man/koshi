@@ -72,7 +72,7 @@
         "size": 0.5,
         "angle": 90
       },
-      "lifetime": 8
+      "lifetime": 10
     },
     {
       "time": 10,
@@ -86,7 +86,7 @@
         "size": 0.5,
         "angle": 90
       },
-      "lifetime": 8
+      "lifetime": 10
     },
     {
       "time": 15,
@@ -119,7 +119,7 @@
         "size": 0.8,
         "angle": 0
       },
-      "lifetime": 8
+      "lifetime": 10
     },
     {
       "time": 35,
@@ -133,7 +133,7 @@
         "size": 1,
         "angle": 0
       },
-      "lifetime": 8
+      "lifetime": 10
     },
     {
       "time": 40,
@@ -188,14 +188,14 @@
         "size": 1,
         "angle": 0
       },
-      "lifetime": 8
+      "lifetime": 10
     }
   ],
   "bossLevel": false,
   "killGoal": 0,
   "survive": false,
   "catBlock": {
-    "description": "To earn Cat Brick: Defeat no more than 0 of enemy type Robo Wheel.",
+    "description": "To earn Cat Brick: Defeat no more than 1 of enemy type Robo Wheel.",
     "messages": {
       "item": "Koshi found the Cat Block!",
       "enemy": "Koshi found a Cat Block carried by an enemy!",
@@ -204,7 +204,7 @@
     },
     "trigger": {
       "type": "enemyMax",
-      "amount": 0,
+      "amount": 1,
       "enemyType": "wheel"
     }
   },
