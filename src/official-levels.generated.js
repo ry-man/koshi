@@ -11938,6 +11938,17 @@ const levels = [
           }
         ]
       },
+      "levelInfo": {
+        "pages": [
+          {
+            "title": "Robo Trash Bin",
+            "text": "Robo Trash Bins will wander around the arena and periodically dump slime of a random color onto randomly chosen bricks.\n\nIf you don't act fast, they may fill the entire arena with slime!",
+            "graphics": [
+              "enemy:robo-trash-bin"
+            ]
+          }
+        ]
+      },
       "brickTypes": [
         {
           "edge": "right",
