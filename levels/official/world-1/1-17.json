@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "Amphibian Encounter",
-  "duration": 60,
+  "duration": 80,
   "goal": 0,
   "heartCost": 15,
   "brickSet": 1,
@@ -170,11 +170,57 @@
       "shield": null
     },
     {
-      "time": 15,
+      "time": 40,
       "kind": "weapon",
       "type": "silver",
       "x": 0.9827406178981635,
       "y": 0.9797372522823424
+    },
+    {
+      "time": 45,
+      "kind": "enemy",
+      "type": "robo-trash-bin",
+      "x": 0.6112646643326577,
+      "y": 0.2743264306390559,
+      "shield": null
+    },
+    {
+      "time": 45,
+      "kind": "enemy",
+      "type": "robo-trash-bin",
+      "x": 0.3813033597444874,
+      "y": 0.6270318414606991,
+      "shield": null
+    },
+    {
+      "time": 55,
+      "kind": "weapon",
+      "type": "wood",
+      "x": 0.009827406178981635,
+      "y": 0.9797372522823424
+    },
+    {
+      "time": 55,
+      "kind": "weapon",
+      "type": "wood",
+      "x": 0.009827406178981635,
+      "y": 0.01781340458695168
+    },
+    {
+      "time": 50,
+      "kind": "food",
+      "type": "C",
+      "x": 0.6820219888213255,
+      "y": 0.8194166109997774,
+      "lifetime": 8
+    },
+    {
+      "time": 50,
+      "kind": "food",
+      "type": "C",
+      "x": 0.3282353663779866,
+      "y": 0.1781340458695168,
+      "lifetime": 8
     }
   ],
   "bossLevel": false,

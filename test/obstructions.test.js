@@ -285,7 +285,9 @@ test('appearing solids destroy overlapping enemies and collectibles and instantl
     Object.assign(game.cat, actor(), { radius: 21 });
     game.invulnerableUntil = 100;
     game.activeTurret = { type: 'laser' };
-    game.robots = [{ ...actor(), type: 'mouse', radius: 19, shield: 'blue' }];
+    const enemy = { ...actor(), type: 'mouse', radius: 19 };
+    game.initializeShield(enemy, 'blue');
+    game.robots = [enemy];
     const safe = { ...actor(), x: 800, y: 500 };
     for (const field of ['food', 'weapons', 'items', 'healing', 'soccerBalls', 'bubbles', 'bumpers']) game[field] = [actor(), safe];
     game.obstructions.push(obstruction);
@@ -295,10 +297,11 @@ test('appearing solids destroy overlapping enemies and collectibles and instantl
     assert.equal(game.cat.x, 490); assert.equal(game.cat.y, 305);
     assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
     assert.equal(game.robots.length, 0); assert.equal(game.enemyDeaths.length, 1);
-    assert.equal(game.enemies, 0);
+    assert.equal(game.enemies, 4);
     for (const field of ['food', 'weapons', 'items', 'healing', 'soccerBalls', 'bubbles', 'bumpers']) assert.deepEqual(game[field], [safe]);
     game.clearAppearingObstruction(obstruction);
     assert.equal(game.enemyDeaths.length, 1, 'destroyed enemies are processed only once');
+    assert.equal(game.enemies, 4, 'destroyed enemies award points only once');
   }
 });
 

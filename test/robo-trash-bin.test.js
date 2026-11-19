@@ -161,53 +161,34 @@ test('a newly merged target cannot be claimed even before its original owner upd
   assert.equal(second.binTarget, null);
 });
 
-test('blocked bins wander for two seconds before trying other bricks', () => {
+test('bins route around an obstruction, preserve their claim during sleep, and complete the pour', () => {
   const game = arena(() => 0), enemy = bin(game);
-  const targets = game.bricks.slice(0, 3);
-  for (const brick of game.bricks) brick.slimed = !targets.includes(brick);
+  const target = game.bricks[0];
+  for (const brick of game.bricks) brick.slimed = brick !== target;
   game.cat.x = game.cat.y = 100;
   game.obstructions.push(game.createObstruction({ x: 400, y: 300 },
     { type: 'obstruction-circle', width: 100 }));
   game.robots.push(enemy);
-  const blockRoute = brick => {
-    Object.assign(enemy, { x: 331, y: 300, binState: 'travel', binTarget: brick.id,
-      binDestination: { x: 650, y: 300 }, binProgressTime: 0, binProgress: 0 });
-    game.trashBinClaims.set(brick.id, enemy);
-  };
+  Object.assign(enemy, { x: 250, y: 300, binState: 'travel', binTarget: target.id,
+    binDestination: { x: 650, y: 300 } });
+  game.trashBinClaims.set(target.id, enemy);
   const step = () => game.combat(.1, game.cat.x, game.cat.y);
-  blockRoute(targets[0]);
   for (let i = 0; i < 5; i++) step();
-  const progressTime = enemy.binProgressTime;
+  assert.ok(enemy.binRoute.length > 1, 'a detour is planned');
+  const position = { x: enemy.x, y: enemy.y }, route = structuredClone(enemy.binRoute);
   game.enemiesSleepUntil = 10;
   for (let i = 0; i < 20; i++) step();
-  assert.equal(enemy.binProgressTime, progressTime, 'sleep pauses the stuck timer');
-  assert.equal(enemy.binTarget, targets[0].id);
+  assert.deepEqual({ x: enemy.x, y: enemy.y }, position);
+  assert.deepEqual(enemy.binRoute, route, 'sleep pauses route traversal');
+  assert.equal(game.trashBinClaims.get(target.id), enemy);
   game.enemiesSleepUntil = 0;
-  for (let i = 0; i < 20 && enemy.binState === 'travel'; i++) step();
-  assert.equal(enemy.binState, 'escape');
-  assert.equal(game.trashBinClaims.has(targets[0].id), false);
-  const blocked = { x: enemy.x, y: enemy.y };
-  game.enemiesSleepUntil = 10;
-  for (let i = 0; i < 10; i++) step();
-  assert.equal(enemy.binEscapeTime, 2, 'sleep pauses the escape');
-  game.enemiesSleepUntil = 0;
-  for (let i = 0; i < 19; i++) step();
-  assert.equal(enemy.binState, 'escape');
-  assert.equal(enemy.binTarget, null, 'no target is claimed during escape');
-  assert.ok(Math.hypot(enemy.x - blocked.x, enemy.y - blocked.y) > 40, 'the bin moves away');
-  step();
-  assert.equal(enemy.binTarget, targets[1].id);
-  blockRoute(targets[1]);
-  for (let i = 0; i < 20 && enemy.binState === 'travel'; i++) step();
-  assert.equal(enemy.binState, 'escape');
-  assert.equal(game.trashBinClaims.has(targets[1].id), false);
-  for (let i = 0; i < 20; i++) step();
-  assert.equal(enemy.binTarget, targets[2].id);
-  Object.assign(enemy, { x: 331, y: 300, binDestination: { x: 100, y: 300 } });
-  for (let i = 0; i < 15; i++) step();
-  assert.equal(enemy.binTarget, targets[2].id, 'a moving bin keeps its target');
-  assert.ok(enemy.x < 250, 'the bin moves away from the obstruction');
-  assert.equal(enemy.binBlockedTargets.size, 0, 'progress permits previously blocked bricks again');
+  for (let i = 0; i < 150 && !target.slimed; i++) {
+    step();
+    assert.ok(obstructionSurface(enemy.x, enemy.y, game.obstructions[0]).gap >= enemy.radius - 1e-6);
+    assert.notEqual(enemy.binState, 'escape', 'a moving detour must not trigger the stuck fallback');
+  }
+  assert.ok(target.slimed);
+  assert.equal(game.trashBinClaims.has(target.id), false);
 });
 
 test('a blocked bin can retry its only eligible brick', () => {
@@ -237,30 +218,22 @@ test('a bin cannot begin pouring when an obstruction blocks its destination', ()
   assert.ok(!target.slimed);
 });
 
-test('slow sliding retargets below 15% of normal speed but not above it', () => {
-  for (const fraction of [.14, .16]) {
-    const game = arena(() => 0), enemy = bin(game), target = game.bricks[0];
-    game.cat.x = game.cat.y = 100;
-    game.obstructions.push(game.createObstruction({ x: 400, y: 300 },
-      { type: 'obstruction-rectangle', width: 100, height: 400 }));
-    Object.assign(enemy, { x: 331, y: 300, binState: 'travel', binTarget: target.id,
-      binDestination: { x: 3331, y: 300 + 3000 * fraction / Math.sqrt(1 - fraction ** 2) } });
-    game.trashBinClaims.set(target.id, enemy);
-    game.robots.push(enemy);
-    const startY = enemy.y;
-    for (let i = 0; i < 120; i++) game.combat(1 / 120, game.cat.x, game.cat.y);
-    const speed = enemy.y - startY;
-    assert.ok(speed > 0, 'the bin slides rather than stopping');
-    if (fraction < .15) {
-      assert.ok(speed < 75 * .15);
-      assert.equal(enemy.binTarget, null);
-      assert.equal(enemy.binState, 'escape');
-      assert.equal(game.trashBinClaims.has(target.id), false);
-    } else {
-      assert.ok(speed > 75 * .15);
-      assert.equal(enemy.binTarget, target.id);
-    }
-  }
+test('sideways collision shuffling does not count as progress toward a waypoint', () => {
+  const game = arena(() => 0), enemy = bin(game), target = game.bricks[0];
+  game.cat.x = game.cat.y = 100;
+  Object.assign(enemy, { x: 250, y: 300, binState: 'travel', binTarget: target.id,
+    binDestination: { x: 650, y: 300 } });
+  game.trashBinClaims.set(target.id, enemy);
+  game.robots.push(enemy);
+  let step = 0;
+  game.moveTrashBin = (bin, seconds) => {
+    bin.binMoveGoal = bin.binDestination;
+    bin.y += (++step % 2 ? 1 : -1) * 30 * seconds;
+    return null;
+  };
+  for (let i = 0; i < 60; i++) game.combat(1 / 60, game.cat.x, game.cat.y);
+  assert.equal(enemy.binState, 'escape');
+  assert.equal(game.trashBinClaims.has(target.id), false);
 });
 
 test('a blocked escape changes direction and moves away before selecting a brick', () => {
@@ -409,6 +382,202 @@ test('a wall-constrained bin keeps its previous clear position instead of enteri
   assert.ok(obstructionSurface(enemy.x, enemy.y, obstacle).gap >= enemy.radius - 1e-6);
 });
 
+function travellingBin(game, index, x, y, destination) {
+  const enemy = bin(game), target = game.bricks[index];
+  Object.assign(enemy, { x, y, binState: 'travel', binTarget: target.id, binDestination: destination });
+  game.trashBinClaims.set(target.id, enemy);
+  game.robots.push(enemy);
+  return enemy;
+}
+
+test('head-on bins yield and both finish instead of pushing each other indefinitely', () => {
+  for (const reverse of [false, true]) {
+    const game = arena(() => .5);
+    game.cat.x = game.cat.y = 100;
+    const first = travellingBin(game, 0, 250, 300, { x: 700, y: 300 });
+    const second = travellingBin(game, 1, 650, 300, { x: 200, y: 300 });
+    if (reverse) game.robots.reverse();
+    let yielded = false;
+    for (let i = 0; i < 1800 && !game.bricks.slice(0, 2).every(brick => brick.slimed); i++) {
+      game.combat(1 / 60, game.cat.x, game.cat.y);
+      yielded ||= !!first.binYield || !!second.binYield;
+      assert.ok(Math.hypot(first.x - second.x, first.y - second.y) >= first.radius + second.radius - 1e-5);
+      if (!game.bricks[0].slimed) assert.equal(first.binTarget, 0, 'right-of-way preserves the first claim');
+      if (!game.bricks[1].slimed) assert.equal(second.binTarget, 1, 'yielding preserves the second claim');
+    }
+    assert.ok(yielded, 'one bin takes a side route');
+    assert.ok(game.bricks.slice(0, 2).every(brick => brick.slimed), 'both original claims are completed');
+  }
+});
+
+test('a bin backs out of a single-file passage to let another pass', () => {
+  const game = arena(() => .5);
+  game.cat.x = game.cat.y = 100;
+  for (const y of [210, 390]) game.obstructions.push(game.createObstruction({ x: 480, y },
+    { type: 'obstruction-rectangle', width: 300, height: 120 }));
+  const first = travellingBin(game, 0, 370, 300, { x: 750, y: 300 });
+  const second = travellingBin(game, 1, 570, 300, { x: 210, y: 300 });
+  let backedOut = false;
+  for (let i = 0; i < 2400 && !game.bricks.slice(0, 2).every(brick => brick.slimed); i++) {
+    game.combat(1 / 60, game.cat.x, game.cat.y);
+    backedOut ||= !!second.binYield && second.x > 650;
+    for (const enemy of [first, second]) for (const obstacle of game.obstructions) {
+      assert.ok(obstructionSurface(enemy.x, enemy.y, obstacle).gap >= enemy.radius - 1e-5);
+    }
+  }
+  assert.ok(backedOut, 'the yielding bin retreats past the end of the constriction');
+  assert.ok(game.bricks.slice(0, 2).every(brick => brick.slimed));
+});
+
+test('preparing, pouring and sleeping bins are routed around regardless of priority', () => {
+  for (const state of ['prepare', 'pour', 'sleep']) {
+    const game = arena(() => .5);
+    game.cat.x = game.cat.y = 100;
+    const moving = travellingBin(game, 0, 200, 300, { x: 700, y: 300 });
+    const parked = travellingBin(game, 1, 450, 300, { x: 450, y: 300 });
+    moving.binPriority = 1; parked.binPriority = 0;
+    parked.binState = state === 'sleep' ? 'travel' : state;
+    parked.asleep = state === 'sleep';
+    for (let i = 0; i < 900 && !game.bricks[0].slimed; i++) {
+      game.updateTrashBin(moving, 1 / 60, game.trashBinBounds(moving));
+      assert.deepEqual({ x: parked.x, y: parked.y }, { x: 450, y: 300 });
+      assert.ok(Math.hypot(moving.x - parked.x, moving.y - parked.y) >= moving.radius + parked.radius);
+    }
+    assert.ok(game.bricks[0].slimed, state);
+  }
+});
+
+test('routes respect rotated and concave geometry and invalidate when solids change', () => {
+  for (const type of ['obstruction-rectangle', 'obstruction-v', 'obstruction-oval']) {
+    const game = arena(), enemy = bin(game);
+    const obstacle = game.createObstruction({ x: 480, y: 300 }, { type, width: 180, height: 120, rotation: 45 });
+    game.obstructions.push(obstacle);
+    Object.assign(enemy, { x: 250, y: 300 });
+    const destination = { x: 700, y: 300 }, navigation = game.trashBinNavigation(enemy);
+    const route = game.findTrashBinPath(enemy, destination, navigation);
+    assert.ok(route?.length > 1, type);
+    let from = enemy;
+    for (const to of route) {
+      for (let i = 0; i <= 100; i++) {
+        assert.ok(obstructionSurface(from.x + (to.x - from.x) * i / 100,
+          from.y + (to.y - from.y) * i / 100, obstacle).gap >= enemy.radius - 1e-6, type);
+      }
+      from = to;
+    }
+    assert.equal(game.trashBinNavigation(enemy), navigation, 'unchanged geometry reuses the grid');
+    obstacle.x = 900;
+    const changed = game.trashBinNavigation(enemy);
+    assert.notEqual(changed, navigation);
+    assert.equal(game.findTrashBinPath(enemy, destination, changed).length, 1);
+    game.obstructions = [];
+    game.bumpers.push(game.createBumper({ x: 480, y: 300 }, 'bumper-red'));
+    assert.ok(game.findTrashBinPath(enemy, destination, game.trashBinNavigation(enemy)).length > 1);
+  }
+});
+
+test('unreachable destinations release claims and are cooled down instead of immediately retried', () => {
+  const game = arena(() => 0);
+  game.cat.x = game.cat.y = 100;
+  const enemy = travellingBin(game, 0, 250, 300, { x: 700, y: 300 });
+  for (const brick of game.bricks) brick.slimed = brick !== game.bricks[0];
+  game.obstructions.push(game.createObstruction({ x: 700, y: 300 },
+    { type: 'obstruction-circle', width: 100 }));
+  game.combat(1 / 60, game.cat.x, game.cat.y);
+  assert.equal(enemy.binState, 'escape');
+  assert.equal(game.trashBinClaims.size, 0);
+  for (let i = 0; i < 180; i++) game.combat(1 / 60, game.cat.x, game.cat.y);
+  assert.equal(enemy.binTarget, null, 'the same unreachable brick is still cooling down');
+});
+
+test('a changing obstacle does not repeatedly stall an otherwise clear cached route', () => {
+  const game = arena(), enemy = travellingBin(game, 0, 200, 300, { x: 700, y: 300 });
+  game.cat.x = game.cat.y = 100;
+  const obstacle = game.createObstruction({ x: 480, y: 100 },
+    { type: 'obstruction-circle', width: 30 });
+  game.obstructions.push(obstacle);
+  for (let i = 0; i < 120; i++) {
+    obstacle.x += .1;
+    game.combat(1 / 60, game.cat.x, game.cat.y);
+  }
+  assert.ok(Math.abs(enemy.x - 350) < 1e-5, 'geometry changes away from the route do not add retry pauses');
+  Object.assign(obstacle, { x: 450, y: 300, radius: 45, width: 90, height: 90 });
+  let detoured = false;
+  for (let i = 0; i < 900 && !game.bricks[0].slimed; i++) {
+    game.combat(1 / 60, game.cat.x, game.cat.y);
+    detoured ||= Math.abs(enemy.y - 300) > 40;
+    assert.ok(obstructionSurface(enemy.x, enemy.y, obstacle).gap >= enemy.radius - 1e-6);
+  }
+  assert.ok(detoured);
+  assert.ok(game.bricks[0].slimed);
+});
+
+test('a bin shoved off an exhausted route returns to its pouring position', () => {
+  const game = arena(), enemy = travellingBin(game, 0, 400, 300, { x: 410, y: 300 });
+  game.cat.x = game.cat.y = 100;
+  game.updateTrashBin(enemy, .2, game.trashBinBounds(enemy));
+  assert.equal(enemy.binState, 'prepare');
+  assert.deepEqual(enemy.binRoute, []);
+  enemy.x -= 37;
+  for (let i = 0; i < 360 && !game.bricks[0].slimed; i++) game.combat(1 / 60, game.cat.x, game.cat.y);
+  assert.ok(game.bricks[0].slimed, 'displacement must not leave the bin repeatedly preparing off target');
+  assert.ok(Math.abs(enemy.x - 410) < 1e-6);
+});
+
+test('simultaneous detours spread A* searches across combat steps without losing claims', () => {
+  const game = arena();
+  game.cat.x = game.cat.y = 100;
+  game.obstructions.push(game.createObstruction({ x: 480, y: 300 },
+    { type: 'obstruction-rectangle', width: 120, height: 240 }));
+  const bins = [180, 260, 340, 420].map((y, index) =>
+    travellingBin(game, index, 250, y, { x: 700, y }));
+  for (const enemy of bins) enemy.asleep = true;
+  const find = game.findTrashBinPath;
+  let searches = 0;
+  game.findTrashBinPath = function (enemy, destination, navigation, ...args) {
+    const before = navigation.remainingSearches;
+    const result = find.call(this, enemy, destination, navigation, ...args);
+    if (before === 1 && navigation.remainingSearches === 0) searches++;
+    return result;
+  };
+  let deferred = false;
+  for (let frame = 0; frame < 5; frame++) {
+    searches = 0;
+    game.combat(1 / 60, game.cat.x, game.cat.y);
+    assert.ok(searches <= 1, 'expensive searches may not cluster in one step');
+    deferred ||= bins.some(enemy => !enemy.binRoute);
+    for (const [index, enemy] of bins.entries()) assert.equal(enemy.binTarget, index);
+  }
+  assert.ok(deferred, 'some bins wait for their routing turn');
+  assert.ok(bins.every(enemy => enemy.binRoute?.length), 'every pending bin eventually gets its detour');
+});
+
+test('bin routes account for Barrier fences as they extend and retract', () => {
+  const game = arena(), enemy = bin(game);
+  Object.assign(enemy, { x: 250, y: 300 });
+  const regions = brickRegions(game.bricks, game.width, game.height);
+  const brick = game.bricks.find(brick => regions.get(brick.id).edge === 'top'
+    && Math.abs(brick.x - 480) < 60);
+  brick.barrier = true;
+  game.barriers.push({ id: brick.id, length: 330, extending: true });
+  const destination = { x: 700, y: 300 }, navigation = game.trashBinNavigation(enemy);
+  const route = game.findTrashBinPath(enemy, destination, navigation);
+  assert.ok(route?.length > 1, 'a route goes around the deployed fence');
+  const parts = game.barrierParts();
+  let from = enemy;
+  for (const to of route) {
+    for (let i = 0; i <= 100; i++) for (const part of parts) {
+      const x = from.x + (to.x - from.x) * i / 100, y = from.y + (to.y - from.y) * i / 100;
+      assert.ok(Math.hypot(x - Math.max(part.x, Math.min(part.x + part.w, x)),
+        y - Math.max(part.y, Math.min(part.y + part.h, y))) >= enemy.radius);
+    }
+    from = to;
+  }
+  game.barriers[0].length = 0;
+  const changed = game.trashBinNavigation(enemy);
+  assert.notEqual(changed, navigation);
+  assert.equal(game.findTrashBinPath(enemy, destination, changed).length, 1);
+});
+
 test('random priorities remain stable and higher priority bins push lower priority bins at corners', () => {
   const game = arena(() => .5), leader = bin(game), yielding = bin(game), bounds = game.bounds();
   assert.equal(leader.binPriority, yielding.binPriority);
@@ -444,6 +613,51 @@ test('bin collision resolution preserves the higher-priority movement step', () 
   assert.equal(leader.x, 210);
   assert.ok(yielding.x > 240);
   assert.ok(Math.hypot(leader.x - yielding.x, leader.y - yielding.y) >= 38 - 1e-7);
+});
+
+test('wedged bin pairs do not repeat impossible separation, but retry after geometry clears', () => {
+  const game = arena(() => .5), first = bin(game), second = bin(game);
+  Object.assign(first, { x: 249, y: 300 });
+  Object.assign(second, { x: 251, y: 300 });
+  game.robots.push(first, second);
+  for (const [x, y, width, height] of [[200, 300, 40, 100], [300, 300, 40, 100],
+    [250, 250, 100, 40], [250, 350, 100, 40]]) {
+    game.obstructions.push(game.createObstruction({ x, y }, { type: 'obstruction-rectangle', width, height }));
+  }
+  const previous = new Map(game.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y }]));
+  const separate = game.separateEnemyPair;
+  let attempts = 0;
+  game.separateEnemyPair = function (...args) {
+    attempts++;
+    return separate.apply(this, args);
+  };
+  game.resolveEnemyCollisions(previous);
+  assert.equal(attempts, 1, 'an unchanged impossible pair must not consume hundreds of solver passes');
+  for (const enemy of game.robots) for (const obstacle of game.obstructions) {
+    assert.ok(obstructionSurface(enemy.x, enemy.y, obstacle).gap >= enemy.radius - 1e-6);
+  }
+  game.obstructions.splice(1, 1);
+  game.resolveEnemyCollisions(previous);
+  assert.ok(attempts > 1, 'removing a solid permits a new separation attempt');
+  assert.ok(Math.hypot(first.x - second.x, first.y - second.y) >= first.radius + second.radius - 1e-6);
+});
+
+test('a bin pushed back and forth between two higher-priority bins does not spin the solver', () => {
+  const game = arena(() => .5), first = bin(game), second = bin(game), yielding = bin(game);
+  Object.assign(first, { x: 200, y: 300 });
+  Object.assign(second, { x: 270, y: 300 });
+  Object.assign(yielding, { x: 235, y: 300 });
+  game.robots.push(first, second, yielding);
+  const previous = new Map(game.robots.map(enemy => [enemy, { x: enemy.x, y: enemy.y }]));
+  const separate = game.separateEnemyPair;
+  let attempts = 0;
+  game.separateEnemyPair = function (...args) {
+    attempts++;
+    return separate.apply(this, args);
+  };
+  game.resolveEnemyCollisions(previous);
+  assert.ok(attempts <= 4, 'revisiting a pair position must end its separation cycle');
+  assert.deepEqual([first.x, first.y, second.x, second.y], [200, 300, 270, 300]);
 });
 
 test('a large update carries time across approach, tilt, pour, and recovery without shortening the pour', () => {

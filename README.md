@@ -119,6 +119,24 @@ console, use `KoshiPerformance.snapshot()` to inspect/export the report,
 Record a Chrome DevTools Performance trace while reproducing manual issues.
 The automated runner hides the overlay to avoid its DOM-update overhead.
 
+For a focused Robo Trash Bin simulation comparison, save the engine before
+editing it, then benchmark the saved engine against the current one:
+
+```powershell
+# Before editing:
+Copy-Item src\game.js "$env:TEMP\koshi-game-before.cjs"
+# After editing:
+node tools\benchmark-robo-bins.js --baseline "$env:TEMP\koshi-game-before.cjs" --output "$env:TEMP\koshi-robo-bins.json"
+```
+
+The seeded, interleaved workloads cover clear travel, rotated/concave obstacles,
+single-file congestion, a no-bin control and Official 1-16 without changing level
+files. Reports separate cold routing from steady combat timing and include
+routing coverage, completed pours and escape counts. These Node measurements
+isolate simulation cost; use the browser runner above for rendering and FPS.
+Only the saved engine is substituted, so keep its supporting modules unchanged
+when comparing revisions.
+
 ## Publishing Official levels
 
 1. Export a level from the editor to `levels/official/`, usually under its world
@@ -693,8 +711,9 @@ the board; phones keep compact controls above it without scrolling away from pla
   contact and wait two seconds before becoming solid. On arrival, overlapping
   food, items, weapons, hearts, enemies and other loose objects are destroyed.
   Any overlap with a snake segment destroys the whole snake. These environmental
-  enemy deaths award no enemy points. Koshi immediately loses all hearts and the
-  level, even with invulnerability or turret protection. Non-overlapping objects
+  enemies killed this way award their usual shield-weighted enemy points. Koshi
+  immediately loses all hearts and the level, even with invulnerability or turret
+  protection. Non-overlapping objects
   are unaffected; existing solids retain their normal movement-blocking behavior.
 - Randomly placed food, items, weapons and hearts stay at least **80 pixels** from
   other pickups on the board or queued to appear, rerolling crowded spots (the
@@ -1873,7 +1892,7 @@ Placed bumpers and bumper spawn templates display at their actual 96-board-unit
 diameter in the editor, including grouped placements and both preview orientations.
 Their shaded colored faces and concentric white rings are fully opaque.
 Their two-second appearance warnings and overlap clearing use the obstruction
-rules, including lethal overlap with Koshi and unscored environmental enemy deaths.
+rules, including lethal overlap with Koshi and enemy points for environmental deaths.
 A bounce off any bumper, fixed or fired by a bumper gun, that forces Koshi into a
 brick kills him immediately, even while protected.
 Standing at a bumper gun's muzzle is safe: if its new shot overlaps Koshi, it
@@ -2419,13 +2438,23 @@ Robo Trash Bin (`robo-trash-bin`) is available in custom levels and enemy
 spawners. It rocks while floating, waits a random 3–5 seconds, then travels to
 a randomly selected non-slime brick other than Cinder or Goal. Each bin claims
 its own target and turns feet-first only when within roughly one brick length.
-If its average movement speed falls below 15% of normal for one second while
-roaming or travelling, it releases any claim and moves for two seconds in a
-direction chosen away from nearby obstructions, bricks and enemies before
-trying another eligible brick. It cannot pass through the boundary bricks,
+Travel uses a clear straight route when possible, otherwise cached A* waypoints
+around obstructions (including rotated and concave shapes), bumpers and Barrier
+fences, with clearance for the bin's body. Navigation grids are shared between
+bins, bounded to the active scrolling area, and rebuilt when solid geometry changes.
+At most one A* search runs per combat step; other bins wait for a later step,
+and clear side-steps are preferred over searching for a yielding route.
+Bins use stable priorities for right-of-way: the yielding bin steps aside or backs
+out of a narrow passage, while the other waits. Preparing, pouring and sleeping
+bins are routed around instead of pushed. Traffic waits are bounded to four seconds.
+If a destination is unreachable, or advancement toward its next waypoint stays
+below 15% of normal speed for one second, the bin releases its claim and moves
+away from nearby solids and enemies for two seconds before trying another brick.
+Unreachable targets have a five-second retry cooldown. Roaming bins retain the
+same slow-movement escape fallback. Bins cannot pass through boundary bricks,
 even when pushed by obstructions or other enemies.
 It opens its lid and tips sideways before pouring, then rights itself and closes
-the lid. Bins use a random, stable push priority to avoid blocking one another.
+the lid.
 After a three-second pour, the brick and its merged group gain red, green, or
 blue slime with equal probability, replacing any other contact surface. Sleep pauses it;
 fear interrupts its current pour. On scrolling boards it targets visible bricks
