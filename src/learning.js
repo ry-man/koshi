@@ -141,6 +141,7 @@ const GUIDE = [
       ['Robo Trash Bin', 'This floating green bin rocks as it wanders. Every 3 to 5 seconds it claims an unclaimed non-slime brick other than Cinder or Goal, turns feet-first as it approaches, and pours for three seconds, replacing its contact surface with equally likely red, green or blue slime. If it moves too slowly, it releases its target, moves away from nearby obstacles for two seconds, and tries another brick. Bins stay inside the boundary bricks and push one another according to a stable random priority. On scrolling boards they target visible bricks. Sleep pauses them and fear interrupts their pour. Available in custom levels and enemy spawners.', 'enemy:robo-trash-bin'],
       ['Robo Moon', 'A purple crescent with dark craters and an animated yellow face. It wanders without chasing Koshi, then stops and smoothly becomes a full moon with a yellow aura. Purple water creeps in behind the bricks from every level border, reaching just past their inner surfaces. It holds for one second, then the glow stops and the water retreats. Only once the water is gone does the moon shrink back into a crescent and wander again. Water hurts on contact, including during retreat. Swords and Boost defeat the moon and immediately send its tide back. Music Box pauses its cycle; Spooky Mask makes it flee and sends an active tide back. Available in custom levels and enemy spawners.', 'enemy:robo-moon'],
       ['Robo Sharpshooter', 'A grey robot in pink clothes with dark pink-tinted sunglasses and a crossbow. He wanders generally away from Koshi, pauses, and his glasses glimmer for one second before he fires three arrows. Each arrow aims at Koshi when fired, with a little variation. Arrows hurt Koshi and stop at bricks, barriers, obstructions and bumpers. Sleep pauses the robot; fear interrupts its attack while it flees. Defeat makes him frown, lose his glasses, split and explode. Available in custom levels and enemy spawners.', 'enemy:robo-sharpshooter'],
+      ['Robo Cat Lady', 'A grey robot with blocky blue hair, red square glasses and a navy laser pointer. She wanders slowly, then stops to aim for three seconds. When a red star appears at the end of the dotted line, Koshi steers toward it without using a brick activation. Brick inputs cannot redirect him while the laser is active. The laser ends if he stops, its owner is defeated, or a different Cat Lady takes over with another shot. She aims at random half the time; otherwise she aims toward a spiked or slimed brick, a stationary bubble or another enemy, if present. Available in custom levels and enemy spawners.', 'enemy:robo-cat-lady'],
       ['Robo Crab', 'A grey robot with red arms and pincers and blinking green pixel eyes. Each crab shuffles back and forth horizontally or vertically, alternating between 45 and 150 board units per second. Each speed lasts a random 3 to 15 seconds; a wide-open mouth warns during the final 0.65 seconds before either change. Defeat it with a sword or Boost: its eyes and pincers fly off, it opens a big frown, and a smoke puff fades away. Sleep and fear work normally. Available in custom levels and enemy spawners.', 'enemy:robo-crab'],
       ['Robo Love Bug', 'Pink wings form a purple heart beneath a dark grey head with square red eyes, dark red legs and antennae. Love Bugs shuffle and bounce like Robo Balls at 120 board units per second. Swords, hammers, Boost and turret attacks cannot damage them or their shields. Instead, isolate them with Barrier fences: a lone visible Love Bug, or the only bug in a closed barrier region, dies automatically. An open route around a fence still connects companions; other enemy types and spawn previews do not count. Its eyes swell with blue tears, then its head and two wings split apart before a Wheel-style explosion. Sleep and fear affect movement but do not prevent isolation. Available in custom levels, spawners and barrier practice.', 'enemy:robo-love-bug'],
       ['Robo Cow', 'The Cow walks only along the board perimeter. After walking past several brick lengths, it stops to eat a boundary brick; after five seconds, that brick and its merged group become Cinder. Cinder and Goal bricks cannot be eaten. A Spooky Mask cancels eating and makes it flee. It can be defeated with a sword or Boost.', 'enemy:robo-cow'],
@@ -259,6 +260,7 @@ const LESSONS = [
   { id: 'anvil', title: 'Anvil', instruction: 'Choose a weapon, then collect the anvil. Your partially used weapon returns to its full strike count, shot count or full axe timer. Anvils do nothing when unarmed.' },
   { id: 'rope-dart', title: 'Rope Dart', instruction: 'While resting, select the outlined brick to fire the Silver Rope Dart through both robots. Koshi waits for the dart to stop, then follows the rope and collects it. One click spends one shot, even when it hits multiple enemies.' },
   { id: 'item-case', title: 'Item Case', instruction: 'Aim at the outlined brick to collect a sword, then strike the glass case automatically. Watch the glass chunks fade and collect the key released from inside.' },
+  { id: 'robo-cat-lady', title: 'Robo Cat Lady', instruction: 'Collect a sword and intercept Robo Cat Lady. When the red star appears at the end of her laser, Koshi steers toward it.' },
 ];
 
 class Tutorial {
@@ -428,7 +430,7 @@ class Tutorial {
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
       'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(id)) {
       addSword();
       if (['wheel', 'snake', 'robo-cow'].includes(id)) {
@@ -602,6 +604,7 @@ class Tutorial {
       'robo-trash-bin': game.enemies >= 1,
       'robo-moon': game.enemies >= 1,
       'robo-sharpshooter': game.enemies >= 1,
+      'robo-cat-lady': game.enemies >= 1,
       'robo-crab': game.enemies >= 1,
       'robo-love-bug': game.enemies >= 2,
       'robo-cow': game.enemies >= 1,

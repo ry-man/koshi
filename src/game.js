@@ -17,6 +17,7 @@ const COOKIE_FOOD_MARGIN = 12;
 const COW_SPEED = 190;
 const COW_EAT_DURATION = 5;
 const SHARPSHOOTER_BOW = Object.freeze({ x: 18, y: 11, arrowTip: 31, projectileTip: 15 });
+const CAT_LADY_POINTER = Object.freeze({ x: 23, y: 10, tip: 17, charge: 3 });
 const TRASH_BIN_SPEED = 75;
 const OBSTRUCTION_RADIUS = 48;
 const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
@@ -290,6 +291,7 @@ function applyBrickTypes(bricks, entries = []) {
 const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-fly': 'Robo Fly', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', 'robo-moon': 'Robo Moon', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
 CHARACTERS['tom-frog'] = 'Tom the Frog';
 CHARACTERS['robo-sharpshooter'] = 'Robo Sharpshooter';
+CHARACTERS['robo-cat-lady'] = 'Robo Cat Lady';
 const isBossType = type => type === 'boss' || type === 'tom-frog';
 const frogAirborne = enemy => enemy.type === 'tom-frog' && ['jump-up', 'jump-track', 'jump-fall'].includes(enemy.state);
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
@@ -2105,7 +2107,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
@@ -2288,7 +2290,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -3511,6 +3513,8 @@ class Game {
     this.hazardFlames = [];
     this.hazardMissiles = [];
     this.sharpshooterArrows = [];
+    this.catLadyShots = [];
+    this.catLadyLaserOwner = null;
     this.hazardExplosions = [];
     this.cookieActive = false;
     this.cookieLickUntil = 0;
@@ -3699,10 +3703,9 @@ class Game {
   }
 
   steer(id, x, y) {
+    if (this.catLadyLaserOwner) return false;
     const brick = this.bricks.find(item => item.id === id);
-    if (this.state !== 'playing' || this.terrainImpact || this.activeTurret || (this.ropeDart && this.ropeDart.phase !== 'returning')
-      || this.bubbleTrap || this.catCircleTrap
-      || this.stuckUntil > this.elapsed + 1e-9 || !brick || !this.brickSelectable(brick) || !this.brickVisible(brick)) return false;
+    if (!this.canSteer() || !brick || !this.brickSelectable(brick) || !this.brickVisible(brick)) return false;
     if (this.level.autoscroll) {
       const camera = this.camera();
       if (x < camera.x || x > camera.x + camera.width || y < camera.y || y > camera.y + camera.height) return false;
@@ -3710,16 +3713,9 @@ class Game {
     const parts = this.brickParts();
     if (!Number.isFinite(x) || !Number.isFinite(y) || !parts.some(part =>
       part.id === id && x >= part.x && x <= part.x + part.w && y >= part.y && y <= part.y + part.h)) return false;
-    const dx = x - this.cat.x, dy = y - this.cat.y;
-    const distance = Math.hypot(dx, dy);
-    if (!distance) return false;
-    const boost = this.boostReady;
+    const flight = this.steeringFlight(x, y, parts);
+    if (!flight) return false;
     const fireDart = this.weapon && WEAPONS[this.weapon.type].ropeDart && !this.ropeDart && !this.cat.vx && !this.cat.vy;
-    const speed = SPEED * (boost ? 2 : 1) * (this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
-    const vx = dx / distance * speed, vy = dy / distance * speed;
-    if (parts.some(part => brickContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, part) <= 1e-9)) return false;
-    if (this.spikeParts(parts).some(({ triangle }) =>
-      spikeContact(this.cat.x, this.cat.y, vx / 120, vy / 120, this.cat.radius, triangle) <= 1e-9)) return false;
     const onIce = !this.iceSkateActive && this.terrainAt(this.cat.x, this.cat.y)?.type === 'ice';
     if (onIce && this.iceDirectionLocked && (this.cat.vx || this.cat.vy)) {
       this.iceSteer = { id, x, y };
@@ -3748,12 +3744,7 @@ class Game {
         other.toggleRemaining = other.toggleRemaining === 0 ? other.toggle : other.toggleRemaining - 1;
       }
     }
-    this.boosted = boost;
-    this.cat.vx = vx;
-    this.cat.vy = vy;
-    this.capeFlightMultiplier = this.capeActive ? CAPE_SPEED_MULTIPLIER : 1;
-    this.conveyorRide = null;
-    this.target = { x, y };
+    this.applySteeringFlight(flight);
     if (this.activationsRemaining !== null && --this.activationsRemaining === 0) {
       this.boomHelmet.exploded = true;
       this.boomHelmet.age = 0;
@@ -3764,7 +3755,7 @@ class Game {
     }
     if (fireDart && this.state === 'playing') {
       this.weapon.uses--;
-      this.ropeDart = { x: this.cat.x, y: this.cat.y, direction: { x: dx / distance, y: dy / distance },
+      this.ropeDart = { x: this.cat.x, y: this.cat.y, direction: flight.direction,
         type: this.weapon.type, phase: 'flying', hit: new Set(),
         launchContacts: new Set([...this.obstructions, ...this.bumpers].filter(object =>
           obstructionSurface(this.cat.x, this.cat.y, object).gap <= this.cat.radius + 1e-6)) };
@@ -3773,6 +3764,35 @@ class Game {
     }
     this.pendingMove = this.state === 'playing' ? { target: this.target, dart: fireDart ? this.ropeDart : null } : null;
     return true;
+  }
+
+  canSteer() {
+    return this.state === 'playing' && !this.terrainImpact && !this.activeTurret
+      && (!this.ropeDart || this.ropeDart.phase === 'returning') && !this.bubbleTrap && !this.catCircleTrap
+      && !(this.stuckUntil > this.elapsed + 1e-9);
+  }
+
+  steeringFlight(x, y, parts = this.brickParts()) {
+    const cat = this.cat;
+    const dx = x - cat.x, dy = y - cat.y, distance = Math.hypot(dx, dy);
+    if (!distance) return null;
+    const boost = this.boostReady;
+    const speed = SPEED * (boost ? 2 : 1) * (this.capeActive ? CAPE_SPEED_MULTIPLIER : 1);
+    const direction = { x: dx / distance, y: dy / distance };
+    const vx = direction.x * speed, vy = direction.y * speed;
+    if (parts.some(part => brickContact(cat.x, cat.y, vx / 120, vy / 120, cat.radius, part) <= 1e-9)
+      || this.spikeParts(parts).some(({ triangle }) =>
+        spikeContact(cat.x, cat.y, vx / 120, vy / 120, cat.radius, triangle) <= 1e-9)) return null;
+    return { x, y, vx, vy, boost, direction };
+  }
+
+  applySteeringFlight({ x, y, vx, vy, boost }) {
+    this.boosted = boost;
+    this.cat.vx = vx;
+    this.cat.vy = vy;
+    this.capeFlightMultiplier = this.capeActive ? CAPE_SPEED_MULTIPLIER : 1;
+    this.conveyorRide = null;
+    this.target = { x, y };
   }
 
   brickParts() {
@@ -5124,6 +5144,7 @@ class Game {
     if (event.type === 'robo-trash-bin') this.initializeTrashBin(enemy);
     if (event.type === 'robo-moon') this.initializeRoboMoon(enemy);
     if (event.type === 'robo-sharpshooter') this.initializeSharpshooter(enemy);
+    if (event.type === 'robo-cat-lady') this.initializeCatLady(enemy);
     if (isBossType(event.type)) {
       if (event.type === 'tom-frog') this.initializeFrog(enemy);
       else this.initializeBoss(enemy);
@@ -5639,6 +5660,7 @@ class Game {
       if (type === 'robo-trash-bin') this.initializeTrashBin(enemy);
       if (type === 'robo-moon') this.initializeRoboMoon(enemy);
       if (type === 'robo-sharpshooter') this.initializeSharpshooter(enemy);
+      if (type === 'robo-cat-lady') this.initializeCatLady(enemy);
       this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       if (isBossType(type)) {
         if (type === 'tom-frog') this.initializeFrog(enemy);
@@ -6253,6 +6275,7 @@ class Game {
   defeatEnemy(enemy, awardPoints = true, cause = null) {
     if (enemy.type === 'robo-love-bug' && cause !== 'isolation') return;
     if (isBossType(enemy.type) && enemy.health > 0) return;
+    if (enemy === this.catLadyLaserOwner) this.endCatLadyLaser();
     if (enemy.type === 'robo-trash-bin') this.releaseTrashBinTarget(enemy);
     if (enemy.type === 'robo-moon') {
       enemy.moonGlow = 0;
@@ -6542,6 +6565,100 @@ class Game {
         else enemy.sharpshooterState = 'shoot';
       }
     }
+  }
+
+  initializeCatLady(enemy) {
+    enemy.catLadyState = 'wander';
+    enemy.catLadyTime = 0;
+    enemy.catLadyTarget = null;
+    enemy.catLadyBeam = null;
+    enemy.aimAngle ??= enemy.phase;
+    enemy.pointerX ??= Math.sign(Math.cos(enemy.aimAngle)) * CAT_LADY_POINTER.x;
+  }
+
+  catLadyTarget(enemy, robots) {
+    if (this.random() < .5) return null;
+    const targets = [
+      ...this.brickParts().filter(part => this.bricks[part.id].spikes || this.bricks[part.id].slimed)
+        .map(part => ({ x: part.x + part.w / 2, y: part.y + part.h / 2 })),
+      ...this.bubbles.filter(bubble => !bubble.hazardShot && !bubble.track),
+      ...robots.filter(other => other !== enemy),
+    ];
+    const target = targets.length ? targets[Math.floor(this.random() * targets.length)] : null;
+    return target ? { x: target.x, y: target.y } : null;
+  }
+
+  catLadyLaser(enemy) {
+    const ux = Math.cos(enemy.aimAngle), uy = Math.sin(enemy.aimAngle);
+    const pivot = { x: enemy.x + enemy.pointerX, y: enemy.y + CAT_LADY_POINTER.y };
+    const range = Math.max(0, Math.min(
+      ux ? ((ux > 0 ? this.width : 0) - pivot.x) / ux : Infinity,
+      uy ? ((uy > 0 ? this.height : 0) - pivot.y) / uy : Infinity,
+    ));
+    const dx = ux * range, dy = uy * range;
+    const contact = Math.min(1, this.hazardObstacleTime(pivot, dx, dy, 0, this.brickParts()));
+    return {
+      start: { x: pivot.x + ux * CAT_LADY_POINTER.tip, y: pivot.y + uy * CAT_LADY_POINTER.tip },
+      end: { x: pivot.x + dx * contact, y: pivot.y + dy * contact },
+      extendsPastTip: range * contact > CAT_LADY_POINTER.tip,
+    };
+  }
+
+  updateCatLady(enemy, dt, bounds, robots) {
+    const pointer = CAT_LADY_POINTER;
+    enemy.catLadyTime += dt;
+    if (enemy.catLadyState === 'wander') {
+      enemy.phase += Math.sin(enemy.age * 2.1 + enemy.phase) * 1.8 * dt;
+      enemy.x += Math.cos(enemy.phase) * 42 * dt;
+      enemy.y += Math.sin(enemy.phase) * 42 * dt;
+      if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+      enemy.aimAngle = enemy.phase;
+      if (enemy.catLadyTime >= 2.5 - 1e-9) {
+        enemy.catLadyState = 'aim';
+        enemy.catLadyTime = Math.max(0, enemy.catLadyTime - 2.5);
+        enemy.catLadyTarget = this.catLadyTarget(enemy, robots);
+        if (!enemy.catLadyTarget) enemy.aimAngle = this.random() * Math.PI * 2;
+      }
+    }
+    const target = enemy.catLadyTarget;
+    const direction = target ? target.x - enemy.x : Math.cos(enemy.aimAngle);
+    const side = Math.abs(direction) < 1e-9 ? enemy.pointerX : Math.sign(direction) * pointer.x;
+    enemy.pointerX += Math.max(-144 * dt, Math.min(144 * dt, side - enemy.pointerX));
+    if (target) enemy.aimAngle = Math.atan2(target.y - enemy.y - pointer.y, target.x - enemy.x - enemy.pointerX);
+    if (enemy.catLadyState === 'aim' && enemy.catLadyTime >= pointer.charge - 1e-9) this.catLadyShots.push(enemy);
+  }
+
+  resolveCatLadyShots() {
+    if (!this.catLadyShots.length) return;
+    const shots = this.catLadyShots;
+    this.catLadyShots = [];
+    if (this.state !== 'playing') return;
+    for (const enemy of shots) {
+      if (enemy === this.catLadyLaserOwner || !this.robots.includes(enemy)) continue;
+      const beam = this.catLadyLaser(enemy);
+      const { x, y } = beam.end;
+      const flight = this.canSteer() && this.steeringFlight(x, y);
+      if (!flight) {
+        this.initializeCatLady(enemy);
+        continue;
+      }
+      this.iceSteer = null;
+      this.endCatLadyLaser();
+      this.applySteeringFlight(flight);
+      this.pendingMove = { target: this.target, dart: null };
+      enemy.catLadyBeam = beam;
+      enemy.catLadyState = 'lit';
+      this.catLadyLaserOwner = enemy;
+    }
+  }
+
+  endCatLadyLaser() {
+    if (!this.catLadyLaserOwner) return;
+    this.initializeCatLady(this.catLadyLaserOwner);
+    this.catLadyLaserOwner = null;
   }
 
   initializeBucket(enemy) {
@@ -7903,7 +8020,7 @@ class Game {
   }
 
   turnEnemyFromContact(enemy, nx, ny) {
-    if (['wheel', 'snake', 'robo-cow'].includes(enemy.type) || (enemy.type === 'mouse' && enemy.resting)
+    if (enemy.catLadyBeam || ['wheel', 'snake', 'robo-cow'].includes(enemy.type) || (enemy.type === 'mouse' && enemy.resting)
       || (!enemy.afraid && enemy.type === 'ram' && enemy.state === 'targeting')) return;
     const angle = enemy.type === 'ram' && !enemy.afraid ? enemy.angle : enemy.phase;
     const vx = Math.cos(angle), vy = Math.sin(angle);
@@ -7926,8 +8043,10 @@ class Game {
       enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
       enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
     };
-    if (isBossType(a.type) || isBossType(b.type)) {
-      const other = isBossType(a.type) ? b : a, sign = isBossType(a.type) ? -1 : 1;
+    const fixedA = a.catLadyBeam || isBossType(a.type), fixedB = b.catLadyBeam || isBossType(b.type);
+    if (fixedA || fixedB) {
+      if ((a.catLadyBeam || b.catLadyBeam) && fixedA && fixedB) return;
+      const other = fixedA ? b : a, sign = fixedA ? -1 : 1;
       other.x += sign * nx * overlap; other.y += sign * ny * overlap;
       clamp(other);
       return;
@@ -8343,7 +8462,7 @@ class Game {
     }
     this.robots = active;
     try {
-      this.combatEnemies(dt, startX, startY);
+      this.combatEnemies(dt, startX, startY, all);
     } finally {
       const survivors = new Set([...this.robots, ...dormant]);
       const original = new Set(all);
@@ -8355,7 +8474,7 @@ class Game {
     }
   }
 
-  combatEnemies(dt, startX, startY) {
+  combatEnemies(dt, startX, startY, robots = this.robots) {
     this.robots = this.robots.filter(enemy => {
       if (enemy.type !== 'goalie' || this.goalieArea(enemy)) return true;
       this.defeatEnemy(enemy, false);
@@ -8372,7 +8491,7 @@ class Game {
       ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}) });
     const previous = new Map(this.robots.map(enemy => [enemy, snapshot(enemy)]));
     for (const enemy of this.robots) {
-      if (enemy.type !== 'snake' && enemy.type !== 'robo-koshi' && enemy.type !== 'tom-frog') this.clearBarrierOverlap(enemy, fences);
+      if (!enemy.catLadyBeam && enemy.type !== 'snake' && enemy.type !== 'robo-koshi' && enemy.type !== 'tom-frog') this.clearBarrierOverlap(enemy, fences);
       if (enemy.type === 'robo-trash-bin') this.containTrashBin(enemy);
       if (enemy.type !== 'goalie') previous.set(enemy, snapshot(enemy));
     }
@@ -8395,12 +8514,14 @@ class Game {
       enemy.afraid = this.maskActive;
       enemy.fleeMoving = false;
       if (enemy.asleep) { enemy.touching = false; continue; }
+      if (enemy.catLadyBeam) continue;
       if (enemy.type === 'robo-koshi') {
         this.moveRoboKoshi(enemy, dt);
       } else if (enemy.type === 'goalie') {
         this.moveGoalie(enemy, dt);
       } else if (enemy.afraid) {
         enemy.resting = false;
+        if (enemy.type === 'robo-cat-lady') this.initializeCatLady(enemy);
         if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) this.moveAfraidWheel(enemy, dt);
         else this.moveAfraidEnemy(enemy, dt);
         if (enemy.type === 'robo-crab') enemy.crabStride += FEAR_SPEED * dt * .12;
@@ -8417,6 +8538,8 @@ class Game {
         this.updateRoboMoon(enemy, dt, bounds);
       } else if (enemy.type === 'robo-sharpshooter') {
         this.updateSharpshooter(enemy, dt);
+      } else if (enemy.type === 'robo-cat-lady') {
+        this.updateCatLady(enemy, dt, bounds, robots);
       } else if (enemy.type === 'robo-unicorn') {
         this.updateRoboUnicorn(enemy, dt, bounds);
       } else if (enemy.type === 'robo-crab') {
@@ -8455,14 +8578,14 @@ class Game {
     }
     if (binNavigation) binNavigation.remainingSearches = undefined;
     for (const enemy of this.robots) {
-      if (enemy.type !== 'robo-koshi' && enemy.type !== 'tom-frog') this.blockEnemyWithObstructions(enemy, previous.get(enemy));
+      if (!enemy.catLadyBeam && enemy.type !== 'robo-koshi' && enemy.type !== 'tom-frog') this.blockEnemyWithObstructions(enemy, previous.get(enemy));
     }
     this.binCollisionNavigation = binNavigation;
     this.resolveEnemyCollisions(previous);
     this.binCollisionNavigation = null;
     this.resolveSnakeBodyCollisions(previous);
     for (const enemy of this.robots) {
-      if (enemy.type === 'robo-koshi' || enemy.type === 'tom-frog') continue;
+      if (enemy.catLadyBeam || enemy.type === 'robo-koshi' || enemy.type === 'tom-frog') continue;
       if (enemy.type === 'snake') this.blockSnakeWithBarriers(enemy, previous.get(enemy), fences);
       else {
         if (enemy.type !== 'robo-cow' || enemy.afraid) this.blockEnemyWithBarriers(enemy, previous.get(enemy), fences);
@@ -8472,7 +8595,7 @@ class Game {
     }
     for (const enemy of this.robots) {
       const old = previous.get(enemy);
-      if (enemy.type === 'tom-frog') continue;
+      if (enemy.catLadyBeam || enemy.type === 'tom-frog') continue;
       if (enemy.roboPathTarget) {
         enemy.x = enemy.roboPathTarget.x;
         enemy.y = enemy.roboPathTarget.y;
@@ -9064,7 +9187,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug', 'robo-sharpshooter'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin', 'robo-cat-lady'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug', 'robo-sharpshooter'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -9212,6 +9335,8 @@ class Game {
         }
       }
       this.tick(dt);
+      if (this.catLadyLaserOwner && (this.state !== 'playing' || this.bossDefeated
+        || (!this.cat.vx && !this.cat.vy) || !this.robots.includes(this.catLadyLaserOwner))) this.endCatLadyLaser();
       remaining -= dt;
     }
   }
@@ -9712,6 +9837,7 @@ class Game {
       this.elapsed = this.timeLimit;
       this.state = this.level.survive ? 'won' : 'lost';
     }
+    this.resolveCatLadyShots();
     this.checkCatBlockAchievement();
     this.recordCatPosition();
     this.tickStart = null;
@@ -9721,6 +9847,7 @@ class Game {
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
 const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, SHARPSHOOTER_BOW, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
+api.CAT_LADY_POINTER = CAT_LADY_POINTER;
 api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;
 Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks, terrainContains, validateTerrainRegions });

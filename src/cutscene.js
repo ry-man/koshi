@@ -515,6 +515,10 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#26353d', 7, 26 - mouthHeight, 7, mouthHeight);
     box('#edf2e8', 8, 26 - Math.min(2, mouthHeight - 1), 5, Math.min(2, mouthHeight - 1));
     box('#384044', 10, 26 - Math.min(2, mouthHeight - 1), 1, Math.min(2, mouthHeight - 1));
+  } else if (character === 'robo-cat-lady') {
+    ctx.save(); ctx.translate(14, 16); ctx.scale(.46, .46);
+    globalThis.KoshiBrickVisuals.drawRoboCatLady(ctx, { speaking: talking });
+    ctx.restore();
   } else if (character === 'robo-sharpshooter') {
     box('#485158', 5, 3, 22, 27); box('#a2abb0', 7, 2, 18, 27);
     box('#f62b9a', 7, 25, 18, 5);

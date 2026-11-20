@@ -2,7 +2,8 @@
 'use strict';
 
 const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { isBossType, SHARPSHOOTER_BOW } = globalThis.KoshiGame;
+const { isBossType, SHARPSHOOTER_BOW, CAT_LADY_POINTER } = globalThis.KoshiGame;
+const { drawRoboCatLady, drawRoboCatLadyDeath } = globalThis.KoshiBrickVisuals;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash, drawSurfBoard, drawIceSkate, drawWaterSplash } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
@@ -613,7 +614,8 @@ function brickClickPoint(event, brick) {
 function activateBrick(brick, x, y) {
   const steering = tutorial ?? game;
   if (!steering.steer(brick.id, x, y)) {
-    toast.textContent = game.stuckUntil > game.elapsed + 1e-9 ? ''
+    toast.textContent = game.catLadyLaserOwner ? "Robo Cat Lady's laser is steering Koshi."
+      : game.stuckUntil > game.elapsed + 1e-9 ? ''
       : !game.sunglassesActive && !brickEnabled(brick) ? `That toggle needs ${brick.toggleRemaining} more successful clicks of other bricks.`
       : !game.sunglassesActive && brick.usesLeft === 0 ? 'That Crumbler is permanently deactivated. Pick another!'
       : !game.sunglassesActive && brick.readyAt > game.elapsed + 1e-9 ? 'That brick is recharging. Pick another!'
@@ -1699,7 +1701,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
-    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
     'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives', 'anvil',
   ].includes(tutorial.lesson.id);
   makeBrickButtons();
@@ -2053,6 +2055,7 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     expression = game.cookieActive ? 'eating' : game.cookieLickUntil > game.elapsed ? 'licking' : null;
   }
   const healthExpression = playerCharacter && expression === null && game.hearts <= 2 ? game.hearts : null;
+  const laserEyes = playerCharacter && game.catLadyLaserOwner;
   ctx.save();
   ctx.translate(x, y);
   const hurt = damageProgress !== null;
@@ -2107,6 +2110,11 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
       line([[eye + 4, -7], [eye - 4, 1]], '#26323a', 3);
     } else if (expression === 'won') {
       ctx.beginPath(); ctx.arc(eye, -1, 3.5, Math.PI, Math.PI * 2); ctx.strokeStyle = '#26323a'; ctx.stroke();
+    } else if (laserEyes) {
+      ctx.fillStyle = '#26323a';
+      ctx.beginPath(); ctx.ellipse(eye, -7.5, 6.5, 8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#eff2ed';
+      ctx.beginPath(); ctx.ellipse(eye - 1.8, -10.5, 1.7, 2.2, 0, 0, Math.PI * 2); ctx.fill();
     } else {
       ctx.beginPath(); ctx.ellipse(eye, -3, boostReady ? 3.2 : 2.3, blink ? .7 : boostReady ? 4.2 : 3.2, 0, 0, Math.PI * 2); ctx.fill();
     }
@@ -2482,6 +2490,36 @@ function drawHazards(context, camera = null) {
     context.save(); context.globalAlpha *= 1 - progress;
     context.fillStyle = '#ff693c55'; context.strokeStyle = '#ffb35a'; context.lineWidth = 3 * (1 - progress);
     context.beginPath(); context.arc(effect.x, effect.y, 12 + progress * 50, 0, Math.PI * 2); context.fill(); context.stroke();
+    context.restore();
+  }
+}
+
+function drawCatLadyLasers(context, game) {
+  for (const enemy of game.robots) {
+    if (enemy.type !== 'robo-cat-lady') continue;
+    const lit = enemy.catLadyBeam;
+    if (!lit && (enemy.catLadyState !== 'aim' || enemy.asleep || enemy.afraid || enemy.dormant)) continue;
+    const { start, end, extendsPastTip } = lit ?? game.catLadyLaser(enemy);
+    const progress = lit ? 1 : Math.min(1, enemy.catLadyTime / CAT_LADY_POINTER.charge);
+    context.save();
+    if (extendsPastTip) {
+      context.lineCap = 'round'; context.setLineDash([.2, 7]);
+      context.lineWidth = .8 + 2.4 * progress;
+      context.strokeStyle = `rgba(255, ${35 + Math.round(65 * progress)}, ${35 + Math.round(65 * progress)}, ${.25 + .7 * progress})`;
+      context.shadowColor = '#ff2727'; context.shadowBlur = 8 * progress;
+      context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.stroke();
+    }
+    if (lit) {
+      context.fillStyle = '#ff3535'; context.shadowColor = '#ff2525'; context.shadowBlur = 12;
+      context.beginPath();
+      for (let i = 0; i < 16; i++) {
+        const angle = i * Math.PI / 8;
+        const radius = i % 2 ? 4.5 : i % 4 ? 9 : 13;
+        const x = end.x + Math.cos(angle) * radius, y = end.y + Math.sin(angle) * radius;
+        if (i === 0) context.moveTo(x, y); else context.lineTo(x, y);
+      }
+      context.closePath(); context.fill();
+    }
     context.restore();
   }
 }
@@ -2929,6 +2967,7 @@ function render(now) {
   if (game.terrainImpact) drawWaterSplash(ctx, game.terrainImpact);
   drawTurretEffects(ctx, game.level.autoscroll ? camera : null);
   drawHazards(ctx, game.level.autoscroll ? camera : null);
+  drawCatLadyLasers(ctx, game);
   ctx = boardCtx;
 }
 
@@ -5297,6 +5336,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
     drawRoboSharpshooter(enemy, deathProgress, damageColor);
     ctx.restore(); return;
   }
+  if (enemy.type === 'robo-cat-lady') {
+    drawRoboCatLady(ctx, enemy, damageColor);
+    ctx.restore(); return;
+  }
   if (enemy.type === 'goalie') {
     drawRoboGoalie(enemy, deathProgress, damageColor);
     ctx.restore(); return;
@@ -5891,6 +5934,8 @@ function drawEnemyDeath(enemy) {
   ctx.save();
   if (isBossType(enemy.type)) {
     drawRobot(enemy, progress);
+  } else if (enemy.type === 'robo-cat-lady') {
+    drawRoboCatLadyDeath(ctx, enemy, drawRobotExplosion);
   } else if (enemy.type === 'robo-sharpshooter') {
     drawRobot(enemy, progress);
     if (progress >= .65) {

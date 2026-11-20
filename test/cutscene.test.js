@@ -426,7 +426,7 @@ test('all campaign scenes validate and every campaign story character speaks', (
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'tom-frog'].includes(character)).sort());
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'tom-frog'].includes(character)).sort());
   assert.ok(!speakers.has('tom-frog'), 'custom-only bosses do not change campaign scenes');
   assert.ok(!speakers.has('robo-fly'), 'custom-only enemies do not change campaign scenes');
   assert.ok(!speakers.has('robo-trash-bin'), 'custom-only enemies do not change campaign scenes');
@@ -674,7 +674,7 @@ test('optional cutscenes survive custom-level round trips independently of sourc
 
 test('every story character has a distinct animated portrait with finite drawing coordinates', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8');
-  const context = vm.createContext({});
+  const context = vm.createContext({ KoshiBrickVisuals: require('../src/brick-visuals.js') });
   vm.runInContext(source.slice(source.indexOf('function drawPortrait('), source.indexOf('class CutscenePlayer')), context);
   const drawings = [];
   for (const character of Object.keys(CHARACTERS)) {

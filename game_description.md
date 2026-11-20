@@ -854,6 +854,25 @@ his glasses fly off, his body splits lengthwise, and he explodes. He supports
 custom placements, enemy spawners, cutscenes and guide practice; existing
 campaign levels are unchanged.
 
+**Robo Cat Lady** (`robo-cat-lady`) is a grey robot with frazzled, blocky blue
+hair and purple pixel eyes behind red square glasses. She wanders slowly
+before stopping to aim a navy pointer that slides from hand to hand. A dotted
+red line gets thicker and brighter over three seconds, stopping at the first
+brick, obstruction or bumper (or the arena edge). When fired, a red eight-point
+star appears at the endpoint, and Koshi immediately steers toward it if free to
+move. His eyes widen for the laser-driven movement, but his mouth still shows
+his health. Robo Cat Lady holds still with the line and star visible, and
+brick inputs cannot redirect Koshi. The laser ends when Koshi stops moving,
+its owner is defeated, or another Cat Lady takes over with a new shot. The
+laser does not activate bricks, spend a Boom Helmet charge or fire a Rope Dart.
+Half the time she picks a random
+angle; otherwise she aims toward a spiked or slimed
+brick, a stationary bubble, or another enemy, falling back to a random angle
+if none are present. Music Box pauses her aim; Spooky Mask interrupts her charge
+before firing. On defeat, her glasses fly off and an explosion breaks her grey
+body into pieces. Her blue hair falls to the floor and fades after the blast.
+Available in custom placements and enemy spawners.
+
 Barrier bricks are an exclusive brick surface introduced in Level 2-22 and
 available for custom levels.
 Successfully selecting one extends a dark green semi-transparent fence at

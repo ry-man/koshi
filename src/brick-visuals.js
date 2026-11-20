@@ -59,6 +59,7 @@ const SYMBOLS = {
   'robo-trash-bin': 'M-21 -20 H21 V-14 H-21 Z M-18 -14 L-15 20 Q0 25 15 20 L18 -14 Z M-11 -7 H-3 V-1 H-11 Z M3 -7 H11 V-1 H3 Z M-7 11 Q0 4 7 11 M-18 17 A5 5 0 1 0 -12 23 M18 17 A5 5 0 1 1 12 23',
   'robo-moon': 'M9 -27 C-36 -27 -36 27 13 27 C-5 14 -16 -6 9 -27 Z M-15 -13 V-3 H-5 Z M-16 7 L1 5 L-2 17 Z M-10 -21 A2 2 0 1 0 -6 -21 M-23 0 A2 2 0 1 0 -19 0 M-16 19 A2 2 0 1 0 -12 19',
   'robo-sharpshooter': 'M-17 -11 Q-17 -24 0 -24 Q17 -24 17 -11 V15 Q15 24 0 24 Q-15 24 -17 15 Z M-17 14 Q0 18 17 14 M-22 -13 H22 Q23 -1 14 0 Q5 1 0 -6 Q-5 1 -14 0 Q-23 -1 -22 -13 Z M-7 10 Q0 13 7 10 M9 10 Q9 1 16 1 Q23 1 23 10 L16 15 Z M14 -4 H18 V23 H14 Z',
+  'robo-cat-lady': 'M-24 17 V7 H-20 V-5 H-25 V-12 H-18 V-20 H-12 V-26 H-5 V-19 H4 V-25 H11 V-17 H20 V-9 H25 V0 H21 V10 H26 V18 H15 L10 23 H-10 L-15 18 Z M-14 -8 H-3 V3 H-14 Z M3 -8 H14 V3 H3 Z M-3 -3 H3 M-7 9 V13 H7 V9',
   'robo-cow': 'M-20 -7 L-29 -19 L-15 -17 L-7 -21 H13 L22 -15 L29 -23 L28 -8 Q32 1 23 9 L21 17 H13 L10 8 H-8 L-12 18 H-20 L-19 7 Q-29 1 -20 -7 M-12 -3 H-5 V2 H-12 Z M7 -3 H14 V2 H7 Z M-2 5 Q2 9 6 5',
   'robo-crab': 'M-23 4 Q-23 -7 -12 -7 H12 Q23 -7 23 4 V8 Q23 19 12 19 H-12 Q-23 19 -23 8 Z M-23 2 H-35 V-24 H-29 M23 2 H35 V-24 H29 M-16 13 L-31 16 L-24 26 M16 13 L31 16 L24 26 M-10 -7 V-19 M10 -7 V-19 M-18 -23 H-2 V-15 H-18 Z M2 -23 H18 V-15 H2 Z M-13 12 V7 H13 V12 M-36 -24 L-37 -38 L-22 -38 L-30 -28 L-23 -31 V-24 Z M36 -24 L37 -38 L22 -38 L30 -28 L23 -31 V-24 Z',
   'robo-love-bug': 'M0 -9 C-30 -13 -30 25 0 25 C30 25 30 -13 0 -9 Z M0 -9 V25 M-22 -7 C-22 -31 22 -31 22 -7 Z M-10 -22 L-18 -33 M10 -22 L18 -33 M-21 -35 A3 3 0 1 1 -15 -35 A3 3 0 1 1 -21 -35 M15 -35 A3 3 0 1 1 21 -35 A3 3 0 1 1 15 -35 M-18 -4 L-27 -9 M-20 6 H-28 M-18 17 L-26 23 M18 -4 L27 -9 M20 6 H28 M18 17 L26 23 M-12 -19 H-5 V-12 H-12 Z M5 -19 H12 V-12 H5 Z M0 19 C-31 2 -13 -9 0 2 C13 -9 31 2 0 19 Z',
@@ -163,6 +164,122 @@ function drawPaintbrush(ctx, item) {
   }
   ctx.restore();
 }
+function catLadyBox(ctx) {
+  return (color, left, top, w, h) => {
+    ctx.fillStyle = color; ctx.fillRect(left, top, w, h);
+  };
+}
+
+function drawCatLadyHair(box) {
+  // Stepped silhouette and offset highlights give the hair a blocky outline.
+  box('#152846', -20, -19, 40, 35);
+  box('#152846', -15, -27, 11, 12); box('#152846', 3, -25, 10, 11);
+  box('#152846', -26, -13, 9, 8); box('#152846', -27, 7, 11, 12);
+  box('#152846', 17, -15, 8, 10); box('#152846', 17, 1, 10, 8); box('#152846', 16, 13, 10, 8);
+  box('#3386d8', -18, -17, 36, 31);
+  box('#459ded', -13, -25, 7, 11); box('#459ded', 5, -23, 6, 9);
+  box('#2c6fc3', -24, -11, 8, 4); box('#2c6fc3', -25, 9, 9, 8);
+  box('#2c6fc3', 17, -13, 6, 7); box('#2c6fc3', 17, 3, 8, 4); box('#2c6fc3', 16, 15, 8, 4);
+}
+
+function drawCatLadyFace(ctx, box, speaking, damageColor, defeated = false) {
+  ctx.beginPath(); ctx.ellipse(0, 3, 17, 19, 0, 0, Math.PI * 2);
+  ctx.fillStyle = damageColor ?? '#aeb8bf'; ctx.fill();
+  ctx.strokeStyle = '#303d49'; ctx.lineWidth = 2; ctx.stroke();
+  box('#d7dce0', -8, -14, 15, 2);
+  if (defeated) {
+    for (const lens of [-15, 2]) drawCatLadyEye(box, lens);
+  }
+  box('#303d49', -7, speaking ? 9 : 12, 14, speaking ? 6 : 2);
+  for (const side of [-7, 5]) box('#303d49', side, defeated ? 13 : 9, 2, 4);
+}
+
+function drawCatLadyEye(box, lens) {
+  box('#9c48e7', lens + 3, -5, 7, 5);
+  box('#da9dff', lens + 5, -6, 3, 7);
+  box('#f3d9ff', lens + 5, -5, 2, 2);
+}
+
+function drawCatLadyGlasses(box, onFace) {
+  box('#e83241', -17, -5, 34, 3);
+  for (const lens of [-15, 2]) {
+    box('#81212f', lens - 1, -10, 15, 15);
+    box('#ff4d50', lens, -9, 13, 13);
+    box('#281f3c', lens + 2, -7, 9, 9);
+    if (onFace) drawCatLadyEye(box, lens);
+  }
+}
+
+function drawCatLadyPointer(ctx, box, enemy) {
+  const { x, y, tip } = engine.CAT_LADY_POINTER;
+  ctx.translate(enemy.pointerX ?? x, y); ctx.rotate(enemy.aimAngle ?? -.6);
+  box('#0e1728', -8, -5, tip + 8, 10);
+  box('#182b55', -7, -4, tip + 6, 8);
+  box('#37517c', -5, -3, tip + 2, 2);
+  box('#263a66', tip - 4, -4, 3, 8);
+  box('#fff', 1, -2, 4, 4);
+}
+
+function drawRoboCatLady(ctx, enemy = {}, damageColor = null) {
+  const box = catLadyBox(ctx);
+  ctx.save();
+  drawCatLadyHair(box);
+  drawCatLadyFace(ctx, box, enemy.speaking, damageColor);
+  drawCatLadyGlasses(box, true);
+  drawCatLadyPointer(ctx, box, enemy);
+  ctx.restore();
+}
+
+function drawRoboCatLadyDeath(ctx, enemy, drawExplosion) {
+  const progress = enemy.deathProgress;
+  const blastStart = .25, blastEnd = .65, hairLands = .76;
+  const blast = (progress - blastStart) / (blastEnd - blastStart);
+  const fall = Math.max(0, Math.min(1, (progress - blastStart) / (hairLands - blastStart)));
+  const box = catLadyBox(ctx);
+  ctx.save(); ctx.translate(enemy.x, enemy.y);
+  ctx.save();
+  ctx.globalAlpha *= progress <= hairLands ? 1 : (1 - progress) / (1 - hairLands);
+  ctx.translate(-18 * fall, 26 * fall ** 2 - 13 * Math.sin(Math.PI * fall));
+  ctx.rotate(-.25 * fall); ctx.scale(1, 1 - .67 * fall ** 2);
+  drawCatLadyHair(box);
+  ctx.restore();
+
+  if (blast < 0) {
+    drawCatLadyFace(ctx, box, false, null, true);
+  } else if (blast < 1) {
+    // Clip the same face into four fragments so the split matches the body silhouette.
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+      ctx.save();
+      ctx.globalAlpha *= 1 - blast;
+      ctx.translate(sx * blast * 37, sy * blast * 32 + 11 * blast ** 2);
+      ctx.rotate(sx * sy * blast * 1.4);
+      ctx.beginPath(); ctx.rect(sx < 0 ? -20 : 0, sy < 0 ? -20 : 3, 20, sy < 0 ? 23 : 21);
+      ctx.clip();
+      drawCatLadyFace(ctx, box, false, null, true);
+      ctx.restore();
+    }
+    drawExplosion(blast);
+  }
+
+  if (blast < 1) {
+    const flight = progress / blastEnd;
+    ctx.save();
+    ctx.globalAlpha *= Math.min(1, (1 - flight) * 3);
+    ctx.translate(57 * flight, -60 * flight + 23 * flight ** 2);
+    ctx.rotate(2.5 * flight);
+    drawCatLadyGlasses(box, false);
+    ctx.restore();
+
+    ctx.save();
+    const scatter = Math.max(0, blast);
+    ctx.globalAlpha *= 1 - scatter;
+    ctx.translate(33 * scatter, 18 * scatter); ctx.rotate(2 * scatter);
+    drawCatLadyPointer(ctx, box, enemy);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function spawnColor(spawn) {
   if (spawn.kind === 'weapon') return WEAPONS[spawn.type].color;
   if (spawn.kind === 'heart') return '#e47990';
@@ -1368,7 +1485,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, TERRAIN_COLORS, terrainPathData, drawCatTrack, drawTerrain, drawSurfBoard, drawIceSkate, drawWaterSplash, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost };
+const api = { FLAME, FENCE, TERRAIN_COLORS, terrainPathData, drawCatTrack, drawTerrain, drawSurfBoard, drawIceSkate, drawWaterSplash, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost, drawRoboCatLady, drawRoboCatLadyDeath };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();
