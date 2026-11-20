@@ -633,6 +633,13 @@ body:has(.learning-guide[open]) { overflow: hidden; }
 #guide-content h4 { margin: 0 0 6px; font-size: 16px; }
 #guide-content p { margin: 0; font-size: 15px; line-height: 1.65; color: #c1d0ca; }
 .guide-picture { width: 160px; max-width: 100%; height: auto; margin: 0 0 10px; border: 1px solid #ffffff20; border-radius: 8px; background: #111d25; }
+#guide-content .guide-terrain-section { display: grid; grid-template-columns: minmax(0, 1fr) 220px; column-gap: 18px; align-items: start; }
+.guide-terrain-section .guide-terrain-picture { grid-column: 2; grid-row: 1 / 3; width: 220px; margin: 0; }
+#guide-content .guide-terrain-section h4, #guide-content .guide-terrain-section p { grid-column: 1; }
+@media (max-width: 560px) {
+  #guide-content .guide-terrain-section { grid-template-columns: minmax(0, 1fr); }
+  .guide-terrain-section .guide-terrain-picture { grid-column: 1; grid-row: auto; margin-bottom: 10px; }
+}
 .guide-visuals { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
 .guide-visuals figure { width: 120px; max-width: 100%; margin: 0; text-align: center; }
 .guide-visuals .guide-picture, .guide-visuals .guide-special-brick { display: block; width: 100%; height: 60px; margin: 0; object-fit: contain; }

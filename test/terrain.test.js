@@ -608,6 +608,42 @@ test('terrain art uses rounded clipped textures and lava waves move at half the 
   assert.equal(sample('ice', 0).fills[0], .42, 'ice base remains semi-transparent');
 });
 
+test('guide terrain previews use game artwork and animate only while the guide is open', () => {
+  const app = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const source = app.slice(app.indexOf('function guidePicture('), app.indexOf('\nfunction showGuideChapter('));
+  const calls = [], images = [];
+  const document = {
+    createElement() {
+      const context = { setTransform() {}, clearRect() {} };
+      return { dataset: {}, getContext: () => context, setAttribute(name, value) { this[name] = value; } };
+    },
+    querySelectorAll() { return images; },
+  };
+  const guide = { open: false };
+  const context = vm.createContext({ document, guide, KoshiBrickVisuals: {
+    drawTerrain(_context, terrain, time) { calls.push({ type: terrain.type, nodes: terrain.path.nodes, time }); },
+  } });
+  vm.runInContext(source, context);
+  for (const type of ['ice', 'water', 'lava']) {
+    const image = context.guidePicture(`terrain:${type}`, type);
+    images.push(image);
+    assert.equal(image.width, 440);
+    assert.equal(image.height, 220);
+    assert.equal(image['aria-label'], `${type} terrain`);
+  }
+  assert.deepEqual(calls.map(call => call.type), ['ice', 'water', 'lava']);
+  assert.equal(calls[0].nodes.length, 4);
+  assert.equal(calls[0].nodes[2].x - calls[0].nodes[0].x, 210);
+  assert.equal(calls[0].nodes[2].y - calls[0].nodes[0].y, 100);
+  context.animateGuideTerrains(2000);
+  assert.equal(calls.length, 3);
+  guide.open = true;
+  context.animateGuideTerrains(2000);
+  context.animateGuideTerrains(3000);
+  assert.deepEqual(calls.slice(3).map(({ type, time }) => [type, time]),
+    [['water', 2], ['lava', 2], ['water', 3], ['lava', 3]]);
+});
+
 test('editor exposes Terrain authoring controls and preserves overlap validation', () => {
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');

@@ -55,6 +55,9 @@ test('terrain guide explains each surface and links to water practice', () => {
   assert.match(descriptions.Water, /Surf Board.*expires/i);
   assert.match(descriptions.Lava, /loses the level/i);
   assert.match(descriptions.Practice, /Ice Skate.*Tutorial/i);
+  for (const type of ['ice', 'water', 'lava']) {
+    assert.ok(chapter.sections.some(([title, , picture]) => title.toLowerCase() === type && picture === `terrain:${type}`));
+  }
 });
 
 test('guide illustrates every brick, enemy, heart, weapon, and power-up without a story section', () => {

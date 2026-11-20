@@ -68,9 +68,9 @@ const GUIDE = [
     title: 'Terrain',
     practice: 'surf-board',
     sections: [
-      ['Ice', 'Koshi keeps moving in the same direction while on ice. His latest brick selection is queued until he leaves the ice or stops; once stopped, he can choose a new direction. An Ice Skate lets him redirect immediately while moving on ice.'],
-      ['Water', 'Without a Surf Board, Koshi sinks, then reappears near the side where he entered and takes a hit. A Surf Board lets him glide across safely, but if it expires while he is on water, he sinks.'],
-      ['Lava', 'Koshi sinks and loses the level if he enters lava. Neither a Surf Board nor an Ice Skate protects him from it.'],
+      ['Ice', 'Koshi keeps moving in the same direction while on ice. His latest brick selection is queued until he leaves the ice or stops; once stopped, he can choose a new direction. An Ice Skate lets him redirect immediately while moving on ice.', 'terrain:ice'],
+      ['Water', 'Without a Surf Board, Koshi sinks, then reappears near the side where he entered and takes a hit. A Surf Board lets him glide across safely, but if it expires while he is on water, he sinks.', 'terrain:water'],
+      ['Lava', 'Koshi sinks and loses the level if he enters lava. Neither a Surf Board nor an Ice Skate protects him from it.', 'terrain:lava'],
       ['Practice', 'Use Try it in the tutorial to practice crossing water with a Surf Board. Choose Ice Skate in the Tutorial to practice steering on ice.'],
     ],
   },

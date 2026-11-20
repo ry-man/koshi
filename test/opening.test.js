@@ -198,7 +198,7 @@ test('opening frames animate even without a loaded level and never tick gameplay
   const context = vm.createContext({
     cutscene: { active: true, openingFinish() {}, update: seconds => { updates++; assert.equal(seconds, .05); } },
     phaseTransition: { busy: false }, lastTime: 100,
-    requestAnimationFrame: () => frames++,
+    requestAnimationFrame: () => frames++, animateGuideTerrains() {},
   });
   vm.runInContext(source, context);
   context.frame(150);

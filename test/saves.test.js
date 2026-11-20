@@ -467,7 +467,7 @@ test('crossing the five-second threshold checkpoints once for abrupt termination
   Object.assign(context, {
     lastTime: 0, phaseTransition: { busy: false }, cutscene: { active: false },
     levelPicker: { open: false }, levelInfoDialog: { open: false },
-    updateEnding() {}, recordCatBlockFinds() {}, syncUI() {}, render() {}, requestAnimationFrame() {},
+    updateEnding() {}, recordCatBlockFinds() {}, syncUI() {}, render() {}, requestAnimationFrame() {}, animateGuideTerrains() {},
   });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf('function frame(timestamp)'), source.indexOf('\nfunction updateBoardVisibility()')), context);

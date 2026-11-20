@@ -16,7 +16,7 @@ test('open world maps and information pages suspend hidden gameplay work without
     game: { elapsed: 0, state: 'ready', update: seconds => calls.push(['update', seconds]) },
     levelPicker: { open: true }, levelInfoDialog: { open: false }, phaseTransition: { busy: false }, cutscene: { active: false },
     lastTime: 100, toastUntil: 0, toast: {},
-    requestAnimationFrame: () => calls.push(['schedule']),
+    requestAnimationFrame: () => calls.push(['schedule']), animateGuideTerrains() {},
     updateEnding: () => calls.push(['ending']),
     recordCatBlockFinds: () => calls.push(['collectibles']),
     syncUI: () => calls.push(['hud']), render: () => calls.push(['render']),

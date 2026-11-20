@@ -655,7 +655,8 @@ The title screen includes two learning paths:
   cooldown and special bricks, larger groups and Crumblers/Warped combinations,
   terrain and contact surfaces, every food and item (including keys, chests and Cat
   Blocks), all 12 robots and swords, soccer balls, bumpers, bubbles, obstructions,
-  spawn warnings, and objectives. Labeled pictures illustrate every brick,
+  spawn warnings, and objectives. Terrain previews show ice, animated water and
+  animated lava as they appear in play. Labeled pictures illustrate every brick,
   enemy, item, object, and sword.
   Choose any topic directly or use Previous/Next. **Try it in the tutorial**
   opens a related practice step. Back to title or Escape returns to the title.

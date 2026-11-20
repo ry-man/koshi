@@ -1748,6 +1748,15 @@ document.querySelector('#tutorial-sword').addEventListener('change', event => {
 });
 
 function guidePicture(picture, title, fillBrick = false) {
+  if (picture.startsWith('terrain:')) {
+    const image = document.createElement('canvas');
+    image.className = 'guide-picture guide-terrain-picture';
+    image.width = 440; image.height = 220;
+    image.dataset.terrain = picture.split(':')[1];
+    image.setAttribute('role', 'img'); image.setAttribute('aria-label', `${title} terrain`);
+    drawGuideTerrain(image, 0);
+    return image;
+  }
   if (picture === 'special:cat-block') {
     const image = document.createElement('img');
     image.className = 'guide-picture'; image.src = './icons/cat-building-block.png'; image.alt = title;
@@ -1888,6 +1897,23 @@ function guidePicture(picture, title, fillBrick = false) {
   return image;
 }
 
+function drawGuideTerrain(image, time) {
+  const context = image.getContext('2d');
+  context.setTransform(2, 0, 0, 2, 0, 0);
+  context.clearRect(0, 0, 220, 110);
+  globalThis.KoshiBrickVisuals.drawTerrain(context, {
+    type: image.dataset.terrain,
+    path: { nodes: [{ x: 5, y: 5 }, { x: 215, y: 5 }, { x: 215, y: 105 }, { x: 5, y: 105 }] },
+  }, time);
+}
+
+function animateGuideTerrains(timestamp) {
+  if (!guide.open) return;
+  for (const image of document.querySelectorAll('#guide-content .guide-terrain-picture')) {
+    if (image.dataset.terrain !== 'ice') drawGuideTerrain(image, timestamp / 1000);
+  }
+}
+
 function showGuideChapter(index) {
   guideIndex = index;
   const content = document.querySelector('#guide-content');
@@ -1914,7 +1940,10 @@ function showGuideChapter(index) {
         visuals.append(figure);
       }
       section.append(visuals);
-    } else if (picture) section.append(guidePicture(picture, title));
+    } else if (picture) {
+      if (picture.startsWith('terrain:')) section.className = 'guide-terrain-section';
+      section.append(guidePicture(picture, title));
+    }
     section.append(label, text); content.append(section);
   }
   content.scrollTop = 0;
@@ -6065,6 +6094,7 @@ function positionBossHealth() {
 }
 
 function frame(timestamp) {
+  animateGuideTerrains(timestamp);
   if (cutscene.active && cutscene.openingFinish) {
     const seconds = lastTime === null ? 0 : (timestamp - lastTime) / 1000;
     if (!phaseTransition.busy) cutscene.update(seconds);
