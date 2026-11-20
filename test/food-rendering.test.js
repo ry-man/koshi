@@ -48,6 +48,7 @@ test('food badges filter once per type and reuse artwork across layers and picku
     assert.equal(sprite.width, 120, '2x display resolution includes 1.25x pickup magnification');
     assert.equal(sprite.height, 120);
     assert.equal(sprite.paint.filter, 'saturate(1.8) brightness(1.15) contrast(1.1)');
+    assert.match(sprite.paint.strokeStyle, /^#[0-9a-f]{6}$/i, `${type} has a badge color`);
     assert.deepEqual(sprite.calls.find(([name]) => name === 'text'), ['text', FOODS[type].icon, 0, 1]);
     assert.deepEqual(sprite.calls[0], ['transform', 2.5, 0, 0, 2.5, 60, 60]);
     assert.equal(sprite.calls.filter(([name]) => name === 'text').length, 1);

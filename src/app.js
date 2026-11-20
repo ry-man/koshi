@@ -29,7 +29,7 @@ const boardCtx = canvas.getContext('2d');
 // Koshi is drawn on a canvas layered above the brick buttons so he is never hidden by them.
 const actorCtx = actorCanvas.getContext('2d');
 let ctx = boardCtx;
-const FOOD_COLORS = { S: '#ff2d55', P: '#ff9f0a', B: '#ffd60a', C: '#ffcc00', L: '#ff6b2c', F: '#0a84ff', H: '#34c759' };
+const FOOD_COLORS = { S: '#ff2d55', P: '#ff9f0a', B: '#ffd60a', C: '#ffcc00', L: '#ff6b2c', F: '#0a84ff', H: '#34c759', K: '#f05ba5' };
 const foodBadgeCache = new Map();
 let sunglassesRibbonCache = null;
 let sunglassesGlowCache = null;

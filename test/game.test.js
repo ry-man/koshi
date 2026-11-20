@@ -987,8 +987,8 @@ test('food patterns are accessible, lines straight, and circles equally spaced',
   }
 });
 
-test('all seven foods award their documented values, including swept pickups', () => {
-  assert.deepEqual(Object.values(FOODS).map(f => f.value), [1, 2, 3, 4, 5, 6, 7]);
+test('all foods award their documented values, including swept pickups', () => {
+  assert.deepEqual(Object.values(FOODS).map(f => f.value), [1, 2, 3, 4, 5, 6, 7, 8]);
   for (const [type, info] of Object.entries(FOODS)) {
     const game = playing();
     game.food = [{ x: 510, y: 300, type, expires: 5 }];

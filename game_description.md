@@ -381,6 +381,10 @@ Food randomly appears throughout the level. Food often appears in groups and pla
 |Chicken Leg| 5         | L           |
 |Fish       | 6         | F           |
 |Hamburger  | 7         | H           |
+|Birthday cake | 8      | K           |
+
+Birthday cake is available in custom levels and food-spawning bricks; existing
+campaign food schedules remain unchanged.
 
 Food can appear in the following methods (note the abbreviations for the method will be used in outlining the levels):
 
@@ -1039,7 +1043,7 @@ The original layouts have at most six distinct styles and always retain ordinary
 bricks. Their 26 boundary segments form 21 starting blocks: 17 standard, three
 double (14.3%), and one triple (4.8%). Desktop and portrait use the same groups.
 
-The original 19 missions include all seven foods. Food patterns use three-item lines,
+The original 19 missions include all seven original foods. Food patterns use three-item lines,
 circles, and scattered groups, plus a single hamburger. Level 1-1 has appearances
 at 3, 11, 19, 27, 35, 43, and 51 seconds; later levels distribute their seven
 appearances from 3 seconds through nine seconds before the time limit.

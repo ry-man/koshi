@@ -696,7 +696,8 @@ the board; phones keep compact controls above it without scrolling away from pla
 - Each level introduces one new concept. Win conditions alternate between
   food points, enemy points, both targets, and survival until the timer reaches
   zero. The briefing and highlighted HUD counters show the required objectives.
-  Food ranges from strawberries (1 point) to hamburgers (7 points).
+  Food ranges from strawberries (1 point) to birthday cake (8 points); birthday
+  cake is available in custom levels and food-spawning bricks.
 - Most scheduled appearances have a **one-second preview at their exact spawn
   location**: a cloudy purple skull for each enemy, an expanding golden spiral
   for each sword, and a bright growing/fading star for each food item.
@@ -1143,7 +1144,7 @@ bricks each number 32; 32 bricks (one third) have extra mechanics.
 These include Crumblers, Warped bricks, colored Slime, Springs, Spikes,
 Conveyors, Boost, Toggle, Barrier, paired blue Portals, both turret types, and
 food/sword spawners. Along the camera's route are 45 food placements covering
-all seven foods, 18 enemies covering all twelve robot types, four swords, eight item pickups,
+all seven original foods, 18 enemies covering all twelve robot types, four swords, eight item pickups,
 and nine bumpers, bubbles, obstructions and soccer-ball placements.
 Food earns a healing heart every 40 points. Weapons and protective power-ups
 are distributed across the trip, including the fast section.

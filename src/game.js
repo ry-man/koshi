@@ -43,7 +43,9 @@ const FOODS = {
   L: { icon: '🍗', value: 5, name: 'Chicken leg' },
   F: { icon: '🐟', value: 6, name: 'Fish' },
   H: { icon: '🍔', value: 7, name: 'Hamburger' },
+  K: { icon: '🎂', value: 8, name: 'Birthday cake' },
 };
+const CAMPAIGN_FOOD_ORDER = ['S', 'P', 'B', 'C', 'L', 'F', 'H'];
 const ITEMS = {
   'smiley-cookie': { name: 'Smiley Cookie', icon: '🍪', color: '#fff2d6' },
   stopwatch: { name: 'Red Stopwatch (+10s)', icon: '⏱️', color: '#d94a4a', seconds: 10 },
@@ -814,7 +816,7 @@ const BASE_LEVEL_DATA = [
     ],
   },
 ].map((entry, index) => {
-  const food = entry.food ?? Object.keys(FOODS).map((type, i) => [
+  const food = entry.food ?? CAMPAIGN_FOOD_ORDER.map((type, i) => [
     3 + Math.floor(i * (entry.duration - 12) / 6),
     ['L3', 'L3', 'C3', 'L3', 'C3', 'R3', 'S'][i], type, Math.min(25, entry.duration - (3 + Math.floor(i * (entry.duration - 12) / 6))),
   ]);
@@ -907,16 +909,15 @@ const FOUNDRY_LAYOUTS = {
   y: [[3, 5], [13, 15], [18, 20], [2, 4, 6]],
   z: [[5, 7], [20, 22], [2, 4], [13, 15, 17]],
 };
-const FOUNDRY_FOOD_ORDER = ['S', 'P', 'B', 'C', 'L', 'F', 'H'];
 // Fixed food spots stay clear of the quadrant objects and Koshi's starting point in every orientation.
 const FOUNDRY_FOOD_SPOTS = [
   [[.35, .5], [.5, .35], [.65, .5]], [[.5, .2], [.15, .5], [.85, .5]], [[.5, .65], [.35, .5], [.5, .8]],
   [[.5, .35], [.85, .5], [.5, .8]], [[.15, .5], [.5, .2], [.65, .5]], [[.5, .65], [.5, .2], [.35, .5]],
 ];
 const foundryTime = (duration, i) => 3 + Math.floor(i * (duration - 12) / 6);
-const randomFood = duration => FOUNDRY_FOOD_ORDER.map((type, i) => [foundryTime(duration, i),
+const randomFood = duration => CAMPAIGN_FOOD_ORDER.map((type, i) => [foundryTime(duration, i),
   ['L3', 'L3', 'C3', 'L3', 'C3', 'R3', 'S'][i], type, Math.min(25, duration - foundryTime(duration, i))]);
-const placedFood = duration => FOUNDRY_FOOD_ORDER.flatMap((type, i) => {
+const placedFood = duration => CAMPAIGN_FOOD_ORDER.flatMap((type, i) => {
   const time = foundryTime(duration, i);
   return (type === 'H' ? [[.5, .65]] : FOUNDRY_FOOD_SPOTS[i % FOUNDRY_FOOD_SPOTS.length]).map(([x, y]) =>
     ({ time, kind: 'food', type, x, y, lifetime: Math.min(25, duration - time) }));
@@ -1490,7 +1491,7 @@ const SCROLLER_LEVEL_DATA = (() => {
     events.push({ time, kind, type, x: across, y,
       ...(['food', 'item', 'weapon'].includes(kind) ? { lifetime: Math.min(15, duration - time) } : {}), ...extra });
   };
-  const foods = Object.keys(FOODS);
+  const foods = CAMPAIGN_FOOD_ORDER;
   for (let wave = 0; wave < 15; wave++) {
     for (let lane = 0; lane < 3; lane++) {
       place('food', foods[(wave + lane) % foods.length], 2 + wave * 12, .25 + lane * .25);
@@ -1696,7 +1697,7 @@ const ROLLING_ROAD_LEVEL_DATA = [
     events.push({ time, kind, type, x, y,
       ...(['food', 'item', 'weapon'].includes(kind) ? { lifetime: Math.min(28, duration - time) } : {}), ...extra });
   };
-  Object.keys(FOODS).forEach((type, wave) => {
+  CAMPAIGN_FOOD_ORDER.forEach((type, wave) => {
     for (let i = 0; i < 4; i++) place('food', type, 3 + wave * 12, .2 + i * .2, .35 + (wave % 2) * .3);
   });
   const enemyTypes = ['mouse', 'ram', 'ball', ...(index >= 4 ? ['robo-crab'] : [])];

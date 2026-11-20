@@ -2258,6 +2258,30 @@ test('wheel and snake placements snap to an edge and begin at that exact perimet
   }
 });
 
+test('birthday cake works in custom placements, spawners and the food guide without changing campaign food', () => {
+  const { GUIDE } = require('../src/learning.js');
+  const { spawnColor, spawnSymbol } = require('../src/brick-visuals.js');
+  const region = new Game(() => .5, { customLevel: blank() }).bricks[0].region;
+  const spawn = { kind: 'food', type: 'K', lifetime: 5 };
+  const source = { ...blank(), events: [event('food', 'K')],
+    brickTypes: [{ ...region, kind: 'normal', spawner: spawn }] };
+  const copy = validateCustomLevel(source);
+  assert.equal(copy.events[0].type, 'K');
+  assert.deepEqual(copy.brickTypes[0].spawner, spawn);
+  assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(copy))), copy);
+  assert.equal(FOODS.K.value, 8);
+  assert.equal(FOODS.K.name, 'Birthday cake');
+  assert.ok(spawnSymbol(spawn));
+  assert.match(spawnColor(spawn), /^#[0-9a-f]{6}$/i);
+  assert.ok(GUIDE.find(chapter => chapter.title === 'Food & healing').sections
+    .some(([title, , picture]) => /Birthday cake.*\+8/.test(title) && picture === 'food:K'));
+  for (const level of require('../src/game.js').LEVELS) {
+    assert.ok(!(level.food ?? []).some(([, , type]) => type === 'K'), level.id);
+    assert.ok(!(level.events ?? []).some(entry => entry.kind === 'food' && entry.type === 'K'), level.id);
+    assert.ok(!(level.brickTypes ?? []).some(brick => brick.spawner?.kind === 'food' && brick.spawner.type === 'K'), level.id);
+  }
+});
+
 test('custom objectives, duration, heart costs, and every pickup type use the real engine', () => {
   for (const type of Object.keys(FOODS)) {
     const game = new Game(() => .1, { customLevel: { ...blank(), goal: FOODS[type].value, heartCost: 1, events: [{ ...event('food', type, 0), x: .5, y: .5 }] } });

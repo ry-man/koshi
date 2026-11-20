@@ -74,7 +74,7 @@ test('varied foods, enemies, weapons, items and objects populate the entire rout
   assert.ok(events.every((event, i) => event.time < 180 && (!i || event.time >= events[i - 1].time)));
   const ofKind = kind => events.filter(event => event.kind === kind);
   assert.equal(ofKind('food').length, 45);
-  assert.deepEqual(new Set(ofKind('food').map(event => event.type)), new Set(Object.keys(FOODS)));
+  assert.deepEqual(new Set(ofKind('food').map(event => event.type)), new Set(['S', 'P', 'B', 'C', 'L', 'F', 'H']));
   assert.equal(new Set(ofKind('enemy').map(event => event.type)).size, 12);
   assert.equal(ofKind('enemy').length, 18);
   assert.equal(ofKind('weapon').length, 4);
