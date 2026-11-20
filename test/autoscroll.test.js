@@ -296,13 +296,35 @@ test('touch near misses select the nearest visible brick in scrolling and non-sc
   assert.deepEqual(calls.pop(), [1, 140, 215]);
   tap(125, 225);
   assert.deepEqual(calls.pop(), [0, 125, 220], 'ten CSS pixels is included');
-  tap(125, 225.5);
+  tap(125, 230);
+  assert.deepEqual(calls.pop(), [0, 125, 220], 'twenty CSS pixels is included');
+  tap(125, 235);
+  assert.deepEqual(calls.pop(), [0, 125, 220], 'thirty CSS pixels is included');
+  tap(125, 235.5);
   tap(165, 224); // An unselectable brick must not redirect to another brick.
   tap(300, 215); // A completely offscreen part must not be selected.
   tap(125, 224, { downType: 'mouse' });
   tap(125, 224, { detail: 0 });
   tap(125, 224, { onBrick: {} });
   assert.equal(calls.length, 0);
+
+  parts.splice(0, parts.length, { id: 0, x: 110, y: 210, w: 20, h: 10 });
+  for (const [x, y, expectedX, expectedY] of [
+    [120, 195, 120, 210], [120, 235, 120, 220], [95, 215, 110, 215], [145, 215, 130, 215],
+    [100, 200, 110, 210],
+  ]) {
+    tap(x, y);
+    assert.deepEqual(calls.pop(), [0, expectedX, expectedY], 'the thirty-pixel target expands equally in every direction');
+  }
+  tap(95, 195);
+  assert.equal(calls.length, 0, 'the rounded corner excludes points beyond the thirty-pixel radius');
+
+  parts.splice(0, parts.length,
+    { id: 0, x: 110, y: 210, w: 10, h: 10 },
+    { id: 0, x: 120, y: 210, w: 10, h: 10 },
+    { id: 1, x: 140, y: 210, w: 10, h: 10 },
+    { id: 2, x: 160, y: 210, w: 10, h: 10 },
+    { id: 1, x: 301, y: 210, w: 10, h: 10 });
 
   parts.push({ id: 0, x: 295, y: 210, w: 10, h: 10 });
   tap(299, 224);

@@ -625,7 +625,7 @@ function activateBrick(brick, x, y) {
 function nearbyTouchBrick(event) {
   const point = boardPoint(event), camera = game.camera();
   const scaleX = board.clientWidth / camera.width, scaleY = board.clientHeight / camera.height;
-  let nearest = null, distance = 10;
+  let nearest = null, distance = 30;
   for (const part of game.brickParts()) {
     const left = Math.max(part.x, camera.x), right = Math.min(part.x + part.w, camera.x + camera.width);
     const top = Math.max(part.y, camera.y), bottom = Math.min(part.y + part.h, camera.y + camera.height);

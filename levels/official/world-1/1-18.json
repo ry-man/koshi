@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "id": "Feast Mode",
+  "duration": 60,
+  "goal": 60,
+  "heartCost": 15,
+  "brickSet": 1,
+  "events": [],
+  "bossLevel": false,
+  "killGoal": 0,
+  "survive": false,
+  "cutscene": {
+    "theme": "happy-meadows",
+    "lines": [
+      {
+        "speaker": "mouse",
+        "text": "Nom-nom-nom. What a delicious cookie!",
+        "actors": [
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          },
+          {
+            "character": "robo-trash-bin",
+            "x": 0.1,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          }
+        ]
+      },
+      {
+        "speaker": "wheel",
+        "text": "Ssssomething ssssmells ssssscrumptious! May I have a bite?",
+        "actors": [
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          },
+          {
+            "character": "robo-trash-bin",
+            "x": 0.1,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          },
+          {
+            "character": "wheel",
+            "x": 0.42,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "koshi",
+        "text": "I hope you brought enough for all of us!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.9,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          },
+          {
+            "character": "robo-trash-bin",
+            "x": 0.1,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          },
+          {
+            "character": "wheel",
+            "x": 0.42,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "mouse",
+        "text": "Oh no! Don't let the cat eat our cookies! It will only make him stronger!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.9,
+            "y": 0.65
+          },
+          {
+            "character": "mouse",
+            "x": 0.67,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          },
+          {
+            "character": "robo-trash-bin",
+            "x": 0.1,
+            "y": 0.65,
+            "accessories": [
+              "item:smiley-cookie"
+            ]
+          },
+          {
+            "character": "wheel",
+            "x": 0.42,
+            "y": 0.65
+          }
+        ]
+      }
+    ]
+  },
+  "levelInfo": {
+    "pages": [
+      {
+        "title": "Smiley Cookie",
+        "text": "When Koshi eats a smiley cookie, it makes him so hungry he will immediately inhale all of the food on the screen!",
+        "graphics": [
+          "item:smiley-cookie"
+        ]
+      }
+    ]
+  }
+}
