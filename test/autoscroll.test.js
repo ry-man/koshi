@@ -362,9 +362,10 @@ test('near-miss touch steering works with real scrolling and stationary games in
         clientY: (y - camera.y) / camera.height * board.clientHeight,
         detail: 1, target: { closest: () => null }, preventDefault() {}, stopImmediatePropagation() {},
       });
-      assert.equal(game.moves, 1, `${customLevel.autoscroll ? 'scrolling' : 'stationary'}, portrait=${portrait}`);
       assert.equal(game.target.x >= part.x && game.target.x <= part.x + part.w, true);
       assert.equal(game.target.y >= part.y && game.target.y <= part.y + part.h, true);
+      game.update(.001);
+      assert.equal(game.moves, 1, `${customLevel.autoscroll ? 'scrolling' : 'stationary'}, portrait=${portrait}`);
     }
   }
 });

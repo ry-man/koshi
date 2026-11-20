@@ -1142,6 +1142,70 @@ test('cutscene rendering reserves full dialogue and reveals Unicode letters in p
   assert.equal(visibleText(), data.lines[0].text);
 });
 
+test('cutscene scrolling follows newly typed lines without skipping fully revealed text', () => {
+  const elements = new Map();
+  const scroll = {
+    scrollTop: 50, scrollHeight: 80, clientHeight: 40, clientTop: 0,
+    getBoundingClientRect: () => ({ top: 100 }),
+  };
+  const document = {
+    hidden: false,
+    createElement() {
+      return {
+        style: {},
+        getBoundingClientRect() { return { bottom: 100 + (Math.floor(this.index / 4) + 1) * 20 - scroll.scrollTop }; },
+      };
+    },
+    querySelector(selector) {
+      if (!elements.has(selector)) elements.set(selector, {
+        addEventListener() {}, showModal() {}, close() {}, focus() {},
+        parentElement: scroll,
+        replaceChildren(...children) { this.children = children; children.forEach((child, i) => { child.index = i; }); },
+      });
+      return elements.get(selector);
+    },
+    addEventListener() {},
+  };
+  const motion = { matches: false };
+  const context = vm.createContext({
+    KoshiGame: { Cutscene, CHARACTERS }, document, window: { addEventListener() {} },
+    matchMedia: () => motion, ResizeObserver: class { observe() {} },
+  });
+  vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'cutscene.js'), 'utf8'), context);
+  const player = new context.KoshiCutscenePlayer(() => {}, () => {});
+  player.draw = () => {};
+  const data = scene();
+  data.lines[0].text = 'abcdefghijklmnop';
+  player.open(data, 1);
+  assert.equal(scroll.scrollTop, 0, 'a new message starts at the top');
+  player.update(.1);
+  player.update(.1);
+  assert.equal(scroll.scrollTop, 0, 'visible lines do not move');
+  player.update(.1);
+  assert.equal(scroll.scrollTop, 20, 'scroll only enough to show the newly typed line');
+  player.update(.1);
+  assert.equal(scroll.scrollTop, 20, 'typing within the same line does not scroll');
+  player.update(.1);
+  assert.equal(scroll.scrollTop, 40);
+  player.update(.1);
+  scroll.scrollTop = 0;
+  player.update(.1);
+  assert.equal(scroll.scrollTop, 0, 'finished text can be read from the top');
+
+  player.open(data, 1);
+  player.advance();
+  assert.equal(scroll.scrollTop, 0, 'Reveal text does not jump past unread text');
+  scroll.scrollTop = 40;
+  player.advance();
+  assert.equal(scroll.scrollTop, 0, 'the next message resets its scroll position');
+
+  motion.matches = true;
+  player.open(data, 1);
+  assert.equal(scroll.scrollTop, 0, 'reduced-motion messages start at the top');
+  player.update(.1);
+  assert.equal(scroll.scrollTop, 0);
+});
+
 test('scene playback leaves gameplay ready and time-zero events unspawned until start', () => {
   const game = new Game(() => .5, { customLevel: { ...level(), events: [{ kind: 'weapon', type: 'wood', time: 0, x: .5, y: .5 }] } });
   const playback = new Cutscene(game.level.cutscene);

@@ -174,6 +174,7 @@ test('Ice Skate practice requires a real redirect while skating on ice', () => {
     assert.equal(tutorial.game.iceSkateActive, true);
     assert.equal(tutorial.observe(), false);
     assert.equal(aim(tutorial, opposite(tutorial)), true);
+    wait(tutorial, 1 / 120);
     assert.equal(tutorial.observe(), true);
     assert.ok(tutorial.game.cat.vx < 0);
   }

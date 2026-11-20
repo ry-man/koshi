@@ -621,11 +621,13 @@ play replaces the same provisional quit. Guest statistics are kept only for the 
 All records use successful completions only: fastest time, highest food,
 enemy and soccer-goal scores, and fewest moves. Losses and quits still count
 toward attempt statistics but never establish or improve records.
-**Fewest moves** is the smallest successful brick-selection count in a win,
-including mid-flight redirects and Magical Sunglasses selections. Failed clicks,
-passive travel, Spring bounces, Portal arrivals and physical brick contacts
-do not add moves. Old results without move counts show **Not recorded** until
-a new win records one; quitting and losses cannot improve this record.
+**Fewest moves** is the smallest count of directed moves in a win, including
+mid-flight redirects and Magical Sunglasses selections. A selection counts when
+Koshi actually moves; Rope Dart shots count when their pull moves him, and a
+fatal Boom Helmet activation does not count. Failed clicks, passive travel,
+Spring bounces, Portal arrivals and physical brick contacts do not add moves.
+Existing saved counts are not recalculated. Old results without move counts show
+**Not recorded** until a new win records one; quitting and losses cannot improve this record.
 
 The replacement campaign uses a separate save key, `koshi-campaign-saves-v2`.
 Old five-level saves remain untouched but do not mark the new lessons complete.
@@ -849,13 +851,14 @@ the board; phones keep compact controls above it without scrolling away from pla
   implode, and fade into smoke. Robo Buckets frown, flatten, and pop their bombs
   in tiny explosions. Defeats count immediately and the wrecks cannot hurt Koshi.
   Pause freezes these animations; restart clears them.
-- **Pause**, **Escape**, or **Space** pauses/resumes play. Switching tabs or
+- The exit button opens the pause menu; **Cancel** returns to play.
+  **Escape** or **Space** also pauses/resumes play. Switching tabs or
   leaving the window pauses automatically; resume explicitly when you return.
 - **Tab** through the bricks and press **Enter** or **Space** to aim at a
   brick's center. Mouse/touch controls allow precise off-center aiming.
   Touches up to 10 screen pixels from a visible brick also aim at its nearest
   edge.
-- **Restart** starts a fresh attempt of the selected level.
+- **Restart Level** in the pause menu starts a fresh attempt of the selected level.
   Victory automatically returns to the level map and moves Koshi to the next
   stop through all three main worlds, ending at Level 3–14.
   The world map can also start any level directly; choose it and press **Play Level**.
@@ -1070,7 +1073,7 @@ round trip. Otherwise it returns to the existing forward history entry without p
 tutorials, or story scenes. It never creates replacement entries during Back;
 Chromium can mark those entries skippable after a traversal without fresh input.
 Visible-window blur (including system gesture UI) does not pause the installed
-game. Actually hiding the app still pauses it. Use the Pause button to pause,
+game. Actually hiding the app still pauses it. Use the exit button to pause,
 and Home or the app switcher to leave.
 This is browser-history protection, not a system-gesture override. Before the
 first interaction, or if Android/browser bypasses page history, Back can still
@@ -1078,10 +1081,11 @@ close the app. Browser-controlled predictive gesture visuals may still appear,
 especially when the traversal is not cancelable. Device testing is required; guaranteed OS-level blocking requires
 a native Android app. Custom-level playtests do not enable Back protection, so
 Back can return to editing. Normal browser tabs retain native Back and blur pausing.
-The level stat, timer, reward icons, and icon-only Exit level, Pause, and Restart buttons
-share one row above the stats, in that order. The timer and reward icons have
-equally sized spaces before the toolbar, with a constrained, centered world-level
-readout beneath its heading. Save-status text stays in the menu, not on the gameplay HUD;
+The level stat, timer, reward icons, move counter, and Exit level button
+share one row above the stats, in that order. The timer, reward icons, and moves
+occupy equally sized spaces between the level readout and exit button. The exit
+button opens a pause menu with End Level, Restart Level, and Cancel.
+Save-status text stays in the menu, not on the gameplay HUD;
 save errors and retry controls remain visible. Hearts, food, enemies, goals, keys,
 and batteries are centered in equally spaced columns. The world map's level selector and **Play Level**
 button choose levels; **Back to menu** or Escape cancels without

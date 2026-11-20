@@ -673,7 +673,7 @@ test('starting campaign play queues last-played persistence and storage failures
   context.activeSave = { index: 0, slot };
   context.game = { level: LEVELS[12], state: 'ready', elapsed: 0, score: 0, enemies: 0, moves: 0,
     start() { this.state = 'playing'; } };
-  context.pause = { focus() {} };
+  context.exitLevel = { focus() {} };
   context.syncUI = () => {};
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf('function startLevel('), source.indexOf('function showLevelBriefing(')), context);

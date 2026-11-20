@@ -85,11 +85,13 @@ Guest results last for the current visit. Older saves preserve
 completed levels, but have no historical times, scores or attempt counts;
 unrecorded values are shown explicitly. Stable internal level IDs and existing
 campaign links are retained, while displayed numbers reflect the new worlds.
-Fewest moves records the smallest number of successful brick selections in a
-winning attempt, including mid-flight redirects and Magical Sunglasses.
-Rejected clicks, passive travel and brick contacts, Spring bounces and Portal
-arrivals do not count. Losses and abandoned attempts cannot improve it.
-Earlier results without move counts remain unrecorded until a new win.
+Fewest moves records the smallest number of directed moves in a winning attempt,
+including mid-flight redirects and Magical Sunglasses. A selection counts when
+Koshi moves; Rope Dart pulls count when they move him, and a fatal Boom Helmet
+activation does not count. Rejected clicks, passive travel and brick contacts,
+Spring bounces and Portal arrivals do not count. Losses and abandoned attempts cannot improve it.
+Existing saved counts are not recalculated. Earlier results without move counts
+remain unrecorded until a new win.
 
 ### Overview
 Koshi is controlled by clicking locations on one of any of the "bricks" on the screen. Koshi then immediately begins traveling directly towards the specific location clicked on the brick. Bricks have a cooldown phase before Koshi can be triggered to move towards any point of the same brick once again. Koshi stops when he touches any brick. The player is able to redirect Koshi while he is still in movement by simply clicking another available brick before he stops due to touching a brick.

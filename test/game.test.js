@@ -73,19 +73,22 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
 function playing() { const game = new Game(() => .5); game.start(); return game; }
 function aim(game, brick) { return game.steer(brick.id, brick.x + brick.w / 2, brick.y + brick.h / 2); }
 
-test('moves count successful steering and mid-flight redirects, not invalid clicks, contacts or passive motion', () => {
+test('moves count actual steering and mid-flight redirects, not invalid clicks, contacts or passive motion', () => {
   const game = new Game(() => .5);
   assert.equal(game.moves, 0);
   assert.equal(aim(game, game.bricks[0]), false);
   game.start();
   const first = game.bricks.find(brick => aim(game, brick));
   assert.ok(first);
+  assert.equal(game.moves, 0, 'a command has not yet moved Koshi');
+  game.update(.001);
   assert.equal(game.moves, 1);
   assert.equal(aim(game, first), false, 'cooldown failure is not a move');
   assert.equal(game.steer(-1, 0, 0), false);
   assert.equal(game.moves, 1);
   const second = game.bricks.find(brick => brick.id !== first.id && aim(game, brick));
   assert.ok(second, 'redirect while moving');
+  game.update(.001);
   assert.equal(game.moves, 2);
   for (let i = 0; i < 200; i++) game.update(.025);
   assert.equal(game.moves, 2, 'movement and brick contact cost no additional moves');
@@ -95,6 +98,68 @@ test('moves count successful steering and mid-flight redirects, not invalid clic
   assert.equal(game.moves, count);
   game.reset();
   assert.equal(game.moves, 0);
+});
+
+test('only the last steering command before movement counts', () => {
+  const game = playing();
+  const first = game.bricks.find(brick => aim(game, brick));
+  assert.ok(first);
+  assert.ok(game.bricks.find(brick => brick.id !== first.id && aim(game, brick)));
+  assert.equal(game.moves, 0);
+  game.update(.01);
+  assert.equal(game.moves, 1);
+});
+
+test('pause menu resumes only play it paused and routes restart and end actions', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const handlers = source.slice(source.indexOf("const exitConfirm = document.querySelector('#exit-confirm')"), source.indexOf('function updateTutorial('));
+  const elements = new Map();
+  const element = () => ({
+    events: {}, open: false, addEventListener(name, callback) { this.events[name] = callback; },
+    showModal() { this.open = true; }, close() { this.open = false; }, focus() {},
+  });
+  const document = { hidden: false, querySelector(selector) {
+    if (!elements.has(selector)) elements.set(selector, element());
+    return elements.get(selector);
+  } };
+  const game = { state: 'playing', resume() { this.state = 'playing'; } };
+  let restarts = 0, ended = 0, syncs = 0;
+  const exitLevel = element();
+  const context = vm.createContext({
+    document, exitLevel, game, lastTime: 123,
+    autoPause() { if (game.state === 'playing') game.state = 'paused'; },
+    syncUI() { syncs++; }, begin() { restarts++; },
+    phaseTransition: { run(action) { action(); } }, saveResult() {},
+    tutorial: null, leaveTutorial() {}, resetBoard() {},
+    openLevelPicker() { ended++; }, levelSelect: { value: '0' },
+  });
+  vm.runInContext(handlers, context);
+  const menu = elements.get('#exit-confirm');
+  exitLevel.events.click();
+  assert.equal(game.state, 'paused');
+  assert.equal(menu.open, true);
+  elements.get('#exit-confirm-cancel').events.click();
+  assert.equal(game.state, 'playing');
+  assert.equal(menu.open, false);
+  assert.equal(syncs, 1);
+  assert.equal(context.lastTime, null);
+  game.state = 'paused';
+  exitLevel.events.click();
+  menu.events.cancel({ preventDefault() {} });
+  assert.equal(game.state, 'paused', 'an already-paused game stays paused');
+  game.state = 'ready';
+  exitLevel.events.click();
+  elements.get('#exit-confirm-cancel').events.click();
+  assert.equal(game.state, 'ready');
+  game.state = 'playing';
+  exitLevel.events.click();
+  elements.get('#exit-confirm-restart').events.click();
+  assert.equal(menu.open, false);
+  assert.equal(restarts, 1);
+  exitLevel.events.click();
+  elements.get('#exit-confirm-end').events.click();
+  assert.equal(menu.open, false);
+  assert.equal(ended, 1);
 });
 
 test('weapon status announces remaining hits or seconds and weapon illustrations show them', () => {
@@ -392,15 +457,15 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.doesNotMatch(html, /field-guide|THE FIELD GUIDE/);
   const controls = html.slice(html.indexOf('<div class="game-controls">'), html.indexOf('<section id="tutorial-panel"'));
   assert.ok(controls, 'game controls share a container');
-  for (const id of ['timer', 'level-number', 'exit-level', 'pause', 'restart']) {
+  for (const id of ['timer', 'level-number', 'move-count', 'exit-level']) {
     assert.ok(controls.includes(`id="${id}"`), `${id} belongs to the control row`);
   }
+  assert.doesNotMatch(controls, /id="(?:pause|restart)"/);
   assert.ok(!controls.includes('id="level-select"'), 'level selection is not on the game screen');
   assert.ok(!controls.includes('class="brand"'), 'the timer replaces the game-screen logo');
   const title = html.slice(html.indexOf('<dialog id="title-screen"'), html.indexOf('</dialog>', html.indexOf('<dialog id="title-screen"')));
   assert.ok(!title.includes('id="level-select"'));
   assert.match(html, /<dialog id="level-picker"[^>]+aria-labelledby="level-picker-heading"[\s\S]*?<select id="level-select"[\s\S]*?<\/dialog>/);
-  assert.match(html, /class="pause-bars"><rect[^>]+\/><rect[^>]+\/>/);
   const hud = html.slice(html.indexOf('<div class="hud">'), html.indexOf('<div class="objective">'));
   assert.ok(!hud.includes('weapon-status'), 'weapon status is announced without taking up HUD space');
   assert.deepEqual([...hud.matchAll(/<span class="stat-label">([^<]+)<\/span>/g)].map(([, label]) => label),
@@ -410,7 +475,7 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.ok(!hud.includes('id="timer"'), 'time is shown in the top control row');
   assert.match(styles, /\.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   assert.match(styles, /\.timer-stat \{ padding: 6px 0 0; text-align: center;/);
-  assert.match(styles, /\.game-controls \{[^}]*grid-template-columns: calc\(\(100% - 5 \* var\(--hud-gap\)\) \/ 6\)[^}]*padding: 4px var\(--hud-inset\);/);
+  assert.match(styles, /\.game-controls \{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\) auto[^}]*padding: 4px var\(--hud-inset\);/);
   assert.match(styles, /\.hud \{[^}]*padding: 22px var\(--hud-inset\); gap: var\(--hud-gap\);/);
   assert.match(styles, /\.tutorial-active \.hud \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
   const mobileHud = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
@@ -418,16 +483,16 @@ test('title screen provides accessible artwork and explicit game entry without e
   assert.doesNotMatch(hud, /KOSHI'S HEALTH/);
   assert.ok(controls.indexOf('id="level-number"') < controls.indexOf('id="timer"'));
   assert.ok(controls.indexOf('id="timer"') < controls.indexOf('id="level-rewards"'));
-  assert.ok(controls.indexOf('id="level-rewards"') < controls.indexOf('id="exit-level"'));
+  assert.ok(controls.indexOf('id="level-rewards"') < controls.indexOf('id="move-count"'));
+  assert.ok(controls.indexOf('id="move-count"') < controls.indexOf('id="exit-level"'));
   assert.match(styles, /\.level-status-details \{[^}]*min-width: 0;[^}]*height: 46px;[^}]*overflow: hidden;/);
   assert.doesNotMatch(styles, /#level-number \{[^}]*max-width: 100px/);
-  assert.match(styles, /\.loadout \{[^}]*grid-template-columns: var\(--level-column\) repeat\(2, minmax\(0, 1fr\)\)/);
-  for (const [id, label] of [['exit-level', 'Exit level'], ['pause', 'Pause'], ['restart', 'Restart']]) {
+  for (const [id, label] of [['exit-level', 'Exit level']]) {
     assert.match(html, new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
   }
   assert.doesNotMatch(controls, /☰/, 'the old menu glyph is gone');
   assert.match(controls, /id="exit-level"[^>]*><svg class="control-icon exit-icon"[^>]*>[\s\S]*?class="exit-door"/);
-  assert.match(html, /<dialog id="exit-confirm"[\s\S]*?id="exit-confirm-end"[^>]*>End Level<\/button>[\s\S]*?id="exit-confirm-cancel"[^>]*>Cancel<\/button>[\s\S]*?<\/dialog>/);
+  assert.match(html, /<dialog id="exit-confirm"[\s\S]*?Pause Menu[\s\S]*?id="exit-confirm-end"[^>]*>End Level<\/button>[\s\S]*?id="exit-confirm-restart"[^>]*>Restart Level<\/button>[\s\S]*?id="exit-confirm-cancel"[^>]*>Cancel<\/button>[\s\S]*?<\/dialog>/);
   const appSource = readFileSync(path.join(root, 'src', 'app.js'), 'utf8');
   const endHandler = appSource.slice(appSource.indexOf("querySelector('#exit-confirm-end')"));
   assert.match(endHandler.slice(0, endHandler.indexOf('\n});')), /openLevelPicker\(\{ insideWorld: true/);
@@ -527,14 +592,14 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.number \?\? game\.level\.id\}`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
   const start = source.indexOf("\nplay.addEventListener('click'") + 1;
-  const end = source.indexOf("\nrestart.addEventListener", start);
+  const end = source.indexOf("\ndocument.querySelector('#title-start')", start);
   const handler = source.slice(start, end);
   const play = { addEventListener(name, callback) { this[name] = callback; } };
-  const pause = { focus() {} };
+  const exitLevel = { focus() {} };
   let started = 0, rebuilt = 0, maps = 0;
   const game = { state: 'ready', levelIndex: 0, customLevel: null, start() { started++; this.state = 'playing'; }, resume() { this.state = 'playing'; } };
   const context = vm.createContext({
-    play, pause, game, lastTime: 0, syncUI() {},
+    play, exitLevel, game, lastTime: 0, syncUI() {},
     startLevel() { game.start(); },
     begin() { rebuilt++; },
     openLevelPicker({ level, insideWorld, advance }) {

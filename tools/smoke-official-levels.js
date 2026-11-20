@@ -76,8 +76,9 @@ async function smokeOfficialLevels(ids, root = path.resolve(__dirname, '..')) {
         await page.locator('#level-info-close').click();
       }
       await page.locator('#play').click();
-      await page.waitForFunction(() => !document.querySelector('#pause').disabled);
-      await page.locator('#pause').click();
+      await page.locator('#overlay').waitFor({ state: 'hidden' });
+      await page.locator('#exit-level').click();
+      await page.locator('#exit-confirm[open]').waitFor();
       await page.goto(`${url}/editor.html?game=official`);
       await page.locator('#editor-level').selectOption(String(index));
       assert.equal(await page.locator('#level-name').inputValue(), entry.number);

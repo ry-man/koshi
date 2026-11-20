@@ -3419,6 +3419,7 @@ class Game {
     this.elapsed = 0;
     this.timeBonus = 0;
     this.moves = 0;
+    this.pendingMove = null;
     this.score = 0;
     this.enemies = 0;
     this.goals = 0;
@@ -3749,7 +3750,6 @@ class Game {
     this.capeFlightMultiplier = this.capeActive ? CAPE_SPEED_MULTIPLIER : 1;
     this.conveyorRide = null;
     this.target = { x, y };
-    this.moves++;
     if (this.activationsRemaining !== null && --this.activationsRemaining === 0) {
       this.boomHelmet.exploded = true;
       this.boomHelmet.age = 0;
@@ -3767,6 +3767,7 @@ class Game {
       this.cat.vx = 0; this.cat.vy = 0;
       this.boosted = false;
     }
+    this.pendingMove = this.state === 'playing' ? { target: this.target, dart: fireDart ? this.ropeDart : null } : null;
     return true;
   }
 
@@ -9391,6 +9392,14 @@ class Game {
       terrainHit = terrainContact;
     }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
+    if (this.pendingMove) {
+      const { target, dart } = this.pendingMove;
+      if (this.target !== target || (dart && this.ropeDart !== dart)) this.pendingMove = null;
+      else if ((!dart || dart.phase === 'pulling') && (endX !== cat.x || endY !== cat.y)) {
+        this.moves++;
+        this.pendingMove = null;
+      }
+    }
     for (const part of contacts) this.recordCatBrickTypes(this.bricks[part.id], this.catBlockProgress.touched);
     this.attractFoodToCat(dt * contact, endX, endY);
     this.food = this.food.filter(item => {

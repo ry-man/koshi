@@ -38,8 +38,7 @@ document.fonts.addEventListener('loadingerror', () => foodBadgeCache.clear());
 const board = document.querySelector('#board');
 const overlay = document.querySelector('#overlay');
 const play = document.querySelector('#play');
-const pause = document.querySelector('#pause');
-const restart = document.querySelector('#restart');
+const exitLevel = document.querySelector('#exit-level');
 const timer = document.querySelector('#timer');
 const foodCount = document.querySelector('#food-count');
 const hearts = document.querySelector('#hearts');
@@ -1131,6 +1130,8 @@ function syncUI() {
   timer.innerHTML = Number.isFinite(DURATION) ? `🕒 ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '🕒 ∞';
   timer.setAttribute('aria-label', Number.isFinite(DURATION)
     ? `${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))} seconds remaining` : 'Unlimited time');
+  document.querySelector('#move-value').textContent = game.moves;
+  document.querySelector('#move-count').setAttribute('aria-label', `${game.moves} ${game.moves === 1 ? 'move' : 'moves'}`);
   foodCount.innerHTML = `<span class="counter-icon" aria-hidden="true">🍗</span><span class="counter-value${foodTarget ? ' counter-fraction' : ''}">${foodTarget ? `<span class="counter-numerator">${game.score}</span><span class="counter-denominator">${GOAL}</span>` : game.score}</span>`;
   timer.classList.toggle('win-target', survive);
   foodCount.classList.toggle('win-target', foodTarget);
@@ -1225,13 +1226,6 @@ function syncUI() {
       : 'Game board. Click a colored boundary brick to steer Koshi. Keyboard users can Tab to a brick and press Enter to aim at its center. In a turret, click or tap to aim and fire.');
   }
   if (tutorial) updateTutorial();
-  pause.disabled = !['playing', 'paused'].includes(game.state);
-  const pauseLabel = game.state === 'paused' ? 'Resume' : 'Pause';
-  pause.querySelector('.pause-bars').toggleAttribute('hidden', game.state === 'paused');
-  pause.querySelector('.resume-triangle').toggleAttribute('hidden', game.state !== 'paused');
-  pause.querySelector('.control-label').textContent = pauseLabel;
-  pause.setAttribute('aria-label', pauseLabel);
-  pause.title = pauseLabel;
   if (brickRevision !== game.brickRevision) {
     const focusedId = document.activeElement?.closest('.brick')?.dataset.id;
     makeBrickButtons();
@@ -1406,7 +1400,7 @@ function startLevel() {
   checkpointAttempt();
   lastTime = null;
   syncUI();
-  pause.focus({ preventScroll: true });
+  exitLevel.focus({ preventScroll: true });
 }
 
 function showLevelBriefing() {
@@ -1511,7 +1505,7 @@ play.addEventListener('click', () => {
     game.resume();
     lastTime = null;
     syncUI();
-    pause.focus({ preventScroll: true });
+    exitLevel.focus({ preventScroll: true });
   } else if (game.state === 'ready') {
     startLevel();
   } else {
@@ -1522,7 +1516,6 @@ play.addEventListener('click', () => {
     begin();
   }
 });
-restart.addEventListener('click', begin);
 document.querySelector('#title-start').addEventListener('click', () => {
   const recent = recentSave();
   if (recent) saveAttempt(() => continueSave(recent.index, recent.slot.id));
@@ -1645,11 +1638,19 @@ function showTitle() {
 }
 document.querySelector('#tutorial-exit').addEventListener('click', showTitle);
 const exitConfirm = document.querySelector('#exit-confirm');
+let resumeAfterExitConfirm = false;
 function closeExitConfirm() {
   exitConfirm.close();
-  document.querySelector('#exit-level').focus({ preventScroll: true });
+  if (resumeAfterExitConfirm && !document.hidden && game?.state === 'paused') {
+    game.resume();
+    lastTime = null;
+    syncUI();
+  }
+  resumeAfterExitConfirm = false;
+  exitLevel.focus({ preventScroll: true });
 }
-document.querySelector('#exit-level').addEventListener('click', () => {
+exitLevel.addEventListener('click', () => {
+  resumeAfterExitConfirm = game?.state === 'playing';
   autoPause();
   exitConfirm.showModal();
   document.querySelector('#exit-confirm-cancel').focus({ preventScroll: true });
@@ -1659,8 +1660,14 @@ exitConfirm.addEventListener('cancel', event => { event.preventDefault(); closeE
 exitConfirm.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeExitConfirm(); }
 });
+document.querySelector('#exit-confirm-restart').addEventListener('click', () => {
+  exitConfirm.close();
+  resumeAfterExitConfirm = false;
+  begin();
+});
 document.querySelector('#exit-confirm-end').addEventListener('click', () => {
   exitConfirm.close();
+  resumeAfterExitConfirm = false;
   phaseTransition.run(() => {
     saveResult();
     if (tutorial) leaveTutorial();
@@ -1949,7 +1956,6 @@ function togglePause() {
   lastTime = null;
   syncUI();
 }
-pause.addEventListener('click', togglePause);
 document.addEventListener('keydown', event => {
   if (phaseTransition.busy) { event.preventDefault(); return; }
   if (titleScreen.open && event.code === 'Escape') {

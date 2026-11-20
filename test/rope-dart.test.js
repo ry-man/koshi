@@ -67,7 +67,7 @@ test('stationary launch spends one shot, pierces multiple enemies and holds Kosh
     enemy(game, start.x + distance * .35);
     enemy(game, start.x + distance * .7);
     assert.equal(fire(game, target), true);
-    assert.equal(game.moves, 1);
+    assert.equal(game.moves, 0, 'launching the dart does not move Koshi');
     assert.equal(game.weapon.uses, WEAPONS[type].uses - 1);
     assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
     assert.equal(game.ropeDart.phase, 'flying');
@@ -78,6 +78,7 @@ test('stationary launch spends one shot, pierces multiple enemies and holds Kosh
     assert.equal(game.weapon.uses, WEAPONS[type].uses - 1, 'enemies do not spend extra shots');
     until(game, () => !game.ropeDart);
     assert.ok(game.cat.x > start.x);
+    assert.equal(game.moves, 1, 'the pull counts once Koshi moves');
     assert.equal(game.weapon.type, type);
     until(game, () => !game.cat.vx && !game.cat.vy);
     assert.equal(game.hearts, 3);
@@ -102,6 +103,17 @@ test('moving clicks steer normally without spending shots; Rope Darts never auto
   assert.equal(game.robots.length, 1);
   assert.equal(game.hearts, 2);
   assert.equal(game.weapon.uses, 5);
+});
+
+test('an interrupted Rope Dart shot does not count as a move', () => {
+  const { game, target } = arena();
+  equip(game);
+  assert.equal(fire(game, target), true);
+  game.update(.01);
+  assert.equal(game.moves, 0);
+  game.dropWeapon();
+  game.update(.1);
+  assert.equal(game.moves, 0);
 });
 
 test('one shot damages each shield once and preserves protected and immune enemies', () => {

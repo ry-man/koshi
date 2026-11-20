@@ -62,6 +62,7 @@ test('ice allows the first steering choice while stopped, then defers new choice
   assert.equal(clickBrick(game, first), true);
   assert.notEqual(game.cat.vx, 0);
   assert.equal(game.iceDirectionLocked, true);
+  game.update(.001);
 
   const previous = { vx: game.cat.vx, vy: game.cat.vy };
   const next = brickToward(game, 'left');
@@ -80,7 +81,8 @@ test('ice allows the first steering choice while stopped, then defers new choice
   moving.update(1);
   assert.equal(moving.terrainAt(moving.cat.x, moving.cat.y), null);
   assert.equal(moving.iceSteer, null);
-  assert.equal(moving.moves, 1, 'the queued choice takes effect as soon as Koshi exits ice');
+  moving.update(.001);
+  assert.equal(moving.moves, 1, 'the queued choice counts when Koshi moves after leaving ice');
 });
 
 test('water sinks and reappears outside before damaging; lava sinks before killing', () => {
@@ -440,7 +442,7 @@ test('Ice Skates redirect immediately on ice and restore the ice lock at each co
     assert.equal(clickBrick(game, left), true);
     assert.ok(game.cat.vx < 0, 'redirect happens immediately rather than queuing on ice');
     assert.equal(game.iceSteer, null);
-    assert.equal(game.moves, 1);
+    assert.equal(game.moves, 0, 'a paused redirect has not moved Koshi yet');
     game.pause();
     game.update(1);
     assert.equal(game.iceSkate.expires, duration);
@@ -448,6 +450,7 @@ test('Ice Skates redirect immediately on ice and restore the ice lock at each co
     game.resume();
     game.elapsed = duration - .02;
     game.update(.04);
+    assert.equal(game.moves, 1);
     assert.equal(game.iceSkateActive, false);
     assert.equal(game.iceDirectionLocked, true);
     const velocity = { vx: game.cat.vx, vy: game.cat.vy };

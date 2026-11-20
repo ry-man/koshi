@@ -11,8 +11,8 @@ const GUIDE = [
     sections: [
       ['Aim at bricks, not objects', 'Click or tap a boundary brick. Koshi travels toward that exact spot, collecting anything along his path. He stops at the first solid brick he touches. Pick another brick to leave it.'],
       ['Change course', 'Select a different available brick while Koshi is moving to redirect him immediately. A blocked or invalid selection does not use a cooldown or a Crumbler selection.'],
-      ['Keyboard & pause', 'Tab to a brick and press Enter or Space to aim at its center. Use Pause in the toolbar, or Escape or Space outside a control, to pause/resume. Pause freezes cooldowns, slime holds, weapons, previews, and Warped timers. In the installed app, intercepted Back gestures are ignored rather than pausing. Switching away pauses automatically; resume explicitly.'],
-      ['A fresh attempt', 'Restart resets the current level. Menu returns to the title screen. Choose a level starts that level; Next level advances after a win.'],
+      ['Keyboard & pause', 'Tab to a brick and press Enter or Space to aim at its center. Open the exit button to pause, then choose Cancel to resume, or use Escape or Space outside a control to pause/resume. Pause freezes cooldowns, slime holds, weapons, previews, and Warped timers. In the installed app, intercepted Back gestures are ignored rather than pausing. Switching away pauses automatically; resume explicitly.'],
+      ['A fresh attempt', 'Choose Restart Level in the pause menu to reset the current level. End Level returns to the level map.'],
     ],
   },
   {
@@ -220,7 +220,7 @@ const LESSONS = [
   { id: 'cat-circle', title: 'Cat Circles', instruction: 'Steer into the Cat Circle. Koshi glides to its center, then you can immediately click another valid brick to leave. The circle stays in place; bricks and bumpers can block the way.' },
   { id: 'healing', title: 'Heal with food', instruction: 'You have two hearts and 9 food. Collect the strawberry to reach 10, then head back along your route to collect the healing heart.' },
   { id: 'warnings', title: 'Spawn warnings', instruction: 'Wait for the skull, swirl, and star at 2 seconds. They reveal objects at 3 seconds. Then aim at the outlined brick to collect the snack.' },
-  { id: 'pause', title: 'Pause & resume', instruction: 'Press Pause (or Escape), then Resume. The clock, movement, previews, and all brick timers freeze while paused.' },
+  { id: 'pause', title: 'Pause & resume', instruction: 'Open the exit button, then choose Cancel (or press Escape twice). The clock, movement, previews, and all brick timers freeze while paused.' },
   { id: 'objectives', title: 'Two goals to win', instruction: 'Aim at the outlined brick to collect a sword, one food, and defeat one robot. BOTH goals are required to complete this practice challenge.' },
   { id: 'portal', title: 'Portal pairs', instruction: 'Aim at the outlined purple Portal. Koshi emerges just outside its partner and moves straight into the arena. At a corner, the glowing oval shifts along the brick until the exit clears the neighboring wall. Matching smoke identifies pairs.' },
   { id: 'toggle', title: 'Toggle switches', instruction: 'The outlined red Toggle starts at 1. Successfully activate another brick to reach zero and enable it. The next successful activation, including the Toggle itself, disables it again.' },

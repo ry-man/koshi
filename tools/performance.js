@@ -88,7 +88,8 @@ async function ready(page) {
 }
 
 async function restart(page) {
-  await page.locator('#restart').click();
+  await page.locator('#exit-level').click();
+  await page.locator('#exit-confirm-restart').click();
   await ready(page);
 }
 

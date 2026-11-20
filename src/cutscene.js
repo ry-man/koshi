@@ -713,6 +713,7 @@ class CutscenePlayer {
       });
       this.text.replaceChildren(...this.textCharacters);
       this.text.parentElement.scrollTop = 0;
+      this.displayedCharacters = 0;
       const speaker = this.openingFinish ? 'Narrator' : CHARACTERS[line.speaker];
       document.querySelector('#cutscene-speaker').textContent = speaker;
       document.querySelector('#cutscene-transcript').textContent = `${speaker}: ${line.text}`;
@@ -721,6 +722,14 @@ class CutscenePlayer {
     this.textCharacters.forEach((span, i) => {
       span.style.visibility = i < visibleCount ? 'visible' : 'hidden';
     });
+    const scroll = this.text.parentElement;
+    if (!this.paused && !this.playback.reducedMotion && seconds > 0
+      && visibleCount > this.displayedCharacters && scroll.scrollHeight > scroll.clientHeight) {
+      const bottom = this.textCharacters[visibleCount - 1].getBoundingClientRect().bottom;
+      const visibleBottom = scroll.getBoundingClientRect().top + scroll.clientTop + scroll.clientHeight;
+      if (bottom > visibleBottom) scroll.scrollTop += bottom - visibleBottom;
+    }
+    this.displayedCharacters = visibleCount;
     this.next.textContent = this.playback.typing ? 'Reveal text' : index + 1 === this.playback.scene.lines.length
       ? this.openingFinish ? 'World map' : 'Begin level' : 'Continue';
     document.querySelector('#cutscene-page').textContent = `${index + 1} / ${this.playback.scene.lines.length}`;
