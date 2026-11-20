@@ -25,7 +25,7 @@ function opposite(tutorial) {
 }
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
-  assert.equal(GUIDE.length, 10);
+  assert.equal(GUIDE.length, 11);
   assert.equal(LESSONS.length, 73);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
@@ -42,6 +42,19 @@ test('guide covers all playable topics and lessons have unique freely selectable
     assert.equal(tutorial.observe(), false, `${tutorial.lesson.id} cannot complete just by selecting it`);
     assert.ok(tutorial.lesson.instruction.length > 40);
   }
+});
+
+test('terrain guide explains each surface and links to water practice', () => {
+  const chapter = GUIDE.find(({ title }) => title === 'Terrain');
+  assert.ok(chapter);
+  assert.equal(chapter.practice, 'surf-board');
+  const descriptions = Object.fromEntries(chapter.sections.map(([title, description]) => [title, description]));
+  assert.match(descriptions.Ice, /queued.*leaves.*stops/i);
+  assert.match(descriptions.Ice, /Ice Skate.*redirect/i);
+  assert.match(descriptions.Water, /sinks.*reappears.*hit/i);
+  assert.match(descriptions.Water, /Surf Board.*expires/i);
+  assert.match(descriptions.Lava, /loses the level/i);
+  assert.match(descriptions.Practice, /Ice Skate.*Tutorial/i);
 });
 
 test('guide illustrates every brick, enemy, heart, weapon, and power-up without a story section', () => {

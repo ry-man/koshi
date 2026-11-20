@@ -651,9 +651,9 @@ writes after confirmation without changing previously saved progress.
 
 The title screen includes two learning paths:
 
-- **How to play** opens a ten-topic walkthrough of movement and controls,
+- **How to play** opens an eleven-topic walkthrough of movement and controls,
   cooldown and special bricks, larger groups and Crumblers/Warped combinations,
-  all contact surfaces, every food and item (including keys, chests and Cat
+  terrain and contact surfaces, every food and item (including keys, chests and Cat
   Blocks), all 12 robots and swords, soccer balls, bumpers, bubbles, obstructions,
   spawn warnings, and objectives. Labeled pictures illustrate every brick,
   enemy, item, object, and sword.
