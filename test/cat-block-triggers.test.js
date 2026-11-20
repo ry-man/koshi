@@ -28,7 +28,7 @@ const triggerFor = type => ({
   ...(CAT_BLOCK_TRIGGERS[type].brick ? { brickType: 'slow' } : {}),
 });
 
-test('all 17 triggers generate the exact requested language and round-trip their parameters', () => {
+test('all triggers generate the exact requested language and round-trip their parameters', () => {
   const expected = [
     'Find during gameplay when it spawns.',
     'Defeat the enemy carrying it then collect it.',
@@ -37,6 +37,9 @@ test('all 17 triggers generate the exact requested language and round-trip their
     'Complete the level with at least 2 food points.',
     'Complete the level with at least 2 enemy points.',
     'Complete the level with at least 2 soccer goals.',
+    'Have team Koshi score 2 goals before team Enemy.',
+    'Hold team Enemy to no more than 2 goals.',
+    'Have team Koshi score 2 goals.',
     'Complete the level in at most 2 moves.',
     'Defeat at least 2 of enemy type Robo Mouse.',
     'Defeat no more than 2 of enemy type Robo Mouse.',
@@ -48,7 +51,7 @@ test('all 17 triggers generate the exact requested language and round-trip their
     'Complete the level without selecting any brick of type Slow.',
     'Complete the level without touching any brick of type Slow.',
   ];
-  assert.equal(Object.keys(CAT_BLOCK_TRIGGERS).length, 17);
+  assert.equal(Object.keys(CAT_BLOCK_TRIGGERS).length, 20);
   for (const [index, type] of Object.keys(CAT_BLOCK_TRIGGERS).entries()) {
     const trigger = triggerFor(type);
     const saved = validateCustomLevel(level(trigger));
@@ -248,7 +251,7 @@ test('editor exposes all trigger options, shows only required parameters and pre
     attempt: action => action(), markChanged() {}, render() {}, message() {} });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf("for (const [selector, entries]"), source.indexOf('function addSceneLine(')), context);
-  assert.equal($('#cat-block-trigger').children.length, 17);
+  assert.equal($('#cat-block-trigger').children.length, 20);
   assert.equal($('#cat-block-enemy-type').children.length, Object.keys(CHARACTERS).filter(type => !['koshi', 'tom'].includes(type)).length);
   assert.ok($('#cat-block-enemy-type').children.some(option => option.value === 'tom-frog'));
   assert.ok($('#cat-block-enemy-type').children.some(option => option.value === 'robo-crab'));

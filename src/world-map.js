@@ -77,6 +77,8 @@ function objectiveTargets(level) {
   return [
     { symbol: '🕒', value: level.bossLevel ? '∞' : `${level.duration}s`, label: timeLabel },
     ...(level.bossLevel ? [{ symbol: '👾', value: 'BOSS', label: 'Defeat the boss' }] : []),
+    ...(level.teamGoalsGoal > 0 ? [{ symbol: '⚽', value: String(level.teamGoalsGoal),
+      label: `Have team Koshi score ${level.teamGoalsGoal} goal${level.teamGoalsGoal === 1 ? '' : 's'} before team Enemy` }] : []),
     ...(level.survive ? [] : [
       { symbol: '🍗', target: level.goal, name: 'food points' },
       { symbol: '👾', target: level.killGoal, name: 'enemy points' },

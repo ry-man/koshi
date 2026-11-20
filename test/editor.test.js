@@ -1522,7 +1522,7 @@ test('every selectable enemy has a board icon and a palette/spawner graphic', ()
   for (const { value: type } of $('#event-type').options) {
     const enemy = { kind: 'enemy', type };
     const icon = context.icon(enemy);
-    if (isBossType(type) || ['robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(type)) {
+    if (isBossType(type) || ['striker', 'robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(type)) {
       assert.equal(icon.value, `enemy:${type}`);
       assert.equal(icon.control, 'brick-spawn-item');
     } else {
@@ -2507,6 +2507,15 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
   game = setup(context.level); context.selectedBricks.add(regionKey(region));
   context.renderBrickInspector(game.bricks);
   assert.equal($('#brick-kind').disabled, false, 'goal type remains editable');
+  assert.equal($('#brick-goal-team').disabled, false);
+  assert.equal($('#brick-goal-team').value, 'none');
+  $('#brick-goal-team').value = 'koshi';
+  context.saveBrick({ target: { id: 'brick-goal-team' } });
+  assert.equal(context.level.brickTypes[0].goalTeam, 'koshi');
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  assert.equal(game.bricks[target.id].goalTeam, 'koshi');
+  context.renderBrickInspector(game.bricks);
+  assert.equal($('#brick-goal-team').value, 'koshi');
   for (const id of ['crumbler', 'warped', 'springs', 'spikes', 'conveyor', 'portal', 'spawner', 'boost', 'barrier', 'toggle', 'power']) {
     assert.equal($(`#brick-${id}`).disabled, true, `${id} is unavailable for goals`);
   }
@@ -2516,6 +2525,7 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
   $('#brick-kind').value = 'normal';
   context.saveBrick({ target: { id: 'brick-kind' } });
   assert.equal(context.level.brickTypes[0].kind, 'normal');
+  assert.equal(context.level.brickTypes[0].goalTeam, undefined);
   game = setup(context.level); context.selectedBricks.add(regionKey(region));
   $('#brick-power').checked = true;
   context.saveBrick({ target: { id: 'brick-power' } });

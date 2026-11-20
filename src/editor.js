@@ -36,7 +36,7 @@ const OBSTRUCTION_COLORS = [
   '#fecdd3', '#b7707d', '#f43f5e', '#be123c', '#4c0519',
   '#ead8c5', '#a58b73', '#a66b36', '#704522', '#29190d',
 ];
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-fly': { name: 'Robo Fly' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' }, 'robo-crab': { name: 'Robo Crab' }, 'robo-love-bug': { name: 'Robo Love Bug' }, 'robo-trash-bin': { name: 'Robo Trash Bin' }, 'robo-moon': { name: 'Robo Moon' }, 'robo-sharpshooter': { name: 'Robo Sharpshooter' }, 'robo-cat-lady': { name: 'Robo Cat Lady' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, striker: { name: 'Robo Striker' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-fly': { name: 'Robo Fly' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' }, 'robo-crab': { name: 'Robo Crab' }, 'robo-love-bug': { name: 'Robo Love Bug' }, 'robo-trash-bin': { name: 'Robo Trash Bin' }, 'robo-moon': { name: 'Robo Moon' }, 'robo-sharpshooter': { name: 'Robo Sharpshooter' }, 'robo-cat-lady': { name: 'Robo Cat Lady' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -240,7 +240,9 @@ function picture(value, control) {
   const item = control === 'event-kind' ? { kind: value, type: { food: 'S', enemy: 'mouse', weapon: 'wood', item: 'smiley-cookie', object: 'soccer-ball' }[value] }
     : control === 'event-type' ? { kind: $('#event-kind').value, type: value }
     : control === 'brick-spawn-item' ? { kind: value.split(':')[0], type: value.split(':')[1] } : null;
-  if (value === 'koshi') {
+  if (control === 'brick-goal-team' && value !== 'koshi') {
+    image.textContent = value === 'enemy' ? '👾' : '⚽';
+  } else if (value === 'koshi') {
     const artwork = document.createElement('img');
     artwork.src = './icons/koshi.svg'; artwork.alt = '';
     image.append(artwork);
@@ -427,7 +429,7 @@ function setupPalettes() {
     $('#category-palette').append(button);
   }
   showCategory(activeCategory);
-  for (const id of ['brick-kind', 'brick-slime-color', 'brick-conveyor-direction', 'brick-portal-color', 'brick-toggle-clicks', 'brick-spawn-item', 'brick-hazard-type', 'event-type']) {
+  for (const id of ['brick-kind', 'brick-slime-color', 'brick-goal-team', 'brick-conveyor-direction', 'brick-portal-color', 'brick-toggle-clicks', 'brick-spawn-item', 'brick-hazard-type', 'event-type']) {
     const select = $(`#${id}`), palette = document.createElement('div');
     select.hidden = true;
     palette.className = 'visual-palette'; palette.setAttribute('role', 'group');
@@ -745,7 +747,7 @@ function description(event) {
 }
 
 function icon(event) {
-  if (event.kind === 'enemy' && (isBossType(event.type) || ['robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'enemy' && (isBossType(event.type) || ['striker', 'robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon
@@ -1393,6 +1395,12 @@ function renderBrickInspector(bricks) {
   $('#brick-kind').querySelector('option[value=""]')?.remove();
   $('#brick-slime-color').querySelector('option[value=""]')?.remove();
   $('#brick-slime-color').disabled = inert || !chosen.some(brick => brick.slimed);
+  $('#brick-goal-team').querySelector('option[value=""]')?.remove();
+  $('#brick-goal-team').disabled = !chosen.length || chosen.some(brick => brick.kind !== 'goal');
+  if (chosen.length) {
+    const team = common(chosen.map(brick => brick.goalTeam ?? 'none'));
+    if (team === MIXED) mixedOption($('#brick-goal-team')); else $('#brick-goal-team').value = team;
+  }
   $('#brick-conveyor-direction').querySelector('option[value=""]')?.remove();
   $('#brick-conveyor-direction').disabled = inert || !chosen.some(brick => brick.conveyor);
   if (chosen.length) {
@@ -1477,7 +1485,7 @@ function renderBoard() {
     element.classList.toggle('springs', Boolean(brick.springs));
     element.dataset.id = brick.id;
     element.dataset.region = key;
-    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}, ${immutableBrick(brick.kind) ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}`);
+    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}${brick.kind === 'goal' && brick.goalTeam ? `, team ${brick.goalTeam === 'koshi' ? 'Koshi' : 'Enemy'}` : ''}, ${immutableBrick(brick.kind) ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}`);
     element.setAttribute('aria-pressed', String(selectedBricks.has(key)));
     element.setAttribute('aria-label', element.getAttribute('aria-label') + specialLabel(brick));
     // Pointer clicks are handled by the board gesture; detail 0 means keyboard activation.
@@ -1980,7 +1988,8 @@ function pointTargets(level) {
     food: Math.max(scored ? level.goal ?? 0 : 0, trigger?.type === 'food' ? trigger.amount : 0),
     enemy: Math.max(scored ? level.killGoal ?? 0 : 0,
       ['enemyPoints', 'enemyMin'].includes(trigger?.type) ? trigger.amount : 0),
-    soccer: Math.max(scored ? level.goalsGoal ?? 0 : 0, trigger?.type === 'goals' ? trigger.amount : 0),
+    soccer: Math.max(scored ? level.goalsGoal ?? 0 : 0, level.teamGoalsGoal ?? 0,
+      ['goals', 'teamRace', 'teamKoshiMin'].includes(trigger?.type) ? trigger.amount : 0),
   };
 }
 
@@ -3091,7 +3100,8 @@ $('#select-mode').addEventListener('click', () => { placing = false; render(); }
 $('#select-all').addEventListener('click', selectAll);
 $('#clear-selection').addEventListener('click', () => setSelection([], []));
 function brickEntry(brick, region) {
-  if (immutableBrick(brick.kind)) return { ...region, kind: brick.kind };
+  if (immutableBrick(brick.kind)) return { ...region, kind: brick.kind,
+    ...(brick.kind === 'goal' && brick.goalTeam ? { goalTeam: brick.goalTeam } : {}) };
   return { ...region, kind: brick.kind, crumbler: brick.crumbler ?? null, warped: brick.warped ?? null,
     slimed: Boolean(brick.slimed), slimeColor: brick.slimeColor ?? 'green', springs: Boolean(brick.springs),
     spikes: Boolean(brick.spikes), conveyor: Boolean(brick.conveyor), conveyorDirection: brick.conveyorDirection ?? 'clockwise',
@@ -3108,11 +3118,15 @@ function saveBrick(event) {
     // Only the changed control is applied, so mixed values in other controls are preserved.
     const entries = targets.flatMap(({ brick, region }) => {
       const entry = brickEntry(brick, region);
-      if (immutableBrick(brick.kind) && id !== 'brick-kind') throw new Error('Cinder and Goal bricks cannot have modifiers or contact surfaces. Change the brick type first.');
+      if (immutableBrick(brick.kind) && id !== 'brick-kind' && !(brick.kind === 'goal' && id === 'brick-goal-team')) throw new Error('Cinder and Goal bricks cannot have modifiers or contact surfaces. Change the brick type first.');
       if (id === 'brick-plain') for (const attribute of CONTACT_SURFACES) entry[attribute] = ['portal', 'spawner', 'turret', 'hazard'].includes(attribute) ? null : false;
       if (id === 'brick-conveyor-direction' && $('#brick-conveyor-direction').value !== MIXED) entry.conveyorDirection = $('#brick-conveyor-direction').value;
       if (id === 'brick-slime-color' && $('#brick-slime-color').value !== MIXED) entry.slimeColor = $('#brick-slime-color').value;
       if (id === 'brick-kind' && $('#brick-kind').value !== MIXED) entry.kind = $('#brick-kind').value;
+      if (id === 'brick-goal-team' && $('#brick-goal-team').value !== MIXED) {
+        if ($('#brick-goal-team').value === 'none') delete entry.goalTeam;
+        else entry.goalTeam = $('#brick-goal-team').value;
+      }
       if (id === 'brick-turret-type' && $('#brick-turret-type').value !== MIXED && $('#brick-turret-type').value) entry.turret = $('#brick-turret-type').value;
       if (id === 'brick-hazard-type' && $('#brick-hazard-type').value !== MIXED) {
         const type = $('#brick-hazard-type').value;
@@ -3225,7 +3239,8 @@ function saveBrick(event) {
           if (id === `brick-spawn-${field}`) entry.spawner[field] = $(`#${id}`).checked;
         }
       }
-      if (immutableBrick(entry.kind)) for (const attribute of Object.keys(entry)) if (!['edge', 'start', 'end', 'kind'].includes(attribute)) delete entry[attribute];
+      if (entry.kind !== 'goal') delete entry.goalTeam;
+      if (immutableBrick(entry.kind)) for (const attribute of Object.keys(entry)) if (!['edge', 'start', 'end', 'kind', 'goalTeam'].includes(attribute)) delete entry[attribute];
       return previewGame.bricks.filter(member => member.id === brick.id || member.initialOwner === brick.id)
         .map(member => ({ ...entry, ...regions.get(member.id) }));
     });
@@ -3270,7 +3285,7 @@ function splitBricks() {
     message('Combined bricks split. Each retains the group\'s current attributes.');
   });
 }
-for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-power', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-hazard', '#brick-hazard-type', '#brick-hazard-power', '#brick-hazard-interval', '#brick-hazard-color', '#brick-hazard-pattern', '#brick-hazard-patternColor']) {
+for (const selector of ['#brick-kind', '#brick-goal-team', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-power', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-hazard', '#brick-hazard-type', '#brick-hazard-power', '#brick-hazard-interval', '#brick-hazard-color', '#brick-hazard-pattern', '#brick-hazard-patternColor']) {
   $(selector).addEventListener('change', saveBrick);
 }
 for (const selector of ['#brick-spawn-fixed', '#brick-spawn-x', '#brick-spawn-y']) $(selector).addEventListener('change', saveBrick);
@@ -3504,6 +3519,7 @@ for (const [selector, entries] of [
     spawn: 'Spawned pickup', carrier: 'Enemy carrier', chest: 'Treasure chest',
     time: 'Completion time', food: 'Minimum food points', enemyPoints: 'Minimum enemy points',
     goals: 'Minimum soccer goals', moves: 'Maximum moves', enemyMin: 'Minimum defeats by type',
+    teamRace: 'Team Koshi scores first', teamEnemyMax: 'Maximum team Enemy goals', teamKoshiMin: 'Minimum team Koshi goals',
     enemyMax: 'Maximum defeats by type', enemiesMax: 'Maximum total defeats',
     noSwords: 'No sword pickups', noHearts: 'No heart pickups',
     bricksMin: 'Minimum distinct bricks', bricksMax: 'Maximum distinct bricks',
@@ -3545,11 +3561,14 @@ function applyLevelSettings() {
         description: readCatBlockTrigger() ? catBlockDescription(readCatBlockTrigger()) : level.catBlock.description,
         ...(readCatBlockTrigger() ? { trigger: readCatBlockTrigger() } : {}),
       } : undefined,
-      goal: $('#boss-level-enabled').checked || $('#win-condition').value === 'survive' ? 0 : Number($('#goal').value),
-      killGoal: $('#boss-level-enabled').checked || $('#win-condition').value === 'survive' ? 0 : Number($('#kill-goal').value),
+      goal: $('#boss-level-enabled').checked || $('#win-condition').value !== 'scores' ? 0 : Number($('#goal').value),
+      killGoal: $('#boss-level-enabled').checked || $('#win-condition').value !== 'scores' ? 0 : Number($('#kill-goal').value),
       ...(Number($('#goals-goal').value) !== 0 || level.goalsGoal !== undefined ? {
-        goalsGoal: $('#boss-level-enabled').checked || $('#win-condition').value === 'survive' ? 0 : Number($('#goals-goal').value),
+        goalsGoal: $('#boss-level-enabled').checked || $('#win-condition').value !== 'scores' ? 0 : Number($('#goals-goal').value),
       } : {}),
+      ...($('#win-condition').value === 'team-race' && !$('#boss-level-enabled').checked
+        ? { teamGoalsGoal: Number($('#team-goals-goal').value) }
+        : { teamGoalsGoal: undefined }),
       ...($('#activation-limit').value !== '' || level.activationLimit !== undefined ? {
         activationLimit: $('#activation-limit').value === '' ? null : Number($('#activation-limit').value),
       } : {}),
@@ -3572,7 +3591,8 @@ function populateSettings() {
   $('#goals-goal').value = level.goalsGoal ?? 0;
   $('#activation-limit').value = level.activationLimit ?? '';
   $('#power-start').value = level.powerOn ? 'on' : 'off';
-  $('#win-condition').value = level.survive ? 'survive' : 'scores';
+  $('#win-condition').value = level.survive ? 'survive' : level.teamGoalsGoal ? 'team-race' : 'scores';
+  $('#team-goals-goal').value = level.teamGoalsGoal ?? 1;
   $('#boss-level-enabled').checked = Boolean(level.bossLevel);
   updateWinCondition();
   $('#heart-cost').value = level.heartCost ?? '';
@@ -3638,10 +3658,11 @@ $('#add-camera-event').addEventListener('click', () => attempt(() => {
 function updateWinCondition() {
   const boss = $('#boss-level-enabled').checked;
   $('#win-condition').disabled = boss;
-  const survive = boss || $('#win-condition').value === 'survive';
-  $('#goal').disabled = survive;
-  $('#kill-goal').disabled = survive;
-  $('#goals-goal').disabled = survive;
+  const scores = !boss && $('#win-condition').value === 'scores';
+  $('#goal').disabled = !scores;
+  $('#kill-goal').disabled = !scores;
+  $('#goals-goal').disabled = !scores;
+  $('#team-goals-goal').disabled = boss || $('#win-condition').value !== 'team-race';
 }
 $('#win-condition').addEventListener('change', updateWinCondition);
 $('#boss-level-enabled').addEventListener('change', updateWinCondition);

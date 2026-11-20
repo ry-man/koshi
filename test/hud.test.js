@@ -126,6 +126,28 @@ test('boss meters use the boss name without Health and retain accessible life va
   }
 });
 
+test('team scoreboard shares the boss strip and shows independent soccer scores', () => {
+  const { CHARACTERS, isBossType } = require('../src/game.js');
+  const meterSync = source.slice(source.indexOf("  document.querySelector('#boss-health').hidden"),
+    source.indexOf('  const gameCanvas ='));
+  const { node, context } = hud({ teamGoalsGoal: 4 });
+  Object.assign(context, { CHARACTERS, isBossType });
+  context.game.bricks = [{ kind: 'goal', goalTeam: 'enemy', absorbedBy: null }];
+  context.game.teamKoshiGoals = 2; context.game.teamEnemyGoals = 1;
+  vm.runInContext(meterSync, context);
+  assert.equal(node('#team-scoreboard').hidden, false);
+  assert.equal(node('#team-koshi-score').textContent, 'KOSHI: 2');
+  assert.equal(node('#team-enemy-score').textContent, 'ENEMIES: 1');
+  context.syncUI();
+  assert.equal(node('#progress').style.width, '50%');
+  context.game.bricks[0].goalTeam = null;
+  vm.runInContext(meterSync, context);
+  assert.equal(node('#team-scoreboard').hidden, true);
+  context.game.bricks[0].goalTeam = 'koshi'; context.game.level.bossLevel = true;
+  vm.runInContext(meterSync, context);
+  assert.equal(node('#team-scoreboard').hidden, true);
+});
+
 test('phone boss meter is positioned halfway between the HUD and board', () => {
   const positionBossHealth = source.slice(source.indexOf('function positionBossHealth()'), source.indexOf('function frame(timestamp)'));
   const properties = {};

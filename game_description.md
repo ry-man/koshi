@@ -216,8 +216,9 @@ changed brick shapes update the cache; pause and ten-second expiry remain unchan
 **Robo Goalie** (`goalie`) is an egg-shaped mechanical robot with three hair
 antennas, a long metal nose, and a colorful striped soccer jersey with badges.
 He spawns at a normal enemy location or his custom placement marker and moves
-toward the nearest Goal brick at 67.5 units/second. If that goal is removed, he
-travels toward the nearest remaining goal without teleporting. Once in position,
+toward the nearest teamless or team Enemy Goal brick at 67.5 units/second.
+He ignores team Koshi goals. If his goal is removed, he travels toward the
+nearest remaining eligible goal without teleporting. Once in position,
 he slides across its mouth, trying to intercept incoming soccer balls.
 Overlapping goalies and their defeat animations are drawn in ascending screen
 height order, with the lowest on screen in front. Crowded guards use stable
@@ -235,9 +236,19 @@ can defeat him, with normal optional shields and enemy-point awards. Music Box
 stops him; Spooky Mask makes him retreat along the goal at 64 units/second.
 His jersey falls down, revealing a plain mechanical shell; he turns pink with
 embarrassment and explodes, over 1.8 seconds. Pause freezes the animation.
-Without a Goal brick he immediately dies with no enemy-point award. He supports
+Without an eligible Goal brick he immediately dies with no enemy-point award. He supports
 custom placements, enemy spawners, editor icons and custom cutscene actors.
 Built-in level content and schedules are unchanged.
+
+**Robo Striker** (`striker`) shares the Goalie's egg-shaped body and striped
+jersey, with a large brown mustache and a unibrow joining semicircular eyes.
+He pauses, lines up behind a soccer ball, accelerates toward it to shoot at a
+team Koshi goal. After impact he pauses for 1.2 seconds, then wanders for five
+seconds before targeting another ball. He wanders without balls and dies
+without points if no team Koshi goal remains. He is harmless to Koshi and
+supports normal weapons, shields, sleep and fear. On defeat his jersey falls,
+he blushes and explodes like a Goalie. He is available for custom placements,
+spawners and cutscenes; existing levels are unchanged.
 
 Robo Moon is a purple floating crescent with dark purple craters, pixelated
 yellow eyes and an opening/closing yellow mouth. It wanders without targeting
@@ -319,7 +330,7 @@ The level editor supports optional scenes with either background, ordered
 dialogue lines, a speaker, and an on-stage cast. Saved JSON can additionally
 set each actor's normalized position per line. Tom is available as a speaker
 and cast member using the character ID `tom`, alongside `koshi`, `mouse`,
-`wheel`, `ram`, `bucket`, `ball`, `snake`, `jackolantern`, and `goalie`. Older custom scenes remain supported.
+`wheel`, `ram`, `bucket`, `ball`, `snake`, `jackolantern`, `goalie`, and `striker`. Older custom scenes remain supported.
 The editor's Level library also offers every built-in campaign level for
 read-only inspection of bricks, scheduled events, cutscenes, and preview timing.
 Campaign spawn coordinates are representative randomized examples. Editing and

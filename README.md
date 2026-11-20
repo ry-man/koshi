@@ -1401,7 +1401,7 @@ Add this optional property to a level object. The Beta themes are `garden`,
 `fuzzy-falls`, `mouser-mesa`, `alpine-litterbox`, `yarnball-moon`,
 `hairball-swamp`, `meownt-vesuvius`, and `robot-hq`. All are available in the
 editor for custom levels.
-Character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
+Character IDs are `koshi`, `mouse`, `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`, `striker`,
 `robo-snail`, `robo-cow`, `robo-unicorn`, `robo-crab`, `robo-love-bug`, and `tom`. Each is available as both
 a speaker and an on-stage cast member in the editor. Each of 1–100 lines has
 1–240 Unicode characters of nonblank text and 1–6 actors, including its speaker.
@@ -1811,7 +1811,7 @@ counts toward chest requirements.
 ```
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
-`wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`,
+`wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`, `striker`,
 `robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`, `robo-crab`, `robo-love-bug`; weapon types are `wood`,
 `bronze`, `silver`, `gold`, `hammer-bronze`, `hammer-silver`, and `hammer-gold`.
 Item types (`kind: "item"`) include `cat-block`, `key`, and `treasure-chest` as
@@ -2179,7 +2179,8 @@ destruction animation. The item also appears in Cracker Causeway.
 Robo Goalie (`goalie`) is an egg-shaped robot with three hair antennas, a long
 metal nose, and a colorful striped soccer jersey with badges. He spawns at normal
 enemy locations (or the custom placement marker), then travels toward the nearest
-Goal brick at 67.5 board units per second instead of teleporting into position.
+teamless or team Enemy Goal brick at 67.5 board units per second instead of teleporting into position.
+He ignores team Koshi goals.
 If his goal is removed, he travels from his current position to the nearest
 remaining goal. Once there, he moves across its mouth at the same speed,
 intercepting incoming soccer balls rather than chasing Koshi. He also tracks
@@ -2199,10 +2200,20 @@ He cannot hurt Koshi, but swords and Boost
 defeat him; optional shields and enemy-point awards work normally.
 Music Box stops him; Spooky Mask makes him retreat along his goal at 64 units
 per second. His jersey falls off on defeat, exposing a plain robot shell,
-then he blushes pink and explodes in a 1.8-second animation. Without any Goal
+then he blushes pink and explodes in a 1.8-second animation. Without any eligible Goal
 brick he immediately dies without awarding points. Goalies support custom
 placements, spawn bricks, preview icons and cutscene actors. Campaign levels
 and spawn schedules are unchanged.
+
+Robo Striker (`striker`) wears the Goalie's striped jersey and has a brown
+mustache and connected eyes. He pauses, lines up behind a soccer ball, and
+accelerates into it toward a team Koshi goal. After contact he pauses for 1.2
+seconds, then wanders for five seconds before targeting another ball. He
+wanders when there are no balls and dies without points if no team Koshi goal
+remains. He cannot hurt Koshi, but can be defeated like a Goalie; shields,
+Music Box and Spooky Mask work normally. His defeat uses the same falling
+jersey, blush and explosion animation. He is available in custom levels,
+spawners and cutscenes, not added to existing campaign levels.
 
 Music Box (`music-box`) puts enemies to sleep for ten seconds, with a scrolling
 musical score for the whole effect. Another pickup refreshes ten seconds.
@@ -2564,6 +2575,9 @@ For score objectives, at least one must be positive; all positive targets must
 be reached. For survival, set `survive: true`, `goal: 0`, `killGoal: 0`, and
 `goalsGoal: 0` (or omit the optional fields). Survival cannot be combined with score objectives.
 Older JSON without the new fields retains its original food-only objective.
+For a team soccer race, use `teamGoalsGoal` (a positive whole number) instead of
+the other win conditions. Koshi wins on reaching that many team goals first;
+the level is lost if the enemies reach it first.
 
 ### Boom Helmet and Boom Time
 
@@ -2637,6 +2651,14 @@ between the posts. Wide shots bounce off the frame. Each scored ball disappears
 once in a sparking cloud, increments Goals, and is removed from physics.
 Pause freezes balls and clouds; reset clears them. Level 2–19 introduces a
 three-goal objective with five scheduled balls; the original 19 levels are unchanged.
+
+Goal overrides may optionally specify `"goalTeam": "koshi"` or `"enemy"`;
+omitting it makes a teamless goal. A ball entering a team goal scores for the
+opposing team, independently of the ordinary total-goal counter. Team goals
+show a scoreboard in the boss meter strip and cannot be used in boss levels.
+The editor also offers Cat Brick conditions `teamRace`, `teamEnemyMax`, and
+`teamKoshiMin`, each with an `amount`. They are evaluated when the level is won;
+`teamRace` remembers whether Koshi reached that amount before the enemies.
 
 Example custom-level additions (fractions use the phone-layout convention):
 
@@ -2736,7 +2758,7 @@ Spawner types:
 `food` uses any food code plus a `lifetime` of 0.1-3600 seconds; `weapon` uses
 `wood`, `bronze`, `silver`, `gold`, `hammer-bronze`, `hammer-silver`, or
 `hammer-gold`; `enemy` uses `mouse`, `wheel`, `ram`,
-`bucket`, `ball`, `jackolantern`, `snake`, or `goalie`;
+`bucket`, `ball`, `jackolantern`, `snake`, `goalie`, or `striker`;
 `item` uses one of the item types above; `heart` uses type `heart`.
 Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
 counted from each actual spawn; omit it for full-level persistence.

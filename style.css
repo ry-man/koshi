@@ -198,6 +198,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .hud { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 22px var(--hud-inset); gap: var(--hud-gap); }
 .boss-health { position: absolute; left: var(--hud-inset); right: var(--hud-inset); bottom: 0; height: 14px; display: flex; align-items: center; gap: 8px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; line-height: 1; }
 .boss-health[hidden] { display: none; }
+.team-scoreboard { justify-content: space-around; }
 .boss-health-meter { flex: 1; min-width: 40px; height: 10px; border: 2px solid #e4b947; background: #281b20; border-radius: 3px; overflow: hidden; }
 #boss-health-fill { height: 100%; width: 100%; background: #e13e45; transition: width .18s; }
 .stat { min-width: 0; text-align: center; }

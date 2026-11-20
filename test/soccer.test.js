@@ -27,6 +27,90 @@ function edgeBrick(game, edge) {
       - Math.hypot(b.x + b.w / 2 - game.width / 2, b.y + b.h / 2 - game.height / 2))[0];
 }
 
+function scoreAt(game, edge, team) {
+  const target = edgeBrick(game, edge);
+  target.kind = 'goal'; target.goalTeam = team;
+  const [nx, ny] = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] }[edge];
+  const item = ball(game, target.x + target.w / 2 - nx * 100, target.y + target.h / 2 - ny * 100);
+  item.vx = nx * 400; item.vy = ny * 400;
+  roll(game, .4);
+}
+
+test('team goals award the opposing team, preserve total goals, and reset', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const game = arena(options);
+    scoreAt(game, 'top', 'koshi');
+    scoreAt(game, 'bottom', 'enemy');
+    scoreAt(game, 'left', null);
+    assert.equal(game.teamKoshiGoals, 1);
+    assert.equal(game.teamEnemyGoals, 1);
+    assert.equal(game.goals, 3);
+    game.reset();
+    assert.equal(game.teamKoshiGoals, 0);
+    assert.equal(game.teamEnemyGoals, 0);
+    assert.equal(game.teamRaceWins.size, 0);
+  }
+});
+
+test('team race wins or loses for the first team to reach the target', () => {
+  const level = { ...blank(), goal: 0, teamGoalsGoal: 2 };
+  for (const [team, outcome] of [['enemy', 'won'], ['koshi', 'lost']]) {
+    const game = arena({}, level);
+    scoreAt(game, 'top', team);
+    game.update(.01);
+    assert.equal(game.state, 'playing');
+    scoreAt(game, 'top', team);
+    game.update(.01);
+    assert.equal(game.state, outcome);
+  }
+});
+
+test('multiple goals in one update are ordered by crossing time, not ball array order', () => {
+  const game = arena({}, { ...blank(), goal: 0, teamGoalsGoal: 1 });
+  const top = edgeBrick(game, 'top'), bottom = edgeBrick(game, 'bottom');
+  top.kind = 'goal'; top.goalTeam = 'koshi';
+  bottom.kind = 'goal'; bottom.goalTeam = 'enemy';
+  const slow = ball(game, top.x + top.w / 2, top.y + top.h + 100);
+  slow.vy = -400;
+  const fast = ball(game, bottom.x + bottom.w / 2, bottom.y - 30);
+  fast.vy = 400;
+  game.updateSoccerBalls(.4, game.cat.x, game.cat.y, new Map());
+  assert.equal(game.teamKoshiGoals, 1);
+  assert.equal(game.teamEnemyGoals, 1);
+  assert.equal(game.teamRaceWinner, 'koshi');
+});
+
+test('team race and goal assignments validate and preserve optional level data', () => {
+  const goal = { edge: 'top', start: .2, end: .3, kind: 'goal', goalTeam: 'koshi' };
+  const level = { ...blank(), goal: 0, teamGoalsGoal: 3, brickTypes: [goal] };
+  assert.deepEqual(validateCustomLevel(level), level);
+  assert.throws(() => validateCustomLevel({ ...level, goal: 1 }), /cannot be combined/);
+  assert.throws(() => validateCustomLevel({ ...level, teamGoalsGoal: 1.5 }), /whole number/);
+  assert.throws(() => validateCustomLevel({ ...blank(), brickTypes: [{ ...goal, goalTeam: 'other' }] }), /goal team/);
+  assert.throws(() => validateCustomLevel({ ...blank(), brickTypes: [{ ...goal, kind: 'normal' }] }), /goal team/);
+  assert.throws(() => validateCustomLevel({ ...blank(), bossLevel: true, brickTypes: [goal] }, { allowIncompleteBoss: true }), /Boss levels cannot have team soccer goals/);
+  assert.match(levelObjective(level), /team Koshi score 3 goals before team Enemy/);
+});
+
+test('team Cat Brick conditions evaluate at victory and remember who reached a target first', () => {
+  for (const [type, sequence, expected] of [
+    ['teamRace', ['enemy', 'enemy', 'koshi', 'koshi'], true],
+    ['teamRace', ['koshi', 'koshi', 'enemy', 'enemy', 'enemy'], false],
+    ['teamEnemyMax', ['koshi', 'koshi'], true],
+    ['teamEnemyMax', ['koshi', 'koshi', 'koshi'], false],
+    ['teamKoshiMin', ['enemy', 'enemy'], true],
+    ['teamKoshiMin', ['enemy'], false],
+  ]) {
+    const level = { ...blank(), goal: 1, catBlock: { description: 'test', trigger: { type, amount: 2 } } };
+    const game = arena({}, level);
+    for (const team of sequence) scoreAt(game, 'top', team);
+    assert.equal(game.catBlockCollected, false);
+    game.score = 1; game.update(.01);
+    assert.equal(game.state, 'won');
+    assert.equal(game.catBlockCollected, expected, `${type} ${sequence}`);
+  }
+});
+
 test('soccer is a persistent neutral object, supports scheduled placements and spawners, and preserves campaigns', () => {
   const level = { ...blank(), goalsGoal: 2,
     events: [{ time: 1, kind: 'object', type: 'soccer-ball', x: .4, y: .6 }],

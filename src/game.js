@@ -98,6 +98,9 @@ const CAT_BLOCK_TRIGGERS = {
   food: { text: 'Complete the level with at least [X] food points.', amount: true },
   enemyPoints: { text: 'Complete the level with at least [X] enemy points.', amount: true },
   goals: { text: 'Complete the level with at least [X] soccer goals.', amount: true },
+  teamRace: { text: 'Have team Koshi score [X] goals before team Enemy.', amount: true },
+  teamEnemyMax: { text: 'Hold team Enemy to no more than [X] goals.', amount: true },
+  teamKoshiMin: { text: 'Have team Koshi score [X] goals.', amount: true },
   moves: { text: 'Complete the level in at most [X] moves.', amount: true },
   enemyMin: { text: 'Defeat at least [X] of enemy type [Y].', amount: true, enemy: true },
   enemyMax: { text: 'Defeat no more than [X] of enemy type [Y].', amount: true, enemy: true },
@@ -281,6 +284,7 @@ function applyBrickTypes(bricks, entries = []) {
       Math.abs(center(brick) - (entry.start + entry.end) / 2) < Math.abs(center(best) - (entry.start + entry.end) / 2) ? brick : best));
     for (const brick of matching) {
       brick.kind = entry.kind;
+      brick.goalTeam = entry.kind === 'goal' ? entry.goalTeam ?? null : null;
       if (['cinder', 'goal'].includes(brick.kind)) {
         for (const attribute of ['crumbler', 'warped', 'toggle']) brick[attribute] = null;
         brick.power = false;
@@ -297,7 +301,7 @@ function applyBrickTypes(bricks, entries = []) {
     }
   }
 }
-const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-fly': 'Robo Fly', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', 'robo-moon': 'Robo Moon', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
+const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', striker: 'Robo Striker', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-fly': 'Robo Fly', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', 'robo-moon': 'Robo Moon', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
 CHARACTERS['tom-frog'] = 'Tom the Frog';
 CHARACTERS['robo-sharpshooter'] = 'Robo Sharpshooter';
 CHARACTERS['robo-cat-lady'] = 'Robo Cat Lady';
@@ -2065,16 +2069,19 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   if (!Number.isInteger(killGoal)) fail('Enemy goal must be a whole number.');
   const goalsGoal = value.goalsGoal === undefined ? 0 : number(value.goalsGoal, 0, 100000, 'Goals required');
   if (!Number.isInteger(goalsGoal)) fail('Goals required must be a whole number.');
+  const teamGoalsGoal = value.teamGoalsGoal === undefined ? 0 : number(value.teamGoalsGoal, 0, 100000, 'Team goals required');
+  if (!Number.isInteger(teamGoalsGoal)) fail('Team goals required must be a whole number.');
   if (value.activationLimit != null) {
     number(value.activationLimit, 1, 100000, 'Activation limit');
     if (!Number.isInteger(value.activationLimit)) fail('Activation limit must be a whole number.');
   }
   if (value.survive !== undefined && typeof value.survive !== 'boolean') fail('Survive must be a boolean.');
   if (value.powerOn !== undefined && typeof value.powerOn !== 'boolean') fail('Starting power must be a boolean.');
-  if (value.survive && (goal || killGoal || goalsGoal)) fail('Survival cannot be combined with food, enemy or soccer goals.');
+  if (value.survive && (goal || killGoal || goalsGoal || teamGoalsGoal)) fail('Survival cannot be combined with food, enemy or soccer goals.');
   if (value.bossLevel !== undefined && typeof value.bossLevel !== 'boolean') fail('Boss level must be a boolean.');
   if (value.bossLevel && value.survive) fail('Boss levels cannot use survival as their win condition.');
-  if (!value.survive && !value.bossLevel && !goal && !killGoal && !goalsGoal) fail('Food goal, enemy goal or soccer goals must be positive unless survival is selected.');
+  if (teamGoalsGoal && (value.bossLevel || goal || killGoal || goalsGoal)) fail('A team soccer race cannot be combined with other win conditions.');
+  if (!value.survive && !value.bossLevel && !goal && !killGoal && !goalsGoal && !teamGoalsGoal) fail('Food goal, enemy goal or soccer goals must be positive unless survival is selected.');
   const heartCost = value.heartCost === null ? null : number(value.heartCost, 1, 100000, 'Heart cost');
   if (heartCost !== null && !Number.isInteger(heartCost)) fail('Heart cost must be a whole number or null.');
   if (![1, 3].includes(value.brickSet)) fail('Brick set must be 1 or 3 (slow and fast bricks each).');
@@ -2115,7 +2122,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, striker: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
@@ -2176,6 +2183,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
   }
   if (value.killGoal !== undefined) result.killGoal = killGoal;
   if (value.goalsGoal !== undefined) result.goalsGoal = goalsGoal;
+  if (value.teamGoalsGoal !== undefined) result.teamGoalsGoal = teamGoalsGoal;
   if (value.activationLimit !== undefined) result.activationLimit = value.activationLimit;
   if (value.powerOn !== undefined) result.powerOn = value.powerOn;
   if (value.survive !== undefined) result.survive = value.survive;
@@ -2235,6 +2243,11 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       const end = number(entry.end, 0, 1, `Brick override ${i + 1} end`);
       if (end <= start) fail(`Brick override ${i + 1} must have an end greater than its start.`);
       const override = { edge: entry.edge, start, end, kind: entry.kind };
+      if (entry.goalTeam !== undefined) {
+        if (entry.kind !== 'goal' || !['koshi', 'enemy'].includes(entry.goalTeam)) fail(`Brick override ${i + 1} has an invalid goal team.`);
+        if (value.bossLevel) fail('Boss levels cannot have team soccer goals.');
+        override.goalTeam = entry.goalTeam;
+      }
       if (entry.crumbler !== undefined) {
         override.crumbler = entry.crumbler === null ? null : number(entry.crumbler, 1, 100000, `Brick override ${i + 1} selections`);
         if (override.crumbler !== null && !Number.isInteger(override.crumbler)) fail(`Brick override ${i + 1} selections must be a whole number.`);
@@ -2298,7 +2311,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, striker: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -3381,6 +3394,7 @@ function levelObjective(level) {
     ? 'Defeat Tom the Frog: feed him flies with his tongue, then land 6 sword hits while he sleeps'
     : 'Defeat Tom the Toaster: land 6 Boost hits while he is dizzy') + limit;
   if (level.survive) return `Survive for ${level.duration} seconds until the timer reaches zero${limit}`;
+  if (level.teamGoalsGoal > 0) return `Have team Koshi score ${level.teamGoalsGoal} goal${level.teamGoalsGoal === 1 ? '' : 's'} before team Enemy (${level.duration} seconds)${limit}`;
   const targets = [];
   if (level.goal > 0) targets.push(`Collect ${level.goal} food`);
   if (level.killGoal > 0) targets.push(`${targets.length ? 'earn' : 'Earn'} ${level.killGoal} enemy points`);
@@ -3436,6 +3450,10 @@ class Game {
     this.score = 0;
     this.enemies = 0;
     this.goals = 0;
+    this.teamKoshiGoals = 0;
+    this.teamEnemyGoals = 0;
+    this.teamRaceWins = new Set();
+    this.teamRaceWinner = null;
     this.soccerBalls = [];
     this.itemCases = [];
     this.glassBreaks = [];
@@ -4812,7 +4830,7 @@ class Game {
     if (event.kind === 'enemy') {
       if (isBossType(event.type)) return 48;
       if (event.type === 'robo-cow') return 26;
-      return event.type === 'goalie' ? 23 : 19;
+      return ['goalie', 'striker'].includes(event.type) ? 23 : 19;
     }
     if (event.kind !== 'object') return event.type === 'ditto-stamp' ? DITTO_STAMP_RADIUS : 18;
     if (OBJECTS[event.type].bumper) return 48;
@@ -5137,6 +5155,7 @@ class Game {
     if (event.type === 'bucket') this.initializeBucket(enemy);
     if (event.type === 'jackolantern') this.initializeJackolantern(enemy);
     if (event.type === 'goalie') this.initializeGoalie(enemy);
+    if (event.type === 'striker') this.initializeStriker(enemy);
     if (event.type === 'robo-crab') this.initializeRoboCrab(enemy, event.crabDirection);
     if (['wheel', 'snake', 'robo-cow'].includes(event.type)) {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
@@ -5439,13 +5458,14 @@ class Game {
     const actors = [{ ...this.cat, oldX: startX, oldY: startY, kick: true },
       ...this.robots.filter(enemy => enemy.type !== 'robo-koshi').flatMap(enemy => {
         const old = previousEnemies.get(enemy);
-        if (enemy.type !== 'snake') return [{ ...enemy, oldX: old?.x ?? enemy.x, oldY: old?.y ?? enemy.y }];
+        if (enemy.type !== 'snake') return [{ ...enemy, ...(enemy.type === 'striker' ? { source: enemy } : {}),
+          oldX: old?.x ?? enemy.x, oldY: old?.y ?? enemy.y }];
         const before = old?.segments ?? this.snakeSegments(enemy);
         return this.snakeSegments(enemy).map((segment, index) => ({
           ...segment, radius: segment.radius + (index ? 5 : 0), oldX: before[index].x, oldY: before[index].y,
         }));
       })];
-    const scored = new Set(), detonations = [];
+    const scored = new Set(), detonations = [], teamScorings = [];
     const solids = ball => [
       ...this.obstructions.map(target => ({ kind: 'obstruction', target })),
       ...this.bumpers.map(target => ({ kind: 'bumper', target })),
@@ -5519,6 +5539,8 @@ class Game {
         remaining -= spent;
         if (goal) {
           this.goals++;
+          const team = this.bricks[obstacle.id].goalTeam;
+          if (team) teamScorings.push({ team, time: activeTime - remaining });
           this.goalEffects.push({ x: ball.x, y: ball.y, age: 0, duration: .65 });
           scored.add(ball);
           return false;
@@ -5558,6 +5580,12 @@ class Game {
               : { x: 1, y: 0 };
           const incoming = (ball.vx - avx) * normal.x + (ball.vy - avy) * normal.y;
           if (incoming < 0) {
+            if (actor.type === 'striker' && !actor.asleep && !actor.afraid) {
+              actor.source.strikerState = 'hit-pause';
+              actor.source.strikerTimer = 1.2;
+              actor.source.strikerBall = null;
+              actor.source.strikerSpeed = 0;
+            }
             const restitution = actor.kick ? .5 : .8;
             ball.vx -= (1 + restitution) * incoming * normal.x;
             ball.vy -= (1 + restitution) * incoming * normal.y;
@@ -5597,6 +5625,17 @@ class Game {
       }
       return true;
     });
+    for (const { team } of teamScorings.sort((a, b) => a.time - b.time)) {
+      if (team === 'koshi') this.teamEnemyGoals++;
+      else {
+        this.teamKoshiGoals++;
+        if (this.teamKoshiGoals > this.teamEnemyGoals) this.teamRaceWins.add(this.teamKoshiGoals);
+      }
+      if (this.level.teamGoalsGoal && !this.teamRaceWinner) {
+        if (this.teamKoshiGoals >= this.level.teamGoalsGoal) this.teamRaceWinner = 'koshi';
+        else if (this.teamEnemyGoals >= this.level.teamGoalsGoal) this.teamRaceWinner = 'enemy';
+      }
+    }
     for (const ball of detonations) this.detonateSoccerBall(ball);
   }
 
@@ -5682,6 +5721,7 @@ class Game {
       if (type === 'bucket') this.initializeBucket(enemy);
       if (type === 'jackolantern') this.initializeJackolantern(enemy);
       if (type === 'goalie') this.initializeGoalie(enemy);
+      if (type === 'striker') this.initializeStriker(enemy);
       if (type === 'robo-crab') this.initializeRoboCrab(enemy,
         this.campaignEventAppearance({ type, crabDirection: options?.crabDirection }).crabDirection);
       if (['wheel', 'snake', 'robo-cow'].includes(type)) {
@@ -6228,7 +6268,8 @@ class Game {
 
   goalieArea(enemy) {
     const regions = brickRegions(this.bricks, this.width, this.height);
-    const goals = goalTiles(this.brickParts().filter(part => this.bricks[part.id].kind === 'goal'));
+    const goals = goalTiles(this.brickParts().filter(part =>
+      this.bricks[part.id].kind === 'goal' && this.bricks[part.id].goalTeam !== 'koshi'));
     const areas = goals.map(part => {
       const edge = regions.get(part.sourceId ?? part.afterId ?? part.id).edge;
       const vertical = edge === 'left' || edge === 'right';
@@ -6306,6 +6347,109 @@ class Game {
     enemy.goalId = area.id;
     enemy.x += dx * step;
     enemy.y += dy * step;
+  }
+
+  strikerGoals() {
+    return goalTiles(this.brickParts().filter(part =>
+      this.bricks[part.id].kind === 'goal' && this.bricks[part.id].goalTeam === 'koshi'));
+  }
+
+  initializeStriker(enemy) {
+    enemy.radius = 23;
+    enemy.strikerState = 'pause';
+    enemy.strikerTimer = .6;
+    enemy.strikerSpeed = 0;
+    enemy.strikerBall = null;
+  }
+
+  moveStriker(enemy, dt, goals) {
+    if (enemy.strikerState === 'hit-pause') {
+      enemy.strikerTimer -= dt;
+      if (enemy.strikerTimer <= 1e-9) {
+        enemy.strikerState = 'wander';
+        enemy.strikerTimer = 5;
+      }
+      return;
+    }
+    if (enemy.strikerState === 'wander' || !this.soccerBalls.length) {
+      if (enemy.strikerState === 'wander') {
+        enemy.strikerTimer -= dt;
+        if (enemy.strikerTimer <= 1e-9) {
+          enemy.strikerState = this.soccerBalls.length ? 'position' : 'pause';
+          enemy.strikerTimer = this.soccerBalls.length ? 8 : .6;
+        }
+      } else {
+        enemy.strikerState = 'pause';
+        enemy.strikerTimer = .6;
+        enemy.strikerBall = null;
+      }
+      enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * dt;
+      const bounds = this.bounds();
+      enemy.x += Math.cos(enemy.phase) * 75 * dt;
+      enemy.y += Math.sin(enemy.phase) * 75 * dt;
+      if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+      if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+      enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+      enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+      return;
+    }
+    if (enemy.strikerState === 'pause') {
+      enemy.strikerTimer -= dt;
+      if (enemy.strikerTimer > 0) return;
+      enemy.strikerState = 'position';
+      enemy.strikerTimer = 8;
+    } else {
+      enemy.strikerTimer -= dt;
+      if (enemy.strikerTimer <= 0) {
+        enemy.strikerState = 'pause';
+        enemy.strikerTimer = .6;
+        enemy.strikerBall = null;
+        return;
+      }
+    }
+    if (!this.soccerBalls.includes(enemy.strikerBall)) {
+      enemy.strikerBall = this.soccerBalls.reduce((best, ball) =>
+        !best || Math.hypot(ball.x - enemy.x, ball.y - enemy.y) < Math.hypot(best.x - enemy.x, best.y - enemy.y) ? ball : best, null);
+      enemy.strikerState = 'position';
+    }
+    const ball = enemy.strikerBall;
+    const goal = goals.reduce((best, part) => {
+      const distance = Math.hypot(part.x + part.w / 2 - ball.x, part.y + part.h / 2 - ball.y);
+      return !best || distance < best.distance ? { part, distance } : best;
+    }, null).part;
+    const dx = goal.x + goal.w / 2 - ball.x, dy = goal.y + goal.h / 2 - ball.y;
+    const length = Math.hypot(dx, dy) || 1, nx = dx / length, ny = dy / length;
+    const clearance = enemy.radius + ball.radius;
+    const bounds = this.bounds();
+    let targetX = ball.x - nx * (clearance + 45), targetY = ball.y - ny * (clearance + 45);
+    targetX = Math.max(bounds.left, Math.min(bounds.right, targetX));
+    targetY = Math.max(bounds.top, Math.min(bounds.bottom, targetY));
+    if (enemy.strikerState === 'position') {
+      const gap = Math.hypot(targetX - enemy.x, targetY - enemy.y);
+      if (gap < 5) {
+        enemy.strikerState = 'charge';
+        enemy.strikerSpeed = 80;
+        enemy.strikerTimer = 3;
+      } else if (distanceToSegment(ball.x, ball.y, enemy.x, enemy.y, targetX, targetY) < clearance + 8) {
+        // Go around the ball rather than pushing it away from the goal while lining up.
+        const angle = Math.atan2(enemy.y - ball.y, enemy.x - ball.x);
+        const desired = Math.atan2(targetY - ball.y, targetX - ball.x);
+        const turn = Math.atan2(Math.sin(desired - angle), Math.cos(desired - angle));
+        const next = angle + Math.sign(turn || 1) * .5;
+        const radius = Math.max(clearance + 16, Math.hypot(enemy.x - ball.x, enemy.y - ball.y));
+        targetX = ball.x + Math.cos(next) * radius;
+        targetY = ball.y + Math.sin(next) * radius;
+      }
+    }
+    if (enemy.strikerState === 'charge') {
+      enemy.strikerSpeed = Math.min(230, enemy.strikerSpeed + 300 * dt);
+      targetX = ball.x;
+      targetY = ball.y;
+    }
+    const mx = targetX - enemy.x, my = targetY - enemy.y, distance = Math.hypot(mx, my);
+    const step = distance ? Math.min(distance, (enemy.strikerState === 'charge' ? enemy.strikerSpeed : 105) * dt) / distance : 0;
+    enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x + mx * step));
+    enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y + my * step));
   }
 
   defeatEnemy(enemy, awardPoints = true, cause = null) {
@@ -8511,8 +8655,9 @@ class Game {
   }
 
   combatEnemies(dt, startX, startY, robots = this.robots) {
+    const strikerGoals = this.robots.some(enemy => enemy.type === 'striker') ? this.strikerGoals() : [];
     this.robots = this.robots.filter(enemy => {
-      if (enemy.type !== 'goalie' || this.goalieArea(enemy)) return true;
+      if (enemy.type === 'goalie' ? this.goalieArea(enemy) : enemy.type === 'striker' ? strikerGoals.length : true) return true;
       this.defeatEnemy(enemy, false);
       return false;
     });
@@ -8557,6 +8702,7 @@ class Game {
         this.moveGoalie(enemy, dt);
       } else if (enemy.afraid) {
         enemy.resting = false;
+        if (enemy.type === 'striker') this.initializeStriker(enemy);
         if (enemy.type === 'robo-cat-lady') this.initializeCatLady(enemy);
         if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) this.moveAfraidWheel(enemy, dt);
         else this.moveAfraidEnemy(enemy, dt);
@@ -8564,6 +8710,8 @@ class Game {
         if (enemy.type === 'robo-love-bug') enemy.loveBugStride = (enemy.loveBugStride ?? 0) + dt * 7;
         if (enemy.type === 'bucket') this.updateBucket(enemy, dt, parts);
         if (enemy.type === 'jackolantern') this.updateJackolantern(enemy, dt, parts, startX, startY);
+      } else if (enemy.type === 'striker') {
+        this.moveStriker(enemy, dt, strikerGoals);
       } else if (['wheel', 'snake'].includes(enemy.type)) {
         enemy.distance += (enemy.barrierDirection ?? 1) * 95 * dt; this.placeWheel(enemy);
       } else if (enemy.type === 'robo-cow') {
@@ -8779,7 +8927,7 @@ class Game {
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
       }
-      if (enemy.type !== 'goalie' && !enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius
+      if (!['goalie', 'striker'].includes(enemy.type) && !enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius
         && (!enemy.touching || enemy.type === 'robo-koshi') && this.enemyDamageProgress(enemy) === null) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
@@ -8843,6 +8991,9 @@ class Game {
       case 'food': earned = this.score >= trigger.amount; break;
       case 'enemyPoints': earned = this.enemies >= trigger.amount; break;
       case 'goals': earned = this.goals >= trigger.amount; break;
+      case 'teamRace': earned = this.teamRaceWins.has(trigger.amount); break;
+      case 'teamEnemyMax': earned = this.teamEnemyGoals <= trigger.amount; break;
+      case 'teamKoshiMin': earned = this.teamKoshiGoals >= trigger.amount; break;
       case 'moves': earned = this.moves <= trigger.amount; break;
       case 'enemyMin': earned = defeats >= trigger.amount; break;
       case 'enemyMax': earned = defeats <= trigger.amount; break;
@@ -9223,7 +9374,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin', 'robo-cat-lady'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug', 'robo-sharpshooter'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin', 'robo-cat-lady'].includes(enemy.type) ? 2 : ['goalie', 'striker'].includes(enemy.type) ? 1.8 : ['robo-crab', 'robo-love-bug', 'robo-sharpshooter'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -9878,7 +10029,9 @@ class Game {
     }
     if (cat.x - cat.radius < 0 || cat.x + cat.radius > this.width || cat.y - cat.radius < 0 || cat.y + cat.radius > this.height || this.hearts <= 0) {
       this.state = 'lost';
-    } else if (!this.level.bossLevel && !this.level.survive && this.score >= this.level.goal && this.enemies >= (this.level.killGoal ?? 0)
+    } else if (this.level.teamGoalsGoal && this.teamRaceWinner) {
+      this.state = this.teamRaceWinner === 'koshi' ? 'won' : 'lost';
+    } else if (!this.level.bossLevel && !this.level.survive && !this.level.teamGoalsGoal && this.score >= this.level.goal && this.enemies >= (this.level.killGoal ?? 0)
       && this.goals >= (this.level.goalsGoal ?? 0)) {
       this.state = 'won';
     } else if (this.elapsed >= this.timeLimit - 1e-9) {

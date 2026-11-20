@@ -654,6 +654,7 @@ test('opening briefings omit the Cat Brick objective and graphic after acquisiti
     [{ duration: 60, goal: 20 }, 'VICTORY CONDITIONS:\n🍗 Target: 20'],
     [{ duration: 60, goal: 0, killGoal: 5 }, 'VICTORY CONDITIONS:\n👾 Target: 5'],
     [{ duration: 60, goalsGoal: 3 }, 'VICTORY CONDITIONS:\n⚽ Target: 3'],
+    [{ duration: 60, goal: 0, teamGoalsGoal: 1 }, 'VICTORY CONDITIONS:\n⚽ Koshi scores 1 goal before enemies'],
     [{ duration: 60, goal: 10, killGoal: 5, goalsGoal: 2 }, 'VICTORY CONDITIONS:\n🍗 Target: 10\n👾 Target: 5\n⚽ Target: 2'],
     [{ duration: 90, goal: 0, survive: true }, 'VICTORY CONDITIONS:\n🕒 Survive Time: 90'],
     [{ duration: 60, goal: 0, bossLevel: true }, 'VICTORY CONDITIONS:\nDefeat Tom the Toaster with 6 Boost hits while he is dizzy. No time limit.'],

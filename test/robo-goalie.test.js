@@ -117,6 +117,32 @@ test('goalie chooses nearest goal, guards current merged mouth, and changes goal
   assert.ok(game.goalieArea(enemy).inward > 0);
 });
 
+test('goalies ignore Koshi goals and defend Enemy or teamless goals instead', () => {
+  for (const options of [{}, { portrait: true, scale: .31 }]) {
+    const game = arena(options, 'top'), regions = brickRegions(game.bricks, game.width, game.height);
+    const top = game.bricks.filter(brick => regions.get(brick.id).edge === 'top');
+    const bottom = game.bricks.filter(brick => regions.get(brick.id).edge === 'bottom');
+    for (const brick of top) brick.goalTeam = 'koshi';
+    for (const brick of bottom) { brick.kind = 'goal'; brick.goalTeam = 'enemy'; }
+    const enemy = goalie(game, { x: .5, y: .1 }, 'blue');
+    enemy.goalId = top[0].id;
+    assert.ok(bottom.some(brick => brick.id === game.goalieArea(enemy).id),
+      'a closer or previously defended Koshi goal is ignored');
+    game.moveGoalie(enemy, .1);
+    assert.ok(bottom.some(brick => brick.id === enemy.goalId));
+    for (const brick of bottom) brick.goalTeam = null;
+    assert.ok(bottom.some(brick => brick.id === game.goalieArea(enemy).id),
+      'teamless goals remain eligible');
+    for (const brick of bottom) brick.goalTeam = 'koshi';
+    assert.equal(game.goalieArea(enemy), null);
+    game.update(.01);
+    assert.equal(game.robots.length, 0, 'only Koshi goals is equivalent to no goal');
+    assert.equal(game.enemyDeaths.length, 1);
+    assert.equal(game.enemies, 0);
+    assert.equal(game.enemyDeaths[0].shield, 'blue');
+  }
+});
+
 test('custom goalie placements stay at their markers and travel gradually to goals on every edge and layout', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
     for (const edge of ['top', 'bottom', 'left', 'right']) {

@@ -2,6 +2,8 @@
 'use strict';
 const engine = typeof module !== 'undefined' && module.exports ? require('./game.js') : globalThis.KoshiGame;
 const { PORTALS, FOODS, ITEMS, OBJECTS, WEAPONS, CHARACTERS, HAZARDS, hazardEnabled, obstructionGeometry, obstructionSpikes, obstructionVertices, brickShape, brickPerimeter, brickRegions, brickEnabled, goalTiles } = engine;
+const goalKoshiImage = typeof Image === 'undefined' ? null : new Image();
+if (goalKoshiImage) goalKoshiImage.src = './icons/koshi.svg';
 const HAZARD_FLAME = 'M-24 18 Q-12 12 -20 -2 L-10 -18 Q-13 -2 -4 -8 L3 -17 Q12 -4 9 2 Q18 -10 24 -20 Q16 3 24 18 Z';
 const MISSILE_BODY = 'M-14 -7 H9 Q24 -7 24 0 Q24 7 9 7 H-14 Z';
 const MISSILE_FINS = 'M-15 -6 L-25 -16 L-5 -10 V-6 M-15 6 L-25 16 L-5 10 V6 M-22 0 H-4';
@@ -53,6 +55,7 @@ const SYMBOLS = {
   snake: 'M-25 5 A7 7 0 1 1 -11 5 A7 7 0 1 1 -25 5 M-16 -2 V12 M-12 5 H-20 M-13 5 C-9 -3 -1 -3 3 5 M-5 -3 A8 8 0 1 1 -5 13 A8 8 0 1 1 -5 -3 M3 5 C7 -3 14 -5 19 -3 M11 -4 A9 9 0 1 1 11 14 A9 9 0 1 1 11 -4 M15 -3 H18 M15 1 H18 M19 -1 L24 -4 M19 3 L24 6',
   jackolantern: 'M0 -18 V-25 M3 -25 A3 3 0 1 1 -3 -25 A3 3 0 1 1 3 -25 M0 -17 C-28 -26 -28 23 0 19 C28 23 28 -26 0 -17 Z M-10 -15 C-18 -4 -18 10 -10 17 M10 -15 C18 -4 18 10 10 17 M-15 -7 H-4 V0 H-15 Z M4 -7 H15 V0 H4 Z M0 0 L-4 6 H4 Z M-14 8 L-8 10 L-5 7 L0 11 L5 7 L8 10 L14 8 L9 16 L4 13 L0 17 L-4 13 L-9 16 Z',
   goalie: 'M0 -22 C20 -22 26 28 0 28 C-26 28 -20 -22 0 -22 Z M-6 -22 L-11 -31 M0 -22 V-33 M6 -22 L11 -31 M-9 -9 A2 2 0 1 0 -9 -8 M9 -9 A2 2 0 1 0 9 -8 M-3 -8 C-4 0 -9 9 -3 11 C9 14 6 2 3 -8 M-19 0 H-7 M7 0 H19 M-12 3 V21 M-4 14 V26 M4 14 V26 M12 3 V21 M8 7 A4 4 0 1 0 16 7 A4 4 0 1 0 8 7 M-15 8 L-10 3 L-6 8 Z',
+  striker: 'M0 -22 C20 -22 26 28 0 28 C-26 28 -20 -22 0 -22 Z M-6 -22 L-11 -31 M0 -22 V-33 M6 -22 L11 -31 M-14 -10 H14 M-12 -10 Q-9 -3 -6 -10 M6 -10 Q9 -3 12 -10 M0 -1 C-5 -7 -8 4 -18 -2 Q-13 8 0 2 Q13 8 18 -2 C8 4 5 -7 0 -1 Z M-19 4 H19 M-12 5 V21 M-4 5 V26 M4 5 V26 M12 5 V21',
   'robo-koshi': 'M-7 -13 L-22 -30 L-19 -5 M7 -13 L22 -30 L19 -5 M0 -22 V-33 M0 -34 A3 3 0 1 1 0 -28 M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-14 -7 H-7 V1 H-14 Z M7 -7 H14 V1 H7 Z M-5 5 L0 9 L5 5 M-7 12 H7',
   'robo-snail': 'M-5 -14 L4 -25 H20 L29 -14 V9 L18 22 H4 L-5 10 Z M0 10 V-8 L6 -16 H15 L23 -8 V5 L15 15 H7 L3 11 M7 15 L16 2 V-4 L12 -7 L8 -4 V1 L11 4 M-27 23 V5 Q-27 -4 -18 -4 Q-8 -4 -8 5 V22 H18 M-23 -4 V-16 M-13 -4 V-16 M-28 -18 A5 2 0 1 0 -18 -18 A5 2 0 1 0 -28 -18 M-18 -18 A5 2 0 1 0 -8 -18 A5 2 0 1 0 -18 -18 M-22 12 V9 C-22 0 -13 0 -13 9 V12 Z M-22 8 H-13 M-19 8 V12 M-16 8 V12',
   'robo-fly': 'M-11 -3 C-12 -12 -3 -17 5 -13 L15 -18 L20 -13 L11 -7 C16 0 10 9 2 10 L-9 7 Z M-1 -13 Q-12 -26 -25 -20 Q-22 -8 -8 -7 M6 -12 Q12 -27 25 -25 Q25 -12 12 -5 M-3 9 L-10 20 L-17 22 M3 10 L2 22 L-3 26 M9 7 L14 18 L21 19 M-9 5 L-18 12 L-24 10 M12 -7 L21 -4 L25 1 M-3 -14 L-5 -23 M4 -13 L9 -22',
@@ -287,7 +290,7 @@ function spawnColor(spawn) {
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return spawn.type === 'robo-koshi' ? '#454d52' : spawn.type === 'robo-fly' ? '#82989b' : ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
     : spawn.type === 'tom-frog' ? '#879779' : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-trash-bin' ? '#008459' : spawn.type === 'robo-moon' ? '#9855cf' : spawn.type === 'robo-cow' ? '#9451bd' : spawn.type === 'robo-crab' ? '#929ba1'
-      : spawn.type === 'robo-love-bug' ? '#f29ac2' : spawn.type === 'robo-unicorn' ? '#ef9dca' : spawn.type === 'goalie' ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
+      : spawn.type === 'robo-love-bug' ? '#f29ac2' : spawn.type === 'robo-unicorn' ? '#ef9dca' : ['goalie', 'striker'].includes(spawn.type) ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   if (spawn.kind === 'object') return spawn.color ?? OBJECTS[spawn.type].color;
   return { S: '#db5560', P: '#bd8749', B: '#e6c654', C: '#e8b84e', L: '#c9966c', F: '#73b9cf', H: '#ca9a53', K: '#e897b6' }[spawn.type];
@@ -512,6 +515,16 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
       net.append(svgNode('path', { d: mesh, fill: 'none', stroke: '#ffffff', 'stroke-width': .8, opacity: .85 }));
       net.append(svgNode('path', { d: frame, fill: 'none', stroke: '#79878d', 'stroke-width': 4, 'stroke-linecap': 'round' }));
       net.append(svgNode('path', { d: frame, fill: 'none', stroke: '#dce4e7', 'stroke-width': 2, 'stroke-linecap': 'round' }));
+    }
+    if (brick.goalTeam) {
+      const bounds = brickInfoBounds(brick, members);
+      const size = Math.min(30, bounds.w * .7, bounds.h * .7);
+      const x = bounds.x + bounds.w / 2, y = bounds.y + bounds.h / 2;
+      if (brick.goalTeam === 'koshi') net.append(svgNode('image', { href: './icons/koshi.svg', x: x - size / 2, y: y - size / 2, width: size, height: size }));
+      else {
+        const icon = svgNode('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': size });
+        icon.textContent = '👾'; net.append(icon);
+      }
     }
     button.append(net);
   }
@@ -1192,7 +1205,7 @@ function goalLines(part) {
   return { frame, mesh };
 }
 
-function drawGoal(ctx, members, glowColor = null) {
+function drawGoal(ctx, members, glowColor = null, team = null) {
   ctx.save();
   if (glowColor) { ctx.shadowColor = glowColor; ctx.shadowBlur = 12; }
   for (const part of goalTiles(members)) {
@@ -1201,6 +1214,15 @@ function drawGoal(ctx, members, glowColor = null) {
     ctx.strokeStyle = glowColor ?? '#ffffff'; ctx.lineWidth = .8; ctx.stroke(new Path2D(mesh));
     ctx.strokeStyle = '#79878d'; ctx.lineWidth = 4; ctx.stroke(new Path2D(frame));
     ctx.strokeStyle = glowColor ?? '#dce4e7'; ctx.lineWidth = 2; ctx.stroke(new Path2D(frame));
+  }
+  if (team && members.length) {
+    const bounds = brickInfoBounds(members[0], members);
+    const size = Math.min(30, bounds.w * .7, bounds.h * .7);
+    const x = bounds.x + bounds.w / 2, y = bounds.y + bounds.h / 2;
+    if (team === 'koshi' && goalKoshiImage?.complete && goalKoshiImage.naturalWidth) ctx.drawImage(goalKoshiImage, x - size / 2, y - size / 2, size, size);
+    else if (team === 'enemy') {
+      ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('👾', x, y);
+    }
   }
   ctx.restore();
 }

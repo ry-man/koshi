@@ -92,7 +92,7 @@ const guide = document.querySelector('#how-to-play');
 function drawCutsceneAccessories(character, accessories, time) {
   const eyes = {
     koshi: [0, -3], tom: [-1, -25], boss: [-8, -8], 'tom-frog': [0, -24], bucket: [0, 0],
-    ball: [0, -6], jackolantern: [0, -5], goalie: [0, -11],
+    ball: [0, -6], jackolantern: [0, -5], goalie: [0, -11], striker: [0, -11],
     'robo-koshi': [0, -3], 'robo-snail': [0, -19], 'robo-fly': [0, -9], 'robo-cow': [11, -17],
     'robo-unicorn': [6, -12], 'robo-love-bug': [0, -15], 'robo-crab': [0, -19],
     'robo-trash-bin': [0, -5],
@@ -100,7 +100,7 @@ function drawCutsceneAccessories(character, accessories, time) {
   const hatPosition = {
     koshi: [0, -23], tom: [0, -46], boss: [-3, -38], 'tom-frog': [0, -44], mouse: [0, -19], wheel: [0, -19],
     ram: [0, -20], bucket: [0, -10], ball: [0, -19], jackolantern: [0, -18],
-    snake: [0, -19], goalie: [0, -27], 'robo-koshi': [0, -22],
+    snake: [0, -19], goalie: [0, -27], striker: [0, -27], 'robo-koshi': [0, -22],
     'robo-snail': [0, -27], 'robo-fly': [0, -22], 'robo-cow': [11, -25], 'robo-unicorn': [0, -27],
     'robo-crab': [0, -7], 'robo-love-bug': [0, -31], 'robo-trash-bin': [0, -16],
   }[character] ?? [0, -20];
@@ -120,7 +120,7 @@ function drawCutsceneAccessories(character, accessories, time) {
       ctx.moveTo(17, -2); ctx.lineTo(22, -5); ctx.stroke();
       ctx.restore();
     } else if (accessory === 'top-hat') {
-      const width = character === 'tom' || character === 'boss' || character === 'goalie' ? 42 : 38;
+      const width = ['tom', 'boss', 'goalie', 'striker'].includes(character) ? 42 : 38;
       const [hatX, hatY] = hatPosition;
       ctx.save(); ctx.translate(hatX, hatY + 1);
       ctx.fillStyle = '#05070a'; ctx.strokeStyle = '#222a32'; ctx.lineWidth = 1.8;
@@ -876,6 +876,7 @@ function levelBriefingText(level) {
     ? 'Defeat Tom the Frog with 6 sword hits while he sleeps after eating flies. No time limit.'
     : 'Defeat Tom the Toaster with 6 Boost hits while he is dizzy. No time limit.');
   else if (level.survive) lines.push(`🕒 Survive Time: ${level.duration}`);
+  else if (level.teamGoalsGoal) lines.push(`⚽ Koshi scores ${level.teamGoalsGoal} goal${level.teamGoalsGoal === 1 ? '' : 's'} before enemies`);
   else {
     if (level.goal > 0) lines.push(`🍗 Target: ${level.goal}`);
     if (level.killGoal > 0) lines.push(`👾 Target: ${level.killGoal}`);
@@ -1127,6 +1128,7 @@ function syncUI() {
   const soccerGoalTarget = !game.level.bossLevel && !survive && goalsGoal > 0 && Number.isFinite(goalsGoal);
   const soccerGoals = game.goals ?? 0;
   const fraction = game.level.bossLevel ? 1 - (game.boss?.health ?? 6) / 6 : survive ? Math.min(1, game.elapsed / DURATION)
+    : game.level.teamGoalsGoal ? Math.min(1, game.teamKoshiGoals / game.level.teamGoalsGoal)
     : Math.min(1, GOAL > 0 ? game.score / GOAL : 1, killGoal > 0 ? game.enemies / killGoal : 1,
       goalsGoal > 0 ? soccerGoals / goalsGoal : 1);
   timer.innerHTML = Number.isFinite(DURATION) ? `🕒 ${Math.ceil(Math.max(0, DURATION - game.elapsed - 1e-9))}<span>s</span>` : '🕒 ∞';
@@ -1203,6 +1205,12 @@ function syncUI() {
   document.querySelector('#key-count').innerHTML = `<span class="counter-icon" aria-hidden="true">🗝️</span><span class="counter-value">${game.keys}</span>`;
   document.querySelector('#key-status').setAttribute('aria-label', `Keys: ${game.keys}`);
   document.querySelector('#boss-health').hidden = !game.level.bossLevel;
+  document.querySelector('#team-scoreboard').hidden = game.level.bossLevel
+    || !game.bricks?.some(brick => brick.kind === 'goal' && brick.goalTeam && brick.absorbedBy === null);
+  if (!document.querySelector('#team-scoreboard').hidden) {
+    document.querySelector('#team-koshi-score').textContent = `KOSHI: ${game.teamKoshiGoals}`;
+    document.querySelector('#team-enemy-score').textContent = `ENEMIES: ${game.teamEnemyGoals}`;
+  }
   if (game.level.bossLevel) {
     const health = game.boss?.health ?? 6, maximum = game.boss?.maxHealth ?? 6;
     const bossType = game.level.events?.find(event => isBossType(event.type))?.type ?? 'boss';
@@ -1295,7 +1303,7 @@ function syncUI() {
       item.conveyor.querySelector('.conveyor-teeth').setAttribute('d', geometry.teeth);
     }
     button.dataset.deactivated = String(brick.kind !== 'goal' && !game.sunglassesActive && brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}, ${immutableGoal ? 'scoring goal, cannot be activated or changed, and cannot be absorbed' : brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${game.sunglassesActive && !['cinder', 'goal'].includes(brick.kind) ? ', Magical Sunglasses: cooldown and selection locks temporarily bypassed' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}${immutableGoal && brick.goalTeam ? `, team ${brick.goalTeam === 'koshi' ? 'Koshi' : 'Enemy'}` : ''}, ${immutableGoal ? 'scoring goal, cannot be activated or changed, and cannot be absorbed' : brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${game.sunglassesActive && !['cinder', 'goal'].includes(brick.kind) ? ', Magical Sunglasses: cooldown and selection locks temporarily bypassed' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
@@ -2807,7 +2815,7 @@ function render(now) {
       const members = parts.filter(part => part.id === brick.id);
       if (game.level.autoscroll && !members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 32))) continue;
       drawGoal(ctx, members,
-        game.sunglassesActive ? `hsl(${game.elapsed * 140 % 360}, 85%, 70%)` : null);
+        game.sunglassesActive ? `hsl(${game.elapsed * 140 % 360}, 85%, 70%)` : null, brick.goalTeam);
     }
   }
   for (const ball of game.soccerBalls ?? []) if (visible(ball)) drawSoccerBall(ctx, ball);
@@ -5369,7 +5377,7 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
     drawRoboCatLady(ctx, enemy, damageColor);
     ctx.restore(); return;
   }
-  if (enemy.type === 'goalie') {
+  if (enemy.type === 'goalie' || enemy.type === 'striker') {
     drawRoboGoalie(enemy, deathProgress, damageColor);
     ctx.restore(); return;
   }
@@ -5523,17 +5531,33 @@ function drawRoboGoalie(enemy, deathProgress = null, damageColor = null) {
     if (embarrassed) {
       ctx.strokeStyle = '#26353d'; ctx.lineWidth = 1.8;
       ctx.beginPath(); ctx.moveTo(x - 3, -10); ctx.lineTo(x, -7); ctx.lineTo(x + 3, -10); ctx.stroke();
+    } else if (enemy.type === 'striker') {
+      ctx.beginPath(); ctx.arc(x, -12, 3.5, 0, Math.PI); ctx.fill();
     } else {
       ctx.beginPath(); ctx.ellipse(x, -11, 2.5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
     }
   }
+  if (enemy.type === 'striker') {
+    ctx.strokeStyle = '#171d22'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-14, -12); ctx.lineTo(14, -12); ctx.stroke();
+    ctx.fillStyle = '#704122';
+    ctx.save(); ctx.translate(0, -5.5);
+    ctx.beginPath(); ctx.moveTo(0, -2);
+    ctx.bezierCurveTo(-5, -8, -9, 3, -18, -3);
+    ctx.bezierCurveTo(-15, 5, -5, 7, 0, 1);
+    ctx.bezierCurveTo(5, 7, 15, 5, 18, -3);
+    ctx.bezierCurveTo(9, 3, 5, -8, 0, -2); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#d7a16d'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+  }
   if (enemy.afraid && deathProgress === null) {
     ctx.strokeStyle = '#26353d'; ctx.beginPath(); ctx.arc(0, 19, 3, 0, Math.PI * 2); ctx.stroke();
   }
-  ctx.fillStyle = shell; ctx.strokeStyle = '#354651'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-3, -9); ctx.bezierCurveTo(-4, -4, -9, 7, -5, 11);
-  ctx.quadraticCurveTo(0, 16, 6, 10); ctx.bezierCurveTo(9, 6, 3, -4, 3, -9);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (enemy.type !== 'striker') {
+    ctx.fillStyle = shell; ctx.strokeStyle = '#354651'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-3, -9); ctx.bezierCurveTo(-4, -4, -9, 7, -5, 11);
+    ctx.quadraticCurveTo(0, 16, 6, 10); ctx.bezierCurveTo(9, 6, 3, -4, 3, -9);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
   if (embarrassed) {
     ctx.fillStyle = '#f02d8780';
     for (const x of [-13, 13]) {
@@ -6006,7 +6030,7 @@ function drawEnemyDeath(enemy) {
     drawRobot(enemy, progress);
   } else if (enemy.type === 'robo-unicorn') {
     drawRobot(enemy, progress);
-  } else if (enemy.type === 'goalie') {
+  } else if (enemy.type === 'goalie' || enemy.type === 'striker') {
     drawRobot(enemy, progress);
   } else if (enemy.type === 'snake') {
     ctx.globalAlpha *= Math.max(0, 1 - progress);
