@@ -82,7 +82,7 @@ test('hazard rendering groups merged parts by owner and culls whole groups witho
   const parts = [{ id: 1, x: -40, y: 10, w: 40, h: 40 }, { id: 1, x: 0, y: 10, w: 40, h: 40 },
     { id: 2, x: 70, y: 10, w: 40, h: 40 }, { id: 3, x: 900, y: 10, w: 40, h: 40 }];
   const context = {
-    game: { hazardFlames: parts, hazardBeams: [], hazardMissiles: [], hazardExplosions: [], elapsed: .6 },
+    game: { hazardFlames: parts, hazardBeams: [], hazardMissiles: [], hazardExplosions: [], sharpshooterArrows: [], elapsed: .6 },
     drawFlameHazard: (ctx, members, time) => calls.push({ members, time }),
     cameraBoundsVisible: (camera, x, y, w) => x + w > camera.x && x < camera.x + camera.width,
   };

@@ -839,6 +839,21 @@ away over 1.1 seconds. Pause freezes this animation. Robo Ball is available in
 the editor, enemy spawn bricks, cutscenes and guide practice. Level 2-10 introduces
 its bouncing movement; the original 19 levels are unchanged.
 
+**Robo Sharpshooter** (`robo-sharpshooter`) has a grey body, bright pink
+clothes, dark pink-tinted sunglasses and a crossbow. He wanders generally away
+from Koshi for two seconds, pauses for half a second, and a diagonal wave of
+lighter pink sweeps across his sunglasses for one second before he fires three
+arrows from his crossbow 0.3 seconds apart. Each arrow aims
+at Koshi's current position with a small random angular error. Arrows travel
+at 260 game units per second, hurt Koshi, and stop at bricks, barriers,
+obstructions and bumpers. The crossbow moves smoothly between his left and
+right sides as he aims, and arrows leave from its current position. Music Box
+pauses his cycle; Spooky Mask makes him
+flee without firing. Fired arrows continue independently. On defeat he frowns,
+his glasses fly off, his body splits lengthwise, and he explodes. He supports
+custom placements, enemy spawners, cutscenes and guide practice; existing
+campaign levels are unchanged.
+
 Barrier bricks are an exclusive brick surface introduced in Level 2-22 and
 available for custom levels.
 Successfully selecting one extends a dark green semi-transparent fence at

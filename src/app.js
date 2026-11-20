@@ -2,7 +2,7 @@
 'use strict';
 
 const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
-const { isBossType } = globalThis.KoshiGame;
+const { isBossType, SHARPSHOOTER_BOW } = globalThis.KoshiGame;
 const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash, drawSurfBoard, drawIceSkate, drawWaterSplash } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
@@ -1699,7 +1699,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
-    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-trash-bin', 'robo-moon', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'mouse', 'wheel', 'goalie', 'robo-snail', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
     'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives', 'anvil',
   ].includes(tutorial.lesson.id);
   makeBrickButtons();
@@ -2436,6 +2436,18 @@ function drawLaserBeam(context, beam, hazard = false) {
 }
 
 function drawHazards(context, camera = null) {
+  for (const arrow of game.sharpshooterArrows) {
+    if (camera && !cameraBoundsVisible(camera, arrow.x, arrow.y, 0, 0, 24)) continue;
+    context.save(); context.translate(arrow.x, arrow.y); context.rotate(arrow.angle);
+    context.strokeStyle = '#79532c'; context.lineWidth = 3;
+    context.beginPath(); context.moveTo(-14, 0); context.lineTo(9, 0); context.stroke();
+    context.fillStyle = '#d9dce0';
+    context.beginPath(); context.moveTo(SHARPSHOOTER_BOW.projectileTip, 0); context.lineTo(7, -4); context.lineTo(7, 4); context.closePath(); context.fill();
+    context.fillStyle = '#ff77ba';
+    context.beginPath(); context.moveTo(-13, 0); context.lineTo(-18, -4); context.lineTo(-15, 0);
+    context.lineTo(-18, 4); context.closePath(); context.fill();
+    context.restore();
+  }
   const visible = (x, y, w = 0, h = 0, margin = 32) => !camera || cameraBoundsVisible(camera, x, y, w, h, margin);
   for (const beam of game.hazardBeams) {
     if (!visible(Math.min(beam.start.x, beam.end.x), Math.min(beam.start.y, beam.end.y),
@@ -5281,6 +5293,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   }
   ctx.save(); ctx.translate(enemy.x, enemy.y);
   ctx.fillStyle = damageColor ?? '#8898a7'; ctx.strokeStyle = '#d1dce4'; ctx.lineWidth = 2;
+  if (enemy.type === 'robo-sharpshooter') {
+    drawRoboSharpshooter(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
   if (enemy.type === 'goalie') {
     drawRoboGoalie(enemy, deathProgress, damageColor);
     ctx.restore(); return;
@@ -5784,6 +5800,70 @@ function drawRoboBall(enemy, deathProgress = null, damageColor = null) {
   }
 }
 
+function drawRoboSharpshooter(enemy, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  const split = Math.max(0, (progress - .38) / .62);
+  const body = () => {
+    ctx.fillStyle = damageColor ?? '#9ca5aa'; ctx.strokeStyle = '#465158'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-17, -11); ctx.quadraticCurveTo(-17, -24, 0, -24);
+    ctx.quadraticCurveTo(17, -24, 17, -11); ctx.lineTo(17, 15);
+    ctx.quadraticCurveTo(15, 24, 0, 24); ctx.quadraticCurveTo(-15, 24, -17, 15);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f62b9a';
+    ctx.beginPath(); ctx.moveTo(-17, 14); ctx.quadraticCurveTo(0, 18, 17, 14);
+    ctx.lineTo(16, 19); ctx.quadraticCurveTo(0, 29, -16, 19); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#313b40'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-7, 10);
+    ctx.quadraticCurveTo(0, deathProgress === null ? 13 : 4, 7, 10); ctx.stroke();
+  };
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(side * split * 22, split * 8); ctx.rotate(side * split * .35);
+    ctx.beginPath(); ctx.rect(side < 0 ? -30 : 0, -32, 30, 65); ctx.clip();
+    body(); ctx.restore();
+  }
+  ctx.save();
+  if (deathProgress !== null) {
+    const flight = Math.max(0, (progress - .12) / .88);
+    ctx.translate(flight * 30, -flight * 55); ctx.rotate(flight * 1.4);
+  }
+  ctx.fillStyle = '#17171d'; ctx.strokeStyle = '#ed4d9d'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-22, -13); ctx.lineTo(22, -13);
+  ctx.quadraticCurveTo(23, -1, 14, 0); ctx.quadraticCurveTo(5, 1, 0, -6);
+  ctx.quadraticCurveTo(-5, 1, -14, 0); ctx.quadraticCurveTo(-23, -1, -22, -13);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.clip(); ctx.save();
+  ctx.fillStyle = '#b42d73'; ctx.globalAlpha *= .55;
+  ctx.beginPath(); ctx.moveTo(-19, -11); ctx.lineTo(-8, -11); ctx.lineTo(-14, -3); ctx.lineTo(-19, -4); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(5, -11); ctx.lineTo(16, -11); ctx.lineTo(10, -3); ctx.lineTo(5, -5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  if (deathProgress === null && enemy.sharpshooterState === 'glimmer' && !enemy.asleep && !enemy.afraid) {
+    const x = -42 + 84 * Math.max(0, Math.min(1, enemy.sharpshooterTime ?? 0));
+    const glimmer = ctx.createLinearGradient(x - 10, -3, x + 10, -13);
+    glimmer.addColorStop(0, '#ff54aa00');
+    glimmer.addColorStop(.3, '#ff54aa66');
+    glimmer.addColorStop(.5, '#ffc4e6ee');
+    glimmer.addColorStop(.7, '#ff54aa66');
+    glimmer.addColorStop(1, '#ff54aa00');
+    ctx.fillStyle = glimmer;
+    ctx.fillRect(-22, -13, 44, 13);
+  }
+  ctx.restore();
+  ctx.save();
+  if (deathProgress !== null) ctx.globalAlpha *= Math.max(0, Math.min(1, (1 - progress) / .35));
+  ctx.translate(enemy.bowX ?? SHARPSHOOTER_BOW.x, SHARPSHOOTER_BOW.y);
+  ctx.rotate((enemy.aimAngle ?? -Math.PI / 2) + Math.PI / 2);
+  ctx.translate(0, -4);
+  ctx.strokeStyle = '#24242a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-17, -3); ctx.quadraticCurveTo(-17, -16, 0, -15);
+  ctx.quadraticCurveTo(17, -16, 17, -3); ctx.lineTo(0, 5); ctx.closePath(); ctx.stroke();
+  ctx.fillStyle = '#b96b06'; ctx.fillRect(-3, -19, 6, 32);
+  ctx.fillStyle = '#ffcf2d'; ctx.beginPath(); ctx.arc(0, 4, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#d7d9dc'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, 4); ctx.lineTo(0, -23); ctx.stroke();
+  ctx.fillStyle = '#d7d9dc'; ctx.beginPath(); ctx.moveTo(0, 4 - SHARPSHOOTER_BOW.arrowTip); ctx.lineTo(-3, -21); ctx.lineTo(3, -21); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
 function drawRobotExplosion(blast) {
   const radius = 3 + Math.sin(Math.PI * blast) * 29;
   ctx.save(); ctx.globalAlpha *= 1 - blast;
@@ -5811,6 +5891,12 @@ function drawEnemyDeath(enemy) {
   ctx.save();
   if (isBossType(enemy.type)) {
     drawRobot(enemy, progress);
+  } else if (enemy.type === 'robo-sharpshooter') {
+    drawRobot(enemy, progress);
+    if (progress >= .65) {
+      ctx.translate(enemy.x, enemy.y);
+      drawRobotExplosion((progress - .65) / .35);
+    }
   } else if (enemy.type === 'robo-trash-bin') {
     drawRobot(enemy, progress);
     if (progress >= .65) {

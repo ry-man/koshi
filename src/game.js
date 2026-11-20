@@ -16,6 +16,7 @@ const FEAR_SPEED = 64;
 const COOKIE_FOOD_MARGIN = 12;
 const COW_SPEED = 190;
 const COW_EAT_DURATION = 5;
+const SHARPSHOOTER_BOW = Object.freeze({ x: 18, y: 11, arrowTip: 31, projectileTip: 15 });
 const TRASH_BIN_SPEED = 75;
 const OBSTRUCTION_RADIUS = 48;
 const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
@@ -288,6 +289,7 @@ function applyBrickTypes(bricks, entries = []) {
 }
 const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', ram: 'Robo Ram', bucket: 'Robo Bucket', ball: 'Robo Ball', jackolantern: 'Robo Jackolantern', snake: 'Robo Snake', goalie: 'Robo Goalie', 'robo-koshi': 'Robo Koshi', 'robo-snail': 'Robo Snail', 'robo-fly': 'Robo Fly', 'robo-cow': 'Robo Cow', 'robo-unicorn': 'Robo Unicorn', 'robo-crab': 'Robo Crab', 'robo-love-bug': 'Robo Love Bug', 'robo-trash-bin': 'Robo Trash Bin', 'robo-moon': 'Robo Moon', boss: 'Tom the Toaster', tom: 'Tom the Duck' };
 CHARACTERS['tom-frog'] = 'Tom the Frog';
+CHARACTERS['robo-sharpshooter'] = 'Robo Sharpshooter';
 const isBossType = type => type === 'boss' || type === 'tom-frog';
 const frogAirborne = enemy => enemy.type === 'tom-frog' && ['jump-up', 'jump-track', 'jump-fall'].includes(enemy.state);
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
@@ -2103,7 +2105,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
     let randomCount;
     if (event.randomCount !== undefined) {
@@ -2286,7 +2288,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
           if (spawn.x !== undefined || spawn.y !== undefined) {
@@ -3508,6 +3510,7 @@ class Game {
     this.hazardBeams = [];
     this.hazardFlames = [];
     this.hazardMissiles = [];
+    this.sharpshooterArrows = [];
     this.hazardExplosions = [];
     this.cookieActive = false;
     this.cookieLickUntil = 0;
@@ -4361,6 +4364,34 @@ class Game {
       }
       return this.entityIntersectsBounds(missile, this.simulationBounds(), 100);
     });
+    this.sharpshooterArrows = this.sharpshooterArrows.filter(arrow => {
+      const step = Math.min(dt, arrow.stepRemaining ?? dt);
+      delete arrow.stepRemaining;
+      const fraction = dt ? step / dt : 0;
+      const catX = cat.x - dx * fraction, catY = cat.y - dy * fraction;
+      if (arrow.launchX !== undefined) {
+        const lx = arrow.x - arrow.launchX, ly = arrow.y - arrow.launchY;
+        const catTime = Math.hypot(arrow.launchX - catX, arrow.launchY - catY) <= arrow.radius + cat.radius ? 0
+          : circleContact(arrow.launchX - catX, arrow.launchY - catY, lx, ly, arrow.radius + cat.radius);
+        const obstacleTime = this.hazardObstacleTime({ x: arrow.launchX, y: arrow.launchY }, lx, ly, arrow.radius,
+          [...parts, ...this.barrierParts()]);
+        delete arrow.launchX; delete arrow.launchY;
+        if (catTime <= 1 || obstacleTime <= 1) {
+          if (catTime <= obstacleTime + 1e-9) this.takeDamage();
+          return false;
+        }
+      }
+      const mx = arrow.vx * step, my = arrow.vy * step;
+      const catTime = Math.hypot(arrow.x - catX, arrow.y - catY) <= arrow.radius + cat.radius ? 0
+        : circleContact(arrow.x - catX, arrow.y - catY, mx - dx * fraction, my - dy * fraction, arrow.radius + cat.radius);
+      const obstacleTime = this.hazardObstacleTime(arrow, mx, my, arrow.radius, [...parts, ...this.barrierParts()]);
+      if (catTime <= 1 || obstacleTime <= 1) {
+        if (catTime <= obstacleTime + 1e-9) this.takeDamage();
+        return false;
+      }
+      arrow.x += mx; arrow.y += my;
+      return this.entityIntersectsBounds(arrow, this.simulationBounds(), 100);
+    });
   }
 
   updateTurrets(seconds) {
@@ -5092,6 +5123,7 @@ class Game {
     if (event.type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
     if (event.type === 'robo-trash-bin') this.initializeTrashBin(enemy);
     if (event.type === 'robo-moon') this.initializeRoboMoon(enemy);
+    if (event.type === 'robo-sharpshooter') this.initializeSharpshooter(enemy);
     if (isBossType(event.type)) {
       if (event.type === 'tom-frog') this.initializeFrog(enemy);
       else this.initializeBoss(enemy);
@@ -5606,6 +5638,7 @@ class Game {
       if (type === 'robo-unicorn') this.initializeRoboUnicorn(enemy);
       if (type === 'robo-trash-bin') this.initializeTrashBin(enemy);
       if (type === 'robo-moon') this.initializeRoboMoon(enemy);
+      if (type === 'robo-sharpshooter') this.initializeSharpshooter(enemy);
       this.initializeRoboKoshi(enemy, this.elapsed, this.cat);
       if (isBossType(type)) {
         if (type === 'tom-frog') this.initializeFrog(enemy);
@@ -6453,6 +6486,62 @@ class Game {
     return wave.blocked.flatMap((_, side) => fireIntervals(wave, side).map(([left, right]) => ({
       from: firePoint(wave, side, wave.radius, left), to: firePoint(wave, side, wave.radius, right),
     })));
+  }
+
+  initializeSharpshooter(enemy) {
+    enemy.sharpshooterState = 'wander';
+    enemy.sharpshooterTime = 0;
+    enemy.sharpshooterShots = 0;
+    enemy.phase = Math.atan2(enemy.y - this.cat.y, enemy.x - this.cat.x) + (this.random() - .5) * 1.2;
+    if (enemy.bowX === undefined) enemy.bowX = (this.cat.x < enemy.x ? -1 : 1) * SHARPSHOOTER_BOW.x;
+    enemy.aimAngle = this.sharpshooterAim(enemy);
+  }
+
+  sharpshooterAim(enemy) {
+    return Math.atan2(this.cat.y - enemy.y - SHARPSHOOTER_BOW.y, this.cat.x - enemy.x - enemy.bowX);
+  }
+
+  updateSharpshooter(enemy, seconds) {
+    let remaining = seconds;
+    while (remaining > 1e-9) {
+      const duration = enemy.sharpshooterState === 'wander' ? 2 : enemy.sharpshooterState === 'pause' ? .5
+        : enemy.sharpshooterState === 'glimmer' ? 1 : .3;
+      const step = Math.min(remaining, duration - enemy.sharpshooterTime);
+      if (enemy.sharpshooterState === 'wander') {
+        const bounds = this.bounds();
+        enemy.x += Math.cos(enemy.phase) * 65 * step;
+        enemy.y += Math.sin(enemy.phase) * 65 * step;
+        if (enemy.x < bounds.left || enemy.x > bounds.right) enemy.phase = Math.PI - enemy.phase;
+        if (enemy.y < bounds.top || enemy.y > bounds.bottom) enemy.phase = -enemy.phase;
+        enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
+        enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
+      }
+      const direction = enemy.sharpshooterState === 'wander' ? Math.cos(enemy.aimAngle) : this.cat.x - enemy.x;
+      const targetX = direction < -1e-9 ? -SHARPSHOOTER_BOW.x : direction > 1e-9 ? SHARPSHOOTER_BOW.x : enemy.bowX;
+      enemy.bowX += Math.max(-144 * step, Math.min(144 * step, targetX - enemy.bowX));
+      if (enemy.sharpshooterState !== 'wander') enemy.aimAngle = this.sharpshooterAim(enemy);
+      enemy.sharpshooterTime += step;
+      remaining -= step;
+      if (enemy.sharpshooterTime < duration - 1e-9) break;
+      enemy.sharpshooterTime = 0;
+      if (enemy.sharpshooterState === 'wander') enemy.sharpshooterState = 'pause';
+      else if (enemy.sharpshooterState === 'pause') enemy.sharpshooterState = 'glimmer';
+      else {
+        const angle = this.sharpshooterAim(enemy) + (this.random() - .5) * .16;
+        const launchX = enemy.x + enemy.bowX, launchY = enemy.y + SHARPSHOOTER_BOW.y;
+        const offset = SHARPSHOOTER_BOW.arrowTip - SHARPSHOOTER_BOW.projectileTip;
+        enemy.aimAngle = angle;
+        this.sharpshooterArrows.push({ x: launchX + Math.cos(angle) * offset, y: launchY + Math.sin(angle) * offset,
+          launchX, launchY, vx: Math.cos(angle) * 260,
+          vy: Math.sin(angle) * 260, angle, radius: 3, stepRemaining: remaining });
+        enemy.sharpshooterShots++;
+        if (enemy.sharpshooterShots === 3) {
+          this.initializeSharpshooter(enemy);
+          enemy.aimAngle = angle;
+        }
+        else enemy.sharpshooterState = 'shoot';
+      }
+    }
   }
 
   initializeBucket(enemy) {
@@ -8326,6 +8415,8 @@ class Game {
         this.updateTrashBin(enemy, dt, this.trashBinBounds(enemy), binNavigation);
       } else if (enemy.type === 'robo-moon') {
         this.updateRoboMoon(enemy, dt, bounds);
+      } else if (enemy.type === 'robo-sharpshooter') {
+        this.updateSharpshooter(enemy, dt);
       } else if (enemy.type === 'robo-unicorn') {
         this.updateRoboUnicorn(enemy, dt, bounds);
       } else if (enemy.type === 'robo-crab') {
@@ -8973,7 +9064,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin'].includes(enemy.type) ? 2 : enemy.type === 'goalie' ? 1.8 : ['robo-crab', 'robo-love-bug', 'robo-sharpshooter'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -9628,7 +9719,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, SHARPSHOOTER_BOW, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;

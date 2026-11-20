@@ -515,6 +515,14 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#26353d', 7, 26 - mouthHeight, 7, mouthHeight);
     box('#edf2e8', 8, 26 - Math.min(2, mouthHeight - 1), 5, Math.min(2, mouthHeight - 1));
     box('#384044', 10, 26 - Math.min(2, mouthHeight - 1), 1, Math.min(2, mouthHeight - 1));
+  } else if (character === 'robo-sharpshooter') {
+    box('#485158', 5, 3, 22, 27); box('#a2abb0', 7, 2, 18, 27);
+    box('#f62b9a', 7, 25, 18, 5);
+    box('#ec4a9b', 2, 8, 28, 9); box('#19191f', 3, 9, 26, 7);
+    box('#9d3068', 5, 10, 8, 2); box('#9d3068', 19, 10, 8, 2);
+    box('#313b40', 12, 21, 8, talking ? 3 : 1);
+    box('#28282d', 20, 21, 9, 2); box('#b96b06', 23, 17, 3, 14);
+    box('#ffcf2d', 22, 23, 5, 3);
   } else if (character === 'robo-cow') {
     const bob = Math.round(Math.sin(time * 8) * 1.5);
     box('#49335a', 3, 10 + bob, 26, 17); box('#9451bd', 5, 9 + bob, 22, 16);
