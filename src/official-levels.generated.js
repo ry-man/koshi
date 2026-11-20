@@ -12672,6 +12672,19 @@ const levels = [
       "bossLevel": false,
       "killGoal": 10,
       "survive": false,
+      "catBlock": {
+        "description": "To earn Cat Brick: Complete the level in at most 20 moves.",
+        "messages": {
+          "item": "Koshi found the Cat Block!",
+          "enemy": "Koshi found a Cat Block carried by an enemy!",
+          "chest": "Koshi opened the treasure chest and found the Cat Block!",
+          "achievement": "Koshi earned the Cat Brick!"
+        },
+        "trigger": {
+          "type": "moves",
+          "amount": 20
+        }
+      },
       "cutscene": {
         "theme": "happy-meadows",
         "lines": [
@@ -12815,6 +12828,17 @@ const levels = [
                 "x": 0.58,
                 "y": 0.65
               }
+            ]
+          }
+        ]
+      },
+      "levelInfo": {
+        "pages": [
+          {
+            "title": "Move Counter",
+            "text": "The move counter at the top of the screen records how many moves Koshi has made in the level.\n\nSome levels, such as this one, award you with a Cat Block if you complete the level at or a below a certain count of moves. Be selective in how you move Koshi and you'll win the block!",
+            "graphics": [
+              "special:cat-block"
             ]
           }
         ]
