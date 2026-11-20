@@ -288,6 +288,27 @@ test('shared soccer artwork is black and white with pentagonal patches and balan
   assert.ok(operations.some(op => op[0] === 'fillStyle' && op[1] === '#20272e'));
   assert.equal(operations.filter(op => op[0] === 'closePath').length, 6);
   assert.ok(operations.some(op => op[0] === 'rotate' && op[1] === .5));
+  assert.ok(!operations.some(op => op[0] === 'fillText' || op[0] === 'strokeText'));
+});
+
+test('explosive soccer countdowns are upright, outlined and sized for each ball', () => {
+  for (const [radius, fuse, label, font] of [[16, 29.01, '30', 'bold 14px sans-serif'],
+    [32, 5, '5', 'bold 29px sans-serif'], [16, .01, '1', 'bold 14px sans-serif']]) {
+    const operations = [];
+    const ctx = new Proxy({}, { get: (_, key) => key === 'createRadialGradient'
+      ? () => ({ addColorStop() {} }) : (...args) => operations.push([key, ...args]),
+    set: (_, key, value) => { operations.push([key, value]); return true; } });
+    drawSoccerBall(ctx, { x: 10, y: 20, angle: Math.PI / 2, radius, fuse });
+    const stroke = operations.findIndex(op => op[0] === 'strokeText');
+    const fill = operations.findIndex(op => op[0] === 'fillText');
+    assert.deepEqual(operations[stroke], ['strokeText', label, 0, 0]);
+    assert.deepEqual(operations[fill], ['fillText', label, 0, 0]);
+    assert.ok(stroke < fill);
+    assert.ok(operations.slice(0, stroke).some(op => op[0] === 'restore'), 'text does not rotate with the ball');
+    assert.ok(operations.some(op => op[0] === 'font' && op[1] === font));
+    assert.ok(operations.some(op => op[0] === 'strokeStyle' && op[1] === '#ffffff'));
+    assert.ok(operations.some(op => op[0] === 'fillStyle' && op[1] === '#000000'));
+  }
 });
 
 test('soccer balls bounce off obstructions, bumpers, bubbles and each other', () => {
@@ -337,4 +358,127 @@ test('soccer balls placed overlapping an object or another ball are pushed apart
   roll(game, 1 / 60);
   assert.ok(Math.hypot(inside.x - cx, inside.y - cy) >= 24 + 16 - 1e-6);
   assert.ok(Math.hypot(twin.x - other.x, twin.y - other.y) >= 32 - 1e-6);
+});
+
+test('all soccer variants round-trip as placements and spawns and score in ordinary goals', () => {
+  const types = Object.keys(OBJECTS).filter(type => OBJECTS[type].soccer);
+  assert.equal(types.length, 8);
+  for (const type of types) {
+    const event = { time: 0, kind: 'object', type, x: .5, y: .5 };
+    const level = { ...blank(), events: [event],
+      brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'object', type } }] };
+    assert.deepEqual(validateCustomLevel(level), level);
+    const game = arena({}, level);
+    assert.equal(game.soccerBalls[0].type, type);
+    assert.equal(game.soccerBalls[0].radius, OBJECTS[type].radius);
+    assert.ok(spawnSymbol({ kind: 'object', type }));
+    game.spawnFromBrick(game.bricks.find(brick => brick.spawner));
+    assert.equal(game.soccerBalls[1].type, type);
+    game.soccerBalls = [];
+    const target = edgeBrick(game, 'top'); target.kind = 'goal';
+    const shot = game.createSoccerBall({ x: target.x + target.w / 2, y: target.y + target.h + 100 }, type);
+    shot.vy = -400; game.soccerBalls.push(shot);
+    roll(game, .4);
+    assert.equal(game.goals, 1, type);
+    assert.equal(game.soccerBalls.length, 0, type);
+    assert.equal(game.turretEffects.length, 0, 'scoring does not explode');
+  }
+});
+
+test('explosive soccer fuses start at spawn, freeze on pause, change color and explode on time', () => {
+  for (const [type, duration] of [['soccer-ball-blue', 30], ['soccer-ball-green', 15], ['soccer-ball-jumbo-red', 5]]) {
+    const game = arena({}, { ...blank(), duration: 60, events: [{ time: 2, kind: 'object', type, x: .5, y: .5 }] });
+    game.update(2); const item = game.soccerBalls[0];
+    assert.ok(Math.abs(item.fuse - duration) < .02);
+    game.pause(); game.update(10); assert.ok(Math.abs(item.fuse - duration) < .02); game.resume();
+    game.update(duration - .1);
+    assert.equal(game.soccerBalls.length, 1, type);
+    game.update(.11);
+    assert.equal(game.soccerBalls.length, 0, type);
+    assert.equal(game.turretEffects.length, 1);
+  }
+  const colors = fuse => {
+    const stops = [];
+    const ctx = new Proxy({}, { get: (_, key) => key === 'createRadialGradient'
+      ? () => ({ addColorStop: (_, color) => stops.push(color) }) : () => {} });
+    drawSoccerBall(ctx, { x: 0, y: 0, fuse });
+    return stops[1];
+  };
+  assert.equal(colors(30), '#287dcc');
+  assert.equal(colors(15), '#399d4a');
+  assert.equal(colors(5), '#cd4136');
+});
+
+test('explosions damage Koshi and enemies in range with twice the jumbo blast radius', () => {
+  for (const type of ['soccer-ball-red', 'soccer-ball-jumbo-red']) {
+    const game = arena(), radius = type.includes('jumbo') ? 234 : 117;
+    const item = game.createSoccerBall({ x: 450, y: 300 }, type);
+    game.cat.x = item.x + radius + game.cat.radius - 1; game.cat.y = item.y;
+    const makeEnemy = (x, shield) => {
+      const enemy = game.createCustomSpawn({ time: 0, kind: 'enemy', type: 'mouse', x: .5, y: .5, shield })[0];
+      enemy.x = x; enemy.y = item.y; game.robots.push(enemy); return enemy;
+    };
+    const near = makeEnemy(item.x - radius - 18, 'blue');
+    const far = makeEnemy(item.x - radius - 20);
+    game.detonateSoccerBall(item);
+    assert.equal(game.hearts, 2);
+    assert.equal(near.shield, 'green');
+    assert.ok(game.robots.includes(far), 'outside enemy is unaffected');
+    assert.equal(game.turretEffects[0].radius, radius);
+  }
+});
+
+test('soccer explosions also damage special enemies without spending Koshi’s weapon', () => {
+  for (const type of ['robo-love-bug', 'boss', 'tom-frog']) {
+    const game = arena(), item = game.createSoccerBall({ x: 450, y: 300 }, 'soccer-ball-red');
+    const enemy = game.createCustomSpawn({ time: 0, kind: 'enemy', type, x: .5, y: .5 })[0];
+    enemy.x = item.x; enemy.y = item.y; game.robots.push(enemy);
+    game.weapon = { type: 'silver', uses: 3, expires: Infinity };
+    const health = enemy.health;
+    game.detonateSoccerBall(item);
+    if (type === 'robo-love-bug') assert.ok(!game.robots.includes(enemy));
+    else {
+      assert.equal(enemy.health, health - 1, type);
+      assert.equal(enemy.state, 'hurt');
+    }
+    assert.equal(game.weapon.uses, 3);
+  }
+  const game = arena(), item = game.createSoccerBall({ x: 450, y: 300 }, 'soccer-ball-red');
+  const bug = game.createCustomSpawn({ time: 0, kind: 'enemy', type: 'robo-love-bug', x: .5, y: .5, shield: 'blue' })[0];
+  bug.x = item.x; bug.y = item.y; game.robots.push(bug);
+  game.detonateSoccerBall(item);
+  assert.equal(bug.shield, 'green');
+  assert.ok(game.robots.includes(bug));
+});
+
+test('a soccer fuse keeps running during a water impact', () => {
+  const game = arena();
+  const item = game.createSoccerBall({ x: 450, y: 300 }, 'soccer-ball-red');
+  item.fuse = .1; game.soccerBalls.push(item);
+  game.terrainImpact = { type: 'water', age: 0, sinkDuration: .42, riseDuration: .22,
+    exit: { x: game.cat.x, y: game.cat.y }, reappeared: false };
+  game.update(.11);
+  assert.equal(game.soccerBalls.length, 0);
+  assert.equal(game.turretEffects.length, 1);
+  const fatal = arena(), bomb = fatal.createSoccerBall({ x: fatal.cat.x, y: fatal.cat.y }, 'soccer-ball-red');
+  fatal.hearts = 1; bomb.fuse = .1; fatal.soccerBalls.push(bomb);
+  fatal.terrainImpact = { type: 'water', age: 0, sinkDuration: .42, riseDuration: .22,
+    exit: { x: fatal.cat.x, y: fatal.cat.y }, reappeared: false };
+  fatal.update(.11);
+  assert.equal(fatal.state, 'lost');
+});
+
+test('jumbo and normal balls exchange momentum using their eight-to-one mass ratio', () => {
+  for (const reverse of [false, true]) {
+    const game = arena();
+    const striker = game.createSoccerBall({ x: 350, y: 300 }, reverse ? 'soccer-ball-jumbo' : 'soccer-ball');
+    const target = game.createSoccerBall({ x: 399, y: 300 }, reverse ? 'soccer-ball' : 'soccer-ball-jumbo');
+    striker.vx = 300; game.soccerBalls = [striker, target];
+    game.updateSoccerBalls(.005, game.cat.x, game.cat.y, new Map());
+    const mass = reverse ? 8 : 1, targetMass = reverse ? 1 : 8;
+    const incoming = 300 - SOCCER_FRICTION * .005 * .5;
+    const impulse = 1.9 * incoming / (1 / mass + 1 / targetMass);
+    assert.ok(Math.abs(target.vx - impulse / targetMass) < 1, `${reverse}: ${target.vx}`);
+    assert.ok(Math.abs(striker.vx - (incoming - impulse / mass)) < 1, `${reverse}: ${striker.vx}`);
+  }
 });

@@ -196,32 +196,39 @@ test('Koshi stays wide-eyed during laser-driven movement without changing his he
       return name in target ? target[name] : (...args) => calls.push([name, ...args]);
     },
   });
-  const context = vm.createContext({ game, ctx, line() {} });
+  const context = vm.createContext({ game, ctx, line: (...args) => calls.push(['line', ...args]) });
   vm.runInContext(app.slice(app.indexOf('function drawCat('), app.indexOf('function drawCatShield(')), context);
-  const draw = (hearts, now = 0) => {
+  const draw = (hearts, now = 0, damage = null) => {
     game.hearts = hearts;
     calls.length = 0;
-    context.drawCat(game.cat.x, game.cat.y, now);
+    context.drawCat(game.cat.x, game.cat.y, now, damage);
     const eyes = calls.filter(([op, x]) => op === 'ellipse' && Math.abs(x) === 9);
     const nose = calls.findIndex(([op, x, y]) => op === 'moveTo' && x === -4 && y === 5);
     assert.ok(nose >= 0);
-    return { eyes, mouth: calls.slice(nose) };
+    return {
+      eyes,
+      mouth: calls.slice(nose),
+      brows: calls.filter(([op, points]) => op === 'line' && (points?.[0]?.[0] === -14 || points?.[1]?.[0] === 14)),
+    };
   };
   const health = [3, 2, 1];
   const normal = health.map(hearts => draw(hearts));
+  const damaged = health.map(hearts => draw(hearts, 0, .2));
   assert.notDeepEqual(normal[1].mouth, normal[2].mouth);
+  assert.equal(damaged[0].brows.length, 2, 'hurt brows remain visible without the laser expression');
 
   Object.assign(game.cat, { x: enemy.x, y: enemy.y + 110 });
   Object.assign(enemy, { catLadyState: 'aim', catLadyTime: CAT_LADY_POINTER.charge - .01, aimAngle: 0 });
   game.update(.01);
   assert.equal(game.catLadyLaserOwner, enemy);
   for (const [i, hearts] of health.entries()) {
-    const wide = draw(hearts, 5.4);
+    const wide = draw(hearts, 5.4, .2);
     assert.equal(wide.eyes.length, 2);
+    assert.equal(wide.brows.length, 0);
     for (const [j, [, , , rx, ry]] of wide.eyes.entries()) {
       assert.ok(rx >= normal[i].eyes[j][3] * 2 && ry >= normal[i].eyes[j][4] * 2);
     }
-    assert.deepEqual(wide.mouth, normal[i].mouth, `mouth at ${hearts} hearts`);
+    assert.deepEqual(wide.mouth, damaged[i].mouth, `mouth at ${hearts} hearts`);
   }
   game.update(3);
   assert.equal(game.catLadyLaserOwner, null);

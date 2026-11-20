@@ -6,7 +6,7 @@ const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { isBossType } = globalThis.KoshiGame;
 const { SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS } = globalThis.KoshiGame;
-const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawItemCase, drawObstruction, FENCE, TERRAIN_COLORS, terrainPathData } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, spawnSymbol, spawnColor, drawCatCircle, drawBumper, drawSoccerBall, drawItemCase, drawObstruction, FENCE, TERRAIN_COLORS, terrainPathData } = globalThis.KoshiBrickVisuals;
 const $ = selector => document.querySelector(selector);
 const carriedItem = event => event.carriesItem ?? (event.carriesCatBlock ? 'cat-block' : event.carriesKey ? 'key' : '');
 const board = $('#editor-board');
@@ -254,6 +254,11 @@ function picture(value, control) {
     svg.setAttribute('viewBox', '-28 -18 56 36'); svg.setAttribute('aria-hidden', 'true');
     path.setAttribute('d', 'M-22 8 L-12 -12 L5 -8 L22 4 L12 13 L-5 10 Z');
     path.setAttribute('fill', '#63bde0'); path.setAttribute('stroke', '#e3f7ff'); svg.append(path); image.append(svg);
+  } else if (item?.kind === 'object' && OBJECTS[item.type]?.soccer) {
+    const canvas = document.createElement('canvas'), object = OBJECTS[item.type];
+    canvas.width = 64; canvas.height = 64; canvas.setAttribute('aria-hidden', 'true');
+    drawSoccerBall(canvas.getContext('2d'), { x: 32, y: 32, radius: object.radius === 32 ? 26 : 15, fuse: object.fuse });
+    image.append(canvas);
   } else if (item?.kind === 'object' && OBJECTS[item.type]?.bumper) {
     const canvas = document.createElement('canvas');
     canvas.width = 56; canvas.height = 56; canvas.setAttribute('aria-hidden', 'true');
@@ -464,6 +469,8 @@ function showCategory(category) {
 
 function syncPalettes() {
   const families = [
+    ['Soccer Ball', 'soccer-ball', 'soccer-ball-blue', 'soccer-ball-green', 'soccer-ball-red',
+      'soccer-ball-jumbo', 'soccer-ball-jumbo-blue', 'soccer-ball-jumbo-green', 'soccer-ball-jumbo-red'],
     ['Stopwatch', 'stopwatch', 'stopwatch-green', 'stopwatch-blue'],
     ['Cat Shield', 'cat-shield-red', 'cat-shield-green', 'cat-shield-blue'],
     ['Surf Board', 'surf-board-red', 'surf-board-green', 'surf-board-blue'],
@@ -500,10 +507,11 @@ function syncPalettes() {
           if (variants.length < 2) continue;
           const menu = document.createElement('details'), summary = document.createElement('summary');
           menu.className = 'variant-menu';
+          if (name === 'Soccer Ball') menu.classList.add('soccer-variants');
           summary.append(picture(variants[0].dataset.value, id), name);
           const choices = document.createElement('div');
           choices.className = 'visual-palette variant-choices';
-          choices.setAttribute('role', 'group'); choices.setAttribute('aria-label', `${name} colors`);
+          choices.setAttribute('role', 'group'); choices.setAttribute('aria-label', `${name} variants`);
           variants[0].before(menu);
           choices.append(...variants); menu.append(summary, choices);
           summary.addEventListener('click', event => {
@@ -1056,7 +1064,7 @@ function eventTimelineButton(event, index, onChoose, spawnKey = null) {
     : event.spawnPercent === undefined ? `${event.time}s`
       : `${event.spawnPercent}% crossed${previewGame.eventAppearanceTime(event) >= level.duration ? ' · not reached before level ends' : ''}`;
   const location = document.createElement('span'); location.className = 'event-location';
-  location.textContent = `${event.random || event.previewRandom ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : event.type === 'soccer-ball' ? ' · persistent, kickable' : ' · persistent' : ''}${spawnKey ? ` · spawning brick ${spawnKey}` : ''}`;
+  location.textContent = `${event.random || event.previewRandom ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : OBJECTS[event.type].soccer ? OBJECTS[event.type].fuse ? ' · kickable' : ' · persistent, kickable' : ' · persistent' : ''}${spawnKey ? ` · spawning brick ${spawnKey}` : ''}`;
   const category = document.createElement('span'); category.className = 'event-category';
   category.textContent = event.kind;
   button.append(time, category);
@@ -1658,6 +1666,17 @@ function renderBoard() {
       image.setAttribute('aria-hidden', 'true');
       drawBumper(image.getContext('2d'), { ...bumper, x: frameSize / 2, y: frameSize / 2 });
       marker.append(image, label);
+    } else if (event.kind === 'object' && OBJECTS[event.type].soccer) {
+      const ball = previewGame.createSoccerBall(point, event.type);
+      const frameSize = ball.radius * 2 + 4;
+      marker.classList.add('soccer-marker');
+      marker.style.width = `${frameSize / previewGame.width * 100}%`;
+      marker.style.height = `${frameSize / previewGame.height * 100}%`;
+      const image = document.createElement('canvas');
+      image.width = frameSize; image.height = frameSize;
+      image.setAttribute('aria-hidden', 'true');
+      drawSoccerBall(image.getContext('2d'), { ...ball, x: frameSize / 2, y: frameSize / 2 });
+      marker.append(image, label);
     } else if (event.kind === 'object' && OBJECTS[event.type].catCircle) {
       const diameter = OBJECTS[event.type].radius * 2;
       const frameSize = diameter + 12;
@@ -1855,10 +1874,10 @@ function pointReference(events, bricks) {
     if (source.kind === 'object' && source.type === 'item-case' && Object.hasOwn(WEAPONS, source.containsItem)) {
       addWeapon(source.containsItem, count, origin);
     }
-    if (source.kind === 'object' && source.type === 'soccer-ball') totals.soccer += count;
+    if (source.kind === 'object' && OBJECTS[source.type]?.soccer) totals.soccer += count;
   }
   const scoringSpawner = spawns.some(source => ['food', 'enemy', 'weapon'].includes(source.kind)
-    || (source.kind === 'object' && (source.type === 'soccer-ball'
+    || (source.kind === 'object' && (OBJECTS[source.type]?.soccer
       || source.type === 'item-case' && Object.hasOwn(WEAPONS, source.containsItem))));
   const extra = scoringSpawner && [...events, ...spawns].some(source =>
     (source.kind === 'item' && ['battery', 'ditto-stamp'].includes(source.type))

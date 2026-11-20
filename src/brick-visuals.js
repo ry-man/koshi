@@ -107,6 +107,7 @@ const SYMBOLS = {
 
 function spawnSymbol(spawn) {
   return SYMBOLS[spawn.kind === 'weapon' ? WEAPONS[spawn.type].ropeDart ? 'rope-dart' : WEAPONS[spawn.type].axe ? 'axe' : WEAPONS[spawn.type].hammer ? 'hammer' : 'sword' : spawn.kind === 'heart' ? 'heart'
+    : spawn.kind === 'object' && OBJECTS[spawn.type]?.soccer ? 'soccer-ball'
     : spawn.kind === 'item' && BOOM_TIME_TYPES.has(spawn.type) ? 'boom-time'
       : spawn.kind === 'item' && ITEMS[spawn.type]?.seconds ? 'stopwatch'
         : spawn.kind === 'item' && ITEMS[spawn.type]?.brush ? `paint-${ITEMS[spawn.type].brush}`
@@ -1207,7 +1208,10 @@ function drawSoccerBall(ctx, ball) {
   const radius = ball.radius ?? 16;
   ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ball.angle ?? 0);
   const face = ctx.createRadialGradient(-radius * .35, -radius * .4, 1, 0, 0, radius);
-  face.addColorStop(0, '#ffffff'); face.addColorStop(.7, '#f1f3f2'); face.addColorStop(1, '#a0afb4');
+  const colors = ball.fuse === undefined ? ['#ffffff', '#f1f3f2', '#a0afb4']
+    : ball.fuse > 15 ? ['#a7d6ff', '#287dcc', '#17446c']
+      : ball.fuse > 5 ? ['#b2f3b4', '#399d4a', '#205d2a'] : ['#ffc0b8', '#cd4136', '#78271f'];
+  face.addColorStop(0, colors[0]); face.addColorStop(.7, colors[1]); face.addColorStop(1, colors[2]);
   ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2);
   ctx.fillStyle = face; ctx.fill(); ctx.strokeStyle = '#253039'; ctx.lineWidth = 1.3; ctx.stroke(); ctx.clip();
   const pentagon = (x, y, size, angle) => {
@@ -1228,6 +1232,16 @@ function drawSoccerBall(ctx, ball) {
     pentagon(x * radius, y * radius, radius * .3, a + Math.PI);
   }
   ctx.restore();
+  if (ball.fuse !== undefined) {
+    const label = String(Math.max(0, Math.ceil(ball.fuse - 1e-9)));
+    ctx.save(); ctx.translate(ball.x, ball.y);
+    ctx.font = `bold ${Math.round(radius * .9)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = radius / 16 * 1.5; ctx.lineJoin = 'round';
+    ctx.strokeText(label, 0, 0);
+    ctx.fillStyle = '#000000'; ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
 }
 
 function drawObstruction(ctx, obstruction) {

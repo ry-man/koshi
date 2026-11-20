@@ -2385,7 +2385,7 @@ legs and bounces like Robo Ball at 120 board units/second. Swords, hammers,
 Boost and both turret attacks cannot damage it or strip its shields, and do
 not spend weapon uses on it. It still hurts Koshi on normal contact.
 
-Love Bugs die only when alone: a single visible bug dies automatically, as
+Without explosive soccer balls, Love Bugs die when alone: a single visible bug dies automatically, as
 does the only visible bug in a region closed off by Barrier fences. Any open
 route around unfinished or retracted fences keeps companions connected;
 straight-line visibility is not required. Only Barrier fences divide these
@@ -2395,6 +2395,7 @@ visible scrolling screen. Isolation ignores shields, sleep and fear, awards
 normal enemy points, and drops carried items. Decisions use a simultaneous
 snapshot so groups are not removed in array order. Sleep and fear affect
 movement normally, and pause freezes everything.
+Explosive soccer balls can also damage Love Bugs and their shields.
 
 Its 1.5-second death first swells blue tears over its eyes, then separates its
 head and two wings, and ends with the same explosion as Robo Wheel. Available
@@ -2593,7 +2594,8 @@ Boom Time pickups are introduced together in Level 2–24.
 
 ### Soccer balls and goal bricks
 
-Soccer balls are ordinary black-and-white balls, not enemies or pickups.
+Soccer balls are neutral objects, not enemies or pickups. Normal balls are
+black and white.
 Moving Koshi kicks them on contact; an off-center bump sends the ball off at an
 angle. Swords and Boost do not collect or damage them, and sleep/fear do not
 affect them. They bounce from actual bricks, enemies, and Barrier fences.
@@ -2606,6 +2608,22 @@ Untouched balls remain stationary; ordinary wall rebounds and goal shots are unc
 Kicks are capped at 650 game units/second; enemy rebounds retain 80% of the
 normal relative speed. Enemy movement and health are not changed by ball contact.
 Balls may be scheduled placements or single-use spawning-brick objects.
+
+Custom levels can also place jumbo and explosive balls, including explosive
+jumbo balls. Jumbo balls have twice the radius and eight times the mass in
+ball-to-ball collisions; other interactions are unchanged. Explosive balls
+start a fuse when they appear: blue lasts 30 seconds, green 15 and red 5.
+Their colored panels turn green at 15 seconds remaining and red at 5; a number
+on the ball shows whole seconds remaining, rounded up. At zero,
+the ball disappears and damages Koshi and enemies within 117 game units plus
+the target's radius. Jumbo explosions have twice that radius. Scoring removes
+an explosive ball without detonating it. Fuses freeze while paused.
+
+In the editor, the Soccer Ball picker offers all eight variants in two rows,
+and the same variants are available from spawning bricks. Their object types
+are `soccer-ball`, `soccer-ball-blue`, `soccer-ball-green`, `soccer-ball-red`,
+`soccer-ball-jumbo`, `soccer-ball-jumbo-blue`, `soccer-ball-jumbo-green`, and
+`soccer-ball-jumbo-red`.
 
 A Goal (`kind: "goal"`) replaces a boundary brick with top-down white netting
 and a silver metal frame, open toward the board. It remains solid to Koshi and

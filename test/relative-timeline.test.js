@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { FOODS, SHIELDS, WEAPONS, Game } = require('../src/game.js');
+const { FOODS, OBJECTS, SHIELDS, WEAPONS, Game } = require('../src/game.js');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
 
@@ -154,7 +154,7 @@ test('relative view renders accessible compact boxes and switches back without c
 });
 
 test('weapon balance accumulates scheduled pickups, enemy points, drops, item cases, and active spawners', () => {
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, isBossType: require('../src/game.js').isBossType });
+  const context = vm.createContext({ FOODS, OBJECTS, SHIELDS, WEAPONS, isBossType: require('../src/game.js').isBossType });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
   const events = [
     { kind: 'weapon', type: 'wood', time: 2, group: { count: 2 } },

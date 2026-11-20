@@ -151,7 +151,14 @@ for (const [brush, name, paintUses] of [['pencil', 'Thin Paintbrush', 1], ['wide
   }
 }
 const OBJECTS = {
-  'soccer-ball': { name: 'Soccer Ball', icon: '⚽', color: '#f1f3f2' },
+  'soccer-ball': { name: 'Soccer Ball', icon: '⚽', color: '#f1f3f2', soccer: true, radius: 16 },
+  'soccer-ball-blue': { name: 'Blue Explosive Soccer Ball', icon: '⚽', color: '#287dcc', soccer: true, radius: 16, fuse: 30 },
+  'soccer-ball-green': { name: 'Green Explosive Soccer Ball', icon: '⚽', color: '#399d4a', soccer: true, radius: 16, fuse: 15 },
+  'soccer-ball-red': { name: 'Red Explosive Soccer Ball', icon: '⚽', color: '#cd4136', soccer: true, radius: 16, fuse: 5 },
+  'soccer-ball-jumbo': { name: 'Jumbo Soccer Ball', icon: '⚽', color: '#f1f3f2', soccer: true, radius: 32 },
+  'soccer-ball-jumbo-blue': { name: 'Blue Explosive Jumbo Soccer Ball', icon: '⚽', color: '#287dcc', soccer: true, radius: 32, fuse: 30 },
+  'soccer-ball-jumbo-green': { name: 'Green Explosive Jumbo Soccer Ball', icon: '⚽', color: '#399d4a', soccer: true, radius: 32, fuse: 15 },
+  'soccer-ball-jumbo-red': { name: 'Red Explosive Jumbo Soccer Ball', icon: '⚽', color: '#cd4136', soccer: true, radius: 32, fuse: 5 },
   'item-case': { name: 'Item Case', icon: '\u25a1', color: '#bce8f4', itemCase: true, radius: 26 },
   'bumper-red': { name: 'Red Bumper', icon: '🔴', color: '#d94a4a', bumper: true, speedMultiplier: 1.25 },
   'bumper-green': { name: 'Green Bumper', icon: '🟢', color: '#399d4a', bumper: true, speedMultiplier: 1 },
@@ -4052,7 +4059,7 @@ class Game {
         const obstruction = this.createObstruction(point, this.campaignEventAppearance(spawn));
         this.pendingSpawns.set({}, { kind: 'obstruction', time: this.elapsed + 2, duration: 2, items: [obstruction] });
       }
-      else this.soccerBalls.push(this.createSoccerBall(point));
+      else this.soccerBalls.push(this.createSoccerBall(point, spawn.type));
     }
     else this.food.push({ ...this.randomPickupPoint(), id: this.foodId++, type: spawn.type,
       born: this.elapsed, lifetime: spawn.lifetime, expires: this.elapsed + spawn.lifetime });
@@ -4146,14 +4153,14 @@ class Game {
     this.damageRangedEnemy(enemy);
   }
 
-  damageRangedEnemy(enemy) {
-    if (isBossType(enemy.type) || enemy.type === 'robo-love-bug') return;
+  damageRangedEnemy(enemy, explosion = false) {
+    if (isBossType(enemy.type) || (enemy.type === 'robo-love-bug' && !explosion)) return;
     if (this.enemyDamageProgress(enemy) !== null || !this.robots.includes(enemy)) return;
     if (enemy.shield) {
       enemy.shield = SHIELDS[enemy.shield].next;
       enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
     } else {
-      this.defeatEnemy(enemy);
+      this.defeatEnemy(enemy, true, explosion ? 'explosion' : null);
       this.robots = this.robots.filter(candidate => candidate !== enemy);
     }
   }
@@ -4808,6 +4815,7 @@ class Game {
     }
     if (event.kind !== 'object') return event.type === 'ditto-stamp' ? DITTO_STAMP_RADIUS : 18;
     if (OBJECTS[event.type].bumper) return 48;
+    if (OBJECTS[event.type].soccer) return Math.max(20, OBJECTS[event.type].radius);
     if (OBJECTS[event.type].catCircle) return OBJECTS[event.type].radius;
     if (OBJECTS[event.type].itemCase) return OBJECTS[event.type].radius;
     if (OBJECTS[event.type].obstruction) {
@@ -5107,7 +5115,7 @@ class Game {
           ? this.createBubble(point, event.type) : OBJECTS[event.type].catCircle
             ? this.createCatCircle(point, event.type) : OBJECTS[event.type].itemCase
               ? this.createItemCase(point, event) : OBJECTS[event.type].obstruction
-                ? this.createObstruction(point, event) : this.createSoccerBall(point);
+                ? this.createObstruction(point, event) : this.createSoccerBall(point, event.type);
       if (event.track) {
         Object.assign(object, { track: event.track, trackBorn: event.time,
           trackDistance: catTrackProjection(this.catTracksById.get(event.track).path, point).distance });
@@ -5157,8 +5165,10 @@ class Game {
     return { ...point, type, ...(lifetime == null ? {} : { born: time, lifetime, expires: time + lifetime }) };
   }
 
-  createSoccerBall(point) {
-    return { ...point, type: 'soccer-ball', radius: 16, vx: 0, vy: 0, angle: 0 };
+  createSoccerBall(point, type = 'soccer-ball') {
+    const object = OBJECTS[type];
+    return { ...point, type, radius: object.radius, vx: 0, vy: 0, angle: 0,
+      ...(object.fuse ? { fuse: object.fuse, bornAt: this.elapsed } : {}) };
   }
 
   createItemCase(point, event) {
@@ -5434,7 +5444,7 @@ class Game {
           ...segment, radius: segment.radius + (index ? 5 : 0), oldX: before[index].x, oldY: before[index].y,
         }));
       })];
-    const scored = new Set();
+    const scored = new Set(), detonations = [];
     const solids = ball => [
       ...this.obstructions.map(target => ({ kind: 'obstruction', target })),
       ...this.bumpers.map(target => ({ kind: 'bumper', target })),
@@ -5466,7 +5476,9 @@ class Game {
         if (!overlap) break;
       }
       contain(ball);
-      let remaining = dt;
+      const activeTime = ball.fuse === undefined ? dt : Math.min(dt, ball.fuse,
+        this.tickStart ? Math.max(0, this.elapsed - ball.bornAt) : dt);
+      let remaining = activeTime;
       for (let bounce = 0; remaining > 1e-9 && bounce < 12; bounce++) {
         const speed = Math.hypot(ball.vx, ball.vy);
         const movingTime = Math.min(remaining, speed / SOCCER_FRICTION);
@@ -5490,7 +5502,7 @@ class Game {
             : circleContact(ball.x - target.x, ball.y - target.y, dx, dy, ball.radius + target.radius);
           if (time < contact) { contact = time; objectHit = solid; obstacle = null; goal = false; }
         }
-        const elapsed = dt - remaining;
+        const elapsed = activeTime - remaining;
         for (const actor of actors) {
           const avx = (actor.x - actor.oldX) / dt, avy = (actor.y - actor.oldY) / dt;
           const ax = actor.oldX + avx * elapsed, ay = actor.oldY + avy * elapsed;
@@ -5516,12 +5528,12 @@ class Game {
           const { kind, target } = objectHit;
           ({ normal } = surface(ball, objectHit));
           if (kind === 'ball') {
-            // Equal-mass balls exchange most of their speed along the line of impact.
             const incoming = (ball.vx - target.vx) * normal.x + (ball.vy - target.vy) * normal.y;
             if (incoming < 0) {
-              const impulse = -(1 + .9) * incoming / 2;
-              ball.vx += impulse * normal.x; ball.vy += impulse * normal.y;
-              target.vx -= impulse * normal.x; target.vy -= impulse * normal.y;
+              const mass = ball.radius === 32 ? 8 : 1, targetMass = target.radius === 32 ? 8 : 1;
+              const impulse = -(1 + .9) * incoming / (1 / mass + 1 / targetMass);
+              ball.vx += impulse / mass * normal.x; ball.vy += impulse / mass * normal.y;
+              target.vx -= impulse / targetMass * normal.x; target.vy -= impulse / targetMass * normal.y;
             }
           } else {
             Object.assign(ball, reflectVelocity(ball.vx, ball.vy, normal));
@@ -5574,8 +5586,29 @@ class Game {
         contain(ball);
       }
       contain(ball);
+      if (ball.fuse !== undefined) {
+        ball.fuse -= activeTime;
+        if (ball.fuse <= 1e-9) {
+          scored.add(ball);
+          detonations.push(ball);
+          return false;
+        }
+      }
       return true;
     });
+    for (const ball of detonations) this.detonateSoccerBall(ball);
+  }
+
+  detonateSoccerBall(ball) {
+    const radius = TURRET_BLAST_RADIUS * ball.radius / 16;
+    this.turretEffects.push({ type: 'fireball', x: ball.x, y: ball.y, age: 0, radius });
+    if (Math.hypot(this.cat.x - ball.x, this.cat.y - ball.y) <= radius + this.cat.radius) this.takeDamage();
+    for (const enemy of [...this.robots]) {
+      if (Math.hypot(enemy.x - ball.x, enemy.y - ball.y) > radius + enemy.radius) continue;
+      if (enemy.type === 'tom-frog') this.hitFrog(enemy, this.cat.x, this.cat.y, true);
+      else if (isBossType(enemy.type)) this.hitBoss(enemy, true);
+      else this.damageRangedEnemy(enemy, true);
+    }
   }
 
   updateGoalEffects(seconds) {
@@ -5933,11 +5966,13 @@ class Game {
     enemy.walking = step > 0;
   }
 
-  hitFrog(enemy, startX = this.cat.x, startY = this.cat.y) {
-    if (enemy.state !== 'sleep' || !this.weapon || !Object.hasOwn(SWORDS, this.weapon.type)
+  hitFrog(enemy, startX = this.cat.x, startY = this.cat.y, explosion = false) {
+    if ((!explosion && (enemy.state !== 'sleep' || !this.weapon || !Object.hasOwn(SWORDS, this.weapon.type)))
       || this.enemyDamageProgress(enemy) !== null) return false;
-    this.weaponAttacks.push({ x: enemy.x, y: enemy.y, type: this.weapon.type, age: 0 });
-    if (--this.weapon.uses === 0) this.dropWeapon(true);
+    if (!explosion) {
+      this.weaponAttacks.push({ x: enemy.x, y: enemy.y, type: this.weapon.type, age: 0 });
+      if (--this.weapon.uses === 0) this.dropWeapon(true);
+    }
     enemy.health--; enemy.fliesEaten = 0; enemy.asleep = false;
     enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION * 2;
     enemy.state = 'hurt'; enemy.stateTime = 0;
@@ -6113,8 +6148,8 @@ class Game {
     });
   }
 
-  hitBoss(enemy) {
-    if (!this.boosted || enemy.state !== 'dizzy' || this.enemyDamageProgress(enemy) !== null) return false;
+  hitBoss(enemy, explosion = false) {
+    if ((!explosion && (!this.boosted || enemy.state !== 'dizzy')) || this.enemyDamageProgress(enemy) !== null) return false;
     enemy.health--;
     enemy.invulnerableUntil = this.elapsed + DAMAGE_DURATION;
     enemy.state = 'hurt'; enemy.stateTime = 0;
@@ -6273,7 +6308,7 @@ class Game {
   }
 
   defeatEnemy(enemy, awardPoints = true, cause = null) {
-    if (enemy.type === 'robo-love-bug' && cause !== 'isolation') return;
+    if (enemy.type === 'robo-love-bug' && cause !== 'isolation' && cause !== 'explosion') return;
     if (isBossType(enemy.type) && enemy.health > 0) return;
     if (enemy === this.catLadyLaserOwner) this.endCatLadyLaser();
     if (enemy.type === 'robo-trash-bin') this.releaseTrashBinTarget(enemy);
@@ -9378,6 +9413,18 @@ class Game {
     if (this.state !== 'playing') { this.tickStart = null; return; }
     if (this.terrainImpact) {
       this.updateTerrainImpact(dt);
+      if (this.state === 'playing') {
+        const detonations = [];
+        this.soccerBalls = this.soccerBalls.filter(ball => {
+          if (ball.fuse === undefined) return true;
+          ball.fuse -= Math.min(dt, Math.max(0, this.elapsed - ball.bornAt));
+          if (ball.fuse > 1e-9) return true;
+          detonations.push(ball);
+          return false;
+        });
+        for (const ball of detonations) this.detonateSoccerBall(ball);
+        if (this.hearts <= 0) this.state = 'lost';
+      }
       this.tickStart = null;
       return;
     }

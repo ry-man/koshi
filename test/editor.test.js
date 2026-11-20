@@ -207,25 +207,30 @@ test('color variants share a tile, preserve their types and start a fresh placem
     },
     before(child) { const index = this.parent.children.indexOf(this); child.parent = this.parent; this.parent.children.splice(index, 0, child); },
     replaceChildren(...children) { this.children = []; this.append(...children); },
+    get classList() { return { add: name => { this.className += ` ${name}`; } }; },
     setAttribute(name, value) { this.attributes[name] = value; },
     addEventListener(type, action) { (this.listeners[type] ??= []).push(action); },
     querySelectorAll(selector) {
       return this.children.filter(child => child && typeof child === 'object').flatMap(child => [
-        ...(selector === '.variant-menu' ? child.className === 'variant-menu' ? [child] : [] : child.tag === selector ? [child] : []),
+        ...(selector === '.variant-menu' ? child.className?.split(' ').includes('variant-menu') ? [child] : [] : child.tag === selector ? [child] : []),
         ...child.querySelectorAll(selector),
       ]);
     },
     querySelector(selector) { return this.querySelectorAll(selector)[0]; },
   });
-  for (const id of ['event-type', 'brick-spawn-item']) {
-    const values = ['stopwatch', 'stopwatch-green', 'stopwatch-blue'].map(type => id === 'event-type' ? type : `item:${type}`);
+  for (const id of ['event-type', 'brick-spawn-item']) for (const [kind, types] of [
+    ['item', ['stopwatch', 'stopwatch-green', 'stopwatch-blue']],
+    ['object', ['soccer-ball', 'soccer-ball-blue', 'soccer-ball-green', 'soccer-ball-red',
+      'soccer-ball-jumbo', 'soccer-ball-jumbo-blue', 'soccer-ball-jumbo-green', 'soccer-ball-jumbo-red']],
+  ]) {
+    const values = types.map(type => id === 'event-type' ? type : `${kind}:${type}`);
     const select = { value: values[1], disabled: false, parentElement: {},
       options: values.map(value => ({ value, textContent: value })), dispatchEvent() { this.dispatched = this.value; } };
     const palette = node('div'), entry = { select, palette, signature: null, buttons: [] };
     let placements = 0, locked = false;
     const context = vm.createContext({
       palettes: new Map([[id, entry]]), MIXED: '', readOnly: () => locked,
-      $: () => ({ value: 'item', disabled: false, parentElement: {} }),
+      $: () => ({ value: kind, disabled: false, parentElement: {} }),
       document: { createElement: node, querySelectorAll: () => [] }, Event: class {},
       picture: () => node('span'), startPlacement: () => placements++,
       choiceButton: (value, name, control, action) => Object.assign(node('button'), { action }),
@@ -234,9 +239,9 @@ test('color variants share a tile, preserve their types and start a fresh placem
     context.syncPalettes();
     assert.equal(palette.children.length, 1);
     const menu = palette.children[0], summary = menu.children[0];
-    assert.equal(menu.className, 'variant-menu');
+    assert.ok(menu.className.split(' ').includes('variant-menu'));
     assert.equal(menu.dataset.selected, 'true');
-    assert.equal(menu.children[1].children.length, 3);
+    assert.deepEqual(menu.children[1].children.map(button => button.dataset.value), values);
     summary.listeners.click[0]({ preventDefault() { throw new Error('Unexpected block'); } });
     assert.equal(placements, id === 'event-type' ? 1 : 0);
     entry.buttons[2].action();
@@ -1025,7 +1030,7 @@ test('random-spawn visibility filters random groups, multi-count events, and cam
   const context = vm.createContext({
     level: { events }, templates, $: () => ({ checked: showRandom }),
     previewGame: { customEventPoints: item => Array(item.group?.count ?? item.randomCount ?? 1).fill({ x: 100, y: 100 }) },
-    FOODS, SHIELDS, WEAPONS, isBossType,
+    FOODS, OBJECTS, SHIELDS, WEAPONS, isBossType,
   });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function render()')), context);
   const totals = JSON.stringify(context.pointReference(events, []));
@@ -1042,7 +1047,7 @@ test('random-spawn visibility filters random groups, multi-count events, and cam
 test('point reference counts event groups, independent random events, shield values and spawners', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, isBossType, level: blank(),
+  const context = vm.createContext({ FOODS, OBJECTS, SHIELDS, WEAPONS, isBossType, level: blank(),
     document: { createElement: () => ({ dataset: {} }) }, $: selector => {
     if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.children = children; this.childElementCount = children.length; } });
     return nodes.get(selector);
@@ -1054,13 +1059,13 @@ test('point reference counts event groups, independent random events, shield val
     { kind: 'enemy', type: 'mouse', shield: 'blue', group: { count: 2 } },
     { kind: 'enemy', type: 'mouse', shield: 'red', randomCount: 4 },
     { kind: 'enemy', type: 'boss' },
-    { kind: 'object', type: 'soccer-ball', group: { count: 4 } },
+    { kind: 'object', type: 'soccer-ball-jumbo-red', group: { count: 4 } },
     { kind: 'item', type: 'battery' },
   ];
   const bricks = [
     { absorbedBy: null, spawner: { kind: 'food', type: 'L' } },
     { absorbedBy: null, spawner: { kind: 'enemy', type: 'wheel', shield: 'green' } },
-    { absorbedBy: null, spawner: { kind: 'object', type: 'soccer-ball' } },
+    { absorbedBy: null, spawner: { kind: 'object', type: 'soccer-ball-blue' } },
     { absorbedBy: 1, spawner: { kind: 'food', type: 'H' } },
     { absorbedBy: null, spawner: null },
   ];
@@ -1079,7 +1084,7 @@ test('point reference counts event groups, independent random events, shield val
 test('weapon budget includes grouped pickups, hammers, enemy drops and active spawning bricks without mutating levels', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
-  const context = vm.createContext({ FOODS, SHIELDS, WEAPONS, isBossType, level: blank(),
+  const context = vm.createContext({ FOODS, OBJECTS, SHIELDS, WEAPONS, isBossType, level: blank(),
     document: { createElement: () => ({ dataset: {} }) }, $: selector => {
     if (!nodes.has(selector)) nodes.set(selector, { replaceChildren(...children) { this.children = children; this.childElementCount = children.length; } });
     return nodes.get(selector);

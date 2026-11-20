@@ -288,7 +288,7 @@ test('the new standalone practice demonstrates a real strike and key pickup in l
 
 test('editor point totals include contained weapons and recharge items from events and spawners', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
-  const context = vm.createContext({ WEAPONS });
+  const context = vm.createContext({ WEAPONS, OBJECTS });
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
   const totals = context.pointReference([
     placement('silver', { group: { shape: 'line', count: 3 } }),

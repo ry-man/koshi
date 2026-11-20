@@ -135,7 +135,7 @@ test('tutorial covers every contact surface, enemy, and new item mechanic, and u
         : type === 'cat-circle' ? 'cat-circle'
         : type === 'item-case' ? 'item-case'
         : type.startsWith('obstruction-') ? 'obstruction'
-          : type === 'soccer-ball' ? 'soccer' : null;
+          : OBJECTS[type].soccer ? 'soccer' : null;
     assert.ok(id && LESSONS.some(lesson => lesson.id === id), `missing tutorial for object: ${type}`);
   }
   for (const id of Object.keys(CHARACTERS).filter(type => !['koshi', 'tom', 'boss'].includes(type))) {

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, COOLDOWNS, FOODS, SCHEDULE, SPEED, brickContact } = require('../src/game.js');
+const { Game, LEVELS, COOLDOWNS, FOODS, OBJECTS, SCHEDULE, SPEED, brickContact } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -719,7 +719,7 @@ test('soccer goal and ball guide illustrations use shared artwork', () => {
     },
   };
   const context = vm.createContext({
-    document, ctx: null,
+    document, ctx: null, OBJECTS,
     decorateBrick(_element, brick) { calls.push(['goal', brick.kind]); },
     drawSoccerBall(ctx, ball) { calls.push(['ball', ctx === canvasContext, ball.radius]); },
   });

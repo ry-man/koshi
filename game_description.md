@@ -626,8 +626,17 @@ Stationary balls do not move on their own, and goal openings remain unaffected.
 Friction reduces its
 speed by 100 game units/second each second until it comes to a complete stop. Kicks
 are capped at 650 units/second; rebounds from enemies preserve 80% of the
-normal relative speed. Balls do not damage enemies or Koshi. Swords, Boost,
-sleep and fear do not affect them.
+normal relative speed. Ball contact does not damage enemies or Koshi. Swords,
+Boost, sleep and fear do not affect them.
+
+Custom levels can also use jumbo balls (twice the radius and eight times the
+mass in ball-to-ball collisions), explosive balls, or explosive jumbo balls.
+Explosive balls start a 30-second blue, 15-second green or 5-second red fuse
+when spawned. Their panels turn green at 15 seconds remaining and red at 5,
+and a number on each ball shows the remaining seconds rounded up.
+At zero they damage Koshi and enemies within 117 game units plus the target's
+radius; jumbo explosions reach twice as far. Scoring removes a ball without
+detonation, and pausing freezes its fuse.
 
 A **Goal** is an unclickable, immutable boundary brick, like Cinder, drawn as a
 top-down soccer goal with white netting and a silver frame. Its opening faces
@@ -642,7 +651,7 @@ Custom levels can set `goalsGoal` to the number of scores required, alone or wit
 food (`goal`) and enemy (`killGoal`) targets. All positive targets must be met
 before time runs out. Survival remains exclusive. The editor supports Goals
 and scheduled soccer balls (`kind: "object", type: "soccer-ball"`), including
-ball spawners. Balls have no lifetime or shield. The editor also supports
+ball spawners. Balls have no configurable lifetime or shield. The editor also supports
 stationary red, green and blue bumpers as objects and brick spawners. Unless
 attached to Cat Tracks, bumpers bounce Koshi and enemies without moving; red increases Koshi's speed by 25%,
 green preserves it, and blue reduces it by 25%. Their concentric white rings

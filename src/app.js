@@ -1788,8 +1788,8 @@ function guidePicture(picture, title, fillBrick = false) {
   ctx = image.getContext('2d');
   ctx.scale(2, 2);
   const [kind, type, variant] = picture.split(':');
-  if (kind === 'object' && type === 'soccer-ball') {
-    drawSoccerBall(ctx, { x: 80, y: 42, radius: 16, vx: 0, vy: 0, angle: 0 });
+  if (kind === 'object' && type.startsWith('soccer-ball')) {
+    drawSoccerBall(ctx, { x: 80, y: 42, radius: OBJECTS[type].radius, fuse: OBJECTS[type].fuse });
   } else if (kind === 'object' && type === 'item-case') {
     drawItemCase(ctx, { x: 80, y: 42, containsItem: 'key' },
       item => drawGameItem({ x: 0, y: 0, type: item, keysRequired: 1 }));
@@ -2124,7 +2124,7 @@ function drawCat(x, y, now, damageProgress = null, boostReady = false, expressio
     line([[-12, 1], [-9, 3], [-6, 1]], '#596571', 1.5);
     line([[6, 1], [9, 3], [12, 1]], '#596571', 1.5);
   }
-  if (hurt) {
+  if (hurt && !laserEyes) {
     line([[-14, -12], [-6, -8]], '#672c39', 2.5);
     line([[6, -8], [14, -12]], '#672c39', 2.5);
   }
@@ -2541,7 +2541,7 @@ function drawTurretEffects(context, camera = null) {
       const visible = effect.type === 'laser'
         ? cameraBoundsVisible(camera, Math.min(effect.start.x, effect.end.x), Math.min(effect.start.y, effect.end.y),
           Math.abs(effect.end.x - effect.start.x), Math.abs(effect.end.y - effect.start.y), 32)
-        : cameraBoundsVisible(camera, effect.x, effect.y, 0, 0, 100);
+        : cameraBoundsVisible(camera, effect.x, effect.y, 0, 0, effect.radius ?? 100);
       if (!visible) continue;
     }
     const progress = effect.age / (effect.type === 'laser' ? .18 : .42);
@@ -2550,7 +2550,7 @@ function drawTurretEffects(context, camera = null) {
     if (effect.type === 'laser') {
       drawLaserBeam(context, effect);
     } else {
-      const radius = 12 + progress * 75;
+      const radius = effect.radius ? effect.radius * (.14 + progress * .86) : 12 + progress * 75;
       context.fillStyle = '#ff693c55';
       context.beginPath(); context.arc(effect.x, effect.y, radius, 0, Math.PI * 2); context.fill();
       context.strokeStyle = '#ffb35a'; context.lineWidth = 3 * (1 - progress);
