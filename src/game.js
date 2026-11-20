@@ -13,6 +13,7 @@ const CAPE_DURATION = 10;
 const CAPE_SPEED_MULTIPLIER = 2;
 const MASK_DURATION = 10;
 const FEAR_SPEED = 64;
+const COOKIE_FOOD_MARGIN = 12;
 const COW_SPEED = 190;
 const COW_EAT_DURATION = 5;
 const TRASH_BIN_SPEED = 75;
@@ -8952,7 +8953,10 @@ class Game {
   attractFoodToCat(seconds, x, y) {
     if (!this.cookieActive) return;
     const speed = 520;
+    let hasVisibleFood = false;
     for (const food of this.food) {
+      if (!this.entityVisible(food, COOKIE_FOOD_MARGIN)) continue;
+      hasVisibleFood = true;
       const dx = x - food.x, dy = y - food.y, distance = Math.hypot(dx, dy);
       if (distance <= speed * seconds) {
         food.x = x; food.y = y;
@@ -8961,7 +8965,7 @@ class Game {
         food.y += dy / distance * speed * seconds;
       }
     }
-    if (!this.food.length) {
+    if (!hasVisibleFood) {
       this.cookieActive = false;
       this.cookieLickUntil = this.elapsed + 1.2;
     }
@@ -9190,7 +9194,8 @@ class Game {
     this.updateCatTracks(dt);
     this.moveAttachedRopeDart();
     this.clearBlockedPickups();
-    this.food = this.food.filter(item => this.cookieActive || item.expires > this.elapsed + 1e-9);
+    this.food = this.food.filter(item => (this.cookieActive && this.entityVisible(item, COOKIE_FOOD_MARGIN))
+      || item.expires > this.elapsed + 1e-9);
     const cat = this.cat;
     const parts = this.brickParts();
     this.updateHazardEmitters(dt, parts);

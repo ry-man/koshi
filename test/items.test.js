@@ -172,6 +172,75 @@ test('smiley cookie draws all present food toward Koshi while he keeps moving, t
   assert.ok(game.cookieLickUntil > game.elapsed);
 });
 
+test('smiley cookie attracts only food within the current scrolling viewport and its 12-unit margin', () => {
+  for (const options of [{}, { portrait: true, scale: .5 },
+    { portrait: true, customCoordinateOrientation: 'viewport', scale: .5 }]) {
+    const game = new Game(() => .5, { ...options, customLevel: level([], {
+      autoscroll: { length: 24, speed: .25, events: [] },
+    }) });
+    game.start();
+    game.elapsed = 8;
+    const camera = game.camera(), x = camera.x + camera.width / 2, y = camera.y + camera.height / 2;
+    const points = distance => [
+      [camera.x - distance, y], [camera.x + camera.width + distance, y],
+      [x, camera.y - distance], [x, camera.y + camera.height + distance],
+    ].map(([x, y]) => ({ x, y, type: 'S', expires: 30 }));
+    const near = points(12), far = points(12.01);
+    game.food = [...near, ...far];
+    const before = game.food.map(food => ({ x: food.x, y: food.y }));
+    game.cookieActive = true;
+    game.attractFoodToCat(.01, x, y);
+    near.forEach((food, i) => assert.notDeepEqual({ x: food.x, y: food.y }, before[i]));
+    far.forEach((food, i) => assert.deepEqual({ x: food.x, y: food.y }, before[i + near.length]));
+    assert.equal(game.cookieActive, true);
+
+    game.food = far;
+    game.attractFoodToCat(.01, x, y);
+    assert.equal(game.cookieActive, false, 'offscreen food does not keep the effect active');
+    assert.ok(game.cookieLickUntil > game.elapsed);
+  }
+});
+
+test('offscreen food keeps expiring while the cookie collects nearby food', () => {
+  const game = new Game(() => .5, { customLevel: level([], {
+    autoscroll: { length: 24, speed: 0, events: [] },
+  }) });
+  game.start();
+  const camera = game.camera();
+  const nearby = { x: game.cat.x + 100, y: game.cat.y, type: 'S', expires: .02 };
+  const expired = { x: camera.x + camera.width + 100, y: game.cat.y, type: 'S', expires: .02 };
+  const remaining = { x: camera.x + camera.width + 150, y: game.cat.y, type: 'S', expires: 10 };
+  game.food = [nearby, expired, remaining];
+  game.cookieActive = true;
+  game.tick(.04);
+  assert.ok(game.food.includes(nearby), 'nearby food remains available during attraction');
+  assert.ok(!game.food.includes(expired), 'distant food expires normally');
+  game.tick(.25);
+  game.tick(.01);
+  assert.equal(game.score, 1);
+  assert.equal(game.cookieActive, false);
+  assert.deepEqual(game.food, [remaining], 'distant food is neither attracted nor collected');
+});
+
+test('food entering the viewport is attracted while the cookie is still active', () => {
+  const game = new Game(() => .5, { customLevel: level([], {
+    autoscroll: { length: 24, speed: 1, events: [] },
+  }) });
+  game.start();
+  const initial = game.camera(), later = game.camera(5);
+  const y = initial.y + initial.height / 2;
+  const nearby = { x: initial.x + initial.width / 2, y, type: 'S', expires: 30 };
+  const incoming = { x: initial.x + initial.width + 20, y, type: 'S', expires: 30 };
+  assert.ok(incoming.x < later.x + later.width && incoming.x > later.x);
+  game.food = [nearby, incoming];
+  game.cookieActive = true;
+  game.attractFoodToCat(.01, game.cat.x, game.cat.y);
+  assert.equal(incoming.x, initial.x + initial.width + 20);
+  game.elapsed = 5;
+  game.attractFoodToCat(.01, game.cat.x, game.cat.y);
+  assert.ok(incoming.x < initial.x + initial.width + 20);
+});
+
 test('red, green, and blue stopwatches add their exact bonuses to the active clock', () => {
   for (const [type, seconds] of [['stopwatch', 10], ['stopwatch-green', 30], ['stopwatch-blue', 60]]) {
     const game = gameWithItem(type, 1);

@@ -19,7 +19,7 @@ const GUIDE = [
     title: 'Power-ups & risky items',
     practice: 'cookie',
     sections: [
-      [ITEMS['smiley-cookie'].name, 'Koshi opens wide and vacuums every food item on the board toward his moving mouth. He keeps moving normally, scores each snack, then licks his lips.', 'item:smiley-cookie'],
+      [ITEMS['smiley-cookie'].name, 'Koshi opens wide and vacuums food on screen and just beyond its edges toward his moving mouth. He keeps moving normally, scores each snack, then licks his lips.', 'item:smiley-cookie'],
       ['Cat Shields', 'Absorb hits before Koshi loses a heart: red absorbs 1, green 2, and blue 3. Each hit weakens the shield and changes it to the next color; another Cat Shield replaces the current one, even if it is weaker.', ['red', 'green', 'blue'].map(color => `item:cat-shield-${color}`)],
       [ITEMS.key.name, 'Collect keys from pickups or defeated key-carrying enemies. The Keys counter shows your stock. Touch a treasure chest with enough keys to spend the required number and open it.', 'item:key'],
       [ITEMS['treasure-chest'].name, 'A chest is a locked Cat Block source, not a regular pickup. Collect the required keys first, then touch the chest to open it. A chest without enough keys stays in place.', 'item:treasure-chest'],
@@ -237,7 +237,7 @@ const LESSONS = [
   { id: 'bumper', title: 'Bumpers', instruction: 'Aim through the red bumper. It bounces Koshi away and increases his speed; green preserves speed and blue reduces it.' },
   { id: 'bubble', title: 'Bubbles', instruction: 'Touch the blue bubble and wait until it releases Koshi. Bubbles hold for the matching slime duration: blue 5 seconds, green 3, red 1.' },
   { id: 'obstruction', title: 'Obstructions', instruction: 'Steer into the fixed circle, then choose another brick to route around it. Obstructions block Koshi, robots, and soccer balls.' },
-  { id: 'cookie', title: 'Smiley Cookie', instruction: 'Collect the Smiley Cookie and travel through the strawberries. It attracts food across the board while Koshi keeps moving.' },
+  { id: 'cookie', title: 'Smiley Cookie', instruction: 'Collect the Smiley Cookie and travel through the strawberries. It attracts food on screen and just beyond its edges while Koshi keeps moving.' },
   { id: 'stopwatch', title: 'Stopwatches', instruction: 'Collect the red Stopwatch to add ten seconds to the level clock. Green adds 30 seconds; blue adds 60.' },
   { id: 'boom-time', title: 'Boom Times', instruction: 'Collect the blue Boom Time before steering. It adds eight activations to this practice helmet; red adds one and green adds three.' },
   { id: 'battery', title: 'Battery recharge', instruction: 'Collect the Battery, then touch the already-used heart spawner to spend it and make the spawner produce an item again.' },
