@@ -213,6 +213,7 @@ const LESSONS = [
   { id: 'cat-shield', title: 'Cat Shields', instruction: 'Collect the blue Cat Shield, then touch the Robo Mouse. It absorbs three hits, changing blue to green to red before it breaks; your hearts stay full.' },
   { id: 'wheel', title: 'Robo Wheel', instruction: 'Aim at the outlined brick to collect a sword and intercept a wheel at the inner perimeter. Unlike a mouse, it keeps rolling along the wall.' },
   { id: 'goalie', title: 'Robo Goalie', instruction: 'Collect a sword and intercept the Goalie. It guards a Goal and cannot hurt Koshi, but it can block soccer shots.' },
+  { id: 'striker', title: 'Robo Striker', instruction: 'Collect a sword and intercept the harmless Striker before he pushes the soccer ball into the team Koshi Goal.' },
   { id: 'robo-snail', title: 'Robo Snail', instruction: 'Collect a sword and defeat the continuously wandering Snail. Watch every brick cooldown freeze for 20 seconds after the defeat.' },
   { id: 'robo-fly', title: 'Robo Fly', instruction: 'Collect a sword and intercept the small Robo Fly. Its quick curved flight never pauses, so aim ahead or use Boost when it comes close.' },
   { id: 'robo-trash-bin', title: 'Robo Trash Bin', instruction: 'Collect a sword and intercept the floating Trash Bin before it pours colored slime onto a brick.' },
@@ -441,7 +442,7 @@ class Tutorial {
       game.cat.x = this.target.x - game.cat.radius;
       game.robots.push({ ...along(.5), type: 'mouse', radius: 19, phase: 0, age: 4.5, touching: false });
     }
-    if (['mouse', 'wheel', 'goalie', 'robo-snail', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    if (['mouse', 'wheel', 'goalie', 'striker', 'robo-snail', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
       'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives'].includes(id)) {
       addSword();
       if (['wheel', 'snake', 'robo-cow'].includes(id)) {
@@ -457,16 +458,19 @@ class Tutorial {
           game.placeWheel(enemy);
         }
         game.robots.push(enemy);
-      } else if (id === 'goalie') {
+      } else if (id === 'goalie' || id === 'striker') {
         const goal = game.bricks.find(brick => regions.get(brick.id).edge === 'left' && brick.absorbedBy === null);
         goal.kind = 'goal';
+        if (id === 'striker') goal.goalTeam = 'koshi';
         game.brickRevision++;
         const bounds = game.bounds();
         const enemy = game.createCustomSpawn({ kind: 'enemy', type: id,
           x: (along(.8).x - bounds.left) / (bounds.right - bounds.left),
           y: (along(.8).y - bounds.top) / (bounds.bottom - bounds.top) })[0];
         game.robots.push(enemy);
-        game.soccerBalls.push(game.createSoccerBall(along(.45)));
+        const ball = along(id === 'goalie' ? .45 : .8);
+        if (id === 'striker') ball.y = Math.max(bounds.top + 16, ball.y - 100);
+        game.soccerBalls.push(game.createSoccerBall(ball));
       } else if (id === 'ram') {
         const enemy = game.createCustomSpawn({ kind: 'enemy', type: 'ram', x: .72, y: .5 })[0];
         game.robots.push(enemy);
@@ -610,6 +614,7 @@ class Tutorial {
       mouse: game.enemies >= 1,
       wheel: game.enemies >= 1,
       goalie: game.enemies >= 1,
+      striker: game.enemies >= 1,
       'robo-snail': game.enemies >= 1 && game.snailStreamUntil > game.elapsed,
       'robo-fly': game.enemies >= 1,
       'robo-trash-bin': game.enemies >= 1,

@@ -26,7 +26,7 @@ function opposite(tutorial) {
 
 test('guide covers all playable topics and lessons have unique freely selectable IDs', () => {
   assert.equal(GUIDE.length, 11);
-  assert.equal(LESSONS.length, 73);
+  assert.equal(LESSONS.length, 74);
   assert.equal(new Set(LESSONS.map(lesson => lesson.id)).size, LESSONS.length);
   for (const chapter of GUIDE) {
     assert.ok(LESSONS.some(lesson => lesson.id === chapter.practice), `missing practice link for ${chapter.title}`);
@@ -257,6 +257,23 @@ test('attackable enemy lessons require defeating every robot type with a sword',
   }
 });
 
+test('Striker practice supplies a Koshi goal and soccer ball and does not complete without a defeat', () => {
+  for (const options of [{}, { portrait: true, scale: .3 }]) {
+    const tutorial = practice('striker', options), game = tutorial.game;
+    assert.ok(game.bricks.some(brick => brick.kind === 'goal' && brick.goalTeam === 'koshi'));
+    assert.equal(game.soccerBalls.length, 1);
+    wait(tutorial, .3);
+    assert.equal(game.robots[0]?.type, 'striker');
+    assert.equal(game.enemies, 0);
+    assert.equal(tutorial.observe(), false);
+    assert.equal(aim(tutorial), true);
+    wait(tutorial, 2);
+    assert.equal(game.enemies, 1);
+    assert.equal(tutorial.observe(), true);
+    assert.equal(game.hearts, 3);
+  }
+});
+
 test('Love Bug practice teaches barrier isolation instead of sword attacks', () => {
   for (const options of [{}, { portrait: true, scale: .3 }]) {
     const tutorial = practice('robo-love-bug', options);
@@ -431,7 +448,7 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
   });
 
   test(`sword pickups and enemy intercepts complete without damage on ${layout}`, () => {
-    for (const id of ['mouse', 'wheel', 'ram', 'bucket', 'objectives']) {
+    for (const id of ['mouse', 'wheel', 'striker', 'ram', 'bucket', 'objectives']) {
       for (const sword of Object.keys(WEAPONS).filter(type => !WEAPONS[type].ropeDart)) {
         const tutorial = new Tutorial(); tutorial.sword = sword; tutorial.select(indexOf(id), options);
         aim(tutorial); wait(tutorial, .9);

@@ -278,7 +278,7 @@ illustrate every brick, enemy, item, object, and weapon using the gameplay shape
 Story instructions are not part of this guide. Each topic links to a related
 tutorial step. Escape or Back to title closes the guide.
 
-The interactive tutorial uses the actual game board and mechanics in 56 isolated
+The interactive tutorial uses the actual game board and mechanics in 74 isolated
 practice steps. It includes a hands-on defeat lesson for every robot, exercises
 for every item mechanic and contact surface, special brick interactions, and
 bumper, bubble, and obstruction practice, as well as movement, food, healing,
