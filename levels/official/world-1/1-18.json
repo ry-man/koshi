@@ -167,7 +167,8 @@
       "type": "wheel",
       "x": 1,
       "y": 0.9797372522823424,
-      "shield": null
+      "shield": null,
+      "carriesItem": "cat-block"
     },
     {
       "time": 35,
@@ -216,6 +217,18 @@
   "bossLevel": false,
   "killGoal": 0,
   "survive": false,
+  "catBlock": {
+    "description": "To earn Cat Brick: Defeat the enemy carrying it then collect it.",
+    "messages": {
+      "item": "Koshi found the Cat Block!",
+      "enemy": "Koshi found a Cat Block carried by an enemy!",
+      "chest": "Koshi opened the treasure chest and found the Cat Block!",
+      "achievement": "Koshi earned the Cat Brick!"
+    },
+    "trigger": {
+      "type": "carrier"
+    }
+  },
   "cutscene": {
     "theme": "happy-meadows",
     "lines": [
