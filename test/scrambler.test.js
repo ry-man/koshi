@@ -76,7 +76,7 @@ test('Scrambler validates in custom levels and item spawners without campaign pl
   game.spawnFromBrick(game.bricks.find(brick => brick.spawner));
   assert.ok(game.items.some(item => item.type === 'scrambler'));
   assert.equal(ITEMS.scrambler.name, 'Scrambler');
-  assert.equal(LEVELS.some(campaign => JSON.stringify(campaign).includes('"scrambler"')), false);
+  assert.equal(LEVELS.filter(campaign => campaign.worldId !== '5').some(campaign => JSON.stringify(campaign).includes('"scrambler"')), false);
   assert.ok(GUIDE.some(chapter => chapter.sections.some(section => section[2] === 'item:scrambler')));
   assert.ok(spawnSymbol({ kind: 'item', type: 'scrambler' }).includes('M0 -22'));
   assert.equal(spawnColor({ kind: 'item', type: 'scrambler' }), ITEMS.scrambler.color);

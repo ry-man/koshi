@@ -49,7 +49,7 @@ test('three Rope Dart variants use the matching weapon colors and 3/5/10 shots w
       brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal', spawner: { kind: 'weapon', type } }],
     });
     assert.deepEqual(validateCustomLevel(level), level);
-    assert.equal(JSON.stringify(LEVELS).includes(type), false);
+    assert.equal(JSON.stringify(LEVELS.filter(campaign => campaign.worldId !== '5')).includes(type), false);
     assert.equal(spawnColor({ kind: 'weapon', type }), SWORDS[metal].color);
     assert.match(spawnSymbol({ kind: 'weapon', type }), /^M0 -27/);
     const game = new Game(() => .5, { customLevel: level });

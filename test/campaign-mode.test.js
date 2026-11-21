@@ -177,7 +177,7 @@ test('classic browser startup selects Official levels and leaves Beta content in
   assert.equal(official.context.KoshiCampaign.WORLDS.length, 18);
   assert.equal(official.context.KoshiGame.LEVELS.length, officialCount);
   assert.equal(Object.keys(official.context.KoshiCampaign.OFFICIAL_LEVEL_DATA).length, officialCount);
-  assert.equal(official.context.KoshiCampaign.BETA_WORLDS.length, 5);
+  assert.equal(official.context.KoshiCampaign.BETA_WORLDS.length, 6);
   assert.equal(official.errors.length, 0);
   const beta = browserFixture({ search: '?game=beta' });
   assert.equal(JSON.stringify(beta.context.KoshiGame.LEVELS), JSON.stringify(engine.LEVELS));

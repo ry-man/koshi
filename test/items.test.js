@@ -115,7 +115,7 @@ test('anvil carriers and spawners validate and spawn the item without adding it 
   const [enemy] = game.createCustomSpawn(custom.events[0]);
   game.defeatEnemy(enemy);
   assert.equal(game.items[0].type, 'anvil');
-  assert.equal(JSON.stringify(LEVELS).includes('"anvil"'), false);
+  assert.equal(JSON.stringify(LEVELS.filter(campaign => campaign.worldId !== '5')).includes('"anvil"'), false);
   const { spawnSymbol, spawnColor } = require('../src/brick-visuals.js');
   assert.match(spawnSymbol({ kind: 'item', type: 'anvil' }), /^M-26 -13/);
   assert.equal(spawnColor({ kind: 'item', type: 'anvil' }), ITEMS.anvil.color);

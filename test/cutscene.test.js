@@ -424,7 +424,7 @@ test('all campaign scenes validate and every campaign story character speaks', (
   const speakers = new Set();
   for (const level of LEVELS) {
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
-    for (const line of level.cutscene.lines) speakers.add(line.speaker);
+    if (level.worldId !== '5') for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
   assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['striker', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'tom-frog'].includes(character)).sort());
   assert.ok(!speakers.has('striker'), 'custom-only enemies do not change campaign scenes');
@@ -433,7 +433,7 @@ test('all campaign scenes validate and every campaign story character speaks', (
   assert.ok(!speakers.has('robo-trash-bin'), 'custom-only enemies do not change campaign scenes');
   assert.ok(!speakers.has('robo-moon'), 'custom-only enemies do not change campaign scenes');
   assert.ok(!speakers.has('robo-sharpshooter'), 'custom-only enemies do not change campaign scenes');
-  const beforeWorldFour = new Set(LEVELS.filter(level => level.worldId !== '4')
+  const beforeWorldFour = new Set(LEVELS.filter(level => !['4', '5'].includes(level.worldId))
     .flatMap(level => level.cutscene.lines.map(line => line.speaker)));
   assert.ok(!beforeWorldFour.has('robo-crab'), 'Crabs do not change earlier campaign scenes');
   assert.ok(!beforeWorldFour.has('robo-love-bug'), 'Love Bugs do not change earlier campaign scenes');

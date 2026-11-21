@@ -128,7 +128,7 @@ test('Chisel artwork, custom placement, and spawner support do not add it to cam
   assert.equal(game.items[0].type, 'chisel');
   assert.equal(ITEMS.chisel.name, 'Chisel');
   assert.ok(spawnSymbol({ kind: 'item', type: 'chisel' }).includes('M-25 -18'));
-  assert.ok(LEVELS.every(campaign => !(campaign.items ?? []).some(([, type]) => type === 'chisel')
+  assert.ok(LEVELS.filter(campaign => campaign.worldId !== '5').every(campaign => !(campaign.items ?? []).some(([, type]) => type === 'chisel')
     && !(campaign.events ?? []).some(event => event.kind === 'item' && event.type === 'chisel')
     && !campaign.brickTypes.some(brick => brick.spawner?.kind === 'item' && brick.spawner.type === 'chisel')));
 });

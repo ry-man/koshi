@@ -1759,8 +1759,316 @@ const ROLLING_ROAD_LEVEL_DATA = [
     [entry.enemy ?? 'mouse']),
   };
 });
+const FRONTIER_LEVEL_DATA = [
+  {
+    name: 'Anvil appetizers', concept: 'anvil', survive: true, item: 'anvil',
+    dialogue: [
+      ['tom', 'Quack! I am Tom the Duck, mastermind of every robot and your greatest enemy. My army will conquer the world and lock up every last appetizer!'],
+      ['koshi', 'Not while my tummy rumbles, Tom! I will fight your robots, save the world, and taste every snack along the way.'],
+      ['tom', 'Your swords will wear out long before my robots do!'],
+      ['koshi', 'Not with this Anvil! It refills my weapon to full strength: every strike for a sword or hammer, or a fresh timer for an axe. It never stacks, so I should use my strikes first.'],
+    ],
+  },
+  {
+    name: 'Trash bin takeout', concept: 'robo trash bin', killGoal: 6, enemy: 'robo-trash-bin',
+    dialogue: [
+      ['tom', 'My Robo Trash Bins will cover your bricks in slime. A sticky world makes a terrible picnic table!'],
+      ['robo-trash-bin', 'I float to a brick, tip over and pour for three seconds. Then that whole brick group is coated in red, green or blue slime!'],
+      ['koshi', 'I will knock those bins over before they finish pouring. Nobody spills rubbish on my takeout food!'],
+    ],
+  },
+  {
+    name: 'Chop suey showdown', concept: 'battle axe', goal: 30, killGoal: 4, weapon: 'axe',
+    dialogue: [
+      ['tom', 'My robots have seized the noodle shops of the world. You will never chop your way through them!'],
+      ['koshi', 'Battle Axes! Silver swings for 6 seconds and gold for 12, with unlimited strikes until time runs out. Each contact deals one hit.'],
+      ['koshi', 'Chop chop, it is time for chop suey!'],
+    ],
+  },
+  {
+    name: 'Chiseled cheese wheel', concept: 'chisel', survive: true, item: 'chisel', layout: 'chisel',
+    dialogue: [
+      ['tom', 'I built three giant four-brick walls around my cheese wheel: one blue, one green and one red. The world\'s cheese is mine!'],
+      ['koshi', 'A Chisel floats beside me until I touch a merged brick. Then it splits the whole group into single bricks with the same type, so I have more places to aim.'],
+    ],
+  },
+  {
+    name: 'Scrambled egg surprise', concept: 'scrambler', goal: 40, item: 'scrambler', layout: 'scrambler',
+    dialogue: [
+      ['tom', 'Look at my giant five-brick Cinder wall! Cinder can never be selected, so that whole edge of the breakfast table is useless.'],
+      ['koshi', 'A Scrambler shuffles brick types and modifiers among the brick groups while their sizes stay put. With luck, the Cinder moves onto a smaller brick!'],
+      ['koshi', 'Scrambled eggs for the world, coming right up!'],
+    ],
+  },
+  {
+    name: 'Ice cream rink', concept: 'ice terrain', killGoal: 6, terrain: 'ice',
+    dialogue: [
+      ['tom', 'I froze the world\'s ice cream parlor into a skating rink! Let\'s see you steer on that.'],
+      ['koshi', 'On ice I keep my direction until I leave it or stop. My next brick choice waits in line until then, so I will aim before I slide!'],
+    ],
+  },
+  {
+    name: 'Skating to the sundae bar', concept: 'ice skates', goal: 30, killGoal: 4,
+    terrain: 'ice', item: 'ice-skate',
+    dialogue: [
+      ['tom', 'More ice around my sundae bar! You will slide right past every scoop.'],
+      ['koshi', 'Not with Ice Skates! I can change direction on ice whenever I like: red skates last 5 seconds, green 15 and blue 30. The world deserves dessert!'],
+    ],
+  },
+  {
+    name: 'Noodle lasso lunch', concept: 'rope dart', killGoal: 8, weapon: 'rope-dart',
+    dialogue: [
+      ['tom', 'My robots guard the world\'s noodle bars from a safe distance. You cannot reach them!'],
+      ['koshi', 'A Rope Dart flies along my chosen line when I pick a brick while resting. Every robot it crosses takes a hit, then it pulls me to where it stuck. Bronze has 3 shots, silver 5 and gold 10.'],
+    ],
+  },
+  {
+    name: 'Sharpshooter sushi stand', concept: 'robo sharpshooter', survive: true, enemy: 'robo-sharpshooter',
+    dialogue: [
+      ['tom', 'Robo Sharpshooters, guard my sushi stand! Nobody in the world gets a single roll.'],
+      ['robo-sharpshooter', 'When my sunglasses flash, I fire three crossbow arrows at you. Bricks, barriers, obstructions and bumpers stop them.'],
+      ['koshi', 'I will keep moving and duck behind something solid while I snack!'],
+    ],
+  },
+  {
+    name: 'Molten fondue', concept: 'lava terrain', goal: 40, terrain: 'lava',
+    dialogue: [
+      ['tom', 'I melted the world\'s cheese into a fondue of hot lava! One wrong move and you are toast.'],
+      ['koshi', 'Lava is no bath for a cat! If I touch it, I lose right away, even with full hearts. I will plan each path around it and only dip bread in the fondue.'],
+    ],
+  },
+  {
+    name: 'Catnip cafe crossfire', concept: 'robo cat lady', goal: 30, killGoal: 4, enemy: 'robo-cat-lady',
+    bricks: [{ slimed: true, slimeColor: 'green' }, { spikes: true }],
+    dialogue: [
+      ['tom', 'My Robo Cat Ladies have taken over the world\'s catnip cafe, with slime and spikes on the walls!'],
+      ['robo-cat-lady', 'When my red laser dot appears, you must chase it until you stop! I often aim at spiked or slimed bricks, bubbles, or other robots.'],
+      ['koshi', 'I cannot resist a laser dot, but I can watch the dotted line grow and plan ahead. Then it is back to my catnip latte!'],
+    ],
+  },
+  {
+    name: 'World Cupcake', concept: 'team goals', teamGoalsGoal: 7, layout: 'team',
+    dialogue: [
+      ['tom', 'Welcome to the World Cupcake final! The winning team takes every cupcake in the world.'],
+      ['striker', 'Robo Strikers play for team Enemy. We kick balls into the goal with Koshi\'s face on it!'],
+      ['goalie', 'And Robo Goalies guard team Enemy\'s goal. Two of us will take the field at different times.'],
+      ['koshi', 'Then I kick balls into team Enemy\'s goal and keep yours out of mine. If time runs out first, I lose!'],
+    ],
+  },
+  {
+    name: 'Popcorn penalty kicks', concept: 'exploding soccer balls', goal: 25, goalsGoal: 3, balls: 'explosive',
+    dialogue: [
+      ['tom', 'My popcorn stand only serves exploding soccer balls! Pop, pop, boom!'],
+      ['koshi', 'Explosive balls count down from 30 if blue, 15 if green and 5 if red. At zero they hurt Koshi and robots nearby, but a ball that scores never explodes. Popcorn for the world!'],
+    ],
+  },
+  {
+    name: 'Jumbo meatball match', concept: 'jumbo soccer balls', killGoal: 4, goalsGoal: 3, balls: 'jumbo',
+    dialogue: [
+      ['tom', 'My giant meatballs are jumbo soccer balls! Good luck moving them.'],
+      ['koshi', 'Jumbo balls are twice as wide and push regular balls aside. I must aim carefully so they fit through the goal. Spaghetti and meatballs for the whole world!'],
+    ],
+  },
+  {
+    name: 'Moon pie high tide', concept: 'robo moon', killGoal: 6, enemy: 'robo-moon',
+    dialogue: [
+      ['tom', 'Robo Moons, raise the tides and wash the world\'s moon pies out to sea!'],
+      ['robo-moon', 'I wander, then glow as a full moon. My purple tide creeps in from every border and hurts you until it drains away.'],
+      ['koshi', 'When a moon turns full, I will rest away from the edges. Defeating a moon sends its tide straight back!'],
+    ],
+  },
+  {
+    name: 'Seafood splash', concept: 'water terrain', survive: true, terrain: 'water',
+    dialogue: [
+      ['tom', 'I flooded the world\'s seafood market! Cats hate getting wet.'],
+      ['koshi', 'If I fall in the water, I sink, pop up where I went in, and lose 1 heart. It does not end the level like lava, but I will still keep my paws dry near the shrimp.'],
+    ],
+  },
+  {
+    name: 'Surf and turf', concept: 'surf board', goal: 40, killGoal: 4, terrain: 'water', item: 'surf-board',
+    dialogue: [
+      ['tom', 'My last feast sits beyond the deepest water in the world. You will never reach the surf and turf!'],
+      ['koshi', 'With a Surf Board I glide over water without sinking: red lasts 5 seconds, green 15 and blue 30. It does not protect me from lava.'],
+      ['tom', 'You saved this feast, but my robots will be back. Quack!'],
+    ],
+  },
+].map((entry, index) => {
+  // Seed each authored lesson independently; reloads never reroll campaign content.
+  let seed = (0x46454153 ^ Math.imul(index + 1, 0x9e3779b9)) >>> 0;
+  const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const sample = (pool, count) => {
+    const remaining = [...pool], result = [];
+    while (result.length < count && remaining.length) result.push(remaining.splice(Math.floor(random() * remaining.length), 1)[0]);
+    return result;
+  };
+  // Team goalies and strikers need both team goals on one stationary screen.
+  const scroll = random() < .25 && entry.layout !== 'team';
+  const duration = entry.layout === 'team' ? 180 : 110;
+  const autoscroll = scroll ? { length: 16, speed: 8 / duration, events: [] } : null;
+  const bricks = makeBricks(true, 1, autoscroll?.length);
+  const special = {
+    chisel: scroll ? [[12, 14, 16, 18], [23, 25, 27, 29], [32, 34, 36, 38]] : [[2, 4, 6, 8], [15, 17, 19, 21], [12, 14, 16, 18]],
+    scrambler: [[0, 2, 4, 6, 8]],
+    team: [[2, 4], [5, 7]],
+  }[entry.layout] ?? [];
+  const groups = [...special, ...(entry.layout === 'chisel' ? scroll ? [[3, 5]] : []
+    : entry.layout === 'scrambler' ? scroll ? [[3, 5], [12, 14], [13, 15], [24, 26, 28], [31, 33, 35], [36, 38]]
+      : [[12, 14], [19, 21], [16, 18, 20]]
+      : entry.layout === 'team' ? [[19, 21], [16, 18, 20]]
+        : scroll ? [[2, 4], [3, 5], [12, 14], [13, 15], [24, 26, 28], [31, 33, 35]]
+          : FOUNDRY_LAYOUTS[['x', 'y', 'z'][index % 3]])];
+  const brickGroups = groups.map(members => ({ owner: members[0], members }));
+  const owners = new Map(groups.flatMap(members => members.map(id => [id, members[0]])));
+  const active = bricks.filter(brick => !owners.has(brick.id) || owners.get(brick.id) === brick.id);
+  const attributes = new Map(active.map((brick, i) => [brick.id, { kind: ['normal', 'slow', 'fast'][i % 3] }]));
+  if (entry.layout === 'chisel') special.forEach(([owner], i) => { attributes.get(owner).kind = ['slow', 'normal', 'fast'][i]; });
+  if (entry.layout === 'scrambler') attributes.get(0).kind = 'cinder';
+  if (entry.layout === 'team') {
+    Object.assign(attributes.get(2), { kind: 'goal', goalTeam: 'enemy' });
+    Object.assign(attributes.get(5), { kind: 'goal', goalTeam: 'koshi' });
+  }
+  const palette = [
+    { crumbler: 8 }, { warped: 6 }, { slimed: true, slimeColor: 'blue' }, { springs: true },
+    { spikes: true }, { conveyor: true }, { boost: true }, { toggle: 2 }, { barrier: true },
+    { turret: 'fireball' }, { turret: 'laser' }, { power: true },
+    { hazard: { type: 'flame', power: 'yellow' } }, { hazard: { type: 'missile', interval: 8, power: 'yellow' } },
+    { hazard: { type: 'laser', power: 'yellow' } }, { hazard: { type: 'bubble-blue', power: 'yellow', interval: 6 } },
+    { hazard: { type: 'bumper-red', power: 'yellow', interval: 6 } },
+  ];
+  const featured = [...entry.bricks ?? [], ...(entry.balls ? [{ kind: 'goal' }] : [])];
+  const signature = brick => brick.kind ?? (brick.hazard ? brick.hazard.type
+    : brick.turret ? `turret-${brick.turret}` : Object.keys(brick)[0]);
+  const returning = sample(palette.filter(brick => !featured.some(feature => signature(feature) === signature(brick))),
+    1 + Math.floor(random() * 4));
+  // Powered returning hazards always come with a usable switch.
+  if (returning.some(brick => brick.hazard?.power) && !returning.some(brick => brick.power)) {
+    const switchIndex = returning.findIndex(brick => !brick.hazard);
+    if (switchIndex >= 0) returning[switchIndex] = { power: true };
+    else if (returning.length < 4) returning.push({ power: true });
+    else returning[0] = { power: true };
+  }
+  const reserved = new Set(special.map(members => members[0]));
+  const candidates = active.filter(brick => !reserved.has(brick.id) && brick.region.start > 0 && brick.region.end < 1)
+    .sort((a, b) => a.region.start - b.region.start || a.id - b.id);
+  const zones = scroll ? Array.from({ length: 3 }, (_, i) =>
+    candidates.slice(Math.floor(i * candidates.length / 3), Math.floor((i + 1) * candidates.length / 3))) : [candidates];
+  for (const zone of zones) {
+    const available = sample(zone, zone.length);
+    for (const feature of [...featured, ...returning]) {
+      const copies = scroll ? 1 : featured.includes(feature) ? 3 : 1;
+      for (let i = 0; i < copies; i++) Object.assign(attributes.get(available.shift().id), feature);
+    }
+  }
+  const brickTypes = bricks.map(brick => ({
+    ...brick.region, ...attributes.get(owners.get(brick.id) ?? brick.id),
+  }));
+  const events = [];
+  const height = boardDimensions(true, 1, autoscroll?.length).height;
+  const inset = 8 + 45 + 25;
+  const place = (kind, type, time, x = .5, y = .5, extra = {}) => {
+    if (autoscroll) {
+      const camera = cameraAt(autoscroll, time, true);
+      y = (camera.y + inset + y * (camera.height - inset * 2) - inset) / (height - inset * 2);
+    }
+    events.push({ time, kind, type, x, y,
+      ...(['food', 'item', 'weapon'].includes(kind) ? { lifetime: Math.min(28, duration - time) } : {}), ...extra });
+  };
+  CAMPAIGN_FOOD_ORDER.forEach((type, wave) => {
+    for (let i = 0; i < 4; i++) place('food', type, 3 + wave * 12, .2 + i * .2, .35 + (wave % 2) * .3);
+  });
+  // Robots introduced in World 5 join the pool only after their lessons.
+  const introductions = [['robo-trash-bin', 1], ['robo-sharpshooter', 8], ['robo-cat-lady', 10], ['robo-moon', 14]];
+  const enemyPool = ['mouse', 'ram', 'bucket', 'ball', 'jackolantern', 'robo-snail', 'robo-unicorn', 'robo-koshi', 'robo-crab',
+    ...introductions.filter(([, introduced]) => introduced < index).map(([type]) => type)];
+  const supporting = sample(enemyPool.filter(type => type !== entry.enemy), entry.enemy ? 1 : 2);
+  const enemyTypes = entry.enemy ? [entry.enemy, supporting[0]] : supporting;
+  const team = entry.layout === 'team';
+  const count = team ? 6 : 12;
+  for (let i = 0; i < count; i++) {
+    const type = enemyTypes[i % enemyTypes.length];
+    const shield = i === 9 ? 'red' : index % 3 === 0 && i === 10 ? 'green'
+      : index % 6 === 0 && i === 11 ? 'blue' : null;
+    place('enemy', type, team ? 20 + i * 25 : 4 + i * 8, .2 + (i % 4) * .2, .25 + (i % 2) * .5,
+      { ...(shield ? { shield } : {}), ...(type === 'robo-crab' ? { crabDirection: i % 2 ? 'vertical' : 'horizontal' } : {}) });
+  }
+  if (team) {
+    for (const [time, type, x] of [[5, 'striker', .3], [10, 'goalie', .5], [60, 'striker', .7], [70, 'goalie', .5]]) {
+      place('enemy', type, time, x, type === 'goalie' ? .3 : .6);
+    }
+  } else if (entry.balls) place('enemy', 'goalie', 30, .5, .5);
+  const weaponPool = ['bronze', 'silver', 'gold', 'hammer-silver',
+    ...(index > 2 ? ['axe-silver', 'axe-gold'] : []),
+    ...(index > 7 ? ['rope-dart-bronze', 'rope-dart-silver', 'rope-dart-gold'] : [])];
+  const featuredWeapons = { axe: ['axe-silver', 'axe-gold'], 'rope-dart': ['rope-dart-silver', 'rope-dart-gold', 'rope-dart-bronze'] }[entry.weapon];
+  const weaponTimes = team ? [0, 30, 60, 90, 120, 150] : [0, 20, 40, 60, 80];
+  for (const [i, time] of weaponTimes.entries()) {
+    place('weapon', featuredWeapons ? featuredWeapons[i % featuredWeapons.length]
+      : i < 2 ? 'silver' : weaponPool[Math.floor(random() * weaponPool.length)], time, .5, .65);
+  }
+  const goalLevel = team || entry.balls;
+  const pickups = [
+    ['item', 'smiley-cookie'], ['item', 'music-box'], ['item', 'magic-sunglasses'], ['item', 'kitty-cape'],
+    ['item', 'spooky-mask'], ['item', 'battery'], ['item', 'paint-pencil-red'], ['item', 'saw-blade'],
+    ['item', 'cat-shield-red'], ['object', 'bumper-green'], ['object', 'bumper-red'], ['object', 'bubble-blue'],
+    ['object', 'obstruction-circle'], ['object', 'obstruction-diamond'], ['object', 'cat-circle'],
+    ...(index > 0 ? [['item', 'anvil']] : []),
+    ...(goalLevel ? [] : [['item', 'ditto-stamp'], ...(index > 3 ? [['item', 'chisel']] : []),
+      ...(index > 4 ? [['item', 'scrambler']] : [])]),
+  ].filter(([, type]) => type !== entry.item);
+  for (const [i, [kind, type]] of sample(pickups, 1 + Math.floor(random() * 2)).entries()) {
+    place(kind, type, 10 + i * 35, i ? .7 : .3, .5);
+  }
+  if (entry.item) {
+    const colored = ['ice-skate', 'surf-board'].includes(entry.item);
+    for (const [i, time] of [entry.item === 'scrambler' ? 5 : 0, 35, 70].entries()) {
+      place('item', colored ? `${entry.item}-${['green', 'red', 'blue'][i]}` : entry.item, time, .4, .4);
+    }
+  }
+  const SOCCER_SPOTS = [[.3, .4], [.7, .4], [.5, .5], [.3, .6], [.7, .6]];
+  if (team) {
+    for (let i = 0; i < 16; i++) place('object', 'soccer-ball', i * 10, ...SOCCER_SPOTS[i % SOCCER_SPOTS.length]);
+  } else if (entry.balls === 'explosive') {
+    for (let i = 0; i < 12; i++) {
+      place('object', ['soccer-ball-blue', 'soccer-ball', 'soccer-ball-green', 'soccer-ball-red'][i % 4], i * 8,
+        ...SOCCER_SPOTS[i % SOCCER_SPOTS.length]);
+    }
+  } else if (entry.balls === 'jumbo') {
+    for (let i = 0; i < 10; i++) {
+      place('object', i % 5 === 4 ? 'soccer-ball-jumbo-green' : 'soccer-ball-jumbo', i * 9,
+        ...SOCCER_SPOTS[i % SOCCER_SPOTS.length]);
+    }
+  }
+  const rectangle = (id, type, x1, y1, x2, y2) => ({ id, type,
+    nodes: [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }] });
+  const terrainArea = {
+    ice: scroll ? [[.03, .15, .13, .45], [.87, .55, .97, .85]] : [[.05, .04, .95, .19], [.05, .81, .95, .96]],
+    lava: scroll ? [[.03, .3, .13, .4], [.87, .6, .97, .7]] : [[.3, .06, .7, .17], [.3, .83, .7, .94]],
+    water: scroll ? [[.03, .2, .14, .45], [.86, .55, .97, .8]] : [[.12, .04, .88, .19], [.12, .81, .88, .96]],
+  }[entry.terrain] ?? [];
+  const terrains = terrainArea.map((area, i) => rectangle(`${entry.terrain}-${i + 1}`, entry.terrain, ...area));
+  events.sort((a, b) => a.time - b.time);
+  const foodPoints = events.reduce((sum, event) => sum + (event.kind === 'food' ? FOODS[event.type].value : 0), 0);
+  const objective = entry.survive ? `survive for ${duration} seconds`
+    : entry.teamGoalsGoal ? `help team Koshi score ${entry.teamGoalsGoal} goals before team Enemy`
+      : [entry.goal && `collect ${entry.goal} food points`, entry.killGoal && `earn ${entry.killGoal} enemy points`,
+        entry.goalsGoal && `score ${entry.goalsGoal} soccer goals`].filter(Boolean).join(' and ');
+  const cast = [...new Set(events.filter(event => event.kind === 'enemy').map(event => event.type))]
+    .sort((a, b) => (b === entry.enemy) - (a === entry.enemy) || ['striker', 'goalie'].indexOf(b) - ['striker', 'goalie'].indexOf(a))
+    .slice(0, 2);
+  return {
+    id: `1-${75 + index}`, name: entry.name, concept: entry.concept, duration,
+    goal: entry.goal ?? 0, killGoal: entry.killGoal ?? 0, goalsGoal: entry.goalsGoal ?? 0,
+    ...(entry.teamGoalsGoal ? { teamGoalsGoal: entry.teamGoalsGoal } : {}),
+    survive: entry.survive ?? false, heartCost: Math.ceil(foodPoints / 5), brickSet: 3,
+    brickTypes, brickGroups, food: [], enemies: [], items: [], weapons: [], events,
+    ...(autoscroll ? { autoscroll } : {}), ...(terrains.length ? { terrains } : {}),
+    cutscene: story('garden', [...entry.dialogue,
+      ['koshi', `I must ${objective}${entry.survive || entry.teamGoalsGoal ? '.' : ` within ${duration} seconds.`} Then it is snack time!`]],
+    cast),
+  };
+});
 const LEVEL_DATA = {};
-for (const level of [...BASE_LEVEL_DATA, ...FOUNDRY_LEVEL_DATA, ...CHALLENGE_LEVEL_DATA, ...SCROLLER_LEVEL_DATA, ...ROLLING_ROAD_LEVEL_DATA]) {
+for (const level of [...BASE_LEVEL_DATA, ...FOUNDRY_LEVEL_DATA, ...CHALLENGE_LEVEL_DATA, ...SCROLLER_LEVEL_DATA, ...ROLLING_ROAD_LEVEL_DATA, ...FRONTIER_LEVEL_DATA]) {
   if (Object.hasOwn(LEVEL_DATA, level.name)) throw new Error(`Duplicate level name: ${level.name}`);
   LEVEL_DATA[level.name] = level;
 }

@@ -147,7 +147,7 @@ test('autoscroll round-trips, sorts independent speed events, and rejects invali
     { length: 16, speed: 0, events: [{ time: 10, speed: -1 }] },
     { length: 16, speed: 0, events: [{ time: 10, speed: 1 }, { time: 10, speed: 0 }] },
   ]) assert.throws(() => validateCustomLevel({ ...blank(), autoscroll: scroll }), TypeError);
-  assert.ok(LEVELS.filter(level => level.worldId !== '4').every(level => level.autoscroll === undefined));
+  assert.ok(LEVELS.filter(level => !['4', '5'].includes(level.worldId)).every(level => level.autoscroll === undefined));
 });
 
 test('long boards add bricks without scaling their geometry, including phone thickness', () => {

@@ -31,7 +31,7 @@ test('only silver and golden battle axes exist and no campaign content uses them
     assert.equal(WEAPONS[type].seconds, seconds);
     assert.equal(WEAPONS[type].color, SWORDS[sword].color);
     assert.equal(WEAPONS[type].uses, undefined);
-    assert.equal(JSON.stringify(LEVELS).includes(type), false);
+    assert.equal(JSON.stringify(LEVELS.filter(level => level.worldId !== '5')).includes(type), false);
   }
 });
 

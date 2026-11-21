@@ -16,7 +16,7 @@ test('Rolling Road preserves 4-1 and connects its lessons only from World 3', ()
   assert.equal(world.special, false);
   assert.deepEqual(WORLDS.find(entry => entry.id === '3').next, ['4']);
   assert.deepEqual(WORLDS.find(entry => entry.id === '3S').next, []);
-  assert.deepEqual(world.next, []);
+  assert.deepEqual(world.next, ['5']);
   assert.equal(index, 61);
   assert.equal(level.id, '1-61');
   assert.equal(level.name, 'The rolling buffet');

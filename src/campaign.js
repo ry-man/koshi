@@ -84,7 +84,7 @@ const WORLDS = [
     },
   },
   {
-    id: '4', name: 'Rolling Road', theme: 'workshop', special: false, next: [],
+    id: '4', name: 'Rolling Road', theme: 'workshop', special: false, next: ['5'],
     levels: {
       '4-1': 'The rolling buffet',
       '4-2': 'Flame-grilled freedom',
@@ -100,6 +100,28 @@ const WORLDS = [
       '4-12': 'The bumper buffet loop',
       '4-13': 'Bumper gun brunch',
       '4-14': 'The last rolling roast',
+    },
+  },
+  {
+    id: '5', name: 'Feast Frontier', theme: 'garden', special: false, next: [],
+    levels: {
+      '5-1': 'Anvil appetizers',
+      '5-2': 'Trash bin takeout',
+      '5-3': 'Chop suey showdown',
+      '5-4': 'Chiseled cheese wheel',
+      '5-5': 'Scrambled egg surprise',
+      '5-6': 'Ice cream rink',
+      '5-7': 'Skating to the sundae bar',
+      '5-8': 'Noodle lasso lunch',
+      '5-9': 'Sharpshooter sushi stand',
+      '5-10': 'Molten fondue',
+      '5-11': 'Catnip cafe crossfire',
+      '5-12': 'World Cupcake',
+      '5-13': 'Popcorn penalty kicks',
+      '5-14': 'Jumbo meatball match',
+      '5-15': 'Moon pie high tide',
+      '5-16': 'Seafood splash',
+      '5-17': 'Surf and turf',
     },
   },
 ];

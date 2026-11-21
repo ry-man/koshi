@@ -1246,3 +1246,28 @@ Existing bombs and fire waves still advance, and scheduled spawns, pickup
 expiration and global power-up timers continue. Offscreen artwork is skipped;
 cached brick geometry and local collision candidates reduce physics work without
 changing the physics timestep or authored level content.
+
+## World 5: Feast Frontier
+
+World 5 follows **4-14** with 17 Beta lessons. Each introduces one concept in
+this order: anvils, Robo Trash Bins, battle axes, chisels (three different
+size-4 bricks), Scramblers (a size-5 Cinder brick at the start), ice terrain,
+ice skates on ice, rope darts, Robo Sharpshooters, lava terrain, Robo Cat
+Ladies (with Slime and Spike bricks), Koshi and enemy team goals with
+Strikers, exploding soccer balls, jumbo soccer balls, Robo Moons, water
+terrain, and surf boards on water.
+
+The first scene introduces Tom the Duck as the antagonist. Every scene tells
+Koshi's story of saving the world from Tom's robots while chasing every kind
+of food. It explains the new concept and casts only robots in that level.
+Objectives are food, enemy or soccer targets (alone or combined), or survival.
+**5-12, World Cupcake** is a race: its two-brick goals, one per team, see at
+least 15 soccer balls, and two Goalies arrive at different times. The first
+team to 7 goals wins. The exploding and jumbo soccer-ball lessons require
+soccer goals.
+
+Each lesson adds 1–4 returning brick mechanics and 1–2 returning pickups or
+objects, with a seeded 25% autoscroll chance (5-2, 5-3, 5-11 and 5-13).
+Most bricks are standard size, with about 14% double-sized and 5% triple-sized.
+Shields are rare, and stronger shields are rarer. Collecting all scheduled food
+yields no more than five healing hearts.

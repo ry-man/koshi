@@ -4,7 +4,7 @@ A browser arcade game starring Koshi, a grey tabby with a big appetite.
 Built with vanilla JavaScript, HTML, and Canvas. No runtime dependencies are
 required; Official JSON levels are bundled using Node.js. The initial implementation follows
 [the game description](./game_description.md), with 49 main campaign levels across three worlds,
-12 optional challenge levels in World 3S, and 14 levels in World 4.
+12 optional challenge levels in World 3S, 14 levels in World 4, and 17 levels in World 5.
 
 ## Play locally
 
@@ -445,7 +445,8 @@ an optional challenge world for advanced players. It branches from World 2 on a
 dashed route below the main path and contains 12 levels (3S–1 through 3S–12).
 World 4, **Rolling Road**, connects directly from World 3 and starts with
 **4-1, The rolling buffet**, a three-minute autoscrolling survival level,
-followed by 13 new mechanic lessons through **4-14**.
+followed by 13 new mechanic lessons through **4-14**. World 5, **Feast Frontier**,
+follows 4-14 with 17 lessons (5-1 through 5-17).
 
 Only the world overview offers **Back to menu**. Escape from level selection
 returns to the world overview first.
@@ -1192,6 +1193,50 @@ are triple-sized. Shielded enemies are normally uncommon, with red more common
 than green and blue rarest; the hammer lesson deliberately fields many shields
 and supplies spare hammers. Food budgets set the heart cost so collecting every
 scheduled food still generates no more than five healing hearts.
+
+## World 5: Feast Frontier
+
+The Beta-only World 5 follows **4-14** and keeps all earlier level content and
+save identities unchanged. Each lesson introduces one concept in order:
+
+| Level | Name | New concept | Objective |
+|-------|------|-------------|-----------|
+| 5-1 | Anvil appetizers | Anvils | Survive 110s |
+| 5-2 | Trash bin takeout | Robo Trash Bins | 6 enemy points |
+| 5-3 | Chop suey showdown | Battle axes | 30 food, 4 enemy points |
+| 5-4 | Chiseled cheese wheel | Chisels, with three different size-4 bricks | Survive 110s |
+| 5-5 | Scrambled egg surprise | Scramblers, with a size-5 Cinder brick at the start | 40 food points |
+| 5-6 | Ice cream rink | Ice terrain | 6 enemy points |
+| 5-7 | Skating to the sundae bar | Ice skates, on ice terrain | 30 food, 4 enemy points |
+| 5-8 | Noodle lasso lunch | Rope darts | 8 enemy points |
+| 5-9 | Sharpshooter sushi stand | Robo Sharpshooters | Survive 110s |
+| 5-10 | Molten fondue | Lava terrain | 40 food points |
+| 5-11 | Catnip cafe crossfire | Robo Cat Ladies, with Slime and Spike bricks to target | 30 food, 4 enemy points |
+| 5-12 | World Cupcake | Koshi and enemy team goals, with Strikers | First team to 7 goals |
+| 5-13 | Popcorn penalty kicks | Exploding soccer balls | 25 food points, 3 goals |
+| 5-14 | Jumbo meatball match | Jumbo soccer balls | 4 enemy points, 3 goals |
+| 5-15 | Moon pie high tide | Robo Moons | 6 enemy points |
+| 5-16 | Seafood splash | Water terrain | Survive 110s |
+| 5-17 | Surf and turf | Surf boards, on water terrain | 40 food, 4 enemy points |
+
+The first scene introduces Tom the Duck as the robot army's commander and
+Koshi's enemy. Every scene continues Koshi's fight to save the world from
+Tom's robots (and his love of every kind of food). It explains the new concept
+and objective, and casts only robots that appear in that level.
+
+**5-12** has one two-brick goal per team, at least 15 soccer balls, two Goalies
+arriving at different times, and Strikers attacking Koshi's goal. Team Koshi
+wins by reaching 7 goals first. Its timer is 180 seconds.
+
+Like World 4, each lesson uses a seeded selection of 1–4 returning brick
+mechanics and 1–2 returning pickup or object types. Later concepts never
+appear early. Each eligible lesson rolls a 25% autoscroll chance once (the team
+race never scrolls). The checked-in seed selects **5-2, 5-3, 5-11 and 5-13**.
+About 14% of bricks are double-sized and 5% triple-sized, except where the
+Chisel and Scrambler lessons need larger bricks. Shields are uncommon:
+red is the most common, green rarer and blue rarest. Heart costs keep the
+healing hearts from all scheduled food to four. Terrain lessons keep Koshi's
+start and every placement on safe ground.
 
 ### Scrolling performance
 
