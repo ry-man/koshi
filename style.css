@@ -591,8 +591,10 @@ body:has(.world-picker[open]) { overflow: hidden; }
   .hud { --counter-icon-size: 17px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 6px var(--hud-inset); gap: var(--hud-gap); }
   .boss-health { bottom: calc((var(--boss-health-gap, 2px) + 10px) / -2); height: 10px; font-size: 10px; }
   .boss-health-meter { height: 8px; }
-  .team-scoreboard-display { height: 30px; gap: 3px; }
-  .team-scoreboard-box { gap: 3px; padding: 2px 3px; }
+  .team-scoreboard { position: absolute; grid-column: auto; justify-self: stretch; left: var(--hud-inset); right: var(--hud-inset); bottom: calc((var(--boss-health-gap, 2px) + 16px) / -2); width: auto; max-width: 700px; margin: auto; }
+  .team-scoreboard-display { height: 16px; grid-template-rows: minmax(0, 1fr); gap: 3px; font-size: 10px; }
+  .team-scoreboard-box { min-height: 0; gap: 3px; padding: 0 3px; border-width: 1px; }
+  .team-score-digits { min-height: 0; padding: 1px; }
   .stat { border: 0; padding: 0; }
   .stat-label { font-size: 8px; letter-spacing: .2px; line-height: 1.1; margin-bottom: 5px; white-space: normal; }
   .stat strong { font-size: 17px; }
@@ -707,6 +709,9 @@ body:has(.learning-guide[open]) { overflow: hidden; }
     height: calc(100cqh - 40px);
     aspect-ratio: auto;
   }
+}
+@media (max-width: 760px) and (orientation: landscape), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape) {
+  .play-area { padding-top: 10px; }
 }
 @media (min-width: 1000px), (max-height: 500px) and (orientation: landscape) {
   .tutorial-active .game-shell { display: grid; grid-template-columns: min(32vw, 280px) minmax(0, 1fr); grid-template-rows: auto auto 2px minmax(0, 1fr) auto; }

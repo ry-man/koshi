@@ -2702,7 +2702,8 @@ Goal overrides may optionally specify `"goalTeam": "koshi"` or `"enemy"`;
 omitting it makes a teamless goal. A ball entering a team goal scores for the
 opposing team, independently of the ordinary total-goal counter. Team goals
 show a world-colored scoreboard below the HUD, with green digital Koshi scores
-and red digital enemy scores, and cannot be used in boss levels.
+and red digital enemy scores, and cannot be used in boss levels. On phones, the
+scoreboard shares the boss meter's space so it does not shrink the play area.
 The editor also offers Cat Brick conditions `teamRace`, `teamEnemyMax`, and
 `teamKoshiMin`, each with an `amount`. They are evaluated when the level is won;
 `teamRace` remembers whether Koshi reached that amount before the enemies.

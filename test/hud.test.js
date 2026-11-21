@@ -202,3 +202,9 @@ test('phone boss meter is positioned halfway between the HUD and board', () => {
   assert.match(styles, /\.boss-health \{ bottom: calc\(\(var\(--boss-health-gap, 2px\) \+ 10px\) \/ -2\); height: 10px;/);
   assert.match(source, /new ResizeObserver\(positionBossHealth\)/);
 });
+
+test('phone team scoreboard uses the boss meter gap without adding a HUD row', () => {
+  const phoneStyles = styles.slice(styles.indexOf('@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape)'));
+  assert.match(phoneStyles, /\.team-scoreboard \{ position: absolute;[^}]*bottom: calc\(\(var\(--boss-health-gap, 2px\) \+ 16px\) \/ -2\);/);
+  assert.match(phoneStyles, /\.team-scoreboard-display \{ height: 16px; grid-template-rows: minmax\(0, 1fr\);/);
+});
