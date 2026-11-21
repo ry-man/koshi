@@ -15545,6 +15545,922 @@ const levels = [
   },
   {
     "worldId": "1",
+    "number": "21",
+    "id": "official-1-21",
+    "level": {
+      "version": 1,
+      "id": "Time Crunch",
+      "duration": 10,
+      "goal": 0,
+      "heartCost": 15,
+      "brickSet": 1,
+      "events": [
+        {
+          "time": 10,
+          "kind": "item",
+          "type": "stopwatch",
+          "x": 0.9473619556538296,
+          "y": 0.49877532843464706
+        },
+        {
+          "time": 0,
+          "kind": "object",
+          "type": "obstruction-diamond",
+          "x": 0.8412259689208279,
+          "y": 0.49877532843464706,
+          "color": "#f97316",
+          "patternColor": "#fde68a",
+          "pattern": "checkered",
+          "width": 96,
+          "height": 225.64426877470356
+        },
+        {
+          "time": 0,
+          "kind": "object",
+          "type": "obstruction-octagon",
+          "x": 0.2751673730114858,
+          "y": 0.49877532843464706,
+          "color": "#15803d",
+          "patternColor": "#fef08a",
+          "pattern": "checkered",
+          "width": 164.7407407407408,
+          "height": 156.8695652173913
+        },
+        {
+          "time": 2,
+          "kind": "item",
+          "type": "stopwatch",
+          "x": 0.13365272403415024,
+          "y": 0.49877532843464706
+        },
+        {
+          "time": 20,
+          "kind": "item",
+          "type": "stopwatch",
+          "x": 0.09827406178981635,
+          "y": 0.01781340458695168
+        },
+        {
+          "time": 30,
+          "kind": "item",
+          "type": "stopwatch",
+          "x": 0.7350899821878263,
+          "y": 0.49877532843464706
+        },
+        {
+          "time": 40,
+          "kind": "item",
+          "type": "stopwatch",
+          "x": 0.8942939622873288,
+          "y": 0.9797372522823424
+        },
+        {
+          "time": 50,
+          "kind": "item",
+          "type": "stopwatch",
+          "x": 0.2751673730114858,
+          "y": 0.7552883544867512
+        },
+        {
+          "time": 60,
+          "kind": "item",
+          "type": "stopwatch-green",
+          "x": 0.9827406178981635,
+          "y": 0.01781340458695168
+        },
+        {
+          "time": 5,
+          "kind": "enemy",
+          "type": "mouse",
+          "x": 0.5051286775996561,
+          "y": 0.21019817412602984,
+          "shield": null
+        },
+        {
+          "time": 10,
+          "kind": "enemy",
+          "type": "robo-trash-bin",
+          "x": 0.5051286775996561,
+          "y": 0.6590959697172122,
+          "shield": null
+        },
+        {
+          "time": 25,
+          "kind": "enemy",
+          "type": "robo-trash-bin",
+          "x": 0.045206068423315524,
+          "y": 0.49877532843464706,
+          "shield": null
+        },
+        {
+          "time": 35,
+          "kind": "enemy",
+          "type": "mouse",
+          "x": 0.8412259689208279,
+          "y": 0.08194166109997773,
+          "shield": null
+        },
+        {
+          "time": 10,
+          "kind": "weapon",
+          "type": "wood",
+          "x": 0.9473619556538296,
+          "y": 0.01781340458695168
+        },
+        {
+          "time": 35,
+          "kind": "weapon",
+          "type": "wood",
+          "x": 0.4166820219888213,
+          "y": 0.49877532843464706
+        },
+        {
+          "time": 50,
+          "kind": "weapon",
+          "type": "wood",
+          "x": 0.2751673730114858,
+          "y": 0.24226230238254287
+        },
+        {
+          "time": 70,
+          "kind": "weapon",
+          "type": "wood",
+          "x": 0.6289539954548247,
+          "y": 0.9797372522823424
+        },
+        {
+          "time": 5,
+          "kind": "food",
+          "type": "P",
+          "x": 0.5405073398439899,
+          "y": 0.01781340458695168,
+          "group": {
+            "shape": "line",
+            "count": 5,
+            "angle": 0
+          },
+          "lifetime": 12
+        },
+        {
+          "time": 20,
+          "kind": "food",
+          "type": "B",
+          "x": 0.5228180087218229,
+          "y": 0.9797372522823424,
+          "group": {
+            "shape": "line",
+            "count": 5,
+            "angle": 0
+          },
+          "lifetime": 12
+        },
+        {
+          "time": 60,
+          "kind": "food",
+          "type": "B",
+          "x": 0.2751673730114858,
+          "y": 0.49877532843464706,
+          "group": {
+            "shape": "circle",
+            "count": 4,
+            "size": 0.5
+          },
+          "lifetime": 12
+        },
+        {
+          "time": 75,
+          "kind": "food",
+          "type": "S",
+          "x": 0.8412259689208279,
+          "y": 0.49877532843464706,
+          "group": {
+            "shape": "circle",
+            "count": 4,
+            "size": 0.6
+          },
+          "lifetime": 12
+        }
+      ],
+      "bossLevel": false,
+      "killGoal": 4,
+      "survive": false,
+      "catBlock": {
+        "description": "To earn Cat Brick: Complete the level with at least 37 food points.",
+        "messages": {
+          "item": "Koshi found the Cat Block!",
+          "enemy": "Koshi found a Cat Block carried by an enemy!",
+          "chest": "Koshi opened the treasure chest and found the Cat Block!",
+          "achievement": "Koshi earned the Cat Brick!"
+        },
+        "trigger": {
+          "type": "food",
+          "amount": 37
+        }
+      },
+      "cutscene": {
+        "theme": "happy-meadows",
+        "lines": [
+          {
+            "speaker": "tom-frog",
+            "text": "Rib-bit! You are running out of time, cat!",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "tom-frog",
+                "x": 0.58,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "koshi",
+            "text": "What do you mean, exactly, Tom? Time for what?",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "tom-frog",
+                "x": 0.58,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "koshi",
+            "text": "Time to complete the next level! I've hacked the game to only give you 10 seconds! You are mine now!",
+            "actors": [
+              {
+                "character": "koshi",
+                "x": 0.28,
+                "y": 0.65
+              },
+              {
+                "character": "tom-frog",
+                "x": 0.58,
+                "y": 0.65
+              }
+            ]
+          }
+        ]
+      },
+      "levelInfo": {
+        "pages": [
+          {
+            "title": "Stopwatches",
+            "text": "Stopwatches add extra time to the level clock. More time may be needed for some levels to complete the objectives!\n\nRed stopwatches add 10 seconds, green add 30 seconds, and blue add 60 seconds.",
+            "graphics": [
+              "item:stopwatch",
+              "item:stopwatch-green",
+              "item:stopwatch-blue"
+            ]
+          }
+        ]
+      },
+      "brickTypes": [
+        {
+          "edge": "left",
+          "start": 0.25,
+          "end": 0.375,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0.375,
+          "end": 0.5,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0,
+          "end": 0.125,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0.125,
+          "end": 0.25,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0.75,
+          "end": 0.875,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0.875,
+          "end": 1,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0.5,
+          "end": 0.625,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0.625,
+          "end": 0.75,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "top",
+          "start": 0.6,
+          "end": 0.8,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "top",
+          "start": 0.8,
+          "end": 1,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "top",
+          "start": 0,
+          "end": 0.2,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "top",
+          "start": 0.2,
+          "end": 0.4,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "bottom",
+          "start": 0,
+          "end": 0.2,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "bottom",
+          "start": 0.2,
+          "end": 0.4,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "bottom",
+          "start": 0.6,
+          "end": 0.8,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "bottom",
+          "start": 0.8,
+          "end": 1,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0.5,
+          "end": 0.625,
+          "kind": "slow",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0.625,
+          "end": 0.75,
+          "kind": "slow",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0.25,
+          "end": 0.375,
+          "kind": "slow",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0.375,
+          "end": 0.5,
+          "kind": "slow",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "bottom",
+          "start": 0.4,
+          "end": 0.6,
+          "kind": "fast",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "top",
+          "start": 0.4,
+          "end": 0.6,
+          "kind": "fast",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "green",
+          "conveyorDirection": "clockwise",
+          "slimed": false,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0.75,
+          "end": 0.875,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "red",
+          "conveyorDirection": "clockwise",
+          "slimed": true,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "left",
+          "start": 0.875,
+          "end": 1,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "red",
+          "conveyorDirection": "clockwise",
+          "slimed": true,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0,
+          "end": 0.125,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "red",
+          "conveyorDirection": "clockwise",
+          "slimed": true,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        },
+        {
+          "edge": "right",
+          "start": 0.125,
+          "end": 0.25,
+          "kind": "normal",
+          "crumbler": null,
+          "warped": null,
+          "slimeColor": "red",
+          "conveyorDirection": "clockwise",
+          "slimed": true,
+          "springs": false,
+          "spikes": false,
+          "conveyor": false,
+          "power": false,
+          "portal": null,
+          "turret": null,
+          "hazard": null,
+          "toggle": null,
+          "boost": false,
+          "spawner": null
+        }
+      ],
+      "brickGroups": [
+        {
+          "owner": 22,
+          "members": [
+            22,
+            24
+          ]
+        },
+        {
+          "owner": 18,
+          "members": [
+            18,
+            20
+          ]
+        },
+        {
+          "owner": 14,
+          "members": [
+            14,
+            16
+          ]
+        },
+        {
+          "owner": 10,
+          "members": [
+            10,
+            12
+          ]
+        },
+        {
+          "owner": 23,
+          "members": [
+            23,
+            25
+          ]
+        },
+        {
+          "owner": 19,
+          "members": [
+            19,
+            21
+          ]
+        },
+        {
+          "owner": 15,
+          "members": [
+            15,
+            17
+          ]
+        },
+        {
+          "owner": 11,
+          "members": [
+            11,
+            13
+          ]
+        },
+        {
+          "owner": 6,
+          "members": [
+            6,
+            8
+          ]
+        },
+        {
+          "owner": 0,
+          "members": [
+            0,
+            2
+          ]
+        },
+        {
+          "owner": 1,
+          "members": [
+            1,
+            3
+          ]
+        },
+        {
+          "owner": 7,
+          "members": [
+            7,
+            9
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "worldId": "1",
     "number": "25",
     "id": "official-1-25",
     "level": {
