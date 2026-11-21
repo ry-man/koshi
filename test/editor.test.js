@@ -2120,11 +2120,36 @@ test('invalid settings and placements are rejected explicitly before mutating ga
     { events: null }, { events: Array.from({ length: 2001 }, () => event()) },
   ]) assert.throws(() => validateCustomLevel({ ...blank(), ...patch }), TypeError);
   for (const patch of [
-    { time: -1 }, { time: 30 }, { time: NaN }, { x: -1 }, { x: 1.01 }, { y: undefined }, { x: '0.5' },
+    { time: -1 }, { time: NaN }, { time: Infinity }, { time: Number.MAX_SAFE_INTEGER + 1 }, { x: -1 }, { x: 1.01 }, { y: undefined }, { x: '0.5' },
     { kind: 'unknown' }, { kind: '__proto__' }, { type: 'toString' }, { lifetime: 0 }, { lifetime: Infinity },
     { kind: 'enemy', type: 'wheel' }, { kind: 'weapon', type: 'banana' },
   ]) assert.throws(() => new Game(Math.random, { customLevel: { ...blank(), events: [{ ...event(), ...patch }] } }), TypeError);
   for (const value of [null, [], 'level']) assert.throws(() => validateCustomLevel(value), TypeError);
+});
+
+test('events after the starting clock round-trip and spawn only if gameplay lasts long enough', () => {
+  const level = { ...blank(), duration: 2, events: [
+    { kind: 'item', type: 'stopwatch', time: 0, x: .2, y: .7 },
+    { ...event('food', 'S', 4), x: .8 },
+    event('weapon', 'wood', 24),
+  ] };
+  assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(level))).events, level.events);
+  const short = new Game(() => .5, { customLevel: level });
+  short.start(); short.update(4);
+  assert.equal(short.state, 'lost');
+  assert.equal(short.nextCustom, 1);
+  const extended = new Game(() => .5, { customLevel: level });
+  extended.start();
+  const watch = extended.items.find(item => item.type === 'stopwatch');
+  extended.cat.x = watch.x; extended.cat.y = watch.y;
+  extended.update(.05);
+  assert.equal(extended.timeBonus, 10);
+  extended.update(4);
+  assert.equal(extended.state, 'playing');
+  assert.equal(extended.food[0].type, 'S');
+  assert.equal(extended.nextCustom, 2);
+  assert.doesNotThrow(() => validateCustomLevel({ ...level, events: level.events.slice(1) }),
+    'removing a stopwatch does not invalidate later events');
 });
 
 test('custom events are stable-sorted, spawn once at exact times, and work at time zero', () => {

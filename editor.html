@@ -184,7 +184,7 @@
                 </select>
               </label>
             </div>
-            <input id="timeline" type="range" min="0" max="60" step="any" value="0">
+            <input id="timeline" type="range" min="0" max="120" step="any" value="0">
             <label class="inline-label"><input id="show-all" type="checkbox" checked> Show all spawn locations</label>
             <label class="inline-label"><input id="show-random" type="checkbox" checked> Show randomly positioned spawns</label>
           </div>
@@ -338,7 +338,7 @@
             <label id="event-trigger-label" hidden>Appearance trigger <select id="event-trigger"><option value="time">Time</option><option value="position">Screen crossing</option></select></label>
             <label id="event-spawn-percent-label" hidden>Center crossed screen (%) <input id="event-spawn-percent" type="number" min="0" max="100" step="any" value="0" disabled></label>
             <div class="input-pair">
-              <label id="event-time-label">Appear at (seconds) <input id="event-time" type="number" min="0" max="60" step="any" value="0" required></label>
+              <label id="event-time-label">Appear at (seconds) <input id="event-time" type="number" min="0" max="120" step="any" value="0" required></label>
               <label id="lifetime-label">On-screen lifetime (seconds) <input id="event-lifetime" type="number" min="0.1" max="3600" step="any" value="8" required></label>
             </div>
             <div class="input-pair">
@@ -376,7 +376,7 @@
         </div>
         <div id="event-timeline-viewport">
           <div id="event-timeline-plot">
-            <button id="event-timeline-cursor" type="button" role="slider" aria-label="Preview time on event timeline" aria-valuemin="0" aria-valuemax="60" aria-valuenow="0" hidden></button>
+            <button id="event-timeline-cursor" type="button" role="slider" aria-label="Preview time on event timeline" aria-valuemin="0" aria-valuemax="120" aria-valuenow="0" hidden></button>
             <div id="event-timeline-axis" aria-label="Time in seconds" hidden></div>
             <ol id="event-list" class="event-timeline"><li class="empty-state">No events yet. Place your first object on the board.</li></ol>
           </div>

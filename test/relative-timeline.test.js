@@ -27,6 +27,7 @@ function fixture(events, duration = 20) {
     '#event-count': node(), '#event-timeline-view': { value: 'relative' }, '#timeline': { value: '3', max: duration },
     '#timeline-discretization': { value: '0' },
     '#relative-event-details': node(), '#relative-event-details-list': node(),
+    '#event-time': node(),
   };
   const selections = [];
   const context = vm.createContext({
@@ -71,7 +72,8 @@ test('time reference counts stopwatch sources once and extends timeline and char
   assert.equal(f.nodes['#time-start'].textContent, '20s');
   assert.equal(f.nodes['#time-in-level'].textContent, '220s');
   assert.equal(f.nodes['#time-total'].textContent, '240s');
-  assert.equal(f.nodes['#timeline'].max, 240);
+  assert.equal(f.nodes['#timeline'].max, 480);
+  assert.equal(f.nodes['#event-time'].max, 480);
   assert.equal(JSON.stringify({ events, bricks }), before);
 });
 
@@ -91,11 +93,34 @@ test('extended preview includes screen-crossing spawns in both charts', () => {
   const time = f.context.previewGame.eventAppearanceTime(events[1]);
   assert.ok(time > 20 && time < 80);
   f.context.renderList();
-  assert.equal(f.nodes['#event-timeline-cursor'].attributes['aria-valuemax'], '80');
-  assert.ok(parseFloat(f.nodes['#event-timeline-plot'].style.width) >= 80 * Number(f.nodes['#event-timeline-viewport'].dataset.scale));
+  assert.equal(f.nodes['#event-timeline-cursor'].attributes['aria-valuemax'], '160');
+  assert.ok(parseFloat(f.nodes['#event-timeline-plot'].style.width) >= 160 * Number(f.nodes['#event-timeline-viewport'].dataset.scale));
   assert.ok(f.nodes['#food-points-chart'].children.some(child => child.attributes.class === 'food-points-point'
     && child.children[0].textContent.includes(`${Number(time.toPrecision(4))}s`)));
   assert.ok(f.nodes['#weapon-balance-chart'].children.some(child => child.attributes.class === 'weapon-balance-point negative'));
+});
+
+test('timeline and chart axes stop at twice total even when an event extends past it', () => {
+  const events = [
+    { kind: 'item', type: 'stopwatch', time: 0 },
+    { kind: 'food', type: 'S', time: 60, lifetime: 10 },
+  ];
+  const f = fixture(events, 20);
+  for (const id of ['#time-start', '#time-in-level', '#time-total']) f.nodes[id] = node();
+  f.context.renderTimeReference(events, []);
+  f.context.renderList();
+  const scale = Number(f.nodes['#event-timeline-viewport'].dataset.scale);
+  assert.equal(f.nodes['#timeline'].max, 60);
+  assert.equal(f.nodes['#event-time'].max, 60);
+  assert.equal(f.nodes['#event-timeline-axis'].style.width, `${60 * scale}px`);
+  assert.ok(parseFloat(f.nodes['#event-timeline-plot'].style.width) > 60 * scale);
+  for (const id of ['#food-points-chart', '#weapon-balance-chart']) {
+    const axis = f.nodes[id].children.find(child => child.attributes.class === 'weapon-balance-axis'
+      && child.attributes.x1 === '42' && child.attributes.y1 === child.attributes.y2);
+    assert.equal(Number(axis.attributes.x2), 42 + 60 * scale);
+  }
+  assert.ok(f.nodes['#food-points-chart'].children.some(child => child.attributes.class === 'food-points-point'
+    && child.children[0].textContent.includes('at 60s')));
 });
 
 test('percentage events use resolved timeline and chart times without rewriting schedules', () => {
@@ -433,6 +458,23 @@ test('timeline pointer gestures preview without mutating data, cancel, and commi
   assert.equal(JSON.stringify(f.context.level.events), JSON.stringify([{ time: 1, lifetime: 6 }, { time: 3, lifetime: 3 }]));
   assert.equal(changed, 1);
   assert.deepEqual(Array.from(selected), [0, 1]);
+});
+
+test('timeline dragging allows the double-total endpoint and clamps beyond it', () => {
+  const f = fixture([{ time: 2, lifetime: 5 }], 20);
+  f.nodes['#timeline'].max = 60;
+  f.nodes['#event-timeline-viewport'].scrollLeft = 0;
+  const row = { dataset: { eventIndex: '0' }, style: {}, querySelector: () => ({}) };
+  f.nodes['#event-list'].querySelectorAll = () => [row];
+  f.context.selectedEvents = new Set([0]);
+  f.context.trackObjectAction = null;
+  f.context.obstructionTool = null;
+  const button = { setPointerCapture() {}, hasPointerCapture() { return false; } };
+  f.context.startTimelineGesture({ button: 0, pointerId: 7, clientX: 0, currentTarget: button,
+    target: { closest: () => null } }, { index: 0 }, 20);
+  f.context.moveTimelineGesture({ pointerId: 7, clientX: 2000 });
+  assert.equal(row.style.left, '1200px');
+  assert.equal(f.context.timelineGesture.delta, 58);
 });
 
 test('relative timeline handles empty levels and bounds axis tick count for large scales', () => {

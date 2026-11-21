@@ -1266,7 +1266,10 @@ scoring soccer balls requires goal bricks.
 Beside it, the time reference adds the starting clock to an estimate of all
 stopwatch bonuses from scheduled copies, enemy drops, Item Cases and one spawn
 per spawning brick. It assumes collection and excludes recharges and duplication;
-its collapsed assumptions describe the limits.
+its collapsed assumptions describe the limits. Event appearance times, the
+preview and plot axes extend to twice this estimated total. Events after the
+starting clock require enough stopwatch bonuses to be collected in time.
+Reducing the estimate does not remove previously scheduled events.
 The **Level** library lists every built-in game level for read-only inspection.
 Select bricks and scheduled events, scrub the timeline, switch layouts, or read
 the cutscene. Spawn locations are deterministic examples of the game's randomized
@@ -1483,8 +1486,8 @@ Place exactly one **Tom the Toaster** or **Tom the Frog** enemy before saving, e
 playtesting. Draft editing may temporarily omit the boss; duplicate bosses,
 boss formations, shields, and boss brick spawners are not allowed. Other
 enemies and their spawners remain available. Boss fights have no time limit;
-the starting duration and estimated stopwatch bonuses define the preview timeline,
-while the starting duration still limits scheduled event and camera-change times.
+the preview timeline extends to twice the estimated total time; the starting
+duration still limits camera-change times.
 
 World **2-25** introduces Tom at the end of Clockwork Pantry, with four green
 slime blocks and four Boost blocks (one of each per side). His grey toaster
@@ -1687,21 +1690,20 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
    for non-autoscrolling levels.
    Disable **Show all spawn locations** to see which
    objects have appeared and when food expires. **Play** advances from the current
-   preview time to the end of the level; **Pause** stops it at the current position.
+   preview time to the preview limit; **Pause** stops it at the current position.
    The speed dial runs from **0.25x** (quarter speed) to **4x** (quadruple speed),
    with **1x** matching real time. Speed changes take effect during playback.
    **Discretization** defaults to **1s**. Choose **None** for continuous slider movement, or
    **0.5s**, **1s**, **5s**, **10s**, or **30s** to round manual slider movement to
-   the nearest multiple of that interval within the estimated total time. Arrow keys
+   the nearest multiple of that interval within twice the estimated total time. Arrow keys
    move one interval at a time. Playback remains continuous and can still reach
-   the    exact preview end when the total is not a multiple of the interval.
+   the exact preview end when that limit is not a multiple of the interval.
    Scrubbing, interacting with the board or event inspector, switching/importing
    levels, or hiding the editor tab pauses playback. Camera outlines follow the
    preview time in autoscrolling levels. This is a placement preview,
    not an enemy-movement or collection simulation. Its horizon and the Time Plot
-   and charts use the time-reference total, not a guarantee of how long play lasts.
-   Disable **Show randomly
-   positioned spawns** to hide random events (including random groups and campaign
+   and charts use twice the time-reference total, not a guarantee of how long play lasts.
+   Disable **Show randomly positioned spawns** to hide random events (including random groups and campaign
    schedule examples) while retaining fixed placements. This preview-only toggle
    does not remove events or change available-point totals.
    Selecting a board marker preserves the current view and preview time.

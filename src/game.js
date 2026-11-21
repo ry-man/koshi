@@ -2406,8 +2406,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (event.random) fail(`${name}: screen-position spawning requires a fixed center.`);
       spawnPercent = number(event.spawnPercent, 0, 100, `${name} screen crossing percentage`);
     }
-    const time = spawnPercent === undefined ? number(event.time, 0, duration, `${name} time`) : 0;
-    if (time >= duration) fail(`${name} must appear before the level ends.`);
+    const time = spawnPercent === undefined ? number(event.time, 0, Number.MAX_SAFE_INTEGER, `${name} time`) : 0;
     if (event.random !== undefined && typeof event.random !== 'boolean') fail(`${name} random location must be a boolean.`);
     const random = event.random === true;
     const x = random ? undefined : number(event.x, 0, 1, `${name} X`);

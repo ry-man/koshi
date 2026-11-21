@@ -115,7 +115,7 @@ The game is level-based, with multiple worlds split into individual levels. Most
 Boss levels are enabled with the level editor's **Boss level** checkbox and
 require exactly one enemy of type `boss` (Tom the Toaster). Other enemies may
 be placed or spawned. Bosses cannot have shields, spawn in formations, or be
-dispensed by bricks. The placement timeline still uses the duration setting,
+dispensed by bricks. The placement timeline uses twice the estimated total time,
 but there is no gameplay countdown or score requirement.
 
 World 2 ends with **2-25, Tom the Toaster**. The arena has four green slime
