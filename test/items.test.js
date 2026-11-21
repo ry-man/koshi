@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, ITEMS, WEAPONS, CAT_BLOCK_MESSAGES, LEVELS, validateCustomLevel } = require('../src/game.js');
+const { Game, FOODS, ITEMS, WEAPONS, CAT_BLOCK_MESSAGES, LEVELS, validateCustomLevel } = require('../src/game.js');
 
 const level = (events, extra = {}) => ({
   version: 1, id: 'Item tests', duration: 30, goal: 1000, heartCost: null, brickSet: 1, events,
@@ -170,6 +170,47 @@ test('smiley cookie draws all present food toward Koshi while he keeps moving, t
   assert.equal(game.score, 7, 'attracted food still awards its normal food value');
   assert.equal(game.cookieActive, false);
   assert.ok(game.cookieLickUntil > game.elapsed);
+});
+
+test('simultaneously consumed food objects each award their full food value exactly once', () => {
+  const game = gameWithItem('smiley-cookie');
+  game.items = [];
+  game.food = Array.from({ length: 5 }, () => Object.keys(FOODS).map(type => ({
+    x: game.cat.x, y: game.cat.y, type, expires: 20,
+  }))).flat();
+  const expected = game.food.reduce((sum, food) => sum + FOODS[food.type].value, 0);
+  game.tick(1 / 120);
+  assert.equal(game.score, expected);
+  assert.equal(game.food.length, 0);
+  assert.equal(game.pickups.filter(pickup => pickup.kind === 'food').length, 40);
+  game.tick(1 / 120);
+  assert.equal(game.score, expected);
+});
+
+test('smiley cookie scores every attracted snack even when its path crosses a solid object', () => {
+  for (const blocker of ['obstruction-circle', 'bumper-green']) {
+    const game = gameWithItem('smiley-cookie');
+    const { x, y } = game.cat;
+    game.items = [];
+    if (blocker === 'bumper-green') {
+      game.bumpers = [game.createBumper({ x: x + 100, y }, blocker)];
+    } else {
+      game.obstructions = [game.createObstruction({ x: x + 100, y },
+        { type: blocker, width: 64 })];
+    }
+    game.food = Array.from({ length: 5 }, () => Object.keys(FOODS).map(type => ({
+      x: x + 200, y, type, expires: .05,
+    }))).flat();
+    const expected = game.food.reduce((sum, food) => sum + FOODS[food.type].value, 0);
+    game.collectItem({ type: 'smiley-cookie' });
+    for (let i = 0; i < 120; i++) game.tick(1 / 120);
+    assert.equal(game.food.length, 0, blocker);
+    assert.equal(game.score, expected, blocker);
+    assert.equal(game.pickups.filter(pickup => pickup.kind === 'food').length, 40, blocker);
+    assert.equal(game.cookieActive, false, blocker);
+    game.tick(1 / 120);
+    assert.equal(game.score, expected, 'food is never counted twice');
+  }
 });
 
 test('smiley cookie attracts only food within the current scrolling viewport and its 12-unit margin', () => {

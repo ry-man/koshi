@@ -5605,7 +5605,7 @@ class Game {
   clearBlockedPickups() {
     if (!this.bumpers.length && !this.obstructions.length) return;
     for (const field of ['food', 'items', 'weapons', 'healing']) {
-      this[field] = this[field].filter(item => this.pickupClear(item));
+      this[field] = this[field].filter(item => (field === 'food' && item.cookieAttracted) || this.pickupClear(item));
     }
     for (const pending of this.pendingSpawns.values()) {
       if (['food', 'item', 'weapon', 'heart'].includes(pending.kind)) {
@@ -9666,6 +9666,7 @@ class Game {
     for (const food of this.food) {
       if (!this.entityVisible(food, COOKIE_FOOD_MARGIN)) continue;
       hasVisibleFood = true;
+      food.cookieAttracted = true;
       const dx = x - food.x, dy = y - food.y, distance = Math.hypot(dx, dy);
       if (distance <= speed * seconds) {
         food.x = x; food.y = y;

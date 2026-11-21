@@ -2594,6 +2594,10 @@ Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask remain available for custom
 levels and receive dedicated introductions in Levels 2–11 through 2–21.
 
+Smiley Cookie draws nearby food toward Koshi through existing obstructions and
+bumpers without deleting it. Each snack awards its full food value exactly once
+when consumed, including when many different snacks arrive together.
+
 Spooky Mask also shows a translucent scrolling banner of ghosts and demon
 heads for its ten-second fear effect, on a separate row from other active
 power-up banners. Pause freezes it; it exits at expiry.
