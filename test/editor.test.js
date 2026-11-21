@@ -952,6 +952,10 @@ test('settings and introductions share a collapsible frame, and board controls a
   const table = reference.match(/<table[\s\S]*?<\/table>/)[0];
   assert.doesNotMatch(table, /<small>|\b[ FES]_[tlw]\b/);
   assert.equal((table.match(/<output\b/g) ?? []).length, 7, 'all numeric totals remain');
+  const time = reference.match(/<div class="time-reference">([\s\S]*?)<\/details>/)[1];
+  assert.ok(reference.indexOf('id="point-reference-heading"') < reference.indexOf('<div class="time-reference">'));
+  for (const id of ['time-start', 'time-in-level', 'time-total']) assert.match(time, new RegExp(`id="${id}"`));
+  assert.match(time, /<details class="point-assumptions">/);
   assert.match(html, /id="show-random" type="checkbox" checked/);
 });
 
@@ -1191,6 +1195,10 @@ test('overlap picker deduplicates visible events, shares timeline details and se
   vm.runInContext(source.slice(source.indexOf('function pointReference('), source.indexOf('function renderPointReference(')), context);
   vm.runInContext(source.slice(source.indexOf('function appendEventPoints('), source.indexOf('function renderBrickInspector(')), context);
   assert.equal(context.overlappingMarkers(25, 25).length, 3);
+  markers[2].obstructionHitTest = (x, y) => x + y >= 70;
+  assert.equal(context.overlappingMarkers(25, 25).length, 2, 'empty obstruction corners do not appear in the picker');
+  assert.equal(context.overlappingMarkers(40, 40).length, 3, 'the obstruction appears when its shape is hit');
+  delete markers[2].obstructionHitTest;
   assert.equal(context.pickOverlappingMarker({ clientX: 90, clientY: 25 }), false);
   assert.equal(dialog.open, false);
   assert.equal(context.pickOverlappingMarker({ clientX: 25, clientY: 25, shiftKey: true },

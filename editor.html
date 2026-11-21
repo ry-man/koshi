@@ -106,6 +106,8 @@
             <label class="inline-label"><input id="dynamic-view" type="checkbox" checked disabled> Dynamic View</label>
           </section>
           <section class="stage-control-group point-reference" aria-labelledby="point-reference-heading">
+            <div class="reference-columns">
+            <div>
             <h2 id="point-reference-heading">Available points reference</h2>
             <div class="point-reference-grid">
               <table aria-label="Level points and targets" aria-live="polite">
@@ -123,6 +125,22 @@
               <p>Targets use the larger of the level win target and any Cat Brick food, enemy-point, minimum-enemy or soccer target (not their sum). Minimum-enemy targets count at least one point per required enemy. Enemy totals are shield-weighted points; soccer totals count balls.</p>
               <p>Weapon estimate: swords and hammers use their charges; axes assume one successful strike per active second (silver: 6, gold: 12); Rope Darts assume one successful strike per shot (bronze: 3, silver: 5, gold: 10). Axes and darts may hit more or fewer enemies. Totals include every scheduled/grouped/random copy, one spawn per spawning brick, enemy weapon drops and weapons inside Item Cases. Assume every pickup is collected and used fully; misses, replacement losses, case-breaking costs, timing, recharges, duplication and non-weapon attacks are not simulated. Warnings are planning estimates, not proof a level is impossible.</p>
             </details>
+            </div>
+            <div class="time-reference">
+              <h2>Time reference</h2>
+              <table aria-label="Level time reference" aria-live="polite">
+                <tbody>
+                  <tr><th scope="row">Start</th><td><output id="time-start">0s</output></td></tr>
+                  <tr><th scope="row">In Level</th><td><output id="time-in-level">0s</output></td></tr>
+                  <tr><th scope="row">Total</th><td><output id="time-total">0s</output></td></tr>
+                </tbody>
+              </table>
+              <details class="point-assumptions">
+                <summary>See assumptions</summary>
+                <p>Counts every scheduled, grouped and random stopwatch, enemy drop and Item Case, plus one spawn per spawning brick. Assumes all are collected; reachability, timing, early wins, recharges and duplication are not simulated. Boss levels have no time limit.</p>
+              </details>
+            </div>
+            </div>
           </section>
           <section class="stage-control-group texture-mapping" aria-labelledby="texture-mapping-heading">
             <h2 id="texture-mapping-heading">Texture mapping</h2>

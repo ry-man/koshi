@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { FOODS, OBJECTS, SHIELDS, WEAPONS, Game } = require('../src/game.js');
+const { FOODS, ITEMS, OBJECTS, SHIELDS, WEAPONS, Game } = require('../src/game.js');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
 
@@ -24,14 +24,14 @@ function fixture(events, duration = 20) {
     '#event-timeline-plot': node(), '#event-timeline-cursor': node(),
     '#weapon-balance-section': node(), '#weapon-balance-chart': node(),
     '#food-points-section': node(), '#food-points-chart': node(),
-    '#event-count': node(), '#event-timeline-view': { value: 'relative' }, '#timeline': { value: '3' },
+    '#event-count': node(), '#event-timeline-view': { value: 'relative' }, '#timeline': { value: '3', max: duration },
     '#timeline-discretization': { value: '0' },
     '#relative-event-details': node(), '#relative-event-details-list': node(),
   };
   const selections = [];
   const context = vm.createContext({
     level: { events, duration }, selectedEvents: new Set([1]),
-    previewGame: { bricks: [] }, FOODS, SHIELDS, WEAPONS, isBossType: require('../src/game.js').isBossType,
+    previewGame: { bricks: [] }, FOODS, ITEMS, SHIELDS, WEAPONS, isBossType: require('../src/game.js').isBossType,
     timelineDetailIndex: null, timelineGesture: null, readOnly: () => false,
     $: selector => nodes[selector],
     document: { createElement: node, createElementNS: node },
@@ -48,6 +48,55 @@ function fixture(events, duration = 20) {
   vm.runInContext(source.slice(source.indexOf('function renderList('), source.indexOf('function overlappingMarkers(')), context);
   return { context, nodes, selections };
 }
+
+test('time reference counts stopwatch sources once and extends timeline and charts', () => {
+  const events = [
+    { kind: 'item', type: 'stopwatch', time: 0, x: .2, y: .5, group: { shape: 'line', count: 2 } },
+    { kind: 'item', type: 'stopwatch-green', time: 1, random: true, randomCount: 3 },
+    { kind: 'enemy', type: 'mouse', time: 2, x: .4, y: .5, carriesItem: 'stopwatch-blue' },
+    { kind: 'object', type: 'item-case', time: 3, x: .4, y: .5, containsItem: 'stopwatch' },
+    { kind: 'item', type: 'battery', time: 4, x: .3, y: .5 },
+  ];
+  const bricks = [
+    { absorbedBy: null, spawner: { kind: 'item', type: 'stopwatch-green' } },
+    { absorbedBy: null, spawner: { kind: 'object', type: 'item-case', containsItem: 'stopwatch' } },
+    { absorbedBy: 0, spawner: { kind: 'item', type: 'stopwatch-blue' } },
+  ];
+  const f = fixture(events, 20);
+  const before = JSON.stringify({ events, bricks });
+  assert.deepEqual(JSON.parse(JSON.stringify(f.context.timeReference(events, bricks, 20))),
+    { start: 20, inLevel: 220, total: 240 });
+  for (const id of ['#time-start', '#time-in-level', '#time-total']) f.nodes[id] = node();
+  f.context.renderTimeReference(events, bricks);
+  assert.equal(f.nodes['#time-start'].textContent, '20s');
+  assert.equal(f.nodes['#time-in-level'].textContent, '220s');
+  assert.equal(f.nodes['#time-total'].textContent, '240s');
+  assert.equal(f.nodes['#timeline'].max, 240);
+  assert.equal(JSON.stringify({ events, bricks }), before);
+});
+
+test('extended preview includes screen-crossing spawns in both charts', () => {
+  const events = [
+    { kind: 'item', type: 'stopwatch-blue', time: 0, x: .2, y: .5 },
+    { kind: 'food', type: 'S', time: 0, x: .8, y: .5, lifetime: 5, spawnPercent: 50 },
+    { kind: 'enemy', type: 'mouse', time: 0, x: .8, y: .5, spawnPercent: 50 },
+  ];
+  const level = { version: 1, id: 'Extended', duration: 20, goal: 5,
+    heartCost: null, brickSet: 1, autoscroll: { length: 24, speed: .5, events: [] }, events };
+  const f = fixture(events, 20);
+  f.context.level = level;
+  f.context.previewGame = new Game(() => .5, { customLevel: level });
+  for (const id of ['#time-start', '#time-in-level', '#time-total']) f.nodes[id] = node();
+  f.context.renderTimeReference(events, f.context.previewGame.bricks);
+  const time = f.context.previewGame.eventAppearanceTime(events[1]);
+  assert.ok(time > 20 && time < 80);
+  f.context.renderList();
+  assert.equal(f.nodes['#event-timeline-cursor'].attributes['aria-valuemax'], '80');
+  assert.ok(parseFloat(f.nodes['#event-timeline-plot'].style.width) >= 80 * Number(f.nodes['#event-timeline-viewport'].dataset.scale));
+  assert.ok(f.nodes['#food-points-chart'].children.some(child => child.attributes.class === 'food-points-point'
+    && child.children[0].textContent.includes(`${Number(time.toPrecision(4))}s`)));
+  assert.ok(f.nodes['#weapon-balance-chart'].children.some(child => child.attributes.class === 'weapon-balance-point negative'));
+});
 
 test('percentage events use resolved timeline and chart times without rewriting schedules', () => {
   const events = [

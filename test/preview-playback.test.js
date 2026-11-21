@@ -174,10 +174,24 @@ test('playback never moves backward on its first frame and shortening the level 
   f.tick(1100);
   assert.equal(f.$('#timeline').value, 3);
   f.context.level.duration = 2.75;
+  f.$('#timeline').max = 2.75;
   f.context.renderPreviewTime();
   assert.equal(f.$('#timeline').value, 2.75);
   assert.equal(f.$('#preview-play').disabled, true);
   assert.equal(f.frames.size, 0);
+});
+
+test('playback can preview beyond the starting clock up to the estimated total', () => {
+  const f = fixture({ duration: 3, time: 2, speed: 4 });
+  f.$('#timeline').max = 13;
+  f.$('#event-time').value = 2;
+  f.play(); f.tick(1000);
+  assert.equal(f.$('#timeline').value, 6);
+  assert.equal(f.$('#preview-play').disabled, false);
+  assert.equal(f.$('#event-time').value, 2, 'extended preview does not overwrite the scheduled event time');
+  f.tick(4000);
+  assert.equal(f.$('#timeline').value, 13);
+  assert.equal(f.$('#preview-play').disabled, true);
 });
 
 test('playback clamps to the exact fractional level end, stops, and can restart after scrubbing backward', () => {

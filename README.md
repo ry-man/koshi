@@ -1263,6 +1263,10 @@ values) and one spawn from each active spawning brick. Batteries and Ditto
 Stamps can produce additional spawns, so the reference flags those possibilities
 rather than claiming a fixed maximum. Actual scores depend on gameplay, and
 scoring soccer balls requires goal bricks.
+Beside it, the time reference adds the starting clock to an estimate of all
+stopwatch bonuses from scheduled copies, enemy drops, Item Cases and one spawn
+per spawning brick. It assumes collection and excludes recharges and duplication;
+its collapsed assumptions describe the limits.
 The **Level** library lists every built-in game level for read-only inspection.
 Select bricks and scheduled events, scrub the timeline, switch layouts, or read
 the cutscene. Spawn locations are deterministic examples of the game's randomized
@@ -1479,7 +1483,8 @@ Place exactly one **Tom the Toaster** or **Tom the Frog** enemy before saving, e
 playtesting. Draft editing may temporarily omit the boss; duplicate bosses,
 boss formations, shields, and boss brick spawners are not allowed. Other
 enemies and their spawners remain available. Boss fights have no time limit;
-the duration setting still defines the placement timeline.
+the starting duration and estimated stopwatch bonuses define the preview timeline,
+while the starting duration still limits scheduled event and camera-change times.
 
 World **2-25** introduces Tom at the end of Clockwork Pantry, with four green
 slime blocks and four Boost blocks (one of each per side). His grey toaster
@@ -1687,13 +1692,15 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
    with **1x** matching real time. Speed changes take effect during playback.
    **Discretization** defaults to **1s**. Choose **None** for continuous slider movement, or
    **0.5s**, **1s**, **5s**, **10s**, or **30s** to round manual slider movement to
-   the nearest multiple of that interval within the level duration. Arrow keys
+   the nearest multiple of that interval within the estimated total time. Arrow keys
    move one interval at a time. Playback remains continuous and can still reach
-   the exact level end when its duration is not a multiple of the interval.
+   the    exact preview end when the total is not a multiple of the interval.
    Scrubbing, interacting with the board or event inspector, switching/importing
    levels, or hiding the editor tab pauses playback. Camera outlines follow the
    preview time in autoscrolling levels. This is a placement preview,
-   not an enemy-movement or collection simulation. Disable **Show randomly
+   not an enemy-movement or collection simulation. Its horizon and the Time Plot
+   and charts use the time-reference total, not a guarantee of how long play lasts.
+   Disable **Show randomly
    positioned spawns** to hide random events (including random groups and campaign
    schedule examples) while retaining fixed placements. This preview-only toggle
    does not remove events or change available-point totals.
@@ -1729,7 +1736,8 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
    cumulative food points. The food chart includes food-spawning bricks and a
    dashed food-target line when applicable. Expand each chart's assumptions for
    the limits of these estimates.
-   Clicking overlapping markers opens an element picker with the same event
+   Obstructions are selected by their visible shape rather than their surrounding
+   bounding rectangle. Clicking overlapping markers opens an element picker with the same event
    IDs, timing, category, artwork, descriptions, placement details and point
    totals as the timeline. Choose a row to select that event (or spawning brick);
    **Shift**/**Ctrl**/**Command**-click retains additive selection. **Close** or

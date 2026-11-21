@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionVertices, obstructionSpikes, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { isBossType } = globalThis.KoshiGame;
@@ -1064,7 +1064,7 @@ function eventTimelineButton(event, index, onChoose, spawnKey = null) {
   id.setAttribute('aria-label', spawnKey ? `Spawning brick ${spawnKey}` : `Event ID ${index + 1}`);
   const time = document.createElement('span'); time.className = 'event-time'; time.textContent = spawnKey ? 'Spawn only'
     : event.spawnPercent === undefined ? `${event.time}s`
-      : `${event.spawnPercent}% crossed${previewGame.eventAppearanceTime(event) >= level.duration ? ' · not reached before level ends' : ''}`;
+      : `${event.spawnPercent}% crossed${previewGame.eventAppearanceTime(event) >= Number($('#timeline').max) ? ' · not reached before level ends' : ''}`;
   const location = document.createElement('span'); location.className = 'event-location';
   location.textContent = `${event.random || event.previewRandom ? 'Random location' : `X ${(event.x * 100).toFixed(1)}% · Y ${(event.y * 100).toFixed(1)}%`}${event.randomCount ? ` · ${event.randomCount} independent placements` : ''}${event.group ? ` · ${event.group.count} in ${event.group.shape}${event.group.size === undefined ? '' : ` · ${event.group.size * 100}%`}${event.group.shape === 'line' ? ` · ${event.group.angle ?? 0} degrees` : ''}` : ''}${['food', 'item', 'weapon'].includes(event.kind) ? event.lifetime == null ? ' · until level ends' : ` · lasts ${event.lifetime}s` : event.kind === 'object' ? OBJECTS[event.type].obstruction ? ` · fixed, ${event.pattern ?? 'solid'}` : OBJECTS[event.type].soccer ? OBJECTS[event.type].fuse ? ' · kickable' : ' · persistent, kickable' : ' · persistent' : ''}${spawnKey ? ` · spawning brick ${spawnKey}` : ''}`;
   const category = document.createElement('span'); category.className = 'event-category';
@@ -1106,14 +1106,15 @@ function renderList() {
   }
   const events = level.events.map(event => event.spawnPercent === undefined ? event
     : { ...event, time: previewGame.eventAppearanceTime(event) });
-  const layout = relative ? relativeTimelineLayout(events, level.duration) : null;
+  const duration = Number($('#timeline').max);
+  const layout = relative ? relativeTimelineLayout(events, duration) : null;
   if (relative) {
     renderRelativeAxis(axis, layout);
     viewport.dataset.scale = layout.scale;
     $('#event-timeline-plot').style.width = `${layout.width}px`;
     const cursor = $('#event-timeline-cursor');
     cursor.style.left = `${Number($('#timeline').value) * layout.scale}px`;
-    cursor.setAttribute('aria-valuemax', String(level.duration));
+    cursor.setAttribute('aria-valuemax', String(duration));
     list.style.width = `${layout.width}px`;
     if (layout.rows) list.style.height = `${layout.rows * 56 - 12}px`;
     renderWeaponBalanceChart(layout, previewGame);
@@ -1255,7 +1256,8 @@ function overlappingMarkers(x, y) {
   for (const marker of $('#markers').querySelectorAll('.marker')) {
     if (marker.hidden) continue;
     const rect = marker.getBoundingClientRect();
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom
+      || (marker.obstructionHitTest && !marker.obstructionHitTest(x, y))) continue;
     const spawnKey = marker.dataset.spawnKey;
     const index = spawnKey ? null : Number(marker.dataset.index);
     const key = spawnKey ? `brick:${spawnKey}` : `event:${index}`;
@@ -1458,6 +1460,7 @@ function renderBoard() {
   previewGame = new Game(Math.random, { portrait, scale: portrait ? screenWidth / 600 : 1,
     ...(readOnly() ? { level: campaignIndex } : { customLevel: level }), editorPreview: true });
   renderPointReference(level.events, previewGame.bricks);
+  renderTimeReference(level.events, previewGame.bricks);
   board.style.width = `${screenWidth * previewGame.width / previewGame.viewportWidth}px`;
   board.style.height = `${screenHeight * previewGame.height / previewGame.viewportHeight}px`;
   board.style.aspectRatio = 'auto';
@@ -1726,6 +1729,29 @@ function renderBoard() {
       context.scale(image.width / frameWidth, image.height / frameHeight);
       drawObstruction(context, { ...appearance, x: frameWidth / 2, y: frameHeight / 2 });
       marker.append(image, label);
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.classList.add('obstruction-hit-area');
+      svg.setAttribute('viewBox', `0 0 ${frameWidth} ${frameHeight}`);
+      svg.setAttribute('aria-hidden', 'true');
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('transform', `translate(${frameWidth / 2} ${frameHeight / 2}) rotate(${appearance.rotation ?? 0})`);
+      const path = points => `M${points.map(([x, y]) => `${x} ${y}`).join(' L')} Z`;
+      const shapes = [path(obstructionVertices(appearance))];
+      if (appearance.spiked) shapes.push(obstructionSpikes({ ...appearance, x: 0, y: 0, rotation: 0 }).map(path).join(' '));
+      if (appearance.destructible) shapes.push(path([[-18, -13], [18, -13], [18, 13], [-18, 13]]));
+      for (const shape of shapes) {
+        const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        hit.setAttribute('d', shape); hit.setAttribute('fill', 'transparent');
+        hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', '2.5');
+        group.append(hit);
+      }
+      svg.append(group); marker.append(svg);
+      marker.obstructionHitTest = (x, y) => [...group.children].some(hit => {
+        const point = svg.createSVGPoint();
+        point.x = x; point.y = y;
+        const local = point.matrixTransform(hit.getScreenCTM().inverse());
+        return hit.isPointInFill(local) || hit.isPointInStroke(local);
+      });
       if (selected && !readOnly() && !trackObjectAction && connectingSpawn === null && !event.random && !event.group) {
         const outline = document.createElement('span');
         outline.className = 'obstruction-resize-box';
@@ -1799,17 +1825,18 @@ function renderBoard() {
 }
 
 function renderPreviewTime(time = Number($('#timeline').value), followTime = false, followCamera = true) {
-  time = Math.max(0, Math.min(level.duration, time));
+  const duration = Number($('#timeline').max);
+  time = Math.max(0, Math.min(duration, time));
   $('#timeline').value = time;
   $('#time-label').textContent = `${time.toFixed(1)}s`;
-  if (followTime) $('#event-time').value = Math.min(time, Number($('#event-time').max));
+  if (followTime && time < level.duration) $('#event-time').value = time;
   $('#preview-speed-label').textContent = `${$('#preview-speed').value}x`;
   const timelineViewport = $('#event-timeline-viewport');
   if (timelineViewport.dataset.view === 'relative') {
     const cursor = $('#event-timeline-cursor');
     cursor.style.left = `${time * Number(timelineViewport.dataset.scale)}px`;
     cursor.setAttribute('aria-valuenow', String(time));
-    cursor.setAttribute('aria-valuemax', String(level.duration));
+    cursor.setAttribute('aria-valuemax', String(duration));
     cursor.setAttribute('aria-valuetext', `${time.toFixed(1)} seconds`);
   }
   for (const entry of $('#event-list').querySelectorAll('[data-event-time]')) {
@@ -1831,8 +1858,8 @@ function renderPreviewTime(time = Number($('#timeline').value), followTime = fal
       marker.style.top = `${point.y / previewGame.height * 100}%`;
     }
   }
-  if (time >= level.duration) pausePreview();
-  $('#preview-play').disabled = time >= level.duration;
+  if (time >= duration) pausePreview();
+  $('#preview-play').disabled = time >= duration;
 }
 
 function alignmentAxes(point, references, toleranceX, toleranceY) {
@@ -1892,6 +1919,26 @@ function pointReference(events, bricks) {
     || (source.kind === 'enemy' && ['battery', 'ditto-stamp'].includes(source.carriesItem))
     || (source.kind === 'object' && source.type === 'item-case' && ['battery', 'ditto-stamp'].includes(source.containsItem)));
   return { ...totals, extra };
+}
+
+function timeReference(events, bricks, start) {
+  const spawns = bricks.filter(brick => brick.absorbedBy === null && brick.spawner).map(brick => brick.spawner);
+  let inLevel = 0;
+  for (const source of [...events, ...spawns]) {
+    const type = source.kind === 'item' ? source.type
+      : source.kind === 'enemy' ? source.carriesItem
+        : source.kind === 'object' && source.type === 'item-case' ? source.containsItem : null;
+    inLevel += (ITEMS[type]?.seconds ?? 0) * (source.group?.count ?? source.randomCount ?? 1);
+  }
+  return { start, inLevel, total: start + inLevel };
+}
+
+function renderTimeReference(events, bricks) {
+  const { start, inLevel, total } = timeReference(events, bricks, level.duration);
+  $('#time-start').textContent = `${start}s`;
+  $('#time-in-level').textContent = `${inLevel}s`;
+  $('#time-total').textContent = `${total}s`;
+  $('#timeline').max = total;
 }
 
 function firstSpawnerAppearanceTime(brick, bricks, game, duration) {
@@ -2027,7 +2074,7 @@ function renderPointReference(events, bricks) {
 
 function renderWeaponBalanceChart(layout, game) {
   renderTimelineChart($('#weapon-balance-chart'), layout,
-    weaponBalanceSeries(level.events, game.bricks, game, level.duration), {
+    weaponBalanceSeries(level.events, game.bricks, game, Number($('#timeline').max)), {
       label: 'Cumulative estimated weapon strikes minus enemy points over time. Positive values indicate sufficient estimated strikes for the enemies scheduled by that time.',
       title: 'Weapon strike surplus over enemy points',
       description: 'A step chart of cumulative estimated weapon strikes minus cumulative enemy points. Values above zero indicate sufficient estimated strikes for all enemies scheduled by that time.',
@@ -2037,7 +2084,7 @@ function renderWeaponBalanceChart(layout, game) {
 
 function renderFoodPointsChart(layout, game) {
   renderTimelineChart($('#food-points-chart'), layout,
-    foodPointsSeries(level.events, game.bricks, game, level.duration), {
+    foodPointsSeries(level.events, game.bricks, game, Number($('#timeline').max)), {
       label: 'Estimated maximum food points and food target over time.',
       title: 'Estimated maximum food points over time',
       description: 'A step chart of cumulative food points available from scheduled food and food spawners, with a horizontal food target line when applicable.',
@@ -3606,7 +3653,6 @@ function populateSettings() {
   $('#cat-block-enemy-type').value = trigger?.enemyType ?? 'mouse';
   $('#cat-block-brick-type').value = trigger?.brickType ?? 'normal';
   updateCatBlockTrigger();
-  $('#timeline').max = level.duration;
   $('#event-time').max = level.duration;
 }
 function updateAutoscrollSettings() {
@@ -4133,7 +4179,7 @@ function previewFrame(timestamp) {
 $('#preview-play').addEventListener('click', () => {
   if (previewPlayback) { pausePreview(); return; }
   const time = Number($('#timeline').value);
-  if (time >= level.duration) return;
+  if (time >= Number($('#timeline').max)) return;
   previewPlayback = { time, timestamp: performance.now(), speed: Number($('#preview-speed').value) };
   $('#preview-play').textContent = 'Pause';
   $('#preview-play').setAttribute('aria-pressed', 'true');
@@ -4155,7 +4201,7 @@ $('#timeline').addEventListener('input', () => {
 function discretePreviewTime(time) {
   const step = Number($('#timeline-discretization').value);
   if (!step) return time;
-  return Math.max(0, Math.min(Math.floor(level.duration / step), Math.round(time / step))) * step;
+  return Math.max(0, Math.min(Math.floor(Number($('#timeline').max) / step), Math.round(time / step))) * step;
 }
 $('#timeline').addEventListener('keydown', event => {
   const step = Number($('#timeline-discretization').value);
@@ -4165,7 +4211,7 @@ $('#timeline').addEventListener('keydown', event => {
   event.preventDefault();
   pausePreview();
   const time = Number($('#timeline').value);
-  const next = event.key === 'Home' ? 0 : event.key === 'End' ? level.duration
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? Number($('#timeline').max)
     : ((direction > 0 ? Math.floor(time / step) : Math.ceil(time / step)) + direction) * step;
   renderPreviewTime(discretePreviewTime(next), true);
 });
@@ -4210,7 +4256,7 @@ $('#event-timeline-cursor').addEventListener('keydown', event => {
   event.preventDefault();
   pausePreview();
   const time = Number($('#timeline').value);
-  const next = event.key === 'Home' ? 0 : event.key === 'End' ? level.duration : time + direction * step;
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? Number($('#timeline').max) : time + direction * step;
   renderPreviewTime(discretePreviewTime(next), true);
 });
 document.addEventListener('keydown', event => {
