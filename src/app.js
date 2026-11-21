@@ -26,7 +26,7 @@ const canvas = document.querySelector('#canvas');
 const actorCanvas = document.querySelector('#actors');
 const sunglassesGlowCanvas = document.querySelector('#sunglasses-glow');
 const boardCtx = canvas.getContext('2d');
-// Koshi is drawn on a canvas layered above the brick buttons so he is never hidden by them.
+// Actors are drawn above the brick buttons so they are never hidden by them.
 const actorCtx = actorCanvas.getContext('2d');
 let ctx = boardCtx;
 const FOOD_COLORS = { S: '#ff2d55', P: '#ff9f0a', B: '#ffd60a', C: '#ffcc00', L: '#ff6b2c', F: '#0a84ff', H: '#34c759', K: '#f05ba5' };
@@ -1109,6 +1109,24 @@ function syncSunglassesOverlay() {
   }
 }
 
+function syncTeamScore(node, score) {
+  const value = String(score);
+  if (node.dataset.value === value) return;
+  node.dataset.value = value;
+  const digits = value.padStart(2, '0');
+  const segments = [
+    '3,2 17,2 14,5 6,5', '18,3 18,16 15,18 14,15 14,7',
+    '18,20 18,33 17,34 14,31 14,22 15,19', '3,34 17,34 14,31 6,31',
+    '2,20 5,19 6,22 6,31 3,34 2,33', '2,3 6,7 6,15 5,18 2,16',
+    '3,18 6,15.5 14,15.5 17,18 14,20.5 6,20.5',
+  ];
+  const lit = ['abcdef', 'bc', 'abdeg', 'abcdg', 'bcfg', 'acdfg', 'acdefg', 'abc', 'abcdefg', 'abcdfg'];
+  node.innerHTML = `<svg viewBox="0 0 ${digits.length * 22} 36" width="${digits.length * 22}" height="36">`
+    + [...digits].map((digit, index) => `<g transform="translate(${index * 22} 0)">`
+      + segments.map((points, segment) => `<polygon class="team-score-segment${lit[Number(digit)].includes('abcdefg'[segment]) ? ' is-lit' : ''}" points="${points}"/>`).join('')
+      + '</g>').join('') + '</svg>';
+}
+
 function syncUI() {
   syncLevelRewards();
   levelInfoReplay.hidden = game.state !== 'ready' || !game.level.levelInfo;
@@ -1168,6 +1186,7 @@ function syncUI() {
   levelReadout.title = levelLabel;
   const gameShell = document.querySelector('.game-shell');
   if (gameShell?.dataset) {
+    gameShell.dataset.scoreTheme = world?.theme ?? 'garden';
     if (world?.theme === 'official' && world.color) {
       gameShell.dataset.worldTheme = 'official';
       gameShell.style.setProperty('--level-world-color', world.color);
@@ -1208,8 +1227,11 @@ function syncUI() {
   document.querySelector('#team-scoreboard').hidden = game.level.bossLevel
     || !game.bricks?.some(brick => brick.kind === 'goal' && brick.goalTeam && brick.absorbedBy === null);
   if (!document.querySelector('#team-scoreboard').hidden) {
-    document.querySelector('#team-koshi-score').textContent = `KOSHI: ${game.teamKoshiGoals}`;
-    document.querySelector('#team-enemy-score').textContent = `ENEMIES: ${game.teamEnemyGoals}`;
+    syncTeamScore(document.querySelector('#team-koshi-score'), game.teamKoshiGoals);
+    syncTeamScore(document.querySelector('#team-enemy-score'), game.teamEnemyGoals);
+    const description = `Koshi: ${game.teamKoshiGoals}; Enemies: ${game.teamEnemyGoals}`;
+    const scoreDescription = document.querySelector('#team-score-description');
+    if (scoreDescription.textContent !== description) scoreDescription.textContent = description;
   }
   if (game.level.bossLevel) {
     const health = game.boss?.health ?? 6, maximum = game.boss?.maxHealth ?? 6;
@@ -2700,7 +2722,6 @@ function render(now) {
     ctx.fillStyle = toast.blue ? '#83b9ff' : toast.burnt ? '#090909' : '#f0c77e'; ctx.fillRect(-7, -7, 14, 15);
     ctx.restore();
   }
-  for (const fly of game.frogFlies) if (visible(fly)) drawFrogFly(fly);
   for (const effect of game.frogEffects) if (visible(effect, 150)) drawFrogEffect(effect);
   if (game.state === 'playing' && (game.cat.vx || game.cat.vy)) {
     trail.push({ x: game.cat.x, y: game.cat.y, born: now });
@@ -2743,6 +2764,20 @@ function render(now) {
       if (segments.length) drawFireWave(segments, wave.radius);
     }
   }
+  ctx = actorCtx;
+  ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
+  drawScramblerTransition(game, camera);
+  const goalBricks = game.bricks.filter(brick => brick.kind === 'goal' && brick.absorbedBy === null);
+  if (goalBricks.length) {
+    const parts = game.brickParts();
+    for (const brick of goalBricks) {
+      const members = parts.filter(part => part.id === brick.id);
+      if (game.level.autoscroll && !members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 32))) continue;
+      drawGoal(ctx, members,
+        game.sunglassesActive ? `hsl(${game.elapsed * 140 % 360}, 85%, 70%)` : null, brick.goalTeam);
+    }
+  }
+  for (const fly of game.frogFlies) if (visible(fly)) drawFrogFly(fly);
   for (const enemy of robotDrawOrder(visibleRobots)) {
     if (enemy.type === 'tom-frog') continue;
     if (enemy.type === 'robo-trash-bin' && enemy.binState === 'pour' && enemy.binPourPoint) {
@@ -2783,9 +2818,6 @@ function render(now) {
     ctx.font = 'bold 19px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(`+${pickup.value}`, pickup.x, pickup.y - 20 - age * 45);
   }
-  ctx = actorCtx;
-  ctx.clearRect(camera.x, camera.y, camera.width, camera.height);
-  drawScramblerTransition(game, camera);
   // Tom stands above the brick layer; his tongue and slime then leave his mouth on top of him.
   const frogs = visibleRobots.filter(enemy => enemy.type === 'tom-frog');
   for (const enemy of frogs) drawRobot(enemy, null, game.enemyDamageProgress(enemy));
@@ -2808,16 +2840,6 @@ function render(now) {
     }
   }
   for (const enemy of visibleRobots) if (enemy.type === 'robo-cow') drawCowGrass(enemy);
-  const goalBricks = game.bricks.filter(brick => brick.kind === 'goal' && brick.absorbedBy === null);
-  if (goalBricks.length) {
-    const parts = game.brickParts();
-    for (const brick of goalBricks) {
-      const members = parts.filter(part => part.id === brick.id);
-      if (game.level.autoscroll && !members.some(part => cameraBoundsVisible(camera, part.x, part.y, part.w, part.h, 32))) continue;
-      drawGoal(ctx, members,
-        game.sunglassesActive ? `hsl(${game.elapsed * 140 % 360}, 85%, 70%)` : null, brick.goalTeam);
-    }
-  }
   for (const ball of game.soccerBalls ?? []) if (visible(ball)) drawSoccerBall(ctx, ball);
   for (const item of game.itemCases) if (visible(item)) {
     drawItemCase(ctx, item, type => {

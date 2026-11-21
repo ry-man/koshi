@@ -225,7 +225,14 @@
           <span id="boss-health-label">Tom the Toaster: </span>
           <div id="boss-health-meter" class="boss-health-meter" role="progressbar" aria-labelledby="boss-health-label" aria-valuemin="0" aria-valuemax="6" aria-valuenow="6"><div id="boss-health-fill"></div></div>
         </div>
-        <div id="team-scoreboard" class="boss-health team-scoreboard" role="status" hidden><span id="team-koshi-score"></span><span id="team-enemy-score"></span></div>
+        <div id="team-scoreboard" class="team-scoreboard" role="status" aria-atomic="true" hidden>
+          <span id="team-score-description" class="visually-hidden"></span>
+          <div class="team-scoreboard-display" aria-hidden="true">
+            <div class="team-scoreboard-box team-scoreboard-team"><span id="team-koshi-score" class="team-score-digits team-score-koshi"></span><span>KOSHI</span></div>
+            <div class="team-scoreboard-box team-scoreboard-heading">← SCORES →</div>
+            <div class="team-scoreboard-box team-scoreboard-team"><span>ENEMIES</span><span id="team-enemy-score" class="team-score-digits team-score-enemy"></span></div>
+          </div>
+        </div>
         </div>
         <div class="objective"><span><span class="live-dot"></span> THE MISSION</span><strong>Collect 20 food before time runs out</strong><span id="progress-label">0% complete</span></div>
         <div class="progress-track"><div id="progress"></div></div>

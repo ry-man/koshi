@@ -426,7 +426,7 @@ test('render draws Tom above the bricks, then his tongue and slime, and ignores 
   const actor = render.indexOf('ctx = actorCtx;');
   const frog = render.indexOf('for (const enemy of frogs) drawRobot(enemy');
   assert.ok(actor > 0 && frog > actor, 'Tom draws on the actor canvas above the brick layer');
-  assert.ok(render.indexOf("if (enemy.type === 'tom-frog') continue;") < actor, 'Tom is skipped on the board canvas');
+  assert.ok(render.indexOf("if (enemy.type === 'tom-frog') continue;") > actor, 'Tom is skipped in the other enemies pass');
   assert.ok(render.indexOf('drawFrogTongue(enemy.tongue)') > frog);
   assert.ok(render.indexOf('drawFrogSlimeBall(toast)') > frog);
   assert.ok(render.indexOf('drawCat(game.cat.x') > frog, 'Koshi stays above Tom');

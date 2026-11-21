@@ -198,7 +198,20 @@ h1 em { font-style: normal; color: var(--accent); }
 .hud { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 22px var(--hud-inset); gap: var(--hud-gap); }
 .boss-health { position: absolute; left: var(--hud-inset); right: var(--hud-inset); bottom: 0; height: 14px; display: flex; align-items: center; gap: 8px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; line-height: 1; }
 .boss-health[hidden] { display: none; }
-.team-scoreboard { justify-content: space-around; }
+.team-scoreboard { grid-column: 1 / -1; justify-self: center; width: min(100%, 700px); --scoreboard-color: #b6e686; }
+.team-scoreboard[hidden] { display: none; }
+.game-shell[data-score-theme="workshop"] .team-scoreboard { --scoreboard-color: #edbd78; }
+.game-shell[data-score-theme="foundry"] .team-scoreboard { --scoreboard-color: #ff9b6b; }
+.game-shell[data-world-theme="official"] .team-scoreboard { --scoreboard-color: var(--level-world-color); }
+.team-scoreboard-display { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 4px; height: 38px; font: 700 clamp(9px, 2.4vw, 16px) 'Space Grotesk', sans-serif; line-height: 1; }
+.team-scoreboard-box { display: flex; align-items: center; justify-content: center; min-width: 0; gap: 5px; padding: 3px 6px; border: 2px solid color-mix(in srgb, var(--scoreboard-color) 75%, white); border-radius: 4px; background: var(--scoreboard-color); color: #172229; white-space: nowrap; }
+.team-scoreboard-team { justify-content: space-between; }
+.team-score-digits { display: flex; align-items: center; justify-content: center; flex: 1 1 0; min-width: 0; height: 100%; padding: 2px; border-radius: 2px; background: #10191f; }
+.team-score-digits svg { display: block; width: auto; height: 100%; max-width: 100%; }
+.team-score-koshi { color: #55f77a; }
+.team-score-enemy { color: #ff5454; }
+.team-score-segment { fill: currentColor; opacity: .13; }
+.team-score-segment.is-lit { opacity: 1; }
 .boss-health-meter { flex: 1; min-width: 40px; height: 10px; border: 2px solid #e4b947; background: #281b20; border-radius: 3px; overflow: hidden; }
 #boss-health-fill { height: 100%; width: 100%; background: #e13e45; transition: width .18s; }
 .stat { min-width: 0; text-align: center; }
@@ -578,6 +591,8 @@ body:has(.world-picker[open]) { overflow: hidden; }
   .hud { --counter-icon-size: 17px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 6px var(--hud-inset); gap: var(--hud-gap); }
   .boss-health { bottom: calc((var(--boss-health-gap, 2px) + 10px) / -2); height: 10px; font-size: 10px; }
   .boss-health-meter { height: 8px; }
+  .team-scoreboard-display { height: 30px; gap: 3px; }
+  .team-scoreboard-box { gap: 3px; padding: 2px 3px; }
   .stat { border: 0; padding: 0; }
   .stat-label { font-size: 8px; letter-spacing: .2px; line-height: 1.1; margin-bottom: 5px; white-space: normal; }
   .stat strong { font-size: 17px; }

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { Game, SWORDS, WEAPONS, SLIMES } = require('../src/game.js');
+const { Game, CHARACTERS, SWORDS, WEAPONS, SLIMES } = require('../src/game.js');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
 const helper = source.slice(source.indexOf('function cameraBoundsVisible('), source.indexOf('function render('));
@@ -114,8 +114,8 @@ test('scrolling render skips distant artwork but draws visible attacks from dist
   assert.deepEqual(calls.get('drawGameItem').map(([item]) => item.type), ['treasure-chest']);
   assert.ok(layers.get('drawGameItem').every(layer => layer === context.actorCtx),
     'held items render above bricks on the actor canvas');
-  assert.ok(layers.get('drawRobot').every(layer => layer === context.boardCtx),
-    'enemy bodies retain their existing board layer');
+  assert.ok(layers.get('drawRobot').every(layer => layer === context.actorCtx),
+    'enemy bodies render above bricks on the actor canvas');
   assert.equal(calls.get('drawFoodBadge').length, 1);
   assert.equal(calls.get('drawFireWave').length, 1);
   assert.equal(calls.get('drawBomb').length, 1);
@@ -131,6 +131,50 @@ test('scrolling render skips distant artwork but draws visible attacks from dist
   assert.deepEqual(calls.get('drawGameItem').map(([item]) => item.type), ['treasure-chest', 'cat-block', 'key']);
   assert.ok(layers.get('drawGameItem').every(layer => layer === context.actorCtx),
     'legacy Cat Block and key carriers also render held items above bricks');
+});
+
+test('all live and defeated enemies render above normal and goal bricks, below Koshi', () => {
+  const game = new Game(() => .5, { customLevel: {
+    version: 1, id: 'Enemy layers', duration: 60, goal: 0, survive: true,
+    heartCost: null, brickSet: 1, events: [],
+  } });
+  const goal = game.bricks.find(brick => brick.absorbedBy === null);
+  goal.kind = 'goal';
+  const types = [...new Set([...Object.keys(CHARACTERS).filter(type => !['koshi', 'tom'].includes(type)),
+    'robo-sharpshooter', 'robo-cat-lady', 'tom-frog'])];
+  game.robots = types.map(type => ({ type, x: goal.x, y: goal.y, radius: 23, age: 0 }));
+  game.enemyDeaths = game.robots.map(enemy => ({ ...enemy, deathProgress: .4 }));
+  game.frogFlies = [{ x: goal.x, y: goal.y, radius: 13 }];
+  const render = source.slice(source.indexOf('function render('), source.indexOf('function drawFoodBadge('));
+  const calls = [];
+  const context = {
+    game, SWORDS, WEAPONS, SLIMES, buttons: [], trail: [], ending: null, colors: {},
+    canvas: { width: game.width, height: game.height }, board: { clientWidth: game.width, clientHeight: game.height },
+    document: { querySelector: () => ({ style: {} }) },
+    powerupStreamRows: () => ({}), robotDrawOrder: robots => robots, line() {},
+  };
+  const canvasContext = () => new Proxy({}, { get: (_, key) => key === 'globalAlpha' ? 1 : () => {} });
+  context.ctx = context.boardCtx = canvasContext();
+  context.actorCtx = canvasContext();
+  for (const [name] of render.matchAll(/\b(draw[A-Z]\w*)(?=\()/g)) {
+    context[name] = (...args) => calls.push({ name, args, layer: context.ctx });
+  }
+  vm.runInNewContext(`${helper}\n${render}\nrender(0);`, context);
+  const goalIndex = calls.findIndex(call => call.name === 'drawGoal');
+  const catIndex = calls.findIndex(call => call.name === 'drawCat');
+  assert.ok(goalIndex >= 0 && catIndex > goalIndex);
+  for (const name of ['drawRobot', 'drawEnemyDeath']) {
+    const actors = calls.filter(call => call.name === name);
+    assert.deepEqual(actors.map(call => call.args[0].type).sort(), [...types].sort());
+    for (const actor of actors) {
+      assert.equal(actor.layer, context.actorCtx, `${actor.args[0].type} uses the foreground canvas`);
+      assert.ok(calls.indexOf(actor) > goalIndex && calls.indexOf(actor) < catIndex,
+        `${actor.args[0].type} is above goal artwork and below Koshi`);
+    }
+  }
+  const fly = calls.find(call => call.name === 'drawFrogFly');
+  assert.equal(fly.layer, context.actorCtx);
+  assert.ok(calls.indexOf(fly) > goalIndex && calls.indexOf(fly) < catIndex);
 });
 
 test('turret drawing keeps crossing beams and overlapping blasts but skips distant effects', () => {

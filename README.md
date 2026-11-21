@@ -1880,7 +1880,8 @@ consistent. Existing campaign data is unchanged.
 or 3 slow/fast bricks each. `heartCost: null` disables heart spawning.
 Enemy events can carry keys with `"carriesItem": "key"`. A carried item is
 displayed beside the enemy in front of boundary bricks and drops at its position on defeat, remaining
-collectible until the level ends. Omit a chest event's `lifetime` to
+collectible until the level ends. Enemies and their defeat animations also draw
+in front of bricks. Omit a chest event's `lifetime` to
 keep it available until opened or the level ends.
 Random pickups keep 80 game units between their centers and live or queued
 pickups when space permits. Failed random retries trigger a whole-board search
@@ -2655,7 +2656,8 @@ three-goal objective with five scheduled balls; the original 19 levels are uncha
 Goal overrides may optionally specify `"goalTeam": "koshi"` or `"enemy"`;
 omitting it makes a teamless goal. A ball entering a team goal scores for the
 opposing team, independently of the ordinary total-goal counter. Team goals
-show a scoreboard in the boss meter strip and cannot be used in boss levels.
+show a world-colored scoreboard below the HUD, with green digital Koshi scores
+and red digital enemy scores, and cannot be used in boss levels.
 The editor also offers Cat Brick conditions `teamRace`, `teamEnemyMax`, and
 `teamKoshiMin`, each with an `amount`. They are evaluated when the level is won;
 `teamRace` remembers whether Koshi reached that amount before the enemies.

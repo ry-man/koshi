@@ -25,12 +25,15 @@ function hud(level, customLevel = false) {
       customLevel, state: 'ready', score: 123, enemies: 456, hearts: 3,
       elapsed: 0, nextHeart: 999, timeLimit: 60,
     },
-    WORLDS: [{ id: '1', name: 'World one' }, { id: '3S', name: 'Special world' }],
+    WORLDS: [{ id: '1', name: 'World one', theme: 'garden' },
+      { id: '3S', name: 'Special world', theme: 'foundry' },
+      { id: '2', name: 'Official world', theme: 'official', color: '#f1d65c' }],
     syncLevelRewards() {}, levelObjective: () => '', displayedStuck: false,
     levelInfoReplay: node('#level-info-replay'), document: { querySelector: node },
     timer: node('#timer'), foodCount: node('#food-count'), hearts: node('#hearts'),
     progress: node('#progress'), progressLabel: node('#progress-label'),
   });
+  vm.runInContext(source.slice(source.indexOf('function syncTeamScore('), source.indexOf('function syncUI()')), context);
   vm.runInContext(sync, context);
   context.syncUI();
   return { node, context };
@@ -126,7 +129,7 @@ test('boss meters use the boss name without Health and retain accessible life va
   }
 });
 
-test('team scoreboard shares the boss strip and shows independent soccer scores', () => {
+test('team scoreboard shows independent soccer scores with accessible updates', () => {
   const { CHARACTERS, isBossType } = require('../src/game.js');
   const meterSync = source.slice(source.indexOf("  document.querySelector('#boss-health').hidden"),
     source.indexOf('  const gameCanvas ='));
@@ -136,8 +139,16 @@ test('team scoreboard shares the boss strip and shows independent soccer scores'
   context.game.teamKoshiGoals = 2; context.game.teamEnemyGoals = 1;
   vm.runInContext(meterSync, context);
   assert.equal(node('#team-scoreboard').hidden, false);
-  assert.equal(node('#team-koshi-score').textContent, 'KOSHI: 2');
-  assert.equal(node('#team-enemy-score').textContent, 'ENEMIES: 1');
+  assert.equal(node('#team-score-description').textContent, 'Koshi: 2; Enemies: 1');
+  assert.equal(node('#team-koshi-score').dataset.value, '2');
+  assert.equal(node('#team-enemy-score').dataset.value, '1');
+  assert.match(node('#team-koshi-score').innerHTML, /viewBox="0 0 44 36"/);
+  context.game.teamKoshiGoals = 100000; context.game.teamEnemyGoals = 42;
+  vm.runInContext(meterSync, context);
+  assert.equal(node('#team-score-description').textContent, 'Koshi: 100000; Enemies: 42');
+  assert.match(node('#team-koshi-score').innerHTML, /viewBox="0 0 132 36"/);
+  assert.equal((node('#team-koshi-score').innerHTML.match(/<g /g) ?? []).length, 6);
+  context.game.teamKoshiGoals = 2;
   context.syncUI();
   assert.equal(node('#progress').style.width, '50%');
   context.game.bricks[0].goalTeam = null;
@@ -146,6 +157,31 @@ test('team scoreboard shares the boss strip and shows independent soccer scores'
   context.game.bricks[0].goalTeam = 'koshi'; context.game.level.bossLevel = true;
   vm.runInContext(meterSync, context);
   assert.equal(node('#team-scoreboard').hidden, true);
+});
+
+test('scoreboard digits light the correct seven segments for every numeral', () => {
+  const { node, context } = hud({ id: 'digits' });
+  for (const [digit, expected] of ['abcdef', 'bc', 'abdeg', 'abcdg', 'bcfg',
+    'acdfg', 'acdefg', 'abc', 'abcdefg', 'abcdfg'].entries()) {
+    context.syncTeamScore(node('#team-koshi-score'), digit);
+    const groups = [...node('#team-koshi-score').innerHTML.matchAll(/<g[^>]*>(.*?)<\/g>/g)];
+    assert.equal(groups.length, 2);
+    const polygons = [...groups[1][1].matchAll(/<polygon class="([^"]+)"/g)];
+    assert.equal(polygons.map((match, index) => match[1].includes('is-lit') ? 'abcdefg'[index] : '').join(''), expected);
+  }
+});
+
+test('scoreboard follows the active world theme and resets for custom levels', () => {
+  const { node, context } = hud({ worldId: '2', id: 'theme' });
+  assert.equal(node('.game-shell').dataset.scoreTheme, 'official');
+  assert.equal(node('.game-shell').dataset.worldTheme, 'official');
+  context.game.level.worldId = '3S';
+  context.syncUI();
+  assert.equal(node('.game-shell').dataset.scoreTheme, 'foundry');
+  assert.equal(node('.game-shell').dataset.worldTheme, undefined);
+  context.game.level.worldId = 'custom';
+  context.syncUI();
+  assert.equal(node('.game-shell').dataset.scoreTheme, 'garden');
 });
 
 test('phone boss meter is positioned halfway between the HUD and board', () => {
