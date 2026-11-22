@@ -759,6 +759,36 @@ test('obstruction trajectory follows actual no-click motion for every variant wi
   }
 });
 
+test('clustered forecasts sphere-trace open corridors and slide across adjacent obstructions like live motion', () => {
+  const corridor = arena();
+  for (const y of [130, 470]) {
+    corridor.obstructions.push(corridor.createObstruction({ x: 480, y }, placement('rectangle', { width: 300, height: 200 })));
+  }
+  Object.assign(corridor.cat, { x: 60, y: 300, vx: 420, vy: 0 });
+  corridor.target = { x: 930, y: 300 };
+  let substeps = 0;
+  const move = corridor.moveAroundObstructions;
+  corridor.moveAroundObstructions = function (...args) { substeps++; return move.apply(this, args); };
+  const corridorPoints = corridor.trajectory();
+  assert.ok(substeps <= 20, `threading a clear corridor used ${substeps} forecast substeps`);
+  assert.ok(corridorPoints.at(-1)[0] > 850, 'the forecast crosses the corridor to the far wall');
+
+  const cluster = arena();
+  cluster.obstructions.push(...[[440, 180], [640, 180]].map(([x, y]) =>
+    cluster.createObstruction({ x, y }, placement('rectangle', { width: 200, height: 120 }))));
+  Object.assign(cluster.cat, { x: 300, y: 330, vx: 300, vy: -200 });
+  cluster.target = { x: 930, y: 60 };
+  const points = cluster.trajectory();
+  for (let frame = 0; frame < 1000; frame++) {
+    const old = { ...cluster.cat };
+    cluster.update(1 / 120);
+    assert.ok(distanceToPath(cluster.cat.x, cluster.cat.y, points) < .6, `frame ${frame} follows the forecast`);
+    if ((!cluster.cat.vx && !cluster.cat.vy) || Math.hypot(cluster.cat.x - old.x, cluster.cat.y - old.y) < 1e-5) break;
+  }
+  const end = points.at(-1);
+  assert.ok(Math.hypot(end[0] - cluster.cat.x, end[1] - cluster.cat.y) < .02, 'forecast ends where Koshi actually stops');
+});
+
 test('resized and rotated polygon forecasts follow live sliding through faces and vertices', () => {
   for (const shape of shapes.filter(shape => shape !== 'circle')) for (const rotation of [0, 37, 90]) {
     const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 },

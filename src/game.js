@@ -4283,7 +4283,15 @@ class Game {
     const actor = { ...this.cat }, points = [[actor.x, actor.y]];
     const maxDistance = Math.hypot(this.width, this.height) * 2;
     const visited = new Set();
-    let traveled = 0, reflections = 0;
+    // Conservative bounding boxes let each substep skip unreachable obstructions.
+    const bounded = this.obstructions.map(obstruction => {
+      const { width, height } = obstructionGeometry(obstruction);
+      const angle = (obstruction.rotation ?? 0) * Math.PI / 180;
+      const cos = Math.abs(Math.cos(angle)), sin = Math.abs(Math.sin(angle));
+      return { obstruction, halfX: (cos * width + sin * height) / 2, halfY: (sin * width + cos * height) / 2 };
+    });
+    let traveled = 0, reflections = 0, culled = false;
+    const nearby = [];
     const append = () => {
       const point = [actor.x, actor.y], last = points.at(-1), before = points.at(-2);
       if (Math.hypot(point[0] - last[0], point[1] - last[1]) < 1e-5) return;
@@ -4306,9 +4314,39 @@ class Game {
       const old = { x: actor.x, y: actor.y };
       const speed = Math.hypot(actor.vx, actor.vy);
       if (!speed) break;
-      const dt = Math.min(1 / 120, (maxDistance - traveled) / speed);
+      const fine = speed / 120;
+      // Overlap pushes from an obstruction spawned over the cat can exceed the culling
+      // margin, so cull only once the actor is verified clear of penetration.
+      let jump = culled, candidates = this.obstructions;
+      if (culled) {
+        nearby.length = 0;
+        const reach = fine + actor.radius, near = reach + actor.radius;
+        for (const { obstruction, halfX, halfY } of bounded) {
+          const offsetX = Math.max(0, Math.abs(actor.x - obstruction.x) - halfX);
+          const offsetY = Math.max(0, Math.abs(actor.y - obstruction.y) - halfY);
+          const squared = offsetX * offsetX + offsetY * offsetY;
+          if (squared <= reach * reach) jump = false;
+          if (squared <= near * near) nearby.push(obstruction);
+        }
+        candidates = nearby;
+      }
+      let dt = Math.min(1 / 120, (maxDistance - traveled) / speed);
+      if (jump) {
+        // Sphere-trace across open space; gameplay's fixed substeps resume near obstructions.
+        let clear = maxDistance - traveled;
+        for (const { obstruction, halfX, halfY } of bounded) {
+          const offsetX = Math.max(0, Math.abs(actor.x - obstruction.x) - halfX);
+          const offsetY = Math.max(0, Math.abs(actor.y - obstruction.y) - halfY);
+          clear = Math.min(clear, Math.hypot(offsetX, offsetY) - actor.radius);
+        }
+        dt = clear / speed;
+      }
       actor.x += actor.vx * dt; actor.y += actor.vy * dt;
-      this.moveAroundObstructions(actor, old, true);
+      if (!jump) this.moveAroundObstructions(actor, old, true, candidates);
+      if (!culled) {
+        culled = !this.obstructions.some(obstruction =>
+          obstructionSurface(actor.x, actor.y, obstruction).gap < actor.radius - 1e-6);
+      }
       const dx = actor.x - old.x, dy = actor.y - old.y;
       let contact = Math.min(1,
         dx > 0 ? (this.width - actor.radius - old.x) / dx : dx < 0 ? (actor.radius - old.x) / dx : Infinity,
@@ -4336,7 +4374,7 @@ class Game {
         else if (time <= contact + 1e-9 && time <= 1) bumpers.push(bumper);
       }
       actor.x = old.x + dx * contact; actor.y = old.y + dy * contact;
-      const door = this.keydoorContacts(actor, old.x, old.y)
+      const door = (jump ? [] : this.keydoorContacts(actor, old.x, old.y, candidates))
         .find(({ obstruction }) => this.keys >= obstruction.keysRequired);
       if (door) {
         actor.x = old.x + (actor.x - old.x) * door.time;
@@ -4370,6 +4408,8 @@ class Game {
           actor.vy *= OBJECTS[bumper.type].speedMultiplier;
           actor.x = bumper.x + normal.x * (actor.radius + bumper.radius + .01);
           actor.y = bumper.y + normal.y * (actor.radius + bumper.radius + .01);
+          // The repositioned actor may penetrate an obstruction beyond the culling margin.
+          culled = false;
         }
         append();
       } else if (contact < 1 || Math.hypot(actor.x - old.x, actor.y - old.y) < 1e-5) break;
@@ -5734,13 +5774,13 @@ class Game {
     }
   }
 
-  moveAroundObstructions(actor, old, singleSegment = false) {
-    if (!this.obstructions.length) return;
+  moveAroundObstructions(actor, old, singleSegment = false, obstructions = this.obstructions) {
+    if (!obstructions.length) return;
     let x = old.x, y = old.y, dx = actor.x - x, dy = actor.y - y;
     // Scheduled obstructions may appear underneath an actor.
     for (let pass = 0; pass < 8; pass++) {
       let overlap = false;
-      for (const obstruction of this.obstructions) {
+      for (const obstruction of obstructions) {
         const { gap, nx, ny } = obstructionSurface(x, y, obstruction);
         const depth = actor.radius - gap;
         if (depth <= 1e-7) continue;
@@ -5751,7 +5791,7 @@ class Game {
     }
     for (let pass = 0; pass < 8 && Math.hypot(dx, dy) > 1e-9; pass++) {
       let time = 1, hit = null;
-      for (const obstruction of this.obstructions) {
+      for (const obstruction of obstructions) {
         const contact = obstructionContact(x, y, dx, dy, actor.radius, obstruction);
         if (contact <= time) { time = contact; hit = obstruction; }
       }
