@@ -1848,7 +1848,7 @@ function guidePicture(picture, title, fillBrick = false) {
   } else if (kind === 'object' && OBJECTS[type]?.catCircle) {
     drawCatCircle(ctx, { x: 80, y: 42, radius: 24 });
   } else if (kind === 'object' && OBJECTS[type]?.obstruction) {
-    drawObstruction(ctx, { x: 80, y: 40, type, radius: 32, destructible: variant === 'destructible' });
+    drawObstruction(ctx, { x: 80, y: 40, type, radius: 32, destructible: variant === 'destructible', keydoor: variant === 'keydoor' });
   } else if (kind === 'brick' || kind === 'slime') {
     const crumbler = type.includes('crumbler');
     const warped = type.includes('warped');

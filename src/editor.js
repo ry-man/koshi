@@ -272,6 +272,12 @@ function picture(value, control) {
     canvas.width = 64; canvas.height = 64; canvas.setAttribute('aria-hidden', 'true');
     drawCatCircle(canvas.getContext('2d'), { x: 32, y: 32, radius: OBJECTS[item.type].radius });
     image.append(canvas);
+  } else if (item?.kind === 'object' && OBJECTS[item.type]?.obstruction && ['destructible', 'keydoor'].includes(value.split(':')[2])) {
+    const canvas = document.createElement('canvas'), variant = value.split(':')[2];
+    canvas.width = 120; canvas.height = 120; canvas.setAttribute('aria-hidden', 'true');
+    drawObstruction(canvas.getContext('2d'), { x: 60, y: 60, type: item.type,
+      destructible: variant === 'destructible', keydoor: variant === 'keydoor' });
+    image.append(canvas);
   } else if (control === 'info-slime' || control === 'info-steering') {
     const brick = { x: 0, y: 0, w: 88, h: 52,
       kind: control === 'info-steering' ? value : 'normal',

@@ -1348,12 +1348,9 @@ function drawObstruction(ctx, obstruction) {
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.fillStyle = '#e8b942'; ctx.strokeStyle = '#654718'; ctx.lineWidth = 2;
     ctx.fillRect(-15, -3, 30, 20); ctx.strokeRect(-15, -3, 30, 20);
-    ctx.fillStyle = '#25303b';
-    ctx.beginPath(); ctx.arc(0, 4, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-2, 6); ctx.lineTo(-4, 14); ctx.lineTo(4, 14); ctx.lineTo(2, 6); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 7px sans-serif';
+    ctx.fillStyle = '#25303b'; ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(obstruction.keysRequired ?? 1), 0, 7, 9);
+    ctx.fillText(String(obstruction.keysRequired ?? 1), 0, 7, 26);
     ctx.restore();
   }
   ctx.restore();

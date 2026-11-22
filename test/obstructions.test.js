@@ -305,6 +305,29 @@ test('keydoor opening draws a centered lock, shrinking shape and translucent col
   assert.equal(stack.length, 0);
 });
 
+test('keydoor lock displays its key count prominently without a keyhole', () => {
+  for (const keysRequired of [undefined, 12, 100000]) {
+    const calls = [];
+    const ctx = new Proxy({}, {
+      get(target, name) {
+        if (name in target) return target[name];
+        if (name === 'createLinearGradient') return () => ({ addColorStop() {} });
+        return (...args) => calls.push({ name, args, font: target.font, fillStyle: target.fillStyle,
+          textAlign: target.textAlign, textBaseline: target.textBaseline });
+      },
+    });
+    drawObstruction(ctx, { ...placement('circle', { keydoor: true, keysRequired }), x: 0, y: 0 });
+    const labels = calls.filter(call => call.name === 'fillText');
+    assert.equal(labels.length, 1);
+    assert.deepEqual(labels[0].args, [String(keysRequired ?? 1), 0, 7, 26]);
+    assert.equal(labels[0].font, 'bold 16px sans-serif');
+    assert.equal(labels[0].fillStyle, '#25303b');
+    assert.equal(labels[0].textAlign, 'center');
+    assert.equal(labels[0].textBaseline, 'middle');
+    assert.deepEqual(calls.filter(call => call.name === 'arc').map(call => call.args), [[0, -6, 9, Math.PI, 0]]);
+  }
+});
+
 test('obstruction signs and opening locks remain upright across authored and phone rotations', () => {
   const { drawObstructionDestruction } = require('../src/brick-visuals.js');
   for (const portrait of [false, true]) for (const rotation of [0, 35, 90, 270]) {

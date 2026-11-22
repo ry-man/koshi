@@ -351,6 +351,45 @@ test('editor steering and slime previews retain their kind and distinct slime co
   }
 });
 
+test('destructible and keydoor obstruction graphics are selectable and render badges on a circular obstruction', () => {
+  const ids = ['object:obstruction-circle:destructible', 'object:obstruction-circle:keydoor'];
+  assert.equal(INFO_GRAPHICS[ids[0]], 'Destructible Obstruction');
+  assert.equal(INFO_GRAPHICS[ids[1]], 'Keydoor Obstruction');
+  const level = validateCustomLevel({ ...blank(), levelInfo: { pages: [{ title: 'Obstructions', text: 'Blocked.', graphics: ids }] } });
+  assert.deepEqual(level.levelInfo.pages[0].graphics, ids);
+  const { OBJECTS } = require('../src/game.js');
+  const guideCalls = [], canvasContext = { scale() {} };
+  const guideContext = vm.createContext({
+    document: { createElement: () => ({ getContext: () => canvasContext, setAttribute() {} }) },
+    ctx: null, OBJECTS,
+    drawObstruction(target, obstruction) {
+      guideCalls.push([target === canvasContext, obstruction.type, Boolean(obstruction.destructible), Boolean(obstruction.keydoor)]);
+    },
+  });
+  vm.runInContext(source.slice(source.indexOf('function guidePicture('), source.indexOf('\nfunction showGuideChapter(')), guideContext);
+  for (const id of ids) guideContext.guidePicture(id, INFO_GRAPHICS[id]);
+  assert.deepEqual(guideCalls, [[true, 'obstruction-circle', true, false], [true, 'obstruction-circle', false, true]]);
+  const editorCalls = [];
+  const node = () => ({
+    children: [],
+    append(...children) { this.children.push(...children); },
+    setAttribute() {},
+    getContext: () => 'editor-2d',
+  });
+  const editorContext = vm.createContext({
+    document: { createElement: node }, OBJECTS,
+    drawObstruction(target, obstruction) {
+      editorCalls.push([target, obstruction.type, Boolean(obstruction.destructible), Boolean(obstruction.keydoor)]);
+    },
+  });
+  vm.runInContext(editorSource.slice(editorSource.indexOf('function picture('), editorSource.indexOf('\nfunction ', editorSource.indexOf('function picture(') + 1)), editorContext);
+  for (const id of ids) {
+    const image = editorContext.picture(id, 'brick-spawn-item');
+    assert.equal(image.children.length, 1);
+  }
+  assert.deepEqual(editorCalls, [['editor-2d', 'obstruction-circle', true, false], ['editor-2d', 'obstruction-circle', false, true]]);
+});
+
 test('editor applies validated information, removes it when disabled, and blocks invalid or read-only writes', () => {
   const handlers = new Map();
   const nodes = new Map();

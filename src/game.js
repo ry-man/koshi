@@ -327,6 +327,8 @@ const INFO_GRAPHICS = {
   ...Object.fromEntries(Object.entries(FOODS).map(([id, value]) => [`food:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(ITEMS).map(([id, value]) => [`item:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(OBJECTS).map(([id, value]) => [`object:${id}`, value.name])),
+  'object:obstruction-circle:destructible': 'Destructible Obstruction',
+  'object:obstruction-circle:keydoor': 'Keydoor Obstruction',
   ...Object.fromEntries(Object.entries(WEAPONS).map(([id, value]) => [`weapon:${id}`, value.name])),
   ...Object.fromEntries(Object.entries(CHARACTERS).filter(([id]) => !['koshi', 'tom'].includes(id) && !isBossType(id))
     .map(([id, name]) => [`enemy:${id}`, name])),

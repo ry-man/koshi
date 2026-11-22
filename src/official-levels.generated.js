@@ -17950,7 +17950,7 @@ const levels = [
     "level": {
       "version": 1,
       "id": "Frolic to Froggy",
-      "duration": 180,
+      "duration": 150,
       "goal": 0,
       "heartCost": 20,
       "brickSet": 1,
@@ -18023,7 +18023,7 @@ const levels = [
           "keysRequired": 3
         },
         {
-          "time": 155,
+          "time": 126,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.8023034663871731,
@@ -18273,7 +18273,7 @@ const levels = [
           "y": 0.49877532843464706
         },
         {
-          "time": 160,
+          "time": 131,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.9481425652560487,
@@ -18285,7 +18285,7 @@ const levels = [
           "height": 219.54150197628462
         },
         {
-          "time": 158,
+          "time": 129,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.9668909221030187,
@@ -18297,7 +18297,7 @@ const levels = [
           "height": 145.23320158102769
         },
         {
-          "time": 164,
+          "time": 135,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.868627575578853,
@@ -18309,7 +18309,7 @@ const levels = [
           "height": 141.28063241106713
         },
         {
-          "time": 162,
+          "time": 133,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.8294363219906848,
@@ -18321,7 +18321,7 @@ const levels = [
           "height": 281.9920948616601
         },
         {
-          "time": 170,
+          "time": 141,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.8886009960553846,
@@ -18333,19 +18333,19 @@ const levels = [
           "height": 105.70750988142296
         },
         {
-          "time": 172,
+          "time": 143,
           "kind": "object",
           "type": "obstruction-rectangle",
-          "x": 0.8881289926287347,
-          "y": 0.6546448783095989,
+          "x": 0.8876588986133612,
+          "y": 0.6590959697172122,
           "color": "#14b8a6",
           "patternColor": "#eab308",
           "pattern": "solid",
-          "width": 652.8348773841947,
+          "width": 657.5694822888262,
           "height": 86.73517786561273
         },
         {
-          "time": 168,
+          "time": 139,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.8904852470985862,
@@ -18357,7 +18357,7 @@ const levels = [
           "height": 164.9960474308301
         },
         {
-          "time": 166,
+          "time": 137,
           "kind": "object",
           "type": "obstruction-rectangle",
           "x": 0.9854502417108773,
@@ -18367,6 +18367,102 @@ const levels = [
           "pattern": "solid",
           "width": 163.59237057220707,
           "height": 341.28063241106724
+        },
+        {
+          "time": 145,
+          "kind": "object",
+          "type": "obstruction-rectangle",
+          "x": 0.9390984859717806,
+          "y": 0.49877532843464706,
+          "color": "#047857",
+          "patternColor": "#eab308",
+          "pattern": "stripes",
+          "width": 223.56403269754622,
+          "height": 50.37154150197638
+        },
+        {
+          "time": 147,
+          "kind": "object",
+          "type": "obstruction-rectangle",
+          "x": 0.8591128968468147,
+          "y": 0.2689851209499201,
+          "color": "#047857",
+          "patternColor": "#eab308",
+          "pattern": "stripes",
+          "width": 86.2604904632129,
+          "height": 71.71541501976287
+        },
+        {
+          "time": 0,
+          "spawnPercent": 15,
+          "kind": "food",
+          "type": "S",
+          "x": 0.1714645736055255,
+          "y": 0.6590959697172122,
+          "group": {
+            "shape": "line",
+            "count": 5,
+            "angle": 45
+          },
+          "lifetime": 10
+        },
+        {
+          "time": 0,
+          "spawnPercent": 15,
+          "kind": "food",
+          "type": "P",
+          "x": 0.2494715334656217,
+          "y": 0.2743264306390559,
+          "group": {
+            "shape": "line",
+            "count": 5,
+            "angle": 135
+          },
+          "lifetime": 10
+        },
+        {
+          "time": 0,
+          "spawnPercent": 15,
+          "kind": "food",
+          "type": "B",
+          "x": 0.3478281350283517,
+          "y": 0.5308394566911601,
+          "group": {
+            "shape": "line",
+            "count": 5,
+            "angle": 135
+          },
+          "lifetime": 10
+        },
+        {
+          "time": 0,
+          "spawnPercent": 15,
+          "kind": "food",
+          "type": "P",
+          "x": 0.5614993729060066,
+          "y": 0.49877532843464706,
+          "group": {
+            "shape": "line",
+            "count": 3,
+            "size": 0.8,
+            "angle": 90
+          },
+          "lifetime": 10
+        },
+        {
+          "time": 0,
+          "spawnPercent": 15,
+          "kind": "food",
+          "type": "S",
+          "x": 0.710730078725321,
+          "y": 0.49877532843464706,
+          "group": {
+            "shape": "line",
+            "count": 6,
+            "size": 0.8,
+            "angle": 90
+          },
+          "lifetime": 10
         }
       ],
       "bossLevel": false,
@@ -18386,9 +18482,22 @@ const levels = [
           },
           {
             "time": 115,
-            "speed": 0.25
+            "speed": 1
           }
         ]
+      },
+      "catBlock": {
+        "description": "To earn Cat Brick: Complete the level with at least 30 food points.",
+        "messages": {
+          "item": "Koshi found the Cat Block!",
+          "enemy": "Koshi found a Cat Block carried by an enemy!",
+          "chest": "Koshi opened the treasure chest and found the Cat Block!",
+          "achievement": "Koshi earned the Cat Brick!"
+        },
+        "trigger": {
+          "type": "food",
+          "amount": 30
+        }
       },
       "cutscene": {
         "theme": "happy-meadows",
