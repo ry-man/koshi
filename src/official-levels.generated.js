@@ -18651,6 +18651,17 @@ const levels = [
           }
         ]
       },
+      "levelInfo": {
+        "pages": [
+          {
+            "title": "Keydoors",
+            "text": "Keydoor obstructions contain locks on them which require keys to open. Once the required number of keys is collected, Koshi can open them by simply touching them.\n\nWhen opened, the entire obstruction vanishes from the level!",
+            "graphics": [
+              "object:obstruction-circle:keydoor"
+            ]
+          }
+        ]
+      },
       "brickTypes": [
         {
           "edge": "right",
