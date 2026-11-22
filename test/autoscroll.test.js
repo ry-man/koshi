@@ -9,6 +9,177 @@ const blank = () => ({ version: 1, id: 'Scrolling test', duration: 60, goal: 0, 
 const scrolling = () => ({ ...blank(), autoscroll: { length: 24, speed: .25, events: [{ time: 10, speed: 0 }, { time: 15, speed: .5 }] } });
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
 
+test('roaming key carriers steer toward the screen interior in each scrolling orientation', () => {
+  for (const options of [{}, { portrait: true, scale: .5 },
+    { portrait: true, customCoordinateOrientation: 'viewport', scale: .5 }]) {
+    for (const type of ['mouse', 'robo-fly', 'bucket', 'jackolantern', 'ram', 'robo-moon',
+      'robo-sharpshooter', 'robo-cat-lady', 'robo-trash-bin', 'robo-unicorn']) {
+      const game = new Game(() => .5, { ...options, customLevel: scrolling() });
+      game.start(); game.elapsed = 5;
+      const camera = game.camera(), direction = game.landscapePortrait ? -1 : 1;
+      const start = game.portrait
+        ? { x: camera.x + camera.width / 2, y: direction > 0 ? camera.y + camera.height * .1 : camera.y + camera.height * .9 }
+        : { x: camera.x + camera.width * .1, y: camera.y + camera.height / 2 };
+      Object.assign(game.cat, { x: camera.x + camera.width / 2, y: camera.y + camera.height / 2 });
+      const enemy = game.createCustomEntity({ kind: 'enemy', type, time: 0, carriesItem: 'key' }, start)[0];
+      const outward = game.portrait ? (direction > 0 ? -Math.PI / 2 : Math.PI / 2) : Math.PI;
+      enemy.phase = outward;
+      if (type === 'ram') { enemy.angle = outward; enemy.turnTime = 100; }
+      if (type === 'robo-trash-bin') enemy.binWait = 100;
+      game.robots.push(enemy);
+      for (let i = 0; i < 120; i++) game.combatEnemies(1 / 120, game.cat.x, game.cat.y);
+      const progress = game.portrait ? (enemy.y - start.y) * direction : enemy.x - start.x;
+      assert.ok(progress > 0, `${type} turns inward in ${JSON.stringify(options)}: ${progress}`);
+      assert.ok(game.entityVisible(enemy));
+    }
+  }
+});
+
+test('key carrier screen steering preserves non-scrolling enemies, unseen spawns and forced movement', () => {
+  const game = new Game(() => .5, { customLevel: scrolling() });
+  game.start();
+  const camera = game.camera(), point = { x: camera.x + camera.width * .1, y: camera.y + camera.height / 2 };
+  for (const type of ['wheel', 'snake', 'robo-cow', 'goalie', 'striker', 'robo-koshi', 'robo-crab', 'ball', 'robo-love-bug']) {
+    const enemy = game.createCustomEntity({ kind: 'enemy', type, time: 0, carriesKey: true }, point)[0];
+    Object.assign(enemy, point, { phase: Math.PI, asleep: false, afraid: false });
+    assert.equal(game.steerKeyCarrierOnScreen(enemy, 1), false, type);
+    assert.equal(enemy.phase, Math.PI);
+  }
+  const enemy = game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0, carriesKey: true }, point)[0];
+  enemy.phase = Math.PI;
+  const noKey = game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0 }, point)[0];
+  noKey.phase = Math.PI;
+  assert.equal(game.steerKeyCarrierOnScreen(noKey, 1), false);
+  assert.equal(noKey.phase, Math.PI);
+  for (const state of [{ asleep: true }, { afraid: true }]) {
+    Object.assign(enemy, { asleep: false, afraid: false }, state);
+    assert.equal(game.steerKeyCarrierOnScreen(enemy, 1), false);
+    assert.equal(enemy.phase, Math.PI);
+  }
+  for (const [type, field, state] of [['ram', 'state', 'charging'], ['robo-moon', 'moonState', 'tide'],
+    ['robo-sharpshooter', 'sharpshooterState', 'shoot'], ['robo-cat-lady', 'catLadyState', 'aim'],
+    ['robo-trash-bin', 'binState', 'travel'], ['robo-unicorn', 'unicornState', 'charge']]) {
+    const special = game.createCustomEntity({ kind: 'enemy', type, time: 0, carriesItem: 'key' }, point)[0];
+    Object.assign(special, { phase: Math.PI, asleep: false, afraid: false, [field]: state });
+    if (type === 'robo-unicorn') special.angry = false;
+    assert.equal(game.steerKeyCarrierOnScreen(special, 1), false, `${type} special action`);
+    assert.equal(special.phase, Math.PI);
+  }
+  Object.assign(enemy, { asleep: false, afraid: false, x: camera.x + camera.width + 100, keyCarrierSeenOnScreen: false });
+  assert.equal(game.steerKeyCarrierOnScreen(enemy, 1), false, 'future offscreen spawns are not pulled onto the screen');
+  const nonScrolling = new Game(() => .5, { customLevel: blank() });
+  assert.equal(nonScrolling.steerKeyCarrierOnScreen(enemy, 1), false);
+  assert.equal(enemy.phase, Math.PI);
+});
+
+test('key carriers actively follow a moving camera during normal gameplay', () => {
+  for (const options of [{}, { portrait: true, scale: .5 },
+    { portrait: true, customCoordinateOrientation: 'viewport', scale: .5 }]) {
+    const game = new Game(() => .5, { ...options, customLevel: scrolling() });
+    game.start(); game.elapsed = 5;
+    const camera = game.camera(), direction = game.landscapePortrait ? -1 : 1;
+    const point = game.portrait
+      ? { x: camera.x + camera.width * .35, y: camera.y + camera.height * (direction > 0 ? .12 : .88) }
+      : { x: camera.x + camera.width * .12, y: camera.y + camera.height * .35 };
+    Object.assign(game.cat, { x: camera.x + camera.width * .75, y: camera.y + camera.height * .5 });
+    const enemy = game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0, carriesItem: 'key' }, point)[0];
+    enemy.phase = game.portrait ? (direction > 0 ? -Math.PI / 2 : Math.PI / 2) : Math.PI;
+    game.robots.push(enemy); game.update(3);
+    assert.equal(game.state, 'playing');
+    assert.ok(game.robots.includes(enemy));
+    assert.ok(game.entityVisible(enemy));
+    const progress = game.portrait ? (enemy.y - point.y) * direction : enemy.x - point.x;
+    assert.ok(progress > 0, `the carrier moves with the camera: ${progress}`);
+  }
+});
+
+test('appearing obstructions preserve key drops near the closest clear edge only in scrolling levels', () => {
+  const { obstructionSurface } = require('../src/game.js');
+  for (const options of [{}, { portrait: true, scale: .5 },
+    { portrait: true, customCoordinateOrientation: 'viewport', scale: .5 }]) {
+    for (const shape of ['circle', 'diamond', 'rectangle', 'v', 'oval']) {
+      const game = new Game(() => .5, { ...options, customLevel: scrolling() });
+      game.start();
+      const camera = game.camera(), center = { x: camera.x + camera.width / 2, y: camera.y + camera.height / 2 };
+      Object.assign(game.cat, { x: camera.x + 100, y: camera.y + 100 });
+      const obstruction = game.createObstruction(center, { type: `obstruction-${shape}`, width: 120,
+        height: shape === 'circle' ? 120 : 80, rotation: 30 });
+      const origin = { x: center.x + 8, y: center.y + 3 };
+      const enemy = game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0, carriesKey: true }, origin)[0];
+      game.robots.push(enemy); game.obstructions.push(obstruction);
+      const surface = obstructionSurface(origin.x, origin.y, obstruction);
+      game.clearAppearingObstruction(obstruction);
+      assert.equal(game.robots.length, 0);
+      assert.equal(game.items.length, 1, shape);
+      const key = game.items[0], drop = 14.01 - surface.gap;
+      const nearest = { x: origin.x + surface.nx * drop, y: origin.y + surface.ny * drop };
+      if (game.pickupClear(nearest)) {
+        close(key.x, nearest.x);
+        close(key.y, nearest.y);
+      }
+      assert.equal(key.type, 'key');
+      assert.ok(game.pickupClear(key), shape);
+      game.clearBlockedPickups();
+      assert.equal(game.items.length, 1);
+    }
+  }
+  const game = new Game(() => .5, { customLevel: blank() });
+  game.start(); Object.assign(game.cat, { x: 100, y: 100 });
+  const obstacle = game.createObstruction({ x: 480, y: 300 }, { type: 'obstruction-circle' });
+  const enemy = game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0, carriesItem: 'key' }, { x: 480, y: 300 })[0];
+  game.robots.push(enemy); game.obstructions.push(obstacle); game.clearAppearingObstruction(obstacle);
+  assert.equal(game.items.length, 0, 'non-scrolling behavior remains unchanged');
+});
+
+test('key drops survive overlapping same-tick obstructions and remain collectible', () => {
+  const game = new Game(() => .5, { customLevel: scrolling() });
+  game.start();
+  const camera = game.camera(), origin = { x: camera.x + camera.width / 2, y: camera.y + camera.height / 2 };
+  Object.assign(game.cat, { x: camera.x + 100, y: camera.y + 100 });
+  const first = game.createObstruction(origin, { type: 'obstruction-circle', width: 120 });
+  const enemy = game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0, carriesItem: 'key' }, origin)[0];
+  game.obstructions.push(first); game.robots.push(enemy); game.clearAppearingObstruction(first);
+  const key = game.items[0];
+  const second = game.createObstruction({ x: key.x, y: key.y }, { type: 'obstruction-circle', width: 80 });
+  game.obstructions.push(second); game.clearAppearingObstruction(second); game.clearBlockedPickups();
+  assert.strictEqual(game.items[0], key);
+  assert.ok(game.pickupClear(key));
+  Object.assign(game.cat, { x: key.x, y: key.y });
+  game.combat(0, key.x, key.y);
+  assert.equal(game.keys, 1);
+  assert.equal(game.items.length, 0);
+});
+
+test('brick-spawned obstructions preserve keys from defeated carriers', () => {
+  const game = new Game(() => .5, { customLevel: scrolling() });
+  game.start();
+  const point = game.campaignEventPoint(.2, .5);
+  Object.assign(game.cat, { x: 100, y: 100 });
+  const enemy = game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0, carriesKey: true }, point)[0];
+  game.robots.push(enemy); game.enemiesSleepUntil = Infinity;
+  game.spawnFromBrick({ spawner: { kind: 'object', type: 'obstruction-circle', x: .2, y: .5 } });
+  game.update(2.01);
+  assert.equal(game.robots.length, 0);
+  assert.equal(game.items.length, 1);
+  assert.equal(game.items[0].type, 'key');
+  assert.ok(game.pickupClear(game.items[0]));
+});
+
+test('scheduled obstruction arrivals preserve key drops through the rest of the tick', () => {
+  const event = { kind: 'object', type: 'obstruction-rectangle', time: 1, x: .2, y: .5, width: 100, height: 100 };
+  const game = new Game(() => .5, { customLevel: { ...scrolling(), events: [event] } });
+  game.start();
+  const point = game.campaignEventPoint(event.x, event.y);
+  Object.assign(game.cat, { x: 100, y: 100 });
+  game.robots.push(game.createCustomEntity({ kind: 'enemy', type: 'mouse', time: 0, carriesItem: 'key' }, point)[0]);
+  game.enemiesSleepUntil = Infinity;
+  game.update(1.02);
+  assert.equal(game.robots.length, 0);
+  assert.equal(game.items.length, 1);
+  assert.equal(game.items[0].type, 'key');
+  assert.ok(game.pickupClear(game.items[0]));
+});
+
 test('screen-crossing events round-trip and reject invalid percentages or incompatible placements', () => {
   const placement = { kind: 'food', type: 'S', x: .5, y: .5, lifetime: 5, spawnPercent: 50 };
   const level = { ...scrolling(), events: [placement] };

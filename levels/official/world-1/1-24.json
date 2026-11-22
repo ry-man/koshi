@@ -7,7 +7,8 @@
   "brickSet": 1,
   "events": [
     {
-      "time": 10,
+      "time": 0,
+      "spawnPercent": 50,
       "kind": "object",
       "type": "obstruction-circle",
       "x": 0.1714645736055255,
@@ -19,7 +20,8 @@
       "height": 192
     },
     {
-      "time": 22,
+      "time": 0,
+      "spawnPercent": 50,
       "kind": "object",
       "type": "obstruction-rectangle",
       "x": 0.24777575806997984,
@@ -31,7 +33,8 @@
       "height": 164.99604743083
     },
     {
-      "time": 37,
+      "time": 0,
+      "spawnPercent": 50,
       "kind": "object",
       "type": "obstruction-diamond",
       "x": 0.3478281350283517,
@@ -43,7 +46,8 @@
       "height": 222.48221343873522
     },
     {
-      "time": 53,
+      "time": 0,
+      "spawnPercent": 50,
       "kind": "object",
       "type": "obstruction-oval",
       "x": 0.4495763435415207,
@@ -52,19 +56,22 @@
       "patternColor": "#222222",
       "pattern": "checkered",
       "width": 140.0544959128065,
-      "height": 367.14624505928856
+      "height": 273.8656126482214
     },
     {
-      "time": 67,
+      "time": 0,
       "kind": "object",
       "type": "obstruction-rectangle",
       "x": 0.5241916964511779,
       "y": 0.49877532843464706,
-      "color": "#84cc16",
+      "color": "#b91c1c",
       "patternColor": "#222222",
-      "pattern": "checkered",
+      "pattern": "stripes",
       "width": 50.75095367847433,
-      "height": 482.78260869565213
+      "height": 482.78260869565213,
+      "destructible": false,
+      "keydoor": true,
+      "keysRequired": 3
     },
     {
       "time": 155,
@@ -149,46 +156,55 @@
       "shield": null
     },
     {
-      "time": 55,
+      "time": 0,
+      "spawnPercent": 15,
       "kind": "weapon",
       "type": "bronze",
       "x": 0.4767091991450324,
-      "y": 0.46671120017813406
+      "y": 0.49877532843464706
     },
     {
-      "time": 6,
+      "time": 0,
+      "spawnPercent": 15,
       "kind": "enemy",
       "type": "robo-trash-bin",
-      "x": 0.18503100140728135,
-      "y": 0.33845468715208193,
+      "x": 0.2494715334656217,
+      "y": 0.6590959697172122,
       "shield": null
     },
     {
-      "time": 21,
+      "time": 0,
+      "spawnPercent": 20,
       "kind": "enemy",
       "type": "robo-trash-bin",
       "x": 0.31391206552396206,
       "y": 0.8514807392562903,
-      "shield": null
+      "shield": null,
+      "carriesItem": "key"
     },
     {
-      "time": 21,
+      "time": 0,
+      "spawnPercent": 20,
       "kind": "enemy",
       "type": "robo-trash-bin",
       "x": 0.31391206552396206,
       "y": 0.14606991761300378,
-      "shield": null
+      "shield": null,
+      "carriesItem": "key"
     },
     {
-      "time": 42,
+      "time": 0,
+      "spawnPercent": 60,
       "kind": "enemy",
       "type": "mouse",
-      "x": 0.4122686670866921,
-      "y": 0.5308394566911601,
-      "shield": null
+      "x": 0.415660274037131,
+      "y": 0.49877532843464706,
+      "shield": null,
+      "carriesItem": "key"
     },
     {
-      "time": 42,
+      "time": 0,
+      "spawnPercent": 15,
       "kind": "enemy",
       "type": "wheel",
       "x": 0.4597511643928376,
@@ -196,7 +212,8 @@
       "shield": null
     },
     {
-      "time": 42,
+      "time": 0,
+      "spawnPercent": 15,
       "kind": "enemy",
       "type": "wheel",
       "x": 0.4597511643928376,
@@ -209,6 +226,42 @@
       "type": "wood",
       "x": 0.6462895466669807,
       "y": 0.49877532843464706
+    },
+    {
+      "time": 0,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.7412545412792717,
+      "y": 0.49877532843464706,
+      "color": "#b91c1c",
+      "patternColor": "#222222",
+      "pattern": "stripes",
+      "width": 41.28174386921002,
+      "height": 375.27272727272725
+    },
+    {
+      "time": 0,
+      "spawnPercent": 15,
+      "kind": "weapon",
+      "type": "wood",
+      "x": 0.12737368324981893,
+      "y": 0.49877532843464706
+    },
+    {
+      "time": 0,
+      "spawnPercent": 15,
+      "kind": "weapon",
+      "type": "wood",
+      "x": 0.28338760297001137,
+      "y": 0.01781340458695168
+    },
+    {
+      "time": 0,
+      "spawnPercent": 15,
+      "kind": "weapon",
+      "type": "wood",
+      "x": 0.37496099063186344,
+      "y": 0.9797372522823424
     }
   ],
   "bossLevel": false,
@@ -219,7 +272,11 @@
     "speed": 0.25,
     "events": [
       {
-        "time": 85,
+        "time": 60,
+        "speed": 1
+      },
+      {
+        "time": 66.25,
         "speed": 0
       },
       {

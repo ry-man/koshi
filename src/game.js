@@ -5643,9 +5643,15 @@ class Game {
         enemy.y += ny * (enemy.radius - gap + .01);
         return true;
       }
-      this.defeatEnemy(enemy);
+      this.defeatEnemy(enemy, true, null,
+        this.level.autoscroll && OBJECTS[obstruction.type].obstruction ? obstruction : null);
       return false;
     });
+    if (this.level.autoscroll) for (const item of this.items) {
+      if (item.keyDrop?.time === this.elapsed && overlaps(item)) {
+        Object.assign(item, this.keyDropPosition(item.keyDrop.origin, item.keyDrop.obstruction));
+      }
+    }
     for (const field of ['food', 'items', 'weapons', 'healing', 'soccerBalls', 'bubbles', 'bumpers']) {
       this[field] = this[field].filter(item => item === obstruction || !overlaps(item));
     }
@@ -5657,7 +5663,48 @@ class Game {
       && this.obstructions.every(obstruction => obstructionSurface(item.x, item.y, obstruction).gap >= radius - 1e-7);
   }
 
+  keyDropPosition(origin, obstruction) {
+    const radius = 14, bounds = this.bounds();
+    const clear = point => point.x >= bounds.left && point.x <= bounds.right
+      && point.y >= bounds.top && point.y <= bounds.bottom && this.pickupClear({ ...point, radius });
+    const surface = obstructionSurface(origin.x, origin.y, obstruction);
+    const distance = radius + .01 - surface.gap;
+    const nearest = { x: origin.x + surface.nx * distance, y: origin.y + surface.ny * distance };
+    if (clear(nearest)) return nearest;
+    let best = null, bestDistance = Infinity;
+    const consider = point => {
+      const gap = Math.hypot(point.x - origin.x, point.y - origin.y);
+      if (gap < bestDistance && clear(point)) { best = point; bestDistance = gap; }
+    };
+    const shape = OBJECTS[obstruction.type].obstruction;
+    if (shape === 'circle') {
+      for (let i = 0; i < 128; i++) {
+        const angle = i * Math.PI * 2 / 128, reach = obstruction.radius + radius + .01;
+        consider({ x: obstruction.x + Math.cos(angle) * reach, y: obstruction.y + Math.sin(angle) * reach });
+      }
+    } else {
+      const angle = (obstruction.rotation ?? 0) * Math.PI / 180, cos = Math.cos(angle), sin = Math.sin(angle);
+      const vertices = obstructionVertices(obstruction).map(([x, y]) =>
+        ({ x: obstruction.x + x * cos - y * sin, y: obstruction.y + x * sin + y * cos }));
+      for (const [i, start] of vertices.entries()) {
+        const end = vertices[(i + 1) % vertices.length];
+        const length = Math.hypot(end.x - start.x, end.y - start.y);
+        const steps = Math.max(1, Math.ceil(length / 8));
+        for (let step = 0; step <= steps; step++) {
+          const x = start.x + (end.x - start.x) * step / steps;
+          const y = start.y + (end.y - start.y) * step / steps;
+          const normal = obstructionSurface(x, y, obstruction);
+          consider({ x: x + normal.nx * (radius + .01), y: y + normal.ny * (radius + .01) });
+        }
+      }
+    }
+    return best ?? this.findRandomSpawnPoint(bounds, [], 0, clear);
+  }
+
   clearBlockedPickups() {
+    for (const item of this.items) {
+      if (item.keyDrop && item.keyDrop.time < this.elapsed - 1e-9) delete item.keyDrop;
+    }
     if (!this.bumpers.length && !this.obstructions.length) return;
     for (const field of ['food', 'items', 'weapons', 'healing']) {
       this[field] = this[field].filter(item => (field === 'food' && item.cookieAttracted) || this.pickupClear(item));
@@ -6815,7 +6862,7 @@ class Game {
     enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y + my * step));
   }
 
-  defeatEnemy(enemy, awardPoints = true, cause = null) {
+  defeatEnemy(enemy, awardPoints = true, cause = null, dropObstruction = null) {
     if (enemy.type === 'robo-love-bug' && cause !== 'isolation' && cause !== 'explosion') return;
     if (isBossType(enemy.type) && enemy.health > 0) return;
     if (enemy === this.catLadyLaserOwner) this.endCatLadyLaser();
@@ -6837,6 +6884,11 @@ class Game {
       const item = this.createCollectible(this.elapsed, type, null, { x: enemy.x, y: enemy.y });
       if (type === 'cat-block') item.source = 'enemy';
       if (type === 'treasure-chest') item.keysRequired = 1;
+      if (type === 'key' && dropObstruction) {
+        const origin = { x: enemy.x, y: enemy.y };
+        Object.assign(item, this.keyDropPosition(origin, dropObstruction));
+        item.keyDrop = { time: this.elapsed, origin, obstruction: dropObstruction };
+      }
       if (this.pickupClear(item)) (Object.hasOwn(WEAPONS, type) ? this.weapons : this.items).push(item);
     }
     enemy.carriesItem = null;
@@ -8299,6 +8351,29 @@ class Game {
     if (enemy.type === 'ram') enemy.facingAngle = rotateToward(enemy.facingAngle, angle - Math.PI / 2, 4.5 * seconds);
   }
 
+  steerKeyCarrierOnScreen(enemy, seconds) {
+    if (!this.level.autoscroll || !carriedItemTypes(enemy).includes('key')) return false;
+    if (this.entityVisible(enemy)) enemy.keyCarrierSeenOnScreen = true;
+    if (!enemy.keyCarrierSeenOnScreen || enemy.asleep || enemy.afraid || enemy.catLadyBeam
+      || ['wheel', 'snake', 'robo-cow', 'goalie', 'striker', 'robo-koshi', 'robo-crab',
+        'ball', 'robo-love-bug', 'boss', 'tom-frog'].includes(enemy.type)) return false;
+    if ((enemy.type === 'ram' && enemy.state !== 'wander')
+      || (enemy.type === 'robo-unicorn' && !enemy.angry && enemy.unicornState !== 'roam')
+      || (enemy.type === 'robo-moon' && enemy.moonState !== 'wander')
+      || (enemy.type === 'robo-sharpshooter' && enemy.sharpshooterState !== 'wander')
+      || (enemy.type === 'robo-cat-lady' && enemy.catLadyState !== 'wander')
+      || (enemy.type === 'robo-trash-bin' && (enemy.binState !== 'roam' || enemy.binYield))
+      || (enemy.type === 'jackolantern' && enemy.stompTimer <= .5)) return false;
+    const camera = this.camera();
+    const marginX = camera.width * .2, marginY = camera.height * .2;
+    const x = Math.max(camera.x + marginX, Math.min(camera.x + camera.width - marginX, enemy.x));
+    const y = Math.max(camera.y + marginY, Math.min(camera.y + camera.height - marginY, enemy.y));
+    if (Math.hypot(x - enemy.x, y - enemy.y) < 1e-9) return false;
+    const field = enemy.type === 'ram' ? 'angle' : 'phase';
+    enemy[field] = rotateToward(enemy[field], Math.atan2(y - enemy.y, x - enemy.x), 10 * seconds);
+    return true;
+  }
+
   moveAfraidWheel(enemy, seconds) {
     const distance = enemy.distance;
     const candidates = [-1, 1].map(direction => {
@@ -9057,6 +9132,7 @@ class Game {
       if (enemy.type === 'robo-trash-bin' && this.maskActive && !enemy.afraid) this.initializeTrashBin(enemy);
       enemy.afraid = this.maskActive;
       enemy.fleeMoving = false;
+      const keepKeyVisible = this.steerKeyCarrierOnScreen(enemy, dt);
       if (enemy.asleep) { enemy.touching = false; continue; }
       if (enemy.catLadyBeam) continue;
       if (enemy.type === 'robo-koshi') {
@@ -9111,7 +9187,7 @@ class Game {
         enemy.x = Math.max(bounds.left, Math.min(bounds.right, enemy.x));
         enemy.y = Math.max(bounds.top, Math.min(bounds.bottom, enemy.y));
       } else {
-        enemy.resting = enemy.age % 6 >= 4.5;
+        enemy.resting = !keepKeyVisible && enemy.age % 6 >= 4.5;
         if (!enemy.resting) {
           enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * dt;
           enemy.x += Math.cos(enemy.phase) * 75 * dt;

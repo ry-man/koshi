@@ -1938,6 +1938,11 @@ displayed beside the enemy in front of boundary bricks and drops at its position
 collectible until the level ends. Enemies and their defeat animations also draw
 in front of bricks. Omit a chest event's `lifetime` to
 keep it available until opened or the level ends.
+In autoscrolling levels, freely roaming key carriers steer toward the screen
+interior near its edges, without overriding fixed routes, movement axes, sleep,
+fear, or special actions. If an appearing obstruction defeats a key carrier,
+its key drops just outside the nearest clear obstruction edge instead of being
+destroyed.
 Random pickups keep 80 game units between their centers and live or queued
 pickups when space permits. Failed random retries trigger a whole-board search
 before spacing is relaxed; a crowded board uses the roomiest available location.
