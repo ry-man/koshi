@@ -19,6 +19,20 @@ function arena(source, options = {}) {
   return game;
 }
 
+test('a moving keydoor stops Koshi when it opens instead of preserving his movement', () => {
+  const game = arena({ ...blank(), tracks: [track()], events: [object('obstruction-circle', { keydoor: true })] });
+  game.update(.01);
+  const door = game.obstructions[0];
+  Object.assign(game.cat, { x: door.x + door.radius + game.cat.radius + 2, y: door.y, vx: 10, vy: 0 });
+  game.keys = 1;
+  game.update(.1);
+  assert.equal(game.obstructions.length, 0);
+  assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
+  const position = { x: game.cat.x, y: game.cat.y };
+  game.update(1);
+  assert.deepEqual({ x: game.cat.x, y: game.cat.y }, position);
+});
+
 test('Cat Tracks round-trip without modifying authored content or adding fields to old levels', () => {
   assert.deepEqual(validateCustomLevel(blank()), blank());
   const source = { ...blank(), tracks: [track(), track({ id: 'loop', closed: true, power: 'black' })],

@@ -188,6 +188,161 @@ test('spiked flags validate strictly for obstruction placements and spawners and
   assert.deepEqual(obstructionSpikes(placement()), []);
 });
 
+test('keydoor settings round-trip on placements and spawners and reject invalid combinations', () => {
+  const attributes = { keydoor: true, keysRequired: 3, spiked: true };
+  const source = { ...blank(), events: [placement('circle', attributes)],
+    brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal',
+      spawner: { kind: 'object', type: 'obstruction-diamond', ...attributes } }] };
+  assert.deepEqual(validateCustomLevel(source), source);
+  const game = arena(source);
+  game.update(.01);
+  game.spawnFromBrick(game.bricks.find(brick => brick.spawner));
+  game.update(2);
+  assert.equal(game.obstructions.length, 2);
+  for (const obstruction of game.obstructions) {
+    assert.equal(obstruction.keydoor, true);
+    assert.equal(obstruction.keysRequired, 3);
+    assert.equal(obstruction.spiked, true);
+  }
+  for (const attributes of [{ keydoor: true, destructible: true }, { keydoor: 'true' },
+    { keydoor: true, keysRequired: 0 }, { keydoor: true, keysRequired: 1.5 },
+    { keydoor: true, keysRequired: '2' }, { keysRequired: 2 }]) {
+    assert.throws(() => validateCustomLevel({ ...blank(), events: [placement('circle', attributes)] }));
+    assert.throws(() => validateCustomLevel({ ...blank(), brickTypes: [{ edge: 'top', start: 0, end: .1, kind: 'normal',
+      spawner: { kind: 'object', type: 'obstruction-circle', ...attributes } }] }));
+  }
+});
+
+test('keydoors open only on Koshi contact with enough keys, consuming keys once and removing collision', () => {
+  for (const shape of shapes) {
+    const game = arena();
+    const door = game.createObstruction({ x: 480, y: 300 }, placement(shape, { keydoor: true, keysRequired: 2 }));
+    game.obstructions.push(door);
+    Object.assign(game.cat, { x: 300, y: 300, vx: 500, vy: 0 });
+    game.keys = 1;
+    game.update(.5);
+    assert.equal(game.obstructions.length, 1, shape);
+    assert.equal(game.keys, 1);
+    game.keys = 3;
+    game.update(.02);
+    assert.equal(game.obstructions.length, 0, shape);
+    assert.equal(game.keys, 1);
+    assert.equal(game.obstructionDestructions.length, 1);
+    assert.equal(game.obstructionDestructions[0].opening, true);
+    assert.ok(Math.abs(gap(game.cat, door)) < .001, `${shape}: Koshi stops at the surface`);
+    assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
+    const position = { x: game.cat.x, y: game.cat.y };
+    game.update(1);
+    assert.deepEqual({ x: game.cat.x, y: game.cat.y }, position, 'Koshi stays stopped after the opening animation');
+    assert.equal(game.keys, 1);
+    game.reset(); assert.equal(game.obstructionDestructions.length, 0);
+  }
+});
+
+test('keydoor stops Koshi at first contact, including diagonal and already-touching motion', () => {
+  for (const alreadyTouching of [false, true]) {
+    const game = arena();
+    const door = game.createObstruction({ x: 480, y: 300 }, placement('rectangle', {
+      width: 100, height: 200, keydoor: true,
+    }));
+    game.obstructions.push(door); game.keys = 1;
+    Object.assign(game.cat, { x: alreadyTouching ? 430 - game.cat.radius : 300, y: 250, vx: 500, vy: 160 });
+    const startY = game.cat.y;
+    game.target = { x: 900, y: 400 };
+    game.update(.5);
+    assert.equal(game.obstructions.length, 0);
+    assert.ok(Math.abs(gap(game.cat, door)) < .001);
+    if (alreadyTouching) assert.ok(Math.abs(game.cat.y - startY) < .001, 'no sliding along the keydoor');
+    assert.equal(game.target, null);
+    assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
+    const position = { x: game.cat.x, y: game.cat.y };
+    game.update(1);
+    assert.deepEqual({ x: game.cat.x, y: game.cat.y }, position);
+    const target = game.brickParts().find(part => part.edge === 'right')
+      ?? game.brickParts().find(part => part.x > game.cat.x);
+    assert.ok(target);
+    assert.equal(game.steer(target.id, target.x + target.w / 2, target.y + target.h / 2), true);
+    game.update(.05);
+    assert.notDeepEqual({ x: game.cat.x, y: game.cat.y }, position, 'new steering moves Koshi again');
+  }
+});
+
+test('an affordable keydoor stops Koshi on the first approach even during a long update', () => {
+  for (const shape of shapes) {
+    const game = arena();
+    const door = game.createObstruction({ x: 480, y: 300 }, placement(shape, { keydoor: true }));
+    game.obstructions.push(door); game.keys = 1;
+    Object.assign(game.cat, { x: 300, y: 300, vx: 500, vy: 0 });
+    game.update(1);
+    assert.equal(game.obstructions.length, 0, shape);
+    assert.ok(Math.abs(gap(game.cat, door)) < .001, shape);
+    assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
+  }
+});
+
+test('keydoor opening draws a centered lock, shrinking shape and translucent colored stars', () => {
+  const { drawObstructionDestruction } = require('../src/brick-visuals.js');
+  const calls = [], stack = [];
+  const ctx = new Proxy({ fillStyle: '', globalAlpha: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'save') return () => stack.push({ ...target });
+      if (name === 'restore') return () => Object.assign(target, stack.pop());
+      if (name === 'createLinearGradient') return () => ({ addColorStop() {} });
+      return (...args) => calls.push({ name, args, color: target.fillStyle, alpha: target.globalAlpha });
+    },
+  });
+  const door = { ...placement('circle', { keydoor: true, keysRequired: 12 }), x: 123, y: 234 };
+  drawObstruction(ctx, door);
+  assert.deepEqual(calls.find(call => call.name === 'translate').args, [123, 234]);
+  assert.ok(calls.some(call => call.name === 'fillText' && call.args[0] === '12'));
+  calls.length = 0;
+  drawObstructionDestruction(ctx, { ...door, opening: true, age: .2, duration: .8 });
+  assert.ok(calls.some(call => call.name === 'scale' && call.args[0] > 0 && call.args[0] < 1));
+  calls.length = 0;
+  drawObstructionDestruction(ctx, { ...door, opening: true, age: .5, duration: .8 });
+  assert.ok(new Set(calls.filter(call => call.name === 'fill' && call.alpha < 1).map(call => call.color)).size >= 3);
+  assert.equal(stack.length, 0);
+});
+
+test('keydoor contact handles moving and appearing doors without opening doors behind another solid', () => {
+  const game = arena();
+  const door = game.createObstruction({ x: 480, y: 300 }, placement('circle', { keydoor: true }));
+  door.track = 'track'; door.previousX = 380; door.previousY = 300;
+  game.obstructions.push(door);
+  Object.assign(game.cat, { x: 380, y: 300, vx: 0, vy: 0 });
+  game.keys = 1;
+  game.openKeydoors(game.cat.x, game.cat.y, true);
+  assert.equal(game.obstructions.length, 0);
+  assert.equal(game.keys, 0);
+  const appearing = game.createObstruction({ x: 380, y: 300 }, placement('circle', { keydoor: true }));
+  game.obstructions.push(appearing); game.keys = 1;
+  game.clearAppearingObstruction(appearing);
+  assert.equal(game.obstructions.length, 0);
+  assert.equal(game.state, 'playing');
+  const blocker = game.createObstruction({ x: 480, y: 300 }, placement('circle'));
+  const hidden = game.createObstruction({ x: 600, y: 300 }, placement('circle', { keydoor: true }));
+  game.obstructions.push(blocker, hidden); game.keys = 1;
+  Object.assign(game.cat, { x: 300, y: 300, vx: 900, vy: 0 });
+  game.update(.5);
+  assert.ok(game.obstructions.includes(hidden));
+  assert.equal(game.keys, 1);
+});
+
+test('trajectory ends at an affordable keydoor without consuming live keys', () => {
+  const game = arena();
+  game.obstructions.push(game.createObstruction({ x: 480, y: 300 }, placement('circle', { keydoor: true, keysRequired: 2 })));
+  Object.assign(game.cat, { x: 300, y: 300, vx: 500, vy: 0 });
+  game.keys = 1;
+  const blocked = game.trajectory();
+  game.keys = 2;
+  const opened = game.trajectory();
+  assert.ok(Math.abs(opened.at(-1)[0] - blocked.at(-1)[0]) < .001);
+  assert.ok(opened.at(-1)[0] < 480);
+  assert.equal(game.keys, 2);
+  assert.equal(game.obstructions.length, 1);
+});
+
 test('spikes cover every obstruction exterior and damage only on new contact, including resized shapes', () => {
   for (const shape of shapes) for (const size of [undefined, 80]) {
     const game = arena(), obstruction = game.createObstruction({ x: 480, y: 300 },
@@ -1011,6 +1166,48 @@ function editorFixture() {
   vm.runInContext(source.slice(source.indexOf('function applyToSelected('), source.indexOf('function applyEventChanges(')), context);
   return { $, context, source };
 }
+
+test('editor edits keydoor counts and mutually exclusive attributes for placements and spawners', () => {
+  const { $, context, source } = editorFixture();
+  context.level.events = [placement('circle', { destructible: true }), placement('diamond', { keydoor: true, keysRequired: 3 })];
+  context.selectedEvents = new Set([0, 1]);
+  context.populateObstructionFields('event', context.level.events);
+  assert.equal($('#event-keydoor').indeterminate, true);
+  assert.equal($('#event-keydoor-keys').value, 3);
+  $('#event-keydoor').checked = true; $('#event-destructible').checked = false;
+  context.touched.add('#event-keydoor'); context.touched.add('#event-destructible');
+  context.applyToSelected();
+  assert.ok(context.level.events.every(event => event.keydoor && !event.destructible));
+  $('#event-keydoor-keys').value = '5'; context.touched.clear(); context.touched.add('#event-keydoor-keys');
+  context.applyToSelected();
+  assert.ok(context.level.events.every(event => event.keysRequired === 5));
+  $('#event-keydoor').checked = false; $('#event-destructible').checked = true;
+  context.touched.clear(); context.touched.add('#event-keydoor'); context.touched.add('#event-destructible');
+  context.applyToSelected();
+  assert.ok(context.level.events.every(event => event.destructible && !event.keydoor && !Object.hasOwn(event, 'keysRequired')));
+
+  const { CONTACT_SURFACES } = require('../src/game.js');
+  Object.assign(context, { CONTACT_SURFACES, immutableBrick: kind => ['cinder', 'goal'].includes(kind),
+    regionKey: region => `${region.edge}:${region.start}:${region.end}`, attempt: action => action(), renderBoard() {} });
+  context.level = blank();
+  context.previewGame = new Game(() => .5, { customLevel: context.level, editorPreview: true });
+  const brick = context.previewGame.bricks[context.previewGame.perimeter[0]];
+  context.selectedBricks = new Set([context.regionKey(brick.region)]);
+  vm.runInContext(source.slice(source.indexOf('function brickEntry('), source.indexOf('function combineBricks(')), context);
+  $('#brick-spawn-item').value = 'object:obstruction-circle';
+  $('#brick-spawn-color').value = '#654321'; $('#brick-spawn-pattern').value = 'solid';
+  $('#brick-spawn-patternColor').value = '#badfed'; $('#brick-spawn-destructible').checked = true;
+  context.saveBrick({ target: { id: 'brick-spawn-item' } });
+  context.previewGame = new Game(() => .5, { customLevel: context.level, editorPreview: true });
+  $('#brick-spawn-keydoor').checked = true; $('#brick-spawn-keydoor-keys').value = '4';
+  context.saveBrick({ target: { id: 'brick-spawn-keydoor' } });
+  assert.equal(context.level.brickTypes[0].spawner.keysRequired, 4);
+  assert.equal(context.level.brickTypes[0].spawner.destructible, false);
+  context.previewGame = new Game(() => .5, { customLevel: context.level, editorPreview: true });
+  context.saveBrick({ target: { id: 'brick-spawn-destructible' } });
+  assert.equal(context.level.brickTypes[0].spawner.keydoor, false);
+  assert.ok(!Object.hasOwn(context.level.brickTypes[0].spawner, 'keysRequired'));
+});
 
 test('obstruction shapes retain fixed defaults after custom edits in either inspector', () => {
   const { $, context } = editorFixture();

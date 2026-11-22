@@ -685,11 +685,15 @@ function populateObstructionFields(prefix, items) {
   $(`#${prefix}-rotation`).placeholder = rotations === MIXED ? 'Mixed' : '0';
   const sizes = common(items.map(obstructionPresetFor));
   $(`#${prefix}-size-preset`).value = sizes === MIXED ? 'custom' : sizes;
-  for (const field of ['destructible', 'spiked']) {
+  for (const field of ['destructible', 'spiked', 'keydoor']) {
     const input = $(`#${prefix}-${field}`);
     input.checked = items.every(item => item[field]);
     input.indeterminate = items.some(item => item[field]) && !input.checked;
   }
+  const keys = common(items.filter(item => item.keydoor).map(item => item.keysRequired ?? 1));
+  $(`#${prefix}-keydoor-keys`).value = keys === MIXED || keys === undefined ? '' : keys;
+  $(`#${prefix}-keydoor-keys`).placeholder = keys === MIXED ? 'Mixed' : '1';
+  $(`#${prefix}-keydoor-keys-label`).hidden = !items.some(item => item.keydoor);
   syncObstructionSize(prefix, items[0]);
 }
 
@@ -706,9 +710,10 @@ function readObstructionFields(prefix) {
   }
   const rotation = Number($(`#${prefix}-rotation`).value);
   if (rotation) fields.rotation = rotation;
-  for (const field of ['destructible', 'spiked']) {
+  for (const field of ['destructible', 'spiked', 'keydoor']) {
     if ($(`#${prefix}-${field}`).checked) fields[field] = true;
   }
+  if (fields.keydoor) fields.keysRequired = Number($(`#${prefix}-keydoor-keys`).value || 1);
   return fields;
 }
 
@@ -3283,9 +3288,19 @@ function saveBrick(event) {
           if (rotation) entry.spawner.rotation = rotation;
           else delete entry.spawner.rotation;
         }
-        for (const field of ['destructible', 'spiked']) {
-          if (id === `brick-spawn-${field}`) entry.spawner[field] = $(`#${id}`).checked;
+        for (const field of ['destructible', 'spiked', 'keydoor']) {
+          if (id === `brick-spawn-${field}`) {
+            entry.spawner[field] = $(`#${id}`).checked;
+            if (field === 'keydoor') {
+              if (entry.spawner.keydoor) { entry.spawner.destructible = false; entry.spawner.keysRequired = Number($('#brick-spawn-keydoor-keys').value || 1); }
+              else delete entry.spawner.keysRequired;
+            }
+            if (field === 'destructible' && entry.spawner.destructible) {
+              entry.spawner.keydoor = false; delete entry.spawner.keysRequired;
+            }
+          }
         }
+        if (id === 'brick-spawn-keydoor-keys' && entry.spawner.keydoor) entry.spawner.keysRequired = number('#brick-spawn-keydoor-keys');
       }
       if (entry.kind !== 'goal') delete entry.goalTeam;
       if (immutableBrick(entry.kind)) for (const attribute of Object.keys(entry)) if (!['edge', 'start', 'end', 'kind', 'goalTeam'].includes(attribute)) delete entry[attribute];
@@ -3371,9 +3386,20 @@ for (const field of ['color', 'pattern', 'patternColor']) {
   $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
   $(`#brick-spawn-${field}`).addEventListener('change', event => attempt(() => saveBrick(event)));
 }
-for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked']) {
+for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked', 'keydoor', 'keydoor-keys']) {
   $(`#event-${field}`).addEventListener('input', () => touched.add(`#event-${field}`));
   $(`#brick-spawn-${field}`).addEventListener('change', saveBrick);
+}
+for (const prefix of ['event', 'brick-spawn']) for (const field of ['destructible', 'keydoor']) {
+  $(`#${prefix}-${field}`).addEventListener('input', () => {
+    if ($(`#${prefix}-${field}`).checked) {
+      const other = field === 'keydoor' ? 'destructible' : 'keydoor';
+      $(`#${prefix}-${other}`).checked = false;
+      $(`#${prefix}-${other}`).indeterminate = false;
+      if (prefix === 'event') touched.add(`#event-${other}`);
+    }
+    $(`#${prefix}-keydoor-keys-label`).hidden = !$(`#${prefix}-keydoor`).checked;
+  });
 }
 for (const prefix of ['event', 'brick-spawn']) {
   $(`#${prefix}-size-preset`).addEventListener('change', event => {
@@ -3425,8 +3451,10 @@ function applyToSelected() {
   const rotationChanged = touched.has('#event-rotation');
   const destructibleChanged = touched.has('#event-destructible');
   const spikedChanged = touched.has('#event-spiked');
+  const keydoorChanged = touched.has('#event-keydoor');
+  const keydoorKeysChanged = touched.has('#event-keydoor-keys');
   const placementChanged = ['#event-location', '#event-formation', '#event-count-input', '#event-group-size', '#event-group-angle', '#event-random-count'].some(selector => touched.has(selector));
-  if (!kind && !type && !appearanceChanged && !shieldChanged && !directionChanged && !carrierChanged && !contentChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !rotationChanged && !destructibleChanged && !spikedChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
+  if (!kind && !type && !appearanceChanged && !shieldChanged && !directionChanged && !carrierChanged && !contentChanged && !keysChanged && !lifetimeChanged && !textureFields.length && !sizeFields.length && !rotationChanged && !destructibleChanged && !spikedChanged && !keydoorChanged && !keydoorKeysChanged && !placementChanged && [time, x, y].every(item => item === null)) throw new Error('Change at least one field to update the selected events.');
   const events = level.events.map((event, index) => {
     if (!selectedEvents.has(index)) return event;
     const next = { ...event };
@@ -3488,8 +3516,8 @@ function applyToSelected() {
       if (value('#event-carries-item')) next.carriesItem = value('#event-carries-item');
       else delete next.carriesItem;
     }
-    if (next.kind !== 'item' || next.type !== 'treasure-chest') delete next.keysRequired;
-    else if (keysChanged) next.keysRequired = Number(value('#event-keys-required'));
+    if ((next.kind !== 'item' || next.type !== 'treasure-chest') && !(next.kind === 'object' && OBJECTS[next.type]?.obstruction && next.keydoor)) delete next.keysRequired;
+    else if (next.kind === 'item' && next.type === 'treasure-chest' && keysChanged) next.keysRequired = Number(value('#event-keys-required'));
     if (next.kind !== 'object' || next.type !== 'item-case') delete next.containsItem;
     else if (contentChanged || !next.containsItem) next.containsItem = value('#event-contains-item');
     if (!next.random || next.group) delete next.randomCount;
@@ -3498,7 +3526,7 @@ function applyToSelected() {
       else if (textureFields.includes(field)) next[field] = value(`#event-${field}`);
     }
     if (next.kind !== 'object' || !OBJECTS[next.type]?.obstruction) {
-      for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked']) delete next[field];
+      for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked', 'keydoor']) delete next[field];
     } else {
       for (const field of sizeFields) {
         if (value(`#event-${field}`) === '') delete next[field];
@@ -3516,6 +3544,13 @@ function applyToSelected() {
       }
       if (destructibleChanged) next.destructible = $('#event-destructible').checked;
       if (spikedChanged) next.spiked = $('#event-spiked').checked;
+      if (keydoorChanged) {
+        next.keydoor = $('#event-keydoor').checked;
+        if (next.keydoor) next.keysRequired = next.keysRequired ?? Number(value('#event-keydoor-keys') || 1);
+        else delete next.keysRequired;
+      }
+      if (destructibleChanged && next.destructible) { next.keydoor = false; delete next.keysRequired; }
+      if (next.keydoor && keydoorKeysChanged) next.keysRequired = Number(value('#event-keydoor-keys'));
       if (type && OBJECTS[next.type].obstruction === 'circle') {
         const size = next.width ?? next.height;
         if (size !== undefined) next.width = next.height = size;

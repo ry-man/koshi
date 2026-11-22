@@ -2017,6 +2017,12 @@ the entire marked obstruction immediately, removing its collision shape.
 It crumbles into fragments, grey dust and scattered small orange/red explosions
 over 1.2 seconds. Lasers, other attacks, and destruction dust do not trigger it.
 The animation freezes on pause, finishes after a win/loss, and clears on restart.
+Optional `keydoor: true` gives an obstruction a centered lock showing its
+`keysRequired` count (1–100000, default 1). When Koshi touches it with enough
+keys, those keys are consumed and Koshi stops at its surface as the obstruction
+shrinks away in a multicolored star poof. He stays stopped until redirected.
+Keydoors can also be spiked, but cannot be destructible. Both placed
+and brick-spawned obstructions support these settings in the editor.
 These options are available for custom levels. In the campaign, Levels 3-5,
 3-10 and 3-11 introduce fixed, destructible and appearing obstructions.
 They block Koshi and every enemy, including perimeter robots and every snake
@@ -2061,8 +2067,8 @@ spawners; appearance has no effect on collision geometry. Optional JSON fields
   "pattern": "checkered", "patternColor": "#dfd6f4" }
 ```
 
-Obstructions persist until the level ends and are available only for custom
-placements and spawners; no campaign placements are added.
+Obstructions persist until destroyed, opened, or the level ends and are available
+for custom placements and spawners; no campaign placements are added.
 
 ### Cat Tracks
 

@@ -2352,15 +2352,25 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       }
       result[field] = item[field];
     }
-    for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked']) {
+    for (const field of ['width', 'height', 'rotation', 'destructible', 'spiked', 'keydoor']) {
       if (item[field] === undefined) continue;
       if (!obstruction) fail(`${name}: ${field} is only supported for obstructions.`);
-      if (['destructible', 'spiked'].includes(field) ? typeof item[field] !== 'boolean'
+      if (['destructible', 'spiked', 'keydoor'].includes(field) ? typeof item[field] !== 'boolean'
         : field === 'rotation' ? !Number.isInteger(item[field]) || item[field] < 0 || item[field] > 350 || item[field] % 5 !== 0
           : !Number.isFinite(item[field]) || item[field] < 1 || item[field] > 10000) {
         fail(`${name} has an invalid obstruction ${field}.`);
       }
       result[field] = item[field];
+    }
+    if (obstruction && item.keydoor && item.destructible) fail(`${name}: an obstruction cannot be both destructible and a keydoor.`);
+    if (!obstruction && item.keysRequired !== undefined && !(item.kind === 'item' && item.type === 'treasure-chest')) {
+      fail(`${name}: keysRequired is only supported for treasure chests and keydoor obstructions.`);
+    }
+    if (obstruction && item.keysRequired !== undefined) {
+      if (!item.keydoor) fail(`${name}: obstruction keysRequired requires a keydoor.`);
+      const keysRequired = number(item.keysRequired, 1, 100000, `${name} required keys`);
+      if (!Number.isInteger(keysRequired)) fail(`${name} required keys must be a whole number.`);
+      result.keysRequired = keysRequired;
     }
     if (obstruction && OBJECTS[item.type].obstruction === 'circle'
       && item.width !== undefined && item.height !== undefined && item.width !== item.height) {
@@ -2458,8 +2468,9 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       result.track = event.track;
     }
     carriedItems(event, result, name);
-    if (event.keysRequired !== undefined && (event.kind !== 'item' || event.type !== 'treasure-chest')) {
-      fail(`${name}: keysRequired is only supported for treasure chests.`);
+    if (event.keysRequired !== undefined && !(event.kind === 'item' && event.type === 'treasure-chest')
+      && !(event.kind === 'object' && OBJECTS[event.type]?.obstruction && event.keydoor)) {
+      fail(`${name}: keysRequired is only supported for treasure chests and keydoor obstructions.`);
     }
     if (event.kind === 'item' && event.type === 'treasure-chest') {
       const keysRequired = number(event.keysRequired ?? 1, 1, 100000, `${name} required keys`);
@@ -4309,8 +4320,15 @@ class Game {
         else if (time <= contact + 1e-9 && time <= 1) bumpers.push(bumper);
       }
       actor.x = old.x + dx * contact; actor.y = old.y + dy * contact;
+      const door = this.keydoorContacts(actor, old.x, old.y)
+        .find(({ obstruction }) => this.keys >= obstruction.keysRequired);
+      if (door) {
+        actor.x = old.x + (actor.x - old.x) * door.time;
+        actor.y = old.y + (actor.y - old.y) * door.time;
+      }
       traveled += speed * dt;
       append();
+      if (door) break;
       if (this.level.autoscroll) {
         const camera = this.camera();
         if (actor.x <= camera.x || actor.x >= camera.x + camera.width
@@ -5539,7 +5557,44 @@ class Game {
     return { ...point, type: appearance.type, ...obstructionGeometry(appearance),
       color: appearance.color ?? OBJECTS[appearance.type].color,
       pattern: appearance.pattern ?? 'solid', patternColor: appearance.patternColor ?? '#dbe6ed',
-      rotation: appearance.rotation ?? 0, destructible: appearance.destructible ?? false, spiked: appearance.spiked ?? false };
+      rotation: appearance.rotation ?? 0, destructible: appearance.destructible ?? false, spiked: appearance.spiked ?? false,
+      keydoor: appearance.keydoor ?? false, keysRequired: appearance.keysRequired ?? 1 };
+  }
+
+  keydoorContacts(cat, startX, startY, obstructions = this.obstructions, movingTracks = false) {
+    const contacts = [];
+    for (const obstruction of obstructions) {
+      if (!obstruction.keydoor || (movingTracks && !obstruction.track)) continue;
+      const moveX = movingTracks ? obstruction.x - (obstruction.previousX ?? obstruction.x) : 0;
+      const moveY = movingTracks ? obstruction.y - (obstruction.previousY ?? obstruction.y) : 0;
+      const x = startX + moveX, y = startY + moveY;
+      const dx = cat.x - x, dy = cat.y - y;
+      const time = obstructionSurface(x, y, obstruction).gap <= cat.radius + 1.01e-5 ? 0
+        : obstructionContact(x, y, dx, dy, cat.radius + 1e-5, obstruction);
+      if (time <= 1) contacts.push({ obstruction, time });
+    }
+    contacts.sort((a, b) => a.time - b.time);
+    return contacts;
+  }
+
+  openKeydoor(obstruction) {
+    if (!obstruction.keydoor || this.keys < obstruction.keysRequired) return false;
+    this.keys -= obstruction.keysRequired;
+    this.obstructions = this.obstructions.filter(candidate => candidate !== obstruction);
+    this.obstructionDestructions.push({ ...obstruction, opening: true, age: 0, duration: .8 });
+    this.cat.vx = 0; this.cat.vy = 0;
+    this.target = null; this.pendingMove = null; this.conveyorRide = null;
+    this.iceSteer = null; this.boosted = false;
+    if (this.ropeDart?.phase === 'pulling') this.ropeDart.phase = 'returning';
+    return true;
+  }
+
+  openKeydoors(startX, startY, movingTracks = false) {
+    let opened = false;
+    for (const { obstruction } of this.keydoorContacts(this.cat, startX, startY, this.obstructions, movingTracks)) {
+      opened = this.openKeydoor(obstruction) || opened;
+    }
+    return opened;
   }
 
   updateObstructionSpikeDamage(startX, startY) {
@@ -5570,6 +5625,7 @@ class Game {
         ? Math.hypot(actor.x - obstruction.x, actor.y - obstruction.y) - obstruction.radius
         : obstructionSurface(actor.x, actor.y, obstruction).gap) < radius - 1e-7;
     if (overlaps(this.cat)) {
+      if (this.openKeydoor(obstruction)) return;
       this.hearts = 0;
       this.tookDamage = true;
       this.cat.vx = 0; this.cat.vy = 0;
@@ -9915,6 +9971,7 @@ class Game {
     }
     if (this.state !== 'playing') { this.tickStart = null; return; }
     this.updateCatTracks(dt);
+    this.openKeydoors(this.tickStart.x, this.tickStart.y, true);
     this.moveAttachedRopeDart();
     this.clearBlockedPickups();
     this.food = this.food.filter(item => (this.cookieActive && this.entityVisible(item, COOKIE_FOOD_MARGIN))
@@ -10119,6 +10176,13 @@ class Game {
       collectingSaw = false;
       terrainHit = terrainContact;
     }
+    const door = this.keydoorContacts({ ...cat, x: cat.x + dx * contact, y: cat.y + dy * contact }, cat.x, cat.y)
+      .find(({ obstruction }) => this.keys >= obstruction.keysRequired);
+    if (door && door.time < 1 - 1e-9) {
+      contact *= door.time;
+      contacts = []; bumperContacts = []; bubbleHit = null; circleHit = null;
+      collectingSaw = false; terrainHit = null;
+    }
     const endX = cat.x + dx * contact, endY = cat.y + dy * contact;
     if (this.pendingMove) {
       const { target, dart } = this.pendingMove;
@@ -10186,6 +10250,7 @@ class Game {
     const sawing = this.sawStartedAt !== null || collectingSaw;
     const stamping = stampAvailable && contacts.some(part => !this.bricks[part.id].portal);
     this.updateObstructionSpikeDamage(this.tickStart?.x ?? startX, this.tickStart?.y ?? startY);
+    const keydoorOpened = this.openKeydoors(startX, startY);
     if (!sawing && !stamping) {
       if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
       for (const id of spikeIds) this.spikeTouching.add(id);
@@ -10308,6 +10373,10 @@ class Game {
       }
     }
     this.resolveCatSolidOverlaps(parts, true);
+    if (keydoorOpened) {
+      cat.vx = 0; cat.vy = 0;
+      this.target = null; this.conveyorRide = null;
+    }
     if (rideEnd && !this.conveyorEdge(ride.id, parts)) {
       this.conveyorRide = null;
       cat.vx = 0; cat.vy = 0;

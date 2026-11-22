@@ -1339,12 +1339,54 @@ function drawObstruction(ctx, obstruction) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('TNT', 0, 1, 30);
     ctx.restore();
+  } else if (obstruction.keydoor) {
+    ctx.save();
+    ctx.shadowColor = '#0009'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 2;
+    ctx.strokeStyle = '#d7e3ed'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(0, -6, 9, Math.PI, 0); ctx.lineTo(9, 1); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.fillStyle = '#e8b942'; ctx.strokeStyle = '#654718'; ctx.lineWidth = 2;
+    ctx.fillRect(-15, -3, 30, 20); ctx.strokeRect(-15, -3, 30, 20);
+    ctx.fillStyle = '#25303b';
+    ctx.beginPath(); ctx.arc(0, 4, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-2, 6); ctx.lineTo(-4, 14); ctx.lineTo(4, 14); ctx.lineTo(2, 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 7px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(obstruction.keysRequired ?? 1), 0, 7, 9);
+    ctx.restore();
   }
   ctx.restore();
 }
 
 function drawObstructionDestruction(ctx, effect) {
   const progress = Math.min(1, effect.age / effect.duration);
+  if (effect.opening) {
+    const shrink = Math.max(0, 1 - progress * 2);
+    if (shrink > 0) {
+      ctx.save(); ctx.translate(effect.x, effect.y); ctx.scale(shrink, shrink);
+      drawObstruction(ctx, { ...effect, x: 0, y: 0 });
+      ctx.restore();
+    }
+    const colors = ['#ff6b9a', '#ffd96a', '#80e7ba', '#8cc8ff', '#d7a2ff'];
+    const burst = Math.max(0, (progress - .3) / .7);
+    if (burst > 0) for (let i = 0; i < 20; i++) {
+      const angle = i * Math.PI * 2 / 20 + (i % 3) * .13;
+      const distance = burst * (18 + i % 5 * 5);
+      const size = 2 + i % 3;
+      ctx.save();
+      ctx.translate(effect.x + Math.cos(angle) * distance, effect.y + Math.sin(angle) * distance);
+      ctx.globalAlpha *= .65 * (1 - burst);
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.beginPath();
+      for (let point = 0; point < 10; point++) {
+        const a = -Math.PI / 2 + point * Math.PI / 5, r = point % 2 ? size * .42 : size;
+        if (!point) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+    return;
+  }
   const { width, height } = obstructionGeometry(effect);
   const columns = Math.min(8, Math.max(2, Math.ceil(width / 32)));
   const rows = Math.min(8, Math.max(2, Math.ceil(height / 32)));

@@ -298,6 +298,8 @@
               <div class="input-pair"><label>Width (board units)<input id="brick-spawn-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="brick-spawn-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
               <label>Rotation (degrees, 5° steps)<input id="brick-spawn-rotation" type="number" min="0" max="350" step="5" value="0"></label>
               <label><input id="brick-spawn-destructible" type="checkbox"> Destructible by fireball turrets</label>
+              <label><input id="brick-spawn-keydoor" type="checkbox"> Keydoor</label>
+              <label id="brick-spawn-keydoor-keys-label" hidden>Keys needed<input id="brick-spawn-keydoor-keys" type="number" min="1" max="100000" step="1" value="1"></label>
               <label><input id="brick-spawn-spiked" type="checkbox"> Spiked (damages Koshi on contact)</label>
               <label>Base color<input id="brick-spawn-color" type="color" value="#718596"></label>
               <label>Pattern<select id="brick-spawn-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
@@ -326,6 +328,8 @@
               <div class="input-pair"><label>Width (board units)<input id="event-width" type="number" min="1" max="10000" step="any" placeholder="Default"></label><label>Height (board units)<input id="event-height" type="number" min="1" max="10000" step="any" placeholder="Default"></label></div>
               <label>Rotation (degrees, 5° steps)<input id="event-rotation" type="number" min="0" max="350" step="5" value="0"></label>
               <label class="inline-label"><input id="event-destructible" type="checkbox"> Destructible by fireball turrets</label>
+              <label class="inline-label"><input id="event-keydoor" type="checkbox"> Keydoor</label>
+              <label id="event-keydoor-keys-label" hidden>Keys needed<input id="event-keydoor-keys" type="number" min="1" max="100000" step="1" value="1"></label>
               <label class="inline-label"><input id="event-spiked" type="checkbox"> Spiked (damages Koshi on contact)</label>
               <label>Base color<input id="event-color" type="color" value="#718596"></label>
               <label>Pattern<select id="event-pattern"><option value="solid">Solid</option><option value="polka-dots">Polka dots</option><option value="stripes">Stripes</option><option value="checkered">Checkered</option></select></label>
