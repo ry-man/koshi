@@ -77,10 +77,11 @@ test('game creation uses the selected profile, pending discoveries and guest sta
   const context = vm.createContext({
     Game, LEVELS, Math, layoutOptions: () => ({}), levelSelect: { value: '0' },
     activeSave: null, pendingSaves: [], guestProfile: { catBlocks: [LEVELS[0].id] },
-    customLevel: level([]),
+    customLevel: level([]), playtestStart: { time: 12, x: .5, y: .5 },
   });
   vm.runInContext(source.slice(source.indexOf('function createGame('), source.indexOf('function makeAttemptId(')), context);
   assert.equal(context.createGame().catBlockCollected, true);
+  assert.equal(context.createGame().elapsed, 0, 'test start does not affect campaign games');
   context.activeSave = { slot: { id: 'a', catBlocks: [] } };
   assert.equal(context.createGame().catBlockCollected, false, 'guest discoveries do not leak into a save');
   context.activeSave.slot.catBlocks.push(LEVELS[0].id);
@@ -91,7 +92,9 @@ test('game creation uses the selected profile, pending discoveries and guest sta
   context.activeSave.slot.id = 'b';
   assert.equal(context.createGame().catBlockCollected, false, 'other saves remain independent');
   context.levelSelect.value = 'custom';
-  assert.equal(context.createGame().catBlockCollected, false);
+  const playtest = context.createGame();
+  assert.equal(playtest.catBlockCollected, false);
+  assert.equal(playtest.elapsed, 12, 'custom playtests use their requested start time');
 });
 
 test('Cat Block pickups are 25 percent larger and carrier artwork follows fixed coordinates without a frame', () => {

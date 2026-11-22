@@ -420,6 +420,7 @@ test('printing JSON and playtesting reject inconsistent Cat Brick data before ou
   let writes = 0;
   const context = vm.createContext({ $, level: level({ type: 'spawn' }), validateCustomLevel, cutsceneError: null, levelInfoError: null, trackDrawing: false, terrainDrawing: false, selectedEvents: new Set(), touched: new Set(),
     localStorage: { setItem() { writes++; } }, storageKey: 'test-draft', readOnly: () => false,
+    restorePlaytestSpawnView() {}, pickPlaytestSpawn() {},
     attempt: action => action(), window: { addEventListener() {} }, message() {} });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   vm.runInContext(source.slice(source.indexOf('function validateSavedLevel('), source.indexOf('window.addEventListener(\'beforeunload\'')), context);
