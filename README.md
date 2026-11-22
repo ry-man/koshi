@@ -1756,6 +1756,14 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
 7. **Playtest** opens a snapshot in the game, including its settings, exact spawn
    times, and placements. Any cutscene plays first, before level information and
    objectives; custom playtests replay it on every restart even if already viewed.
+   For editable levels, **Start time** defaults to zero. A nonzero time opens a
+   spawn picker using the editor's Dynamic View at that time; click inside the
+   play area to place Koshi for this playtest, or cancel. The camera and event
+   schedules start at the chosen time with fresh health, inventory and scores.
+   Earlier active events are loaded without simulating combat; expired pickups
+   are omitted and Cat Track objects follow their timed positions. Restarts use
+   the same test time and spawn. These settings do not change exported JSON or
+   the authored time-zero spawn.
    **Back to editor** in the game toolbar returns the
    snapshot for more edits. Browser/Android Back also returns to the editor;
    the editor URL retains the playtest snapshot even if the page reloads.

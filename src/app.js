@@ -85,6 +85,7 @@ let buttons = [];
 let brickRevision = -1;
 const destructionVisuals = new Map();
 let customLevel = null;
+let playtestStart = null;
 let displayedStuck = false;
 let tutorial = null;
 let guideIndex = 0;
@@ -222,6 +223,12 @@ const cutscene = new globalThis.KoshiCutscenePlayer(drawCutsceneCharacter, () =>
 if (location.hash.startsWith('#level=')) {
   try {
     customLevel = validateCustomLevel(JSON.parse(decodeURIComponent(location.hash.slice(7))));
+    const start = new URLSearchParams(location.search).get('playtestStart');
+    if (start !== null) {
+      playtestStart = JSON.parse(start);
+      if (!playtestStart || typeof playtestStart !== 'object') throw new RangeError('Invalid playtest start settings.');
+      new Game(Math.random, { customLevel, playtestStart });
+    }
     const option = document.createElement('option');
     option.value = 'custom';
     option.textContent = `Editor · ${customLevel.id}`;
@@ -234,6 +241,7 @@ if (location.hash.startsWith('#level=')) {
     backToEditor.hidden = false;
     document.querySelector('#dialog-text').textContent = levelBriefingText(customLevel);
   } catch (error) {
+    customLevel = null; playtestStart = null;
     console.error('Custom level could not be loaded:', error);
     const message = document.querySelector('#level-error');
     message.textContent = `Custom level could not be loaded: ${error.message} Open the editor to fix it. The built-in levels are still available.`;
@@ -286,6 +294,7 @@ function createGame() {
     ...layoutOptions(),
     level: levelSelect.value === 'custom' ? 0 : Number(levelSelect.value),
     customLevel: levelSelect.value === 'custom' ? customLevel : null,
+    playtestStart: levelSelect.value === 'custom' ? playtestStart : null,
     catBlockCollected: Boolean(catBlockCollected),
   });
 }

@@ -24,7 +24,13 @@
         <a class="brand" data-game-link href="./index.html"><span class="brand-mark">K</span> KOSHI'S QUEST</a>
         <a data-game-link href="./index.html">Back to game →</a>
       </header>
-      <div class="editor-heading"><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
+      <div class="editor-heading"><label>Start time <input id="playtest-start-time" type="number" min="0" step="any" value="0" aria-label="Playtest start time in seconds"></label><a class="primary" id="playtest" href="./index.html">Playtest →</a></div>
+      <dialog id="playtest-spawn-dialog" aria-labelledby="playtest-spawn-title">
+        <h2 id="playtest-spawn-title">Choose Koshi's playtest spawn</h2>
+        <p id="playtest-spawn-error" role="status" aria-live="polite"></p>
+        <div id="playtest-spawn-board"></div>
+        <button id="playtest-spawn-cancel" type="button">Cancel</button>
+      </dialog>
       <p id="editor-message" role="status" aria-live="polite"></p>
       <p id="portal-warning" class="editor-warning" role="status" aria-live="polite" hidden></p>
       <section class="editor-panel" aria-label="Level library">

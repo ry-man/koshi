@@ -3727,7 +3727,7 @@ function rotateToward(angle, target, maximum) {
 
 class Game {
   constructor(random = Math.random, { portrait = false, scale = 1, level = 0, levels = LEVELS, customLevel = null,
-    customCoordinateOrientation = 'landscape', editorPreview = false, catBlockCollected = false } = {}) {
+    customCoordinateOrientation = 'landscape', editorPreview = false, catBlockCollected = false, playtestStart = null } = {}) {
     if (customLevel) {
       if (!['landscape', 'viewport'].includes(customCoordinateOrientation)) {
         throw new RangeError(`Unknown custom coordinate orientation: ${customCoordinateOrientation}`);
@@ -3751,6 +3751,13 @@ class Game {
     this.height = dimensions.height;
     this.viewportWidth = portrait ? HEIGHT : WIDTH;
     this.viewportHeight = portrait ? WIDTH : HEIGHT;
+    if (playtestStart !== null && (!this.customLevel || !Number.isFinite(playtestStart.time)
+      || playtestStart.time < 0 || (!this.level.bossLevel && playtestStart.time >= this.level.duration)
+      || !Number.isFinite(playtestStart.x) || playtestStart.x < 0 || playtestStart.x > 1
+      || !Number.isFinite(playtestStart.y) || playtestStart.y < 0 || playtestStart.y > 1)) {
+      throw new RangeError('Invalid playtest start time or spawn location.');
+    }
+    this.playtestStart = playtestStart && { ...playtestStart };
     this.reset();
   }
 
@@ -3928,6 +3935,13 @@ class Game {
     this.customEvents = (this.customLevel?.events ?? this.level.events ?? [])
       .map(event => event.spawnPercent === undefined ? event : { ...event, time: this.eventAppearanceTime(event) })
       .sort((a, b) => a.time - b.time);
+    if (this.playtestStart) {
+      this.elapsed = this.playtestStart.time;
+      Object.assign(this.cat, this.campaignEventPoint(this.playtestStart.x, this.playtestStart.y));
+      this.catHistory = [{ time: this.elapsed, x: this.cat.x, y: this.cat.y }];
+      this.spawnCustomEvents({ initializing: true });
+      if (this.elapsed > 0) this.updateCatTracks(this.elapsed);
+    }
   }
 
   start() {
@@ -5308,10 +5322,12 @@ class Game {
     }
   }
 
-  spawnCustomEvents() {
+  spawnCustomEvents({ initializing = false } = {}) {
     const appearing = [];
     while (this.nextCustom < this.customEvents.length && this.customEvents[this.nextCustom].time <= this.elapsed + 1e-9) {
       const event = this.customEvents[this.nextCustom++];
+      if (initializing && ['food', 'item', 'weapon'].includes(event.kind)
+        && event.lifetime != null && event.time + event.lifetime <= this.elapsed + 1e-9) continue;
       const target = event.kind === 'food' ? this.food : event.kind === 'weapon' ? this.weapons : event.kind === 'item' ? this.items
         : event.kind === 'object' ? OBJECTS[event.type].bumper ? this.bumpers
           : OBJECTS[event.type].bubble ? this.bubbles : OBJECTS[event.type].catCircle ? this.catCircles
@@ -5322,11 +5338,11 @@ class Game {
         const spawn = this.tickStart ?? { time: this.elapsed, x: this.cat.x, y: this.cat.y };
         for (const enemy of items) this.initializeRoboKoshi(enemy, spawn.time, spawn);
       }
-      if (target === this.obstructions) for (const obstruction of items) obstruction.fadeInAt = this.elapsed;
+      if (target === this.obstructions && !initializing) for (const obstruction of items) obstruction.fadeInAt = this.elapsed;
       target.push(...items);
       if (target === this.obstructions || target === this.bumpers) appearing.push(...items);
     }
-    for (const obstruction of appearing) this.clearAppearingObstruction(obstruction);
+    if (!initializing) for (const obstruction of appearing) this.clearAppearingObstruction(obstruction);
     this.clearBlockedPickups();
   }
 

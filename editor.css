@@ -2,7 +2,15 @@
 .editor-main a { color: var(--accent); }
 .editor-main .brand { color: var(--text); }
 .editor-main .masthead > a:last-child { font-size: 13px; }
-.editor-heading { display: flex; justify-content: flex-end; align-items: center; padding-top: 30px; }
+.editor-heading { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding-top: 30px; }
+.editor-heading input { width: 100px; }
+#playtest-spawn-dialog { box-sizing: border-box; width: min(1100px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 20px; border: 1px solid #ffffff25; border-radius: 8px; background: var(--panel); color: var(--text); }
+#playtest-spawn-dialog::backdrop { background: #050a0dcc; }
+#playtest-spawn-dialog h2 { margin: 0 0 16px; }
+#playtest-spawn-dialog #editor-board { cursor: crosshair; }
+#playtest-spawn-dialog #koshi-start-marker,
+#playtest-spawn-dialog #camera-outline { visibility: hidden; }
+#playtest-spawn-cancel { margin-top: 16px; }
 .editor-heading .primary { text-decoration: none; text-align: center; color: var(--bg); }
 .editor-main button { background: #26373e; border: 1px solid #ffffff24; color: var(--text); border-radius: 6px; min-height: 44px; padding: 8px 13px; font-size: 12px; }
 .editor-main button:hover { background: #34494e; }

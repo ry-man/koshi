@@ -137,6 +137,7 @@ function syncAccess() {
   board.dataset.readOnly = String(locked);
   $('#editor-bricks').setAttribute('aria-label', locked ? 'Read-only boundary bricks' : 'Editable boundary bricks');
   $('#playtest').textContent = locked ? 'Play game level →' : 'Playtest →';
+  $('#playtest-start-time').disabled = locked;
   $('#copy-official-level').disabled = !locked || campaignMode.active.id !== 'official';
 }
 
@@ -586,6 +587,69 @@ function updatePlaytest() {
   $('#playtest').href = campaignMode.gameURL('./index.html', readOnly()
     ? `#campaign=${encodeURIComponent(level.id)}`
     : `#level=${encodeURIComponent(JSON.stringify(level))}`);
+}
+
+function launchPlaytest(start = null) {
+  history.replaceState(history.state, '', `#level=${encodeURIComponent(JSON.stringify(level))}`);
+  committed = JSON.stringify(level); dirty = false;
+  if (!start) { location.href = $('#playtest').href; return; }
+  const url = new URL($('#playtest').href, location.href);
+  url.searchParams.set('playtestStart', JSON.stringify(start));
+  location.href = url.href;
+}
+
+let playtestSpawnView = null;
+
+function choosePlaytestSpawn(time) {
+  pausePreview();
+  const viewport = $('#editor-board-scroll');
+  playtestSpawnView = { time: Number($('#timeline').value), dynamic: $('#dynamic-view').checked,
+    max: $('#timeline').max,
+    showAll: $('#show-all').checked, selectedEvents, parent: viewport.parentNode, next: viewport.nextSibling,
+    scrollLeft: viewport.scrollLeft, scrollTop: viewport.scrollTop };
+  selectedEvents = new Set();
+  $('#dynamic-view').checked = true;
+  $('#show-all').checked = false;
+  $('#playtest-spawn-error').textContent = '';
+  $('#timeline').max = Math.max(time, Number($('#timeline').max));
+  $('#playtest-spawn-board').append(viewport);
+  $('#playtest-spawn-dialog').showModal();
+  renderPreviewTime(time);
+}
+
+function restorePlaytestSpawnView() {
+  if (!playtestSpawnView) return;
+  const saved = playtestSpawnView, viewport = $('#editor-board-scroll');
+  playtestSpawnView = null;
+  saved.parent.insertBefore(viewport, saved.next);
+  selectedEvents = saved.selectedEvents;
+  $('#dynamic-view').checked = saved.dynamic;
+  $('#show-all').checked = saved.showAll;
+  $('#timeline').max = saved.max;
+  renderPreviewTime(saved.time);
+  viewport.scrollLeft = saved.scrollLeft; viewport.scrollTop = saved.scrollTop;
+}
+
+function pickPlaytestSpawn(event) {
+  if (!playtestSpawnView || !board.contains(event.target)) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  if (event.button !== 0) return;
+  attempt(() => {
+    const rect = board.getBoundingClientRect(), bounds = previewGame.bounds();
+    const x = (event.clientX - rect.left - board.clientLeft) / board.clientWidth * previewGame.width;
+    const y = (event.clientY - rect.top - board.clientTop) / board.clientHeight * previewGame.height;
+    const radius = previewGame.cat.radius;
+    if (x < bounds.left + radius || x > bounds.right - radius
+      || y < bounds.top + radius || y > bounds.bottom - radius) {
+      throw new RangeError('Choose a spawn inside the play area, away from the boundary bricks.');
+    }
+    const point = previewGame.campaignSourceCoordinates(
+      (x - bounds.left) / (bounds.right - bounds.left), (y - bounds.top) / (bounds.bottom - bounds.top));
+    const start = { time: Number($('#timeline').value), ...point };
+    $('#playtest-spawn-dialog').close();
+    restorePlaytestSpawnView();
+    launchPlaytest(start);
+  }, () => { $('#playtest-spawn-error').textContent = $('#editor-message').textContent; });
 }
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -4356,12 +4420,18 @@ $('#playtest').addEventListener('click', event => {
   attempt(() => {
     if (readOnly()) { location.href = $('#playtest').href; return; }
     validateSavedLevel();
+    const input = $('#playtest-start-time'), time = Number(input.value);
+    if (!input.value.trim() || !Number.isFinite(time) || time < 0 || (!level.bossLevel && time >= level.duration)) {
+      throw new RangeError('Start time must be nonnegative and before the end of the level.');
+    }
+    if (time > 0) { choosePlaytestSpawn(time); return; }
     // The fragment carries the snapshot without requiring storage access or a server.
-    history.replaceState(history.state, '', `#level=${encodeURIComponent(JSON.stringify(level))}`);
-    committed = JSON.stringify(level); dirty = false;
-    location.href = $('#playtest').href;
+    launchPlaytest();
   });
 });
+$('#playtest-spawn-cancel').addEventListener('click', () => $('#playtest-spawn-dialog').close());
+$('#playtest-spawn-dialog').addEventListener('close', restorePlaytestSpawnView);
+$('#playtest-spawn-dialog').addEventListener('pointerdown', pickPlaytestSpawn, true);
 window.addEventListener('beforeunload', event => {
   if (readOnly() ? customWorkspace?.dirty : dirty) { event.preventDefault(); event.returnValue = ''; }
 });

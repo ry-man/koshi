@@ -1459,17 +1459,24 @@ test('playtesting preserves the editor snapshot in history before navigating wit
   const href = `./index.html#level=${encodeURIComponent(JSON.stringify(draft))}`;
   let click, prevented = false;
   const calls = [], failures = [];
+  const nodes = new Map();
+  const $ = selector => {
+    if (!nodes.has(selector)) nodes.set(selector, { href, value: '0',
+      addEventListener(type, handler) { if (selector === '#playtest') click = handler; } });
+    return nodes.get(selector);
+  };
   const context = vm.createContext({
     level: draft, committed: 'old draft', dirty: true, location: {},
     readOnly: () => false, validateCustomLevel,
     validateSavedLevel: () => validateCustomLevel(draft, { requireCatBlockConsistency: true }),
-    $: () => ({ href, addEventListener(type, handler) { assert.equal(type, 'click'); click = handler; } }),
+    $, URL,
     history: {
       state: { preserved: true },
       replaceState(state, title, url) { calls.push({ state, url }); },
     },
     attempt(action) { try { action(); } catch (error) { failures.push(error); } },
   });
+  vm.runInContext(source.slice(source.indexOf('function launchPlaytest('), source.indexOf('const plural =')), context);
   vm.runInContext(source.slice(source.indexOf("$('#playtest').addEventListener('click'"), source.indexOf("window.addEventListener('beforeunload'")), context);
   click({ preventDefault() { prevented = true; } });
   assert.equal(prevented, true);
@@ -1493,7 +1500,8 @@ test('custom playtests expose a toolbar link back to the unchanged editor snapsh
   const hash = `#level=${encodeURIComponent(JSON.stringify({ ...blank(), events: [event()] }))}`;
   const nodes = new Map(), failures = [];
   const context = vm.createContext({
-    location: { hash }, customLevel: null, validateCustomLevel, levelObjective,
+    location: { hash, search: '' }, customLevel: null, playtestStart: null, Game, LEVELS: [{}],
+    validateCustomLevel, levelObjective, URLSearchParams,
     campaignMode: require('../src/campaign-mode.js'),
     levelSelect: { append() {} },
     document: {
@@ -1511,6 +1519,104 @@ test('custom playtests expose a toolbar link back to the unchanged editor snapsh
   assert.equal(nodes.get('#back-to-editor').hidden, false);
   assert.equal(nodes.get('#back-to-editor').href, `./editor.html?game=beta${hash}`);
   assert.equal(nodes.get('#editor-link').href, `./editor.html?game=beta${hash}`);
+  const start = { time: 12, x: .4, y: .6 };
+  context.location.search = `?playtestStart=${encodeURIComponent(JSON.stringify(start))}`;
+  vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"),
+    source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.playtestStart)), start);
+  assert.equal(nodes.get('#back-to-editor').href, `./editor.html?game=beta${hash}`,
+    'returning to edit does not persist a temporary spawn');
+  context.location.search = '?playtestStart=%7B%22time%22%3A-1%7D';
+  vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"),
+    source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
+  assert.equal(context.customLevel, null);
+  assert.equal(context.playtestStart, null);
+  assert.equal(nodes.get('#level-error').hidden, false);
+  assert.match(nodes.get('#level-error').textContent, /Invalid playtest/);
+});
+
+test('nonzero playtests ask for a spawn before navigating and keep test settings outside level JSON', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const draft = blank(), nodes = new Map(), picked = [], errors = [];
+  const context = vm.createContext({
+    level: draft, dirty: true, committed: '', URL,
+    location: { href: 'http://localhost/editor.html?game=beta' },
+    history: { state: null, replaceState() {} },
+    readOnly: () => false, validateSavedLevel() {},
+    $: selector => {
+      if (!nodes.has(selector)) nodes.set(selector, { value: '12.5',
+        href: `http://localhost/index.html?game=beta#level=${encodeURIComponent(JSON.stringify(draft))}`,
+        addEventListener(type, handler) { this[type] = handler; } });
+      return nodes.get(selector);
+    },
+    attempt(action) { try { action(); } catch (error) { errors.push(error.message); } },
+  });
+  vm.runInContext(source.slice(source.indexOf('function launchPlaytest('), source.indexOf('const plural =')), context);
+  context.choosePlaytestSpawn = time => picked.push(time);
+  vm.runInContext(source.slice(source.indexOf("$('#playtest').addEventListener('click'"),
+    source.indexOf("window.addEventListener('beforeunload'")), context);
+  nodes.get('#playtest').click({ preventDefault() {} });
+  assert.deepEqual(picked, [12.5]);
+  assert.equal(context.location.href, 'http://localhost/editor.html?game=beta');
+  assert.equal(context.dirty, true, 'opening the picker does not commit the draft');
+  context.launchPlaytest({ time: 12.5, x: .4, y: .6 });
+  const url = new URL(context.location.href);
+  assert.deepEqual(JSON.parse(url.searchParams.get('playtestStart')), { time: 12.5, x: .4, y: .6 });
+  assert.deepEqual(JSON.parse(decodeURIComponent(url.hash.slice(7))), draft);
+  for (const value of ['-1', '', 'Infinity', '30']) {
+    nodes.get('#playtest-start-time').value = value;
+    nodes.get('#playtest').click({ preventDefault() {} });
+  }
+  assert.equal(errors.length, 4);
+  assert.deepEqual(picked, [12.5]);
+});
+
+test('late playtests preload active events, skip expired pickups and preserve schedules and fresh Koshi on restart', () => {
+  const draft = { ...blank(), duration: 100, autoscroll: { length: 56, speed: .25, events: [] }, events: [
+    { ...event('food', 'S', 0), lifetime: 30 },
+    { ...event('item', 'key', 2), lifetime: 10 },
+    { ...event('weapon', 'bronze', 2), lifetime: 10 },
+    { ...event('food', 'S', 20), lifetime: 20 },
+    { ...event('item', 'key', 20), lifetime: 20 },
+    { ...event('enemy', 'mouse', 10), x: .1, y: .2 },
+    { ...event('object', 'obstruction-circle', 10), x: .1, y: .8 },
+    { ...event('item', 'key', 31), x: .3, y: .3 },
+  ] };
+  const before = JSON.stringify(draft);
+  for (const portrait of [false, true]) {
+    const preview = new Game(() => .5, { customLevel: draft, portrait });
+    const camera = preview.camera(30), b = preview.bounds();
+    const point = preview.campaignSourceCoordinates(
+      (camera.x + camera.width / 2 - b.left) / (b.right - b.left),
+      (camera.y + camera.height / 2 - b.top) / (b.bottom - b.top));
+    const game = new Game(() => .5, { customLevel: draft, portrait, playtestStart: { time: 30, ...point } });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      assert.equal(game.elapsed, 30); assert.equal(game.state, 'ready');
+      assert.equal(game.food.length, 1); assert.equal(game.food[0].expires, 40);
+      assert.equal(game.items.length, 1); assert.equal(game.weapons.length, 0);
+      assert.equal(game.robots.length, 1); assert.equal(game.obstructions.length, 1);
+      assert.equal(game.robots[0].age, 0, 'no earlier combat or roaming is simulated');
+      assert.equal(game.hearts, 3); assert.equal(game.keys, 0); assert.equal(game.score, 0);
+      assert.deepEqual({ x: game.cat.x, y: game.cat.y }, game.campaignEventPoint(point.x, point.y));
+      assert.deepEqual(game.camera(), camera);
+      game.start();
+      assert.equal(game.food.length, 1, 'preloaded events are not duplicated');
+      game.update(1);
+      assert.equal(game.items.length, 2, 'future event appears at its original time');
+      game.reset();
+    }
+  }
+  assert.equal(JSON.stringify(draft), before);
+});
+
+test('late playtests validate time and coordinates without changing ordinary starts', () => {
+  for (const start of [{ time: -1, x: .5, y: .5 }, { time: 30, x: .5, y: .5 },
+    { time: 5, x: 2, y: .5 }, { time: 5, x: .5 }, { time: NaN, x: .5, y: .5 }]) {
+    assert.throws(() => new Game(() => .5, { customLevel: blank(), playtestStart: start }), /Invalid playtest/);
+  }
+  const game = new Game(() => .5, { customLevel: blank() });
+  assert.equal(game.elapsed, 0);
+  assert.equal(game.state, 'ready');
 });
 
 test('every selectable enemy has a board icon and a palette/spawner graphic', () => {

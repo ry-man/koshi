@@ -19,6 +19,23 @@ function arena(source, options = {}) {
   return game;
 }
 
+test('late playtests place Cat Track objects at the chosen time without invalid velocities or restart drift', () => {
+  const event = object('obstruction-circle', { time: 2, width: 20, height: 20 });
+  const source = { ...blank(), tracks: [track()], events: [event] };
+  for (const portrait of [false, true]) {
+    const game = new Game(() => .5, { customLevel: source, portrait, playtestStart: { time: 30, x: .4, y: .4 } });
+    const expected = game.trackEventPoint(event, 30);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const obstruction = game.obstructions[0];
+      close(obstruction.x, expected.x); close(obstruction.y, expected.y);
+      assert.ok(Number.isFinite(obstruction.vx) && Number.isFinite(obstruction.vy));
+      game.start();
+      assert.equal(game.obstructions.length, 1);
+      game.reset();
+    }
+  }
+});
+
 test('a moving keydoor stops Koshi when it opens instead of preserving his movement', () => {
   const game = arena({ ...blank(), tracks: [track()], events: [object('obstruction-circle', { keydoor: true })] });
   game.update(.01);
