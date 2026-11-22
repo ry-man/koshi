@@ -305,6 +305,48 @@ test('keydoor opening draws a centered lock, shrinking shape and translucent col
   assert.equal(stack.length, 0);
 });
 
+test('obstruction signs and opening locks remain upright across authored and phone rotations', () => {
+  const { drawObstructionDestruction } = require('../src/brick-visuals.js');
+  for (const portrait of [false, true]) for (const rotation of [0, 35, 90, 270]) {
+    const game = new Game(() => .5, { customLevel: blank(), portrait });
+    for (const attribute of ['destructible', 'keydoor']) {
+      const event = placement('rectangle', { rotation, [attribute]: true, keysRequired: 3, pattern: 'stripes' });
+      const obstruction = { ...game.campaignEventAppearance(event), x: 123, y: 234 };
+      const calls = [], stack = [];
+      const ctx = new Proxy({ angle: 0, globalAlpha: 1 }, {
+        get(target, name) {
+          if (name in target) return target[name];
+          if (name === 'save') return () => stack.push({ ...target });
+          if (name === 'restore') return () => Object.assign(target, stack.pop());
+          if (name === 'rotate') return angle => { target.angle += angle; };
+          if (name === 'createLinearGradient') return () => ({ addColorStop() {} });
+          return (...args) => calls.push({ name, args, angle: target.angle, stroke: target.strokeStyle });
+        },
+      });
+      const verify = opening => {
+        calls.length = 0;
+        if (opening) drawObstructionDestruction(ctx, { ...obstruction, opening: true, age: .2, duration: .8 });
+        else drawObstruction(ctx, obstruction);
+        const label = calls.find(call => call.name === 'fillText');
+        assert.equal(label.args[0], attribute === 'keydoor' ? '3' : 'TNT');
+        assert.ok(Math.abs(label.angle) < 1e-10, `${attribute}, portrait ${portrait}, rotation ${rotation}`);
+        const shape = calls.find(call => call.name === 'stroke' && call.stroke === '#17232c');
+        assert.ok(Math.abs(shape.angle - obstruction.rotation * Math.PI / 180) < 1e-10, 'shape retains its rotation');
+        if (attribute === 'keydoor') {
+          const shackle = calls.find(call => call.name === 'arc' && call.args[2] === 9);
+          assert.ok(Math.abs(shackle.angle) < 1e-10, 'the entire lock is upright');
+        } else {
+          const border = calls.find(call => call.name === 'strokeRect');
+          assert.ok(Math.abs(border.angle) < 1e-10, 'the entire TNT sign is upright');
+        }
+        assert.equal(stack.length, 0);
+      };
+      verify(false);
+      if (attribute === 'keydoor') verify(true);
+    }
+  }
+});
+
 test('keydoor contact handles moving and appearing doors without opening doors behind another solid', () => {
   const game = arena();
   const door = game.createObstruction({ x: 480, y: 300 }, placement('circle', { keydoor: true }));
@@ -1142,6 +1184,37 @@ test('TNT signs are centered fixed-size red rectangles with black-on-white text 
     assert.ok(!calls.some(call => call.name === 'fillText'), 'the sign disappears with the destroyed obstruction');
     assert.equal(stack.length, 0);
     assert.equal(ctx.globalAlpha, 1);
+  }
+});
+
+test('editor marker bounds and hit regions follow upright obstruction icons', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const start = source.indexOf('      const appearance = previewGame.campaignEventAppearance(event);');
+  const end = source.indexOf('      marker.obstructionHitTest =', start);
+  assert.ok(start >= 0 && end > start);
+  const node = () => ({
+    children: [], attributes: {}, style: {}, classList: { add() {} },
+    append(...children) { this.children.push(...children); },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    getContext() { return { scale() {} }; },
+  });
+  for (const portrait of [false, true]) for (const attribute of ['destructible', 'keydoor']) {
+    const previewGame = new Game(() => .5, { customLevel: blank(), portrait, editorPreview: true });
+    const event = placement('rectangle', { width: 1, height: 1, rotation: 35, [attribute]: true });
+    const marker = node();
+    const context = vm.createContext({ previewGame, event, marker, label: node(), obstructionGeometry,
+      obstructionVertices, obstructionSpikes, drawObstruction() {},
+      document: { createElement: node, createElementNS: node } });
+    vm.runInContext(source.slice(start, end), context);
+    const [image, , svg] = marker.children;
+    assert.ok(image.width >= 40);
+    assert.ok(image.height >= (attribute === 'keydoor' ? 40 : 30));
+    const group = svg.children[0], hit = group.children.at(-1);
+    const angle = previewGame.campaignEventAppearance(event).rotation;
+    assert.match(group.attributes.transform, new RegExp(`rotate\\(${angle}\\)$`));
+    assert.equal(hit.attributes.transform, `rotate(${-angle})`);
+    assert.equal(hit.attributes.d, attribute === 'keydoor'
+      ? 'M-16 -18 L16 -18 L16 18 L-16 18 Z' : 'M-18 -13 L18 -13 L18 13 L-18 13 Z');
   }
 });
 

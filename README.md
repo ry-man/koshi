@@ -2026,6 +2026,8 @@ Optional `keydoor: true` gives an obstruction a centered lock showing its
 `keysRequired` count (1–100000, default 1). When Koshi touches it with enough
 keys, those keys are consumed and Koshi stops at its surface as the obstruction
 shrinks away in a multicolored star poof. He stays stopped until redirected.
+The lock and TNT sign stay upright on both desktop and phone, regardless of
+the obstruction's rotation.
 Keydoors can also be spiked, but cannot be destructible. Both placed
 and brick-spawned obstructions support these settings in the editor.
 These options are available for custom levels. In the campaign, Levels 3-5,

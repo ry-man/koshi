@@ -1318,6 +1318,7 @@ function drawObstruction(ctx, obstruction) {
   trace();
   ctx.strokeStyle = '#17232c'; ctx.lineWidth = 2.5;
   ctx.lineJoin = OBJECTS[obstruction.type].obstruction === 'v' ? 'round' : 'miter'; ctx.stroke();
+  ctx.rotate(-(obstruction.rotation ?? 0) * Math.PI / 180);
   if (obstruction.destructible) {
     ctx.save();
     const face = ctx.createLinearGradient(-18, -13, 18, 13);

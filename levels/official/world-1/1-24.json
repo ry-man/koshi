@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "Frolic to Froggy",
-  "duration": 120,
+  "duration": 180,
   "goal": 0,
   "heartCost": 20,
   "brickSet": 1,
@@ -86,7 +86,7 @@
       "height": 482.78260869565213
     },
     {
-      "time": 85,
+      "time": 69,
       "kind": "object",
       "type": "obstruction-circle",
       "x": 0.6428979397165417,
@@ -103,7 +103,7 @@
       "height": 48
     },
     {
-      "time": 86,
+      "time": 70,
       "kind": "enemy",
       "type": "robo-trash-bin",
       "x": 0.6395063327661028,
@@ -113,10 +113,11 @@
         "count": 3,
         "size": 0.4
       },
-      "shield": null
+      "shield": null,
+      "carriesItem": "key"
     },
     {
-      "time": 85,
+      "time": 0,
       "kind": "object",
       "type": "obstruction-rectangle",
       "x": 0.7412545412792717,
@@ -128,7 +129,7 @@
       "height": 48
     },
     {
-      "time": 85,
+      "time": 0,
       "kind": "object",
       "type": "obstruction-rectangle",
       "x": 0.7412545412792717,
@@ -145,15 +146,17 @@
       "type": "wheel",
       "x": 0.6021986563112741,
       "y": 1,
-      "shield": null
+      "shield": null,
+      "carriesItem": "bronze"
     },
     {
-      "time": 86,
+      "time": 70,
       "kind": "enemy",
       "type": "wheel",
       "x": 0.6496811536174196,
       "y": 0,
-      "shield": null
+      "shield": null,
+      "carriesItem": "bronze"
     },
     {
       "time": 0,
@@ -221,7 +224,7 @@
       "shield": null
     },
     {
-      "time": 100,
+      "time": 80,
       "kind": "weapon",
       "type": "wood",
       "x": 0.6462895466669807,
@@ -237,7 +240,10 @@
       "patternColor": "#222222",
       "pattern": "stripes",
       "width": 41.28174386921002,
-      "height": 375.27272727272725
+      "height": 375.27272727272725,
+      "destructible": false,
+      "keydoor": true,
+      "keysRequired": 4
     },
     {
       "time": 0,
@@ -262,21 +268,171 @@
       "type": "wood",
       "x": 0.37496099063186344,
       "y": 0.9797372522823424
+    },
+    {
+      "time": 69,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.5241916964511779,
+      "y": 0.49877532843464706,
+      "color": "#eab308",
+      "patternColor": "#222222",
+      "pattern": "checkered",
+      "width": 50.75095367847433,
+      "height": 482.78260869565213,
+      "destructible": false,
+      "keydoor": false
+    },
+    {
+      "time": 92,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.6802056161713703,
+      "y": 0.1781340458695168,
+      "shield": null,
+      "carriesItem": "key"
+    },
+    {
+      "time": 92,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.6802056161713703,
+      "y": 0.8194166109997774,
+      "shield": null
+    },
+    {
+      "time": 92,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.61576508411303,
+      "y": 0.1781340458695168,
+      "shield": null
+    },
+    {
+      "time": 92,
+      "kind": "enemy",
+      "type": "mouse",
+      "x": 0.61576508411303,
+      "y": 0.8194166109997774,
+      "shield": null
+    },
+    {
+      "time": 85,
+      "kind": "weapon",
+      "type": "wood",
+      "x": 0.5411497312033727,
+      "y": 0.49877532843464706
+    },
+    {
+      "time": 160,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.9481425652560487,
+      "y": 0.19768630781961793,
+      "color": "#f59e0b",
+      "patternColor": "#222222",
+      "pattern": "checkered",
+      "width": 163.59237057220707,
+      "height": 219.54150197628462
+    },
+    {
+      "time": 158,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.9668909221030187,
+      "y": 0.8835448675128034,
+      "color": "#f59e0b",
+      "patternColor": "#222222",
+      "pattern": "checkered",
+      "width": 319.04523160762994,
+      "height": 145.23320158102769
+    },
+    {
+      "time": 164,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.868627575578853,
+      "y": 0.8790937761051901,
+      "color": "#f59e0b",
+      "patternColor": "#222222",
+      "pattern": "checkered",
+      "width": 491.85831062670314,
+      "height": 141.28063241106713
+    },
+    {
+      "time": 162,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.8294363219906848,
+      "y": 0.2743264306390559,
+      "color": "#f59e0b",
+      "patternColor": "#222222",
+      "pattern": "checkered",
+      "width": 163.59237057220707,
+      "height": 281.9920948616601
+    },
+    {
+      "time": 170,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.8886009960553846,
+      "y": 0.0748199148477967,
+      "color": "#84cc16",
+      "patternColor": "#111111",
+      "pattern": "solid",
+      "width": 335.61634877384256,
+      "height": 105.70750988142296
+    },
+    {
+      "time": 172,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.8881289926287347,
+      "y": 0.6546448783095989,
+      "color": "#14b8a6",
+      "patternColor": "#eab308",
+      "pattern": "solid",
+      "width": 652.8348773841947,
+      "height": 86.73517786561273
+    },
+    {
+      "time": 168,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.8904852470985862,
+      "y": 0.370518815408595,
+      "color": "#14b8a6",
+      "patternColor": "#eab308",
+      "pattern": "solid",
+      "width": 180.1634877384202,
+      "height": 164.9960474308301
+    },
+    {
+      "time": 166,
+      "kind": "object",
+      "type": "obstruction-rectangle",
+      "x": 0.9854502417108773,
+      "y": 0.3347799231741029,
+      "color": "#84cc16",
+      "patternColor": "#111111",
+      "pattern": "solid",
+      "width": 163.59237057220707,
+      "height": 341.28063241106724
     }
   ],
   "bossLevel": false,
-  "killGoal": 10,
-  "survive": false,
+  "killGoal": 0,
+  "survive": true,
   "autoscroll": {
     "length": 40,
     "speed": 0.25,
     "events": [
       {
-        "time": 60,
+        "time": 65,
         "speed": 1
       },
       {
-        "time": 66.25,
+        "time": 70.25,
         "speed": 0
       },
       {

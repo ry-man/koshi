@@ -1720,9 +1720,9 @@ function renderBoard() {
       const angle = (appearance.rotation ?? 0) * Math.PI / 180;
       const padding = event.spiked ? 32 : 4;
       const frameWidth = Math.max(Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * height + padding,
-        event.destructible ? 40 : 0);
+        event.destructible || event.keydoor ? 40 : 0);
       const frameHeight = Math.max(Math.abs(Math.sin(angle)) * width + Math.abs(Math.cos(angle)) * height + padding,
-        event.destructible ? 30 : 0);
+        event.keydoor ? 40 : event.destructible ? 30 : 0);
       marker.classList.add('obstruction-marker');
       marker.style.width = `${frameWidth / previewGame.width * 100}%`;
       marker.style.height = `${frameHeight / previewGame.height * 100}%`;
@@ -1743,11 +1743,20 @@ function renderBoard() {
       const path = points => `M${points.map(([x, y]) => `${x} ${y}`).join(' L')} Z`;
       const shapes = [path(obstructionVertices(appearance))];
       if (appearance.spiked) shapes.push(obstructionSpikes({ ...appearance, x: 0, y: 0, rotation: 0 }).map(path).join(' '));
-      if (appearance.destructible) shapes.push(path([[-18, -13], [18, -13], [18, 13], [-18, 13]]));
       for (const shape of shapes) {
         const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         hit.setAttribute('d', shape); hit.setAttribute('fill', 'transparent');
         hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', '2.5');
+        group.append(hit);
+      }
+      if (appearance.destructible || appearance.keydoor) {
+        const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const top = appearance.keydoor ? -18 : -13, bottom = appearance.keydoor ? 18 : 13;
+        const halfWidth = appearance.keydoor ? 16 : 18;
+        hit.setAttribute('d', path([[-halfWidth, top], [halfWidth, top], [halfWidth, bottom], [-halfWidth, bottom]]));
+        hit.setAttribute('transform', `rotate(${-(appearance.rotation ?? 0)})`);
+        hit.setAttribute('fill', 'transparent'); hit.setAttribute('stroke', 'transparent');
+        hit.setAttribute('stroke-width', '2.5');
         group.append(hit);
       }
       svg.append(group); marker.append(svg);
