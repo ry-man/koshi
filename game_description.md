@@ -892,7 +892,10 @@ laser does not activate bricks, spend a Boom Helmet charge or fire a Rope Dart.
 Half the time she picks a random
 angle; otherwise she aims toward a spiked or slimed
 brick, a stationary bubble, or another enemy, falling back to a random angle
-if none are present. Music Box pauses her aim; Spooky Mask interrupts her charge
+if none are present. In autoscrolling levels she only points at bricks that are
+fully on screen, both when she starts aiming and when the shot will fire, and
+any shot whose endpoint falls outside the screen is abandoned instead of fired,
+so her laser never pushes Koshi off the map. Music Box pauses her aim; Spooky Mask interrupts her charge
 before firing. On defeat, her glasses fly off and an explosion breaks her grey
 body into pieces. Her blue hair falls to the floor and fades after the blast.
 Available in custom placements and enemy spawners.

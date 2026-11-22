@@ -3677,7 +3677,7 @@ for (const [selector, entries] of [
     goals: 'Minimum soccer goals', moves: 'Maximum moves', enemyMin: 'Minimum defeats by type',
     teamRace: 'Team Koshi scores first', teamEnemyMax: 'Maximum team Enemy goals', teamKoshiMin: 'Minimum team Koshi goals',
     enemyMax: 'Maximum defeats by type', enemiesMax: 'Maximum total defeats',
-    noSwords: 'No sword pickups', noHearts: 'No heart pickups',
+    noSwords: 'No weapon pickups', noHearts: 'No heart pickups',
     bricksMin: 'Minimum distinct bricks', bricksMax: 'Maximum distinct bricks',
     noSelect: 'Never select brick type', noTouch: 'Never touch brick type',
   })],

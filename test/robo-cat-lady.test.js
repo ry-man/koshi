@@ -250,6 +250,62 @@ test('the laser starts at the pointer tip and stops at the nearest blocker', () 
   near(game.catLadyLaser(enemy).end.x, x + 120 - game.bumpers[0].radius);
 });
 
+test('autoscroll aim only chooses bricks fully on screen now and when the shot will fire', () => {
+  const scrolling = { ...level, id: 'Cat Lady autoscroll aim', goal: 0, survive: true,
+    autoscroll: { length: 24, speed: .25, events: [] } };
+  const game = new Game(() => .5, { customLevel: scrolling });
+  game.start();
+  const enemy = game.createCustomSpawn(placement)[0];
+  game.robots.push(enemy);
+  const now = game.camera(), later = game.camera(game.elapsed + CAT_LADY_POINTER.charge);
+  const within = (part, camera) => part.x >= camera.x && part.x + part.w <= camera.x + camera.width
+    && part.y >= camera.y && part.y + part.h <= camera.y + camera.height;
+  const parts = game.brickParts();
+  const safe = parts.find(part => within(part, now) && within(part, later));
+  const ahead = parts.find(part => part.x > now.x + now.width);
+  const leaving = parts.find(part => within(part, now) && !within(part, later));
+  assert.ok(safe && ahead && leaving, 'the board provides each visibility case');
+  const forcedRoll = (...values) => { game.random = () => values.shift(); };
+  for (const part of [ahead, leaving]) {
+    game.bricks[part.id].spikes = true;
+    forcedRoll(.5, 0);
+    assert.equal(game.catLadyTarget(enemy, [enemy]), null, 'bricks that are or will be off screen are ignored');
+    game.bricks[part.id].spikes = false;
+  }
+  game.bricks[safe.id].spikes = true;
+  forcedRoll(.5, 0);
+  assert.deepEqual(game.catLadyTarget(enemy, [enemy]), { x: safe.x + safe.w / 2, y: safe.y + safe.h / 2 });
+});
+
+test('an autoscroll shot with an off-screen endpoint is abandoned instead of pushing Koshi off the map', () => {
+  const scrolling = { ...level, id: 'Cat Lady autoscroll guard', goal: 0, survive: true,
+    autoscroll: { length: 24, speed: .5, events: [] } };
+  const game = new Game(() => .5, { customLevel: scrolling });
+  game.start();
+  game.elapsed = 12;
+  const camera = game.camera();
+  assert.ok(camera.x > 200, 'the camera has scrolled past the start');
+  const enemy = game.createCustomSpawn(placement)[0];
+  game.robots.push(enemy);
+  Object.assign(enemy, { x: camera.x + camera.width / 2, y: camera.y + camera.height / 2 });
+  Object.assign(game.cat, { x: enemy.x, y: enemy.y + 100, vx: 0, vy: 0 });
+  const fire = angle => {
+    Object.assign(enemy, { catLadyState: 'aim', catLadyTime: CAT_LADY_POINTER.charge,
+      aimAngle: angle, catLadyTarget: null, pointerX: Math.sign(Math.cos(angle)) * CAT_LADY_POINTER.x });
+    game.catLadyShots.push(enemy);
+    game.resolveCatLadyShots();
+  };
+  fire(Math.PI);
+  assert.equal(game.catLadyLaserOwner, null, 'a shot down the empty corridor behind the camera never fires');
+  assert.equal(enemy.catLadyBeam, null);
+  assert.equal(enemy.catLadyState, 'wander');
+  assert.equal(game.cat.vx, 0);
+  assert.equal(game.cat.vy, 0);
+  fire(Math.PI / 2);
+  assert.equal(game.catLadyLaserOwner, enemy, 'an on-screen endpoint still fires');
+  assert.ok(game.cat.vy > 0, 'Koshi launches toward the on-screen endpoint');
+});
+
 test('aim chooses hazards on the targeted branch and never chooses a gun bubble or itself', () => {
   const { game, enemy } = arena();
   const gunBubble = { x: 200, y: 170, hazardShot: true };

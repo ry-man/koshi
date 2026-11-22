@@ -1904,7 +1904,7 @@ errors and action status.
 
 The 17 triggers cover spawned pickups, carriers, chests, completion time, food
 points, enemy points, soccer goals, moves, minimum/maximum defeats of a selected
-enemy type, maximum total defeats, no swords, no hearts, minimum/maximum distinct
+enemy type, maximum total defeats, no weapon pickups, no hearts, minimum/maximum distinct
 bricks of a selected type, and avoiding selecting/touching a selected brick type.
 Pickup/carrier/chest triggers use authored events or spawners; configure chest
 key requirements on the chest event. Achievement rewards are automatic: minimum
@@ -1917,12 +1917,14 @@ base types and modifiers (such as Spawning); selecting/touching restrictions
 remember the types present at the time, even if a brick later changes.
 Defeat counts count enemies, not their shield-dependent point values, and exclude
 enemies removed without awarding defeat points. Picking up a heart counts even
-at full health; swords count even if replaced or exhausted later.
+at full health; weapons of every kind (swords, hammers, axes, rope darts, and
+any future weapon) count even if replaced or exhausted later.
 
 Custom JSON stores `catBlock.trigger` as `{ "type": "food", "amount": 30 }`.
 Trigger type IDs in the order above are `spawn`, `carrier`, `chest`, `time`,
 `food`, `enemyPoints`, `goals`, `moves`, `enemyMin`, `enemyMax`, `enemiesMax`,
 `noSwords`, `noHearts`, `bricksMin`, `bricksMax`, `noSelect`, `noTouch`.
+The `noSwords` ID is kept for compatibility and covers all weapon pickups.
 Enemy-specific triggers also require `enemyType`; brick-specific triggers require
 `brickType` (a base kind or modifier name). Amounts are nonnegative whole numbers,
 except `time`, which accepts positive fractional seconds and uses a strict

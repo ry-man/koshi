@@ -44,7 +44,7 @@ test('all triggers generate the exact requested language and round-trip their pa
     'Defeat at least 2 of enemy type Robo Mouse.',
     'Defeat no more than 2 of enemy type Robo Mouse.',
     'Defeat no more than 2 enemies.',
-    'Complete the level without collecting any swords.',
+    'Complete the level without collecting any weapons.',
     'Complete the level without collecting any hearts.',
     'Complete the level with at least 2 distinct bricks of brick type Slow',
     'Complete the level with at most 2 distinct bricks of brick type Slow',
@@ -152,7 +152,18 @@ test('defeat achievements count individuals by type, not shield points, and uppe
   }
 });
 
-test('no-sword/no-heart achievements track actual pickups, including full health and later exhaustion', () => {
+test('no-weapon/no-heart achievements track actual pickups, including full health and later exhaustion', () => {
+  for (const weapon of ['wood', 'hammer-gold', 'axe-silver', 'rope-dart-bronze']) {
+    const game = create({ type: 'noSwords' });
+    const point = { x: game.cat.x, y: game.cat.y };
+    game.weapons = [{ ...point, type: weapon }];
+    game.combat(.01, point.x, point.y);
+    assert.equal(game.catBlockProgress.weapons, 1, `${weapon} counts as a weapon pickup`);
+    game.weapon = null;
+    assert.equal(win(game), false);
+    game.reset(); game.start();
+    assert.equal(win(game), true);
+  }
   for (const type of ['noSwords', 'noHearts']) {
     assert.equal(win(create({ type })), true);
     const game = create({ type });
@@ -160,7 +171,7 @@ test('no-sword/no-heart achievements track actual pickups, including full health
     if (type === 'noSwords') game.weapons = [{ ...point, type: 'wood' }];
     else game.healing = [point];
     game.combat(.01, point.x, point.y);
-    assert.equal(game.catBlockProgress[type === 'noSwords' ? 'swords' : 'hearts'], 1);
+    assert.equal(game.catBlockProgress[type === 'noSwords' ? 'weapons' : 'hearts'], 1);
     game.weapon = null;
     assert.equal(win(game), false);
     game.reset(); game.start();

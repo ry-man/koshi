@@ -105,7 +105,7 @@ const CAT_BLOCK_TRIGGERS = {
   enemyMin: { text: 'Defeat at least [X] of enemy type [Y].', amount: true, enemy: true },
   enemyMax: { text: 'Defeat no more than [X] of enemy type [Y].', amount: true, enemy: true },
   enemiesMax: { text: 'Defeat no more than [X] enemies.', amount: true },
-  noSwords: { text: 'Complete the level without collecting any swords.' },
+  noSwords: { text: 'Complete the level without collecting any weapons.' },
   noHearts: { text: 'Complete the level without collecting any hearts.' },
   bricksMin: { text: 'Complete the level with at least [X] distinct bricks of brick type [Y]', amount: true, brick: true },
   bricksMax: { text: 'Complete the level with at most [X] distinct bricks of brick type [Y]', amount: true, brick: true },
@@ -3795,7 +3795,7 @@ class Game {
     this.keys = 0;
     this.catBlockCollected = this.catBlockPreviouslyCollected;
     this.catBlockEvents = [];
-    this.catBlockProgress = { defeated: {}, swords: 0, hearts: 0, selected: new Set(), touched: new Set() };
+    this.catBlockProgress = { defeated: {}, weapons: 0, hearts: 0, selected: new Set(), touched: new Set() };
     this.tookDamage = false;
     this.invulnerableUntil = 0;
     this.terrainImpact = null;
@@ -7189,8 +7189,15 @@ class Game {
 
   catLadyTarget(enemy, robots) {
     if (this.random() < .5) return null;
+    // Autoscroll shots push Koshi to the target, so only point at bricks that stay fully on screen through the shot.
+    const cameras = this.level.autoscroll
+      ? [this.camera(), this.camera(this.elapsed + CAT_LADY_POINTER.charge)] : [];
+    const fullyOnScreen = part => cameras.every(camera =>
+      part.x >= camera.x && part.x + part.w <= camera.x + camera.width
+      && part.y >= camera.y && part.y + part.h <= camera.y + camera.height);
     const targets = [
-      ...this.brickParts().filter(part => this.bricks[part.id].spikes || this.bricks[part.id].slimed)
+      ...this.brickParts().filter(part => (this.bricks[part.id].spikes || this.bricks[part.id].slimed)
+        && fullyOnScreen(part))
         .map(part => ({ x: part.x + part.w / 2, y: part.y + part.h / 2 })),
       ...this.bubbles.filter(bubble => !bubble.hazardShot && !bubble.track),
       ...robots.filter(other => other !== enemy),
@@ -7251,6 +7258,14 @@ class Game {
       if (enemy === this.catLadyLaserOwner || !this.robots.includes(enemy)) continue;
       const beam = this.catLadyLaser(enemy);
       const { x, y } = beam.end;
+      if (this.level.autoscroll) {
+        // An off-screen endpoint would push Koshi off the map, so abandon the shot instead.
+        const camera = this.camera();
+        if (x < camera.x || x > camera.x + camera.width || y < camera.y || y > camera.y + camera.height) {
+          this.initializeCatLady(enemy);
+          continue;
+        }
+      }
       const flight = this.canSteer() && this.steeringFlight(x, y);
       if (!flight) {
         this.initializeCatLady(enemy);
@@ -9049,7 +9064,7 @@ class Game {
     // Swept pickups replace the weapon in encounter order, not spawn-array order.
     for (const { item } of collected.sort((a, b) => a.entry - b.entry)) {
       const weapon = WEAPONS[item.type];
-      this.catBlockProgress.swords++;
+      this.catBlockProgress.weapons++;
       if (this.weapon) this.dropWeapon();
       this.weapon = { type: item.type, uses: weapon.uses,
         expires: weapon.seconds ? this.elapsed + weapon.seconds : Infinity };
@@ -9453,7 +9468,7 @@ class Game {
       case 'enemyMin': earned = defeats >= trigger.amount; break;
       case 'enemyMax': earned = defeats <= trigger.amount; break;
       case 'enemiesMax': earned = Object.values(progress.defeated).reduce((sum, count) => sum + count, 0) <= trigger.amount; break;
-      case 'noSwords': earned = progress.swords === 0; break;
+      case 'noSwords': earned = progress.weapons === 0; break;
       case 'noHearts': earned = progress.hearts === 0; break;
       case 'bricksMin': earned = bricks() >= trigger.amount; break;
       case 'bricksMax': earned = bricks() <= trigger.amount; break;

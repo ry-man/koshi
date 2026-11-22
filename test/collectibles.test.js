@@ -16,7 +16,7 @@ test('live Cat Block reminders reflect all achievement conditions without awardi
     [{ type: 'enemyMin', amount: 2, enemyType: 'mouse' }, game => { game.catBlockProgress.defeated.mouse = 2; }, game => { game.catBlockProgress.defeated.mouse = 1; }],
     [{ type: 'enemyMax', amount: 2, enemyType: 'mouse' }, game => { game.catBlockProgress.defeated.mouse = 2; }, game => { game.catBlockProgress.defeated.mouse = 3; }],
     [{ type: 'enemiesMax', amount: 2 }, game => { game.catBlockProgress.defeated = { mouse: 1, wheel: 1 }; }, game => { game.catBlockProgress.defeated.wheel = 2; }],
-    [{ type: 'noSwords' }, game => { game.catBlockProgress.swords = 0; }, game => { game.catBlockProgress.swords = 1; }],
+    [{ type: 'noSwords' }, game => { game.catBlockProgress.weapons = 0; }, game => { game.catBlockProgress.weapons = 1; }],
     [{ type: 'noHearts' }, game => { game.catBlockProgress.hearts = 0; }, game => { game.catBlockProgress.hearts = 1; }],
     [{ type: 'bricksMin', amount: 1, brickType: 'power' }, game => { game.bricks[0].power = true; }, game => { game.bricks[0].power = false; }],
     [{ type: 'bricksMax', amount: 0, brickType: 'power' }, game => { game.bricks[0].power = false; }, game => { game.bricks[0].power = true; }],

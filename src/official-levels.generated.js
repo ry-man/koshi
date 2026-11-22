@@ -14209,7 +14209,7 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level without collecting any swords.",
+        "description": "To earn Cat Brick: Complete the level without collecting any weapons.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
