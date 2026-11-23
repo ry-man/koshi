@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "id": "Coastal Crustaceans",
+  "duration": 80,
+  "goal": 0,
+  "heartCost": 15,
+  "brickSet": 1,
+  "events": [],
+  "bossLevel": false,
+  "killGoal": 0,
+  "survive": true,
+  "cutscene": {
+    "theme": "catnip-beach",
+    "lines": [
+      {
+        "speaker": "tom",
+        "text": "Welcome to Catnip Beach, little one! Don't get too cozy, as there are new enemies and traps headed you way!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.9,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "tom",
+        "text": "Exhibit A: Robo Crabs! These fearsome monsters litter our beach and will make your stay most unenjoyable!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.9,
+            "y": 0.65
+          },
+          {
+            "character": "robo-crab",
+            "x": 0.58,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "robo-crab",
+        "text": "Afternoon, Koshi. Pleased to meet you. I mostly just walk around. But if you run into me you might die!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.9,
+            "y": 0.65
+          },
+          {
+            "character": "robo-crab",
+            "x": 0.58,
+            "y": 0.65
+          }
+        ]
+      },
+      {
+        "speaker": "koshi",
+        "text": "Seems like a nice enough evil robot to me, Tom!",
+        "actors": [
+          {
+            "character": "koshi",
+            "x": 0.28,
+            "y": 0.65
+          },
+          {
+            "character": "tom",
+            "x": 0.9,
+            "y": 0.65
+          },
+          {
+            "character": "robo-crab",
+            "x": 0.58,
+            "y": 0.65
+          }
+        ]
+      }
+    ]
+  },
+  "brickTypes": [
+    {
+      "edge": "right",
+      "start": 0.5,
+      "end": 0.625,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    },
+    {
+      "edge": "top",
+      "start": 0.2,
+      "end": 0.4,
+      "kind": "normal",
+      "crumbler": null,
+      "warped": null,
+      "slimeColor": "green",
+      "conveyorDirection": "clockwise",
+      "slimed": false,
+      "springs": false,
+      "spikes": false,
+      "conveyor": false,
+      "power": false,
+      "portal": null,
+      "turret": null,
+      "hazard": null,
+      "toggle": null,
+      "boost": false,
+      "spawner": null
+    }
+  ]
+}
