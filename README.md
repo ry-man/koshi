@@ -2846,7 +2846,9 @@ Spawner types:
 `bucket`, `ball`, `jackolantern`, `snake`, `goalie`, or `striker`;
 `item` uses one of the item types above; `heart` uses type `heart`.
 Item and weapon spawners accept optional `lifetime` (0.1-3600 seconds),
-counted from each actual spawn; omit it for full-level persistence.
+counted from each actual spawn; omit it for full-level persistence. In the
+editor, leave the spawned object lifetime blank for permanent pickups. Switching
+a food spawner to an item or weapon starts with a blank lifetime.
 Portal, Spawner, Boost, and Turret each replace any other contact surface,
 including Slimed/Springs/Spikes/Conveyor.
 Optional `turret` is `"fireball"`, `"laser"`, or `null`. A turret

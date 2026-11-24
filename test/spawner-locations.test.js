@@ -118,6 +118,67 @@ function editorFixture(level = levelFor({ kind: 'food', type: 'S', lifetime: 15 
   return { context, $, key, refresh, savedSpawn, source, changed: () => changed };
 }
 
+test('switching a food spawner to an item or weapon does not inherit the food lifetime', () => {
+  for (const [kind, type] of [['item', 'battery'], ['weapon', 'silver']]) {
+    const { context, $, refresh, savedSpawn } = editorFixture();
+    $('#brick-spawn-item').value = `${kind}:${type}`;
+    $('#brick-spawn-lifetime').value = '15';
+    context.saveBrick({ target: { id: 'brick-spawn-item' } });
+    assert.deepEqual({ ...savedSpawn() }, { kind, type });
+    refresh();
+    $('#brick-spawn-lifetime').value = '7';
+    context.saveBrick({ target: { id: 'brick-spawn-lifetime' } });
+    assert.equal(savedSpawn().lifetime, 7);
+    refresh();
+    $('#brick-spawn-lifetime').value = '';
+    context.saveBrick({ target: { id: 'brick-spawn-lifetime' } });
+    assert.equal(savedSpawn().lifetime, undefined);
+  }
+});
+
+test('switching between item and weapon spawners preserves each selected lifetime', () => {
+  const base = new Game(() => .5, { customLevel: blank(), editorPreview: true });
+  const regions = brickEditRegions(base.bricks);
+  const ids = base.perimeter.slice(0, 3);
+  const source = { ...blank(), brickTypes: ids.map((id, index) => ({
+    ...regions.get(id), kind: 'normal',
+    spawner: { kind: 'item', type: 'battery', ...(index === 0 ? { lifetime: 7 } : index === 1 ? { lifetime: 12 } : {}) },
+  })) };
+  const { context, $, refresh } = editorFixture(source);
+  context.selectedBricks = new Set(ids.map(id => {
+    const region = regions.get(id);
+    return `${region.edge}:${region.start}:${region.end}`;
+  }));
+  $('#brick-spawn-item').value = 'weapon:silver';
+  context.saveBrick({ target: { id: 'brick-spawn-item' } });
+  refresh();
+  assert.deepEqual(ids.map(id => context.previewGame.bricks[id].spawner.lifetime), [7, 12, undefined]);
+  $('#brick-spawn-item').value = 'item:smiley-cookie';
+  context.saveBrick({ target: { id: 'brick-spawn-item' } });
+  refresh();
+  assert.deepEqual(ids.map(id => context.previewGame.bricks[id].spawner.lifetime), [7, 12, undefined]);
+  assert.ok(ids.every(id => context.previewGame.bricks[id].spawner.type === 'smiley-cookie'));
+});
+
+test('untimed item and weapon brick spawns persist for random and fixed positions, including reactivation', () => {
+  for (const [kind, type, collection] of [['item', 'battery', 'items'], ['weapon', 'silver', 'weapons']]) {
+    for (const location of [{}, { x: .1, y: .1 }]) {
+      const game = new Game(() => .1, { customLevel: levelFor({ kind, type, ...location }) });
+      game.start();
+      const brick = game.bricks.find(brick => brick.spawner);
+      game.touchSpawner(brick);
+      assert.equal(game[collection][0].expires, undefined);
+      game.spawnerTouching.clear(); game.batteries = 1;
+      game.touchSpawner(brick);
+      assert.equal(game[collection].length, 2);
+      assert.equal(game[collection][1].expires, undefined);
+      game.update(20);
+      assert.ok(Math.abs(game.elapsed - 20) < 1e-8);
+      assert.equal(game[collection].length, 2);
+    }
+  }
+});
+
 test('crab spawner direction saves, survives unrelated edits and connections, and clears back to random', () => {
   const { context, $, refresh, savedSpawn, key } = editorFixture(levelFor({ kind: 'enemy', type: 'robo-crab' }));
   for (const direction of ['horizontal', 'vertical']) {

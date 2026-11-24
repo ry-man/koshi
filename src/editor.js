@@ -3287,10 +3287,13 @@ function saveBrick(event) {
       if (id === 'brick-portal-color' && $('#brick-portal-color').value !== MIXED) entry.portal = $('#brick-portal-color').value;
       if (id === 'brick-spawn-item' && $('#brick-spawn-item').value !== MIXED) {
         const [kind, type] = $('#brick-spawn-item').value.split(':');
+        const previous = entry.spawner;
         const position = entry.spawner?.x === undefined ? {} : { x: entry.spawner.x, y: entry.spawner.y };
         entry.spawner = { kind, type, ...position };
         if (kind === 'food') entry.spawner.lifetime = number('#brick-spawn-lifetime') ?? 15;
-        else if (['item', 'weapon'].includes(kind) && number('#brick-spawn-lifetime') !== null) entry.spawner.lifetime = number('#brick-spawn-lifetime');
+        else if (['item', 'weapon'].includes(kind) && ['item', 'weapon'].includes(previous?.kind) && previous.lifetime != null) {
+          entry.spawner.lifetime = previous.lifetime;
+        }
         if (kind === 'enemy') entry.spawner.shield = $('#brick-spawn-shield').value === 'none' || !$('#brick-spawn-shield').value ? null : $('#brick-spawn-shield').value;
       }
       if (id === 'brick-spawn-shield' && entry.spawner?.kind === 'enemy' && $('#brick-spawn-shield').value !== MIXED) entry.spawner.shield = $('#brick-spawn-shield').value === 'none' ? null : $('#brick-spawn-shield').value;
