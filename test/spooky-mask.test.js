@@ -205,7 +205,7 @@ test('mask artwork, moving-face flight, fear expressions and flying sweat are wi
     return (...args) => operations.push([name, ...args, target.globalAlpha]);
   } });
   const line = (...args) => operations.push(['line', ...args]);
-  const context = vm.createContext({ ctx, line, SHIELDS: {} });
+  const context = vm.createContext({ ctx, line, SHIELDS: {}, KoshiBrickVisuals: require('../src/brick-visuals.js') });
   vm.runInContext(source.slice(source.indexOf('function drawSpookyMask('), source.indexOf('function drawBrickStamp(')), context);
   vm.runInContext(source.slice(source.indexOf('function drawScaredFace('), source.indexOf('function drawEnemyDeath(')), context);
   context.drawSpookyMask();
@@ -214,7 +214,10 @@ test('mask artwork, moving-face flight, fear expressions and flying sweat are wi
   for (const type of ['mouse', 'wheel', 'ram', 'bucket']) {
     operations.length = 0;
     context.drawRobot({ type, x: 0, y: 0, afraid: true, fleeMoving: true, age: .3, distance: 10, radius: 19 });
-    assert.ok(operations.some(([key, , , rx, ry]) => key === 'ellipse' && rx === 5 && ry === 6), `${type} scared eyes`);
+    if (type === 'ram') {
+      assert.ok(operations.some(([key, , , rx, ry]) => key === 'ellipse' && rx === 4 && ry === 3), 'ram has a frightened mouth');
+      assert.ok(operations.filter(([key]) => key === 'fillRect').length >= 12, 'ram keeps its pixelated eyes');
+    } else assert.ok(operations.some(([key, , , rx, ry]) => key === 'ellipse' && rx === 5 && ry === 6), `${type} scared eyes`);
     assert.ok(operations.some(([key]) => key === 'bezierCurveTo'), `${type} sweat drops`);
     assert.equal(stack.length, 0, `${type} canvas state is balanced`);
   }

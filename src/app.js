@@ -5462,7 +5462,7 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
     return;
   }
   if (enemy.type === 'ram') {
-    drawRoboRam(enemy, deathProgress, damageColor);
+    globalThis.KoshiBrickVisuals.drawRoboRam(ctx, enemy, deathProgress, damageColor);
     ctx.restore();
     return;
   }
@@ -5733,76 +5733,6 @@ function drawBucketDeathSmoke(enemy, progress) {
       (5 + puff * 5) * scale, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.restore();
-}
-
-function drawRoboRam(enemy, deathProgress, damageColor = null) {
-  const progress = deathProgress ?? 0;
-  ctx.rotate(enemy.facingAngle ?? (enemy.state === 'charging' ? (enemy.angle ?? 0) - Math.PI / 2 : 0));
-  const hornSwing = Math.min(1, progress * 1.7) * 1.15;
-  for (const side of [-1, 1]) {
-    ctx.save(); ctx.translate(side * 12, -9); ctx.scale(side, 1); ctx.rotate(-side * hornSwing);
-    ctx.globalAlpha *= Math.max(0, 1 - progress);
-    ctx.fillStyle = damageColor ? '#ffd3d5' : '#d6dadd'; ctx.strokeStyle = '#59636a'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(0, 0); ctx.lineTo(1, -8); ctx.bezierCurveTo(3, -23, 18, -30, 25, -19);
-    ctx.bezierCurveTo(30, -10, 25, -2, 18, -3); ctx.bezierCurveTo(12, -4, 14, -11, 19, -11);
-    ctx.lineTo(22, -13); ctx.bezierCurveTo(17, -19, 9, -15, 8, -7); ctx.lineTo(7, 0);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    line([[3, -8], [6, -17], [12, -22]], '#f1f2f2', 1.5);
-    ctx.restore();
-  }
-  ctx.save();
-  ctx.globalAlpha *= Math.max(0, 1 - progress);
-  ctx.scale(Math.max(.01, 1 - progress), Math.max(.01, 1 - progress));
-  ctx.fillStyle = damageColor ?? '#aeb9c0'; ctx.strokeStyle = '#394852'; ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(-15, -12); ctx.quadraticCurveTo(-14, -18, -8, -20); ctx.lineTo(8, -20);
-  ctx.quadraticCurveTo(14, -18, 15, -12); ctx.lineTo(13, 9);
-  ctx.quadraticCurveTo(10, 17, 0, 18); ctx.quadraticCurveTo(-10, 17, -13, 9);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = damageColor ? '#ffd3d5' : '#dce3e6';
-  ctx.beginPath(); ctx.moveTo(-9, -17); ctx.lineTo(0, -19); ctx.lineTo(9, -17);
-  ctx.lineTo(6, -15); ctx.lineTo(-6, -15); ctx.closePath(); ctx.fill();
-  line([[-11, -11], [-12, 6]], '#e4e9eb', 1.5);
-  line([[11, -11], [12, 6]], '#7d8c94', 1.5);
-  if (enemy.afraid && deathProgress === null) {
-    ctx.save(); ctx.translate(0, -3); ctx.scale(.85, .85); drawScaredFace(); ctx.restore();
-    ctx.restore(); return;
-  }
-  for (const x of [-7, 7]) {
-    const aiming = enemy.state === 'targeting' && deathProgress === null;
-    const sparkle = aiming ? .65 + .35 * Math.sin(enemy.stateTime * 16) : 0;
-    if (aiming) {
-      ctx.fillStyle = `rgba(255,45,48,${.35 + sparkle * .25})`;
-      ctx.beginPath(); ctx.arc(x, -5, 8 + sparkle * 2, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.fillStyle = aiming ? '#ff3538' : '#e64649';
-    if (enemy.state === 'targeting' && deathProgress === null) {
-      ctx.shadowColor = '#ff252b'; ctx.shadowBlur = 18 + sparkle * 12;
-    }
-    ctx.beginPath(); ctx.ellipse(x, -5, 3.8, 4.6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#fff6e8';
-    ctx.beginPath(); ctx.arc(x - 1, -6.5, 1.3, 0, Math.PI * 2); ctx.fill();
-    if (aiming) {
-      ctx.save(); ctx.translate(x + 4, -11); ctx.rotate(Math.PI / 4);
-      ctx.fillStyle = `rgba(255,255,235,${.7 + sparkle * .3})`;
-      ctx.beginPath(); ctx.moveTo(0, -5 - sparkle * 2); ctx.lineTo(1, -1); ctx.lineTo(5 + sparkle * 2, 0);
-      ctx.lineTo(1, 1); ctx.lineTo(0, 5 + sparkle * 2); ctx.lineTo(-1, 1); ctx.lineTo(-5 - sparkle * 2, 0);
-      ctx.lineTo(-1, -1); ctx.closePath(); ctx.fill(); ctx.restore();
-    }
-  }
-  ctx.fillStyle = '#c7353b';
-  ctx.beginPath(); ctx.moveTo(-7, 7); ctx.lineTo(7, 7); ctx.lineTo(5, 13);
-  ctx.lineTo(2, 10); ctx.lineTo(0, 13); ctx.lineTo(-2, 10); ctx.lineTo(-5, 13); ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#303d45';
-  for (const x of [-2.5, 2.5]) {
-    ctx.beginPath(); ctx.ellipse(x, 4, 1.1, 1.6, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  line([[-12, 1], [-10, 5]], '#aeb5b8', 1.5);
-  line([[12, 1], [10, 5]], '#aeb5b8', 1.5);
   ctx.restore();
 }
 

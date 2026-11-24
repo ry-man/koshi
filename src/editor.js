@@ -297,6 +297,14 @@ function picture(value, control) {
     const artwork = document.createElement('img');
     artwork.src = './icons/cat-building-block.png'; artwork.alt = 'Cat Block';
     image.append(artwork);
+  } else if (item?.kind === 'enemy' && item.type === 'ram') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 76; canvas.height = 72;
+    canvas.setAttribute('aria-hidden', 'true');
+    const context = canvas.getContext('2d');
+    context.translate(38, 40);
+    globalThis.KoshiBrickVisuals.drawRoboRam(context);
+    image.append(canvas);
   } else if (item?.kind === 'enemy' && item.type === 'robo-cat-lady') {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = 80;
@@ -822,7 +830,7 @@ function description(event) {
 }
 
 function icon(event) {
-  if (event.kind === 'enemy' && (isBossType(event.type) || ['striker', 'robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'enemy' && (isBossType(event.type) || ['ram', 'striker', 'robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon

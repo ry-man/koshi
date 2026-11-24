@@ -954,7 +954,7 @@ Attack: Does not fire projectiles nor directy chase Koshi. Only damages Koshi if
 Defeat: Wheel is defeated by any weapon.
 
 ### Robo Ram
-Appearance: Sleek, metallic grey robotic head with large light-grey curling horns, tiny nostrils, and a red eye-and-mouth display.
+Appearance: Metallic grey robotic head with broad curling horns, an antenna, red pixelated eyes, and a yellow-toothed grin.
 Movement: Wanders slowly, then pauses with brilliant sparkling eyes while aiming at Koshi's current position. It smoothly lines up the top of its head, then charges very quickly along that locked direction, reflecting off bricks and losing speed on each bounce, before returning to its wandering pattern.
 Attack: The charge can collide with Koshi and cause damage.
 Defeat: Any weapon defeats the ram. Its horns swing inward as its eyes fade, its head implodes, and a puff of smoke quickly dissipates.

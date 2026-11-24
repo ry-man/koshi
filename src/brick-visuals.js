@@ -49,7 +49,7 @@ const SYMBOLS = {
   heart: 'M0 16 C-32 -4 -12 -26 0 -12 C12 -26 32 -4 0 16 Z',
   mouse: 'M-12 -10 A7 7 0 1 1 -19 -17 M12 -10 A7 7 0 1 0 19 -17 M16 0 A16 16 0 1 1 -16 0 A16 16 0 1 1 16 0 M-10 -2 H-3 M3 -2 H10 M-6 9 L0 5 L6 9',
   wheel: 'M19 0 A19 19 0 1 1 -19 0 A19 19 0 1 1 19 0 M12 0 A12 12 0 1 1 -12 0 A12 12 0 1 1 12 0 M-10 -2 H-3 M3 -2 H10 M0 -19 V-23 M19 0 H23 M0 19 V23 M-19 0 H-23',
-  ram: 'M-12 -7 C-18 -24 -34 -22 -31 -9 C-30 -2 -23 -1 -23 -7 C-23 -13 -17 -14 -15 -7 M12 -7 C18 -24 34 -22 31 -9 C30 -2 23 -1 23 -7 C23 -13 17 -14 15 -7 M-15 -4 A15 15 0 1 1 15 -4 A15 15 0 1 1 -15 -4 M-9 -5 H-4 M4 -5 H9 M-7 6 H7 L4 11 L0 8 L-4 11 Z',
+  ram: 'M-13 -16 C-18 -25 -25 -26 -26 -16 C-28 -9 -27 0 -26 5 C-28 5 -29 7 -30 8 Q-25 7 -22 11 Q-20 17 -17 15 Q-15 13 -16 7 L-18 1 Q-19 -3 -19 -11 Q-19 -16 -21 -14 L-16 -11 M13 -16 C18 -25 25 -26 26 -16 C28 -9 27 0 26 5 C28 5 29 7 30 8 Q25 7 22 11 Q20 17 17 15 Q15 13 16 7 L18 1 Q19 -3 19 -11 Q19 -16 21 -14 L16 -11 M-13 -17 Q0 -20 13 -17 L17 -10 Q17 1 12 9 Q10 20 0 21 Q-10 20 -12 9 Q-17 1 -17 -10 Z M0 -18 V-27 M-2 -29 A2 2 0 1 0 2 -29 A2 2 0 1 0 -2 -29 M-12 -7 L-8 -3 L-6 2 L-10 0 Z M12 -7 L8 -3 L6 2 L10 0 Z M-6 -9 L-4 -3 V9 H4 V-3 L6 -9 M-9 13 Q0 23 9 13 Q8 21 0 21 Q-8 21 -9 13',
   bucket: 'M-17 -5 H17 L14 16 Q0 20 -14 16 Z M-19 -6 H19 M-13 -6 C-13 -27 13 -27 13 -6 M-10 5 A4 4 0 1 1 -10 4 M10 5 A4 4 0 1 1 10 4 M-3 13 Q0 9 3 13',
   ball: 'M19 0 A19 19 0 1 1 -19 0 A19 19 0 1 1 19 0 M0 -19 V19 M-19 0 H19 M-15 -19 C5 -9 5 9 -15 19 M15 -19 C-5 -9 -5 9 15 19 M-7 -9 A3 3 0 1 1 -7 -3 A3 3 0 1 1 -7 -9 M7 -9 A3 3 0 1 1 7 -3 A3 3 0 1 1 7 -9 M-10 5 H10 V14 H-10 Z M-6 5 V14 M-2 5 V14 M2 5 V14 M6 5 V14',
   snake: 'M-25 5 A7 7 0 1 1 -11 5 A7 7 0 1 1 -25 5 M-16 -2 V12 M-12 5 H-20 M-13 5 C-9 -3 -1 -3 3 5 M-5 -3 A8 8 0 1 1 -5 13 A8 8 0 1 1 -5 -3 M3 5 C7 -3 14 -5 19 -3 M11 -4 A9 9 0 1 1 11 14 A9 9 0 1 1 11 -4 M15 -3 H18 M15 1 H18 M19 -1 L24 -4 M19 3 L24 6',
@@ -118,6 +118,118 @@ function spawnSymbol(spawn) {
           : spawn.kind === 'item' && ITEMS[spawn.type]?.catShield ? 'cat-shield'
             : spawn.kind === 'item' && ITEMS[spawn.type]?.surfSeconds ? 'surf-board'
               : spawn.kind === 'item' && ITEMS[spawn.type]?.skateSeconds ? 'ice-skate' : spawn.type];
+}
+
+function drawRoboRam(ctx, enemy = {}, deathProgress = null, damageColor = null) {
+  const progress = deathProgress ?? 0;
+  const afraid = enemy.afraid && deathProgress === null;
+  const stroke = (points, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(...points[0]);
+    for (const point of points.slice(1)) ctx.lineTo(...point);
+    ctx.stroke();
+  };
+  ctx.save();
+  ctx.rotate(enemy.facingAngle ?? (enemy.state === 'charging' ? (enemy.angle ?? 0) - Math.PI / 2 : 0));
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.scale(side, 1); ctx.translate(13, -16);
+    ctx.rotate(-Math.min(1, progress * 1.7) * 1.15);
+    ctx.scale(.5, .9);
+    ctx.globalAlpha *= Math.max(0, 1 - progress);
+    ctx.fillStyle = damageColor ?? '#b8bec2'; ctx.strokeStyle = '#373d40'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(8, -8, 21, -13, 27, -5);
+    ctx.bezierCurveTo(33, 2, 28, 16, 27, 24);
+    ctx.bezierCurveTo(26, 34, 20, 38, 13, 35);
+    ctx.bezierCurveTo(7, 33, 4, 29, 6, 23);
+    ctx.bezierCurveTo(8, 17, 12, 16, 13, 10);
+    ctx.bezierCurveTo(15, 2, 12, -1, 8, 0);
+    ctx.bezierCurveTo(5, 1, 4, 2, 2, 1);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#7b8286'; ctx.lineWidth = 1.1;
+    for (const [x, y, cx, cy, ex, ey] of [[5, -4, 8, -1, 9, 0], [12, -8, 16, -3, 16, 2],
+      [20, -8, 23, -2, 22, 5], [27, -4, 29, 3, 26, 9], [29, 5, 28, 12, 25, 15]]) {
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(cx, cy, ex, ey); ctx.stroke();
+    }
+    ctx.fillStyle = damageColor ?? '#9da5a9'; ctx.strokeStyle = '#373d40'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(8, 26);
+    ctx.bezierCurveTo(12, 19, 20, 19, 27, 21);
+    ctx.bezierCurveTo(32, 21, 35, 24, 37, 27);
+    ctx.bezierCurveTo(27, 25, 21, 28, 16, 32);
+    ctx.stroke(); ctx.fill();
+    ctx.strokeStyle = '#737b7f'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(22, 21); ctx.quadraticCurveTo(23, 24, 21, 27); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.globalAlpha *= Math.max(0, 1 - progress);
+  ctx.scale(Math.max(.01, 1 - progress), Math.max(.01, 1 - progress));
+  stroke([[0, -17], [0, -29]], '#474e51', 1.8);
+  ctx.fillStyle = '#666e72'; ctx.strokeStyle = '#343a3d'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, -30, 2.7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = damageColor ?? '#aab2b6'; ctx.strokeStyle = '#373d40'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(-13, -17);
+  ctx.quadraticCurveTo(0, -20, 13, -17);
+  ctx.quadraticCurveTo(15, -13, 17, -11);
+  ctx.bezierCurveTo(18, -3, 14, 3, 12, 9);
+  ctx.bezierCurveTo(11, 18, 7, 21, 0, 21);
+  ctx.bezierCurveTo(-7, 21, -11, 18, -12, 9);
+  ctx.bezierCurveTo(-14, 3, -18, -3, -17, -11);
+  ctx.quadraticCurveTo(-15, -13, -13, -17);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  const aiming = !afraid && enemy.state === 'targeting' && deathProgress === null;
+  const sparkle = aiming ? .65 + .35 * Math.sin((enemy.stateTime ?? 0) * 16) : 0;
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.scale(side, 1);
+    stroke([[10, -12], [6, -7], [4, -3], [4, 9]], '#373d40', 1.8);
+    if (afraid) stroke([[7, -12], [10, -14], [13, -12]], '#373d40', 1.2);
+    ctx.fillStyle = '#41474a';
+    ctx.beginPath(); ctx.moveTo(6, -3); ctx.lineTo(8, -6); ctx.lineTo(13, -9);
+    ctx.lineTo(14, -5); ctx.lineTo(10, -1); ctx.lineTo(8, 2); ctx.closePath(); ctx.fill();
+    if (aiming) {
+      ctx.fillStyle = `rgba(255,45,48,${.35 + sparkle * .25})`;
+      ctx.beginPath(); ctx.arc(10, -4, 7 + sparkle * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowColor = '#ff252b'; ctx.shadowBlur = 18 + sparkle * 12;
+    }
+    const pixels = enemy.blink ? [[8, -4, '#df3035'], [10, -5, '#f44949'], [12, -6, '#df3035']]
+      : [[8, -4, '#df3035'], [10, -6, '#f44949'], [12, -7, '#c72d33'],
+        [9, -2, '#c72d33'], [11, -4, '#ff6060'], [13, -5, '#df3035']];
+    for (const [x, y, color] of pixels) {
+      ctx.fillStyle = color; ctx.fillRect(x, y, 1.8, 1.8);
+    }
+    ctx.shadowBlur = 0;
+    if (aiming) {
+      ctx.fillStyle = `rgba(255,255,255,${.7 + sparkle * .3})`;
+      ctx.beginPath(); ctx.moveTo(14, -13 - sparkle); ctx.lineTo(15, -10);
+      ctx.lineTo(18 + sparkle, -9); ctx.lineTo(15, -8); ctx.lineTo(14, -5 + sparkle);
+      ctx.lineTo(13, -8); ctx.lineTo(10 - sparkle, -9); ctx.lineTo(13, -10); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.fillStyle = '#343a3d';
+  ctx.beginPath(); ctx.moveTo(-5, 9); ctx.lineTo(5, 9); ctx.lineTo(0, 12); ctx.closePath(); ctx.fill();
+  stroke([[0, 12], [0, 14]], '#343a3d', 1.4);
+  ctx.save(); if (enemy.speaking) ctx.translate(0, 1);
+  if (afraid) {
+    ctx.fillStyle = '#343a3d';
+    ctx.beginPath(); ctx.ellipse(0, 17, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e5c747'; ctx.fillRect(-3, 15, 6, 1.5);
+    stroke([[0, 15], [0, 16.5]], '#716327', .7);
+  } else {
+    ctx.fillStyle = '#41474a'; ctx.strokeStyle = '#343a3d'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-10, 12);
+    ctx.quadraticCurveTo(-8, 16, -3, 16); ctx.quadraticCurveTo(0, 16, 0, 14);
+    ctx.quadraticCurveTo(0, 16, 3, 16); ctx.quadraticCurveTo(8, 16, 10, 12);
+    ctx.quadraticCurveTo(9, 20, 0, 20); ctx.quadraticCurveTo(-9, 20, -10, 12);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e5c747';
+    ctx.beginPath(); ctx.moveTo(-8, 15); ctx.quadraticCurveTo(0, 19, 8, 15);
+    ctx.quadraticCurveTo(6, 19, 0, 19); ctx.quadraticCurveTo(-6, 19, -8, 15);
+    ctx.closePath(); ctx.fill();
+    for (const x of [-4, 0, 4]) stroke([[x, 17], [x, 19]], '#716327', .7);
+  }
+  ctx.restore(); ctx.restore(); ctx.restore();
 }
 
 function drawPaintbrush(ctx, item) {
@@ -662,7 +774,8 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
   if (brick.spawner || brick.boost || brick.barrier || brick.turret) {
     const boomTime = brick.spawner?.kind === 'item' && BOOM_TIME_TYPES.has(brick.spawner.type);
     symbol = svgNode('svg', { class: `brick-item-symbol${brick.boost ? ' brick-boost-symbol' : ''}`,
-      viewBox: boomTime ? '-28 -40 56 68' : '-28 -28 56 56', 'aria-hidden': 'true' });
+      viewBox: boomTime ? '-28 -40 56 68' : brick.spawner?.kind === 'enemy' && brick.spawner.type === 'ram'
+        ? '-35 -35 70 60' : '-28 -28 56 56', 'aria-hidden': 'true' });
     const d = brick.turret ? 'M-24 15 A24 24 0 0 1 24 15 Z'
       : brick.barrier ? FENCE : brick.boost ? FLAME : spawnSymbol(brick.spawner);
     if (brick.spawner) {
@@ -1562,7 +1675,7 @@ function drawBumper(ctx, bumper, time = 0) {
   ctx.restore();
 }
 
-const api = { FLAME, FENCE, TERRAIN_COLORS, terrainPathData, drawCatTrack, drawTerrain, drawSurfBoard, drawIceSkate, drawWaterSplash, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost, drawRoboCatLady, drawRoboCatLadyDeath };
+const api = { FLAME, FENCE, TERRAIN_COLORS, terrainPathData, drawCatTrack, drawTerrain, drawSurfBoard, drawIceSkate, drawWaterSplash, drawBarrier, drawCatCircle, drawGoal, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawPaintbrush, drawPaintSplash, traceSawBlade, spawnSymbol, spawnColor, specialLabel, brickInfoBounds, decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, drawBoost, drawRoboRam, drawRoboCatLady, drawRoboCatLadyDeath };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else globalThis.KoshiBrickVisuals = api;
 })();

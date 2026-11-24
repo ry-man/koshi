@@ -380,15 +380,9 @@ function drawPortrait(ctx, character, speaking, time) {
     box('#b9a887', 3, 21, 14, talking ? 6 : 4);
     box('#263640', 3, 23, 12, 1); box('#526773', 21, 25, 2, 4);
   } else if (character === 'ram') {
-    for (const x of [1, 23]) {
-      box('#060e16', x, 2, 8, 15); box('#d6dadd', x + 1, 3, 6, 12);
-      box('#59636a', x + 2, 5, 4, 6); box('#15232d', x + 3, 7, 3, 3);
-    }
-    box('#394852', 7, 5, 18, 25); box('#aeb9c0', 9, 6, 14, 22);
-    box('#dce3e6', 12, 6, 8, 3);
-    for (const x of [10, 18]) box('#e64649', x, 13, 4, blink ? 1 : 5);
-    box('#303d45', 13, 20, 2, 2); box('#303d45', 17, 20, 2, 2);
-    box('#c7353b', 12, 24, 8, talking ? 4 : 2);
+    ctx.save(); ctx.translate(16, 18); ctx.scale(.42, .42);
+    globalThis.KoshiBrickVisuals.drawRoboRam(ctx, { blink, speaking: talking });
+    ctx.restore();
   } else if (character === 'jackolantern') {
     box('#818c91', 15, 0, 2, 7); box('#c2c9cd', 14, 0, 4, 3);
     ctx.fillStyle = '#e77d27'; ctx.strokeStyle = '#833719'; ctx.lineWidth = 2;

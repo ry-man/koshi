@@ -249,7 +249,7 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
       target[name] = value; return true;
     },
   });
-  const context = vm.createContext({ ctx, SHIELDS, isBossType: require('../src/game.js').isBossType });
+  const context = vm.createContext({ ctx, SHIELDS, KoshiBrickVisuals: require('../src/brick-visuals.js'), isBossType: require('../src/game.js').isBossType });
   vm.runInContext(source.slice(source.indexOf('function line('), source.indexOf('function drawCat('))
     + source.slice(source.indexOf('function drawRobot('), source.indexOf('function resize(')), context);
   const draw = (type, progress = null) => {
@@ -287,7 +287,8 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
   assert.ok(smoke.some(op => op[0] === 'fillRect' && op.at(-1) === 0));
   const ramAlive = draw('ram');
   assert.ok(ramAlive.some(op => op[0] === 'bezierCurveTo'));
-  assert.ok(ramAlive.some(op => op[0] === 'ellipse' && op[1] === -2.5 && op[2] === 4), 'the ram has nostrils above its mouth');
+  assert.ok(ramAlive.some(op => op[0] === 'fillRect' && op.at(-2) === '#f44949'), 'the ram has pixelated red eyes');
+  assert.ok(ramAlive.some(op => op[0] === 'fill' && op.at(-2) === '#e5c747'), 'the ram has yellow teeth');
   const ramTelegraph = draw('ram');
   assert.ok(ramTelegraph.some(op => op[0] === 'fill' && String(op.at(-2)).startsWith('rgba(255,45,48')));
   const ramDeath = draw('ram', .5);
@@ -335,6 +336,69 @@ test('mouse deaths drop ears and lose eye color; wheel deaths shrink into a fire
   }
   assert.ok(!fireball.some(op => op[0] === 'scale'));
   assert.match(source, /for \(const enemy of robotDrawOrder\(game\.enemyDeaths\.filter\(visibleRobot\)\)\) if \(enemy\.type !== 'tom-frog'\) drawEnemyDeath\(enemy\)/);
+});
+
+test('Robo Ram artwork mirrors its horn curves and pixel eyes and draws yellow teeth', () => {
+  const { drawRoboRam } = require('../src/brick-visuals.js');
+  const horns = [[], []], pixels = [[], []], fills = [], stack = [];
+  let horn = -1, side = 0, depth = 0, inHorn = false;
+  const ctx = new Proxy({ globalAlpha: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'save') return () => { stack.push({ ...target, side }); depth++; };
+      if (name === 'restore') return () => {
+        if (depth === 2) inHorn = false;
+        const state = stack.pop(); side = state.side; delete state.side;
+        Object.assign(target, state); depth--;
+      };
+      if (name === 'scale') return x => {
+        if (depth === 2 && Math.abs(x) === 1 && horn < 1) { horn++; inHorn = true; }
+        if (depth === 3) side = x;
+      };
+      if (name === 'bezierCurveTo') return (...args) => {
+        if (inHorn) horns[horn].push(args);
+      };
+      if (name === 'fillRect') return (...args) => pixels[side < 0 ? 0 : 1].push([target.fillStyle, ...args]);
+      if (name === 'fill') return () => fills.push(target.fillStyle);
+      return () => {};
+    },
+    set(target, name, value) { target[name] = value; return true; },
+  });
+  drawRoboRam(ctx);
+  assert.ok(horns[0].length > 0);
+  assert.deepEqual(horns[0], horns[1]);
+  assert.equal(pixels[0].length, 6);
+  assert.deepEqual(pixels[0], pixels[1]);
+  assert.ok(fills.includes('#e5c747'));
+  assert.equal(stack.length, 0);
+});
+
+test('Robo Ram artwork is only slightly wider than it is tall', () => {
+  const { drawRoboRam } = require('../src/brick-visuals.js');
+  let transform = { x: 0, y: 0, sx: 1, sy: 1 };
+  const stack = [], points = [];
+  const point = (x, y) => points.push([transform.x + x * transform.sx, transform.y + y * transform.sy]);
+  const ctx = new Proxy({ globalAlpha: 1 }, {
+    get(target, name) {
+      if (name in target) return target[name];
+      if (name === 'save') return () => stack.push({ ...transform });
+      if (name === 'restore') return () => { transform = stack.pop(); };
+      if (name === 'scale') return (x, y) => { transform.sx *= x; transform.sy *= y; };
+      if (name === 'translate') return (x, y) => { transform.x += x * transform.sx; transform.y += y * transform.sy; };
+      if (name === 'rotate') return angle => assert.equal(Math.abs(angle), 0);
+      if (['moveTo', 'lineTo', 'quadraticCurveTo', 'bezierCurveTo'].includes(name)) {
+        return (...args) => { for (let i = 0; i < args.length; i += 2) point(args[i], args[i + 1]); };
+      }
+      if (name === 'arc') return (x, y, radius) => { point(x - radius, y - radius); point(x + radius, y + radius); };
+      if (name === 'fillRect') return (x, y, width, height) => { point(x, y); point(x + width, y + height); };
+      return () => {};
+    },
+  });
+  drawRoboRam(ctx);
+  const xs = points.map(([x]) => x), ys = points.map(([, y]) => y);
+  const width = Math.max(...xs) - Math.min(...xs), height = Math.max(...ys) - Math.min(...ys);
+  assert.ok(width / height > 1.05 && width / height < 1.3, `${width} x ${height}`);
+  assert.ok(Math.abs(Math.max(...xs) + Math.min(...xs)) < 1e-9, 'the outline remains symmetric');
 });
 
 test('gold sword has exactly ten hits and no timed expiry', () => {
