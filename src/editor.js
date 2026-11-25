@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionVertices, obstructionSpikes, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, makeBricks, matchingBricks, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionVertices, obstructionSpikes, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, makeBricks, boardDimensions, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { isBossType } = globalThis.KoshiGame;
@@ -589,6 +589,7 @@ function syncPalettes() {
 function message(text, error = false) {
   $('#editor-message').textContent = text;
   $('#editor-message').dataset.error = String(error);
+  delete $('#editor-message').dataset.resizeWarning;
 }
 
 function attempt(action, onError) {
@@ -596,7 +597,7 @@ function attempt(action, onError) {
   catch (error) {
     console.error('Level editor:', error);
     message(error.message, true);
-    if (onError) onError();
+    if (onError) onError(error);
   }
 }
 
@@ -3904,44 +3905,155 @@ $('#settings-form').addEventListener('submit', event => {
   event.preventDefault();
   applyLevelSettings();
 });
-function resizeBrickGroups(length) {
+function resizeError(detail) {
+  const error = new Error(`Board resize blocked: ${detail}`);
+  error.name = 'BoardResizeError';
+  return error;
+}
+
+function resizeLevel(length) {
   if (!Number.isInteger(length) || length < 8 || length > 1000) {
     throw new TypeError('Autoscroll length must be a whole brick count between 8 and 1000.');
   }
-  const bricks = makeBricks(false, 1, length);
-  const used = new Set(), overrides = [];
-  const regions = brickEditRegions(bricks);
-  const mapRegion = region => matchingBricks(bricks, region, regions);
-  const groups = level.brickGroups.map(group => {
-    const mapped = new Set();
-    for (const id of group.members) {
-      for (const brick of mapRegion(previewGame.bricks[id].region)) mapped.add(brick.id);
+  const oldLength = level.autoscroll?.length ?? 8;
+  const delta = length - oldLength;
+  const game = new Game(() => .5, { customLevel: level, editorPreview: true });
+  const bounds = game.bounds(), oldWidth = bounds.right - bounds.left;
+  const newWidth = oldWidth + boardDimensions(false, 1, length).width - game.width;
+  const newWall = bounds.left + newWidth + 25;
+  const wallEnemy = item => item.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(item.type) && item.x === 1;
+  const point = (item, label) => {
+    const x = item.x * oldWidth / newWidth;
+    if (x > 1 + 1e-10) throw resizeError(`${label} would be outside the shortened board.`);
+    return { ...item, x: Math.min(x, 1) };
+  };
+  const extent = item => {
+    if (!OBJECTS[item.type]?.obstruction || item.kind !== 'object') return game.spawnRadius(item);
+    const geometry = obstructionGeometry(item);
+    const angle = (item.rotation ?? 0) * Math.PI / 180;
+    const right = OBJECTS[item.type].obstruction === 'circle' ? geometry.width / 2
+      : Math.max(...obstructionVertices(item).map(([x, y]) => x * Math.cos(angle) - y * Math.sin(angle)));
+    const spikes = obstructionSpikes({ ...item, x: 0, y: 0 }).flat().map(([x]) => x);
+    return Math.max(right, ...spikes);
+  };
+  const checkExtent = (x, item, label) => {
+    if (delta < 0 && x + extent(item) > newWall + 1e-8) {
+      throw resizeError(`${label} would be cut by the new right wall.`);
     }
-    if (mapped.size < 2 || [...mapped].some(id => used.has(id))) {
-      throw new TypeError('This board length would collapse or overlap combined bricks. Choose a longer length or split the affected bricks first.');
-    }
-    for (const id of mapped) used.add(id);
-    const ownerBrick = previewGame.bricks[group.owner];
-    const owner = mapRegion(ownerBrick.region)[0].id;
-    const members = [...mapped];
-    for (const edge of ['top', 'bottom', 'left', 'right']) {
-      const edgeBricks = bricks.filter(brick => brick.region.edge === edge)
-        .sort((a, b) => a.region.start - b.region.start);
-      let start = null;
-      for (let i = 0; i <= edgeBricks.length; i++) {
-        if (i < edgeBricks.length && mapped.has(edgeBricks[i].id)) {
-          if (start === null) start = i;
-        } else if (start !== null) {
-          const region = { edge, start: edgeBricks[start].region.start, end: edgeBricks[i - 1].region.end };
-          overrides.push({ ...brickEntry(ownerBrick, region), barrier: Boolean(ownerBrick.barrier) });
-          start = null;
-        }
+  };
+  const events = level.events.map((event, index) => {
+    if (event.random) return event;
+    const label = `Event ${index + 1}`;
+    const movingWall = wallEnemy(event);
+    if (!movingWall) {
+      point(event, label);
+      for (const position of game.customEventPoints(event)) checkExtent(position.x, event, label);
+      if (event.track) {
+        const track = level.tracks.find(item => item.id === event.track);
+        for (const node of track.nodes) checkExtent(game.campaignEventPoint(node.x, node.y).x, event, label);
       }
     }
-    return { owner, members };
+    const result = movingWall ? { ...event } : point(event, label);
+    if (event.group) {
+      const sample = { ...event, kind: 'item', type: 'battery' };
+      const positions = game.customEventPoints(sample);
+      const center = game.campaignEventPoint(event.x, event.y);
+      const size = event.group.shape === 'line'
+        ? Math.hypot(positions.at(-1).x - positions[0].x, positions.at(-1).y - positions[0].y)
+        : 2 * Math.hypot(positions[0].x - center.x, positions[0].y - center.y);
+      const short = Math.min(oldWidth, bounds.bottom - bounds.top,
+        game.viewportWidth - 2 * bounds.left, game.viewportHeight - 2 * bounds.top);
+      const requested = event.group.size === undefined
+        ? Math.min(short, event.group.shape === 'line' ? (event.group.count - 1) * 55 : 176)
+        : event.group.size * short;
+      if (size < requested - 1e-8) {
+        if (size / short < .001) throw resizeError(`${label}'s formation cannot retain its size.`);
+        result.group = { ...event.group, size: size / short };
+      }
+    }
+    return result;
   });
-  const brickTypes = (level.brickTypes ?? []).filter(entry => !mapRegion(entry).every(brick => used.has(brick.id)));
-  return { brickGroups: groups, brickTypes: [...brickTypes, ...overrides] };
+  const tracks = level.tracks?.map(track => ({
+    ...track, nodes: track.nodes.map(node => point(node, `Cat Track "${track.id}"`)),
+  }));
+  const terrains = level.terrains?.map(terrain => ({
+    ...terrain, nodes: terrain.nodes.map(node => point(node, `Terrain "${terrain.id}"`)),
+  }));
+  const koshiStart = level.koshiStart ? point(level.koshiStart, "Koshi's starting point") : undefined;
+  const bricks = makeBricks(false, 1, length);
+  const mapped = new Map();
+  for (const brick of game.bricks) {
+    const id = brick.id < 10 ? brick.id : brick.id + 2 * delta;
+    if (brick.id >= 10 && id < 10) {
+      if (brick.spawner) throw resizeError('A spawning brick would be removed.');
+      continue;
+    }
+    mapped.set(brick.id, id);
+  }
+  const perimeter = brickPerimeter(bricks, boardDimensions(false, 1, length).width, game.height);
+  const brickGroups = level.brickGroups?.map(group => {
+    if (group.members.some(id => !mapped.has(id))) throw resizeError('A combined brick would be removed. Split it or choose a longer board.');
+    const members = group.members.map(id => mapped.get(id));
+    const selected = new Set(members);
+    const starts = perimeter.filter((id, index) => selected.has(id) && !selected.has(perimeter[(index + perimeter.length - 1) % perimeter.length]));
+    if (members.length !== bricks.length && starts.length !== 1) {
+      throw resizeError('A combined brick would be separated by the moving right wall. Split it before resizing.');
+    }
+    return { owner: mapped.get(group.owner), members };
+  });
+  const entries = new Map();
+  for (const brick of game.bricks) {
+    const id = mapped.get(brick.id);
+    if (id === undefined) continue;
+    const entry = { ...brickEntry(brick, bricks[id].region), barrier: Boolean(brick.barrier) };
+    if (entry.spawner?.x !== undefined) {
+      if (!wallEnemy(entry.spawner)) {
+        checkExtent(game.campaignEventPoint(entry.spawner.x, entry.spawner.y).x, entry.spawner, 'A brick spawn point');
+        entry.spawner = point(entry.spawner, 'A brick spawn point');
+      }
+    }
+    entries.set(id, entry);
+  }
+  const brickTypes = [];
+  for (const edge of ['top', 'bottom', 'left', 'right']) {
+    const edgeBricks = bricks.filter(brick => brick.region.edge === edge)
+      .sort((a, b) => a.region.start - b.region.start);
+    let current = null, attributes = '';
+    for (const brick of edgeBricks) {
+      const entry = entries.get(brick.id) ?? { ...brick.region, kind: 'normal' };
+      const { edge: ignoredEdge, start, end, ...properties } = entry;
+      const key = JSON.stringify(properties);
+      if (current && key === attributes) current.end = end;
+      else {
+        current = { edge, start, end, ...properties };
+        brickTypes.push(current);
+        attributes = key;
+      }
+    }
+  }
+  return {
+    events, brickTypes,
+    ...(level.brickGroups === undefined ? {} : { brickGroups }),
+    ...(level.tracks === undefined ? {} : { tracks }),
+    ...(level.terrains === undefined ? {} : { terrains }),
+    ...(level.koshiStart === undefined ? {} : { koshiStart }),
+  };
+}
+
+function checkResizedFormations(before, after) {
+  const oldGame = new Game(() => .5, { customLevel: before, editorPreview: true });
+  const newGame = new Game(() => .5, { customLevel: after, editorPreview: true });
+  for (let i = 0; i < before.events.length; i++) {
+    const event = before.events[i];
+    if (!event.group || event.random) continue;
+    const oldPoints = oldGame.customEventPoints(event), newPoints = newGame.customEventPoints(after.events[i]);
+    const wallMovement = event.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(event.type) && event.x === 1
+      ? newGame.width - oldGame.width : 0;
+    if (oldPoints.some((position, index) =>
+      Math.hypot(position.x + wallMovement - newPoints[index].x, position.y - newPoints[index].y) > 1e-6)) {
+      throw resizeError(`Event ${i + 1}'s formation would change. Move it away from the new wall first.`);
+    }
+  }
 }
 function applyLevelSettings() {
   if (readOnly()) return;
@@ -3954,7 +4066,7 @@ function applyLevelSettings() {
     const length = $('#autoscroll-enabled').checked ? Number($('#scroll-length').value) : 8;
     const lengthChanged = length !== (level.autoscroll?.length ?? 8);
     const candidate = validateDraft({
-      ...level, ...(lengthChanged && level.brickGroups?.length ? resizeBrickGroups(length) : {}),
+      ...level, ...(lengthChanged ? resizeLevel(length) : {}),
       id: $('#level-name').value, duration: Number($('#duration').value),
       autoscroll: $('#autoscroll-enabled').checked ? {
         length, speed: Number($('#scroll-speed').value), events: level.autoscroll?.events ?? [],
@@ -3981,9 +4093,15 @@ function applyLevelSettings() {
         powerOn: $('#power-start').value === 'on',
       } : {}),
     });
+    if (lengthChanged) checkResizedFormations(level, candidate);
     level = candidate;
     if (lengthChanged) { selectedBricks.clear(); connectingSpawn = null; }
     markChanged(); populateSettings(); render(); message('Level settings applied.');
+  }, error => {
+    if (error.name === 'BoardResizeError') {
+      populateSettings();
+      $('#editor-message').dataset.resizeWarning = 'true';
+    }
   });
 }
 function populateSettings() {

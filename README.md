@@ -1353,11 +1353,11 @@ Existing campaign levels are unchanged.
 JSON stores this optional setting as
 `"autoscroll": { "length": 24, "speed": 0.25, "events": [{ "time": 10, "speed": 0 }, { "time": 15, "speed": 0.5 }] }`.
 Omit `autoscroll` for a traditional level. Placements use normalized coordinates
-over the entire board, not the camera. Changing board length changes those
-relative positions. Combined bricks are remapped to the same relative edge
-regions and keep their owner's attributes. Shortening can be blocked if a
-group would collapse to one brick or overlap another group; choose a longer
-length or split the affected groups first.
+over the entire board, not the camera. The editor keeps fixed placements,
+tracks, terrain and existing bricks in place when changing the board length.
+Increasing length adds plain bricks at the far end; shortening removes bricks
+from that end and is blocked if it would cut an object or break a combined
+brick. Perimeter enemies attached to the right wall move with it.
 
 For fixed placements, choose **Appearance trigger: Screen crossing** in the
 object inspector and enter **Center crossed screen (%)**. At 0% the placed

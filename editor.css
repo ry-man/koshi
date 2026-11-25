@@ -309,6 +309,7 @@
 .empty-state { color: var(--muted); font-size: 13px; padding: 20px 0; }
 #editor-message { min-height: 22px; color: var(--accent); font-size: 13px; line-height: 1.6; }
 #editor-message[data-error="true"] { color: #ffaba2; }
+#editor-message[data-resize-warning="true"] { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 20; box-sizing: border-box; width: min(720px, calc(100vw - 24px)); margin: 0; padding: 10px 12px; border: 1px solid #ef9947; border-radius: 6px; background: #342b25; }
 .editor-panel textarea { display: block; margin: 8px 0 14px; resize: vertical; font-family: monospace; font-size: 12px; }
 .file-actions { justify-content: flex-start; }
 .editor-panel summary { cursor: pointer; min-height: 44px; padding: 10px 0; color: var(--accent); font-size: 14px; font-weight: 700; }

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, LEVELS, WIDTH, HEIGHT, makeBricks, matchingBricks, boardDimensions, cameraAt, validateCustomLevel, brickRegions, brickEditRegions, brickPerimeter, CAT_BLOCK_TRIGGERS, catBlockDescription, catBlockObjective } = require('../src/game.js');
+const { Game, LEVELS, WIDTH, HEIGHT, OBJECTS, makeBricks, boardDimensions, cameraAt, validateCustomLevel, brickRegions, brickPerimeter, obstructionGeometry, obstructionVertices, obstructionSpikes, CAT_BLOCK_TRIGGERS, catBlockDescription, catBlockObjective } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -655,16 +655,17 @@ function settingsEditor(level = blank()) {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const nodes = new Map();
   const $ = selector => {
-    if (!nodes.has(selector)) nodes.set(selector, { value: '', listeners: {}, replaceChildren() {}, checkValidity: () => true,
+    if (!nodes.has(selector)) nodes.set(selector, { value: '', dataset: {}, listeners: {}, replaceChildren() {}, checkValidity: () => true,
       addEventListener(type, handler) { this.listeners[type] = handler; } });
     return nodes.get(selector);
   };
-  const context = vm.createContext({ $, level, readOnly: () => false, makeBricks, matchingBricks, brickEditRegions,
+  const context = vm.createContext({ $, level, readOnly: () => false, Game, OBJECTS, makeBricks, boardDimensions, brickPerimeter,
+    obstructionGeometry, obstructionVertices, obstructionSpikes,
     previewGame: new Game(() => .5, { customLevel: level, editorPreview: true }),
     selectedBricks: new Set(), connectingSpawn: null,
     immutableBrick: kind => ['cinder', 'goal'].includes(kind),
     CAT_BLOCK_TRIGGERS, catBlockDescription, catBlockObjective, validateDraft: validateCustomLevel,
-    attempt: action => action(), markChanged() {},
+    attempt(action, onError) { try { action(); } catch (error) { if (onError) onError(error); throw error; } }, markChanged() {},
     render() { context.previewGame = new Game(() => .5, { customLevel: context.level, editorPreview: true }); },
     message() {} });
   vm.runInContext(source.slice(source.indexOf('function brickEntry('), source.indexOf('function saveBrick(')), context);
@@ -694,76 +695,115 @@ test('editor settings toggle autoscroll and enforce minimum length', () => {
   assert.equal(context.level.autoscroll, undefined);
 });
 
-test('editor resizes combined bricks with normalized positions and owner attributes', () => {
-  const base = blank(), bricks = makeBricks(), dimensions = boardDimensions();
-  const perimeter = brickPerimeter(bricks, dimensions.width, dimensions.height);
-  const cornerIndex = perimeter.findIndex((id, i) => bricks[id].region.edge !== bricks[perimeter[(i + 1) % perimeter.length]].region.edge);
-  const corner = [perimeter[cornerIndex], perimeter[(cornerIndex + 1) % perimeter.length]];
-  const group = [12, 14];
-  const source = { ...base, brickGroups: [{ owner: 14, members: group }, { owner: corner[1], members: corner }],
-    brickTypes: group.map(id => ({ ...bricks[id].region, kind: 'slow', barrier: true })) };
+test('resizing keeps fixed elements and bricks in place and adds plain bricks at the far end', () => {
+  const bricks = makeBricks(false, 1, 16);
+  const source = { ...blank(), autoscroll: { length: 16, speed: .5, events: [] },
+    events: [
+      { kind: 'item', type: 'battery', time: 0, x: .2, y: .5 },
+      { kind: 'object', type: 'obstruction-rectangle', time: 0, x: .3, y: .4, width: 90, height: 40, rotation: 30 },
+      { kind: 'enemy', type: 'wheel', time: 0, x: 1, y: .5 },
+      { kind: 'item', type: 'battery', time: 0, random: true },
+      { kind: 'food', type: 'P', time: 0, x: .02, y: .5, lifetime: 10, group: { shape: 'line', count: 4 } },
+    ],
+    koshiStart: { x: .3, y: .5 },
+    tracks: [{ id: 'rail', closed: false, speed: 10, nodes: [{ x: .2, y: .2 }, { x: .4, y: .4 }] }],
+    terrains: [{ id: 'ice', type: 'ice', nodes: [{ x: .2, y: .2 }, { x: .3, y: .2 }, { x: .25, y: .3 }] }],
+    brickGroups: [{ owner: 32, members: [30, 32] }, { owner: 6, members: [6, 8] }],
+    brickTypes: [
+      ...[30, 32].map(id => ({ ...bricks[id].region, kind: 'slow', barrier: true })),
+      { ...bricks[34].region, kind: 'fast', spawner: { kind: 'item', type: 'battery', x: .35, y: .5 } },
+    ] };
   const { context, $, apply } = settingsEditor(source);
-  $('#autoscroll-enabled').checked = true;
+  const before = context.previewGame;
   $('#scroll-length').value = 24;
-  $('#scroll-speed').value = 0;
   context.selectedBricks.add('old selection');
   context.connectingSpawn = 'old selection';
   apply();
-  assert.equal(context.level.autoscroll.length, 24);
-  assert.equal(context.level.brickGroups.length, 2);
-  const enlarged = context.level.brickGroups[0];
-  assert.equal(enlarged.members.length, 6);
-  assert.ok(enlarged.members.includes(enlarged.owner));
-  assert.equal(context.previewGame.bricks[enlarged.owner].kind, 'slow');
-  assert.equal(context.previewGame.bricks[enlarged.owner].barrier, true);
-  assert.ok(enlarged.members.every(id => context.previewGame.bricks[id].barrier));
+  const after = context.previewGame;
+  for (const index of [0, 1, 4]) {
+    const oldPoints = before.customEventPoints(source.events[index]);
+    const newPoints = after.customEventPoints(context.level.events[index]);
+    oldPoints.forEach((point, i) => { close(newPoints[i].x, point.x); close(newPoints[i].y, point.y); });
+  }
+  assert.ok(context.level.events[4].group.size < 1, 'a previously compressed formation does not expand');
+  assert.equal(context.level.events[2].x, 1);
+  close(after.customEventPoints(context.level.events[2])[0].x - before.customEventPoints(source.events[2])[0].x, after.width - before.width);
+  assert.equal(context.level.events[3].random, true);
+  for (const [oldPoint, newPoint] of [
+    [source.koshiStart, context.level.koshiStart],
+    [source.tracks[0].nodes[1], context.level.tracks[0].nodes[1]],
+    [source.terrains[0].nodes[1], context.level.terrains[0].nodes[1]],
+    [source.brickTypes[2].spawner, after.bricks[50].spawner],
+  ]) close(before.campaignEventPoint(oldPoint.x, oldPoint.y).x, after.campaignEventPoint(newPoint.x, newPoint.y).x);
+  assert.deepEqual(Array.from(context.level.brickGroups[0].members), [46, 48]);
+  assert.deepEqual(Array.from(context.level.brickGroups[1].members), [6, 8]);
+  assert.equal(after.bricks[48].barrier, true);
+  for (const brick of before.bricks) {
+    const id = brick.id < 10 ? brick.id : brick.id + 16;
+    assert.equal(after.bricks[id].kind, brick.kind);
+    if (brick.id >= 10) close(after.bricks[id].x, brick.x);
+  }
+  for (let id = 10; id < 26; id++) assert.equal(after.bricks[id].kind, 'normal');
   assert.equal(context.selectedBricks.size, 0);
   assert.equal(context.connectingSpawn, null);
   assert.doesNotThrow(() => validateCustomLevel(context.level));
-
-  $('#autoscroll-enabled').checked = false;
+  const portraitBefore = new Game(() => .5, { customLevel: source, portrait: true, scale: .5 });
+  const portraitAfter = new Game(() => .5, { customLevel: context.level, portrait: true, scale: .5 });
+  const oldPoint = portraitBefore.campaignEventPoint(source.events[0].x, source.events[0].y);
+  const newPoint = portraitAfter.campaignEventPoint(context.level.events[0].x, context.level.events[0].y);
+  close(oldPoint.x, newPoint.x);
+  close(portraitBefore.height - oldPoint.y, portraitAfter.height - newPoint.y);
+  $('#scroll-length').value = 16;
   apply();
-  assert.equal(context.level.autoscroll, undefined);
-  assert.deepEqual(new Set(context.level.brickGroups[0].members), new Set(group));
-  assert.deepEqual(new Set(context.level.brickGroups[1].members), new Set(corner));
-  assert.equal(context.previewGame.bricks[context.level.brickGroups[0].owner].barrier, true);
-  for (let i = 0; i < 10; i++) {
-    $('#autoscroll-enabled').checked = true;
-    $('#scroll-length').value = 24;
-    apply();
-    $('#autoscroll-enabled').checked = false;
-    apply();
-  }
-  assert.ok(context.level.brickTypes.length <= 4, 'repeated resizing does not accumulate redundant overrides');
+  close(context.previewGame.campaignEventPoint(context.level.events[0].x, .5).x, before.campaignEventPoint(source.events[0].x, .5).x);
+  assert.deepEqual(Array.from(context.level.brickGroups[0].members), [30, 32]);
 });
 
-test('editor can resize a board with the five combined groups used in level 2-3', () => {
-  const groups = [
-    { owner: 17, members: [17, 19] }, { owner: 6, members: [6, 8] },
-    { owner: 7, members: [7, 9] }, { owner: 20, members: [20, 22] },
-    { owner: 12, members: [12, 14] },
-  ];
-  const { context, $, apply } = settingsEditor({ ...blank(), brickGroups: groups });
+test('shortening blocks objects, terrain, tracks, spawners and combined bricks without changing the draft', () => {
+  const base = { ...blank(), autoscroll: { length: 24, speed: 0, events: [] } }, bricks = makeBricks(false, 1, 24);
+  for (const extra of [
+    { events: [{ kind: 'item', type: 'battery', time: 0, x: .8, y: .5 }] },
+    { events: [{ kind: 'object', type: 'obstruction-rectangle', time: 0, x: .31, y: .5, width: 500, height: 20 }] },
+    { koshiStart: { x: .8, y: .5 } },
+    { tracks: [{ id: 'rail', closed: false, speed: 0, nodes: [{ x: .1, y: .1 }, { x: .8, y: .2 }] }] },
+    { terrains: [{ id: 'ice', type: 'ice', nodes: [{ x: .1, y: .1 }, { x: .8, y: .1 }, { x: .2, y: .3 }] }] },
+    { brickTypes: [{ ...bricks[10].region, kind: 'normal', spawner: { kind: 'item', type: 'battery' } }] },
+    { brickTypes: [{ ...bricks[50].region, kind: 'normal', spawner: { kind: 'item', type: 'battery', x: .8, y: .5 } }] },
+    { brickGroups: [{ owner: 10, members: [10, 12] }] },
+  ]) {
+    const { context, $, apply } = settingsEditor({ ...base, ...extra });
+    const before = JSON.stringify(context.level);
+    $('#scroll-length').value = 8;
+    assert.throws(apply, /Board resize blocked/);
+    assert.equal(JSON.stringify(context.level), before);
+    assert.equal($('#scroll-length').value, 24);
+    assert.equal($('#editor-message').dataset.resizeWarning, 'true');
+  }
+});
+
+test('resizing preserves three-brick-set defaults and leaves all added bricks plain', () => {
+  const { context, $, apply } = settingsEditor({ ...blank(), brickSet: 3 });
+  const before = context.previewGame;
   $('#autoscroll-enabled').checked = true;
   $('#scroll-length').value = 16;
   apply();
-  assert.equal(context.level.brickGroups.length, groups.length);
-  assert.deepEqual(Array.from(context.level.brickGroups, group => group.members.length), [4, 2, 2, 4, 4]);
-  assert.doesNotThrow(() => validateCustomLevel(context.level));
+  for (const brick of before.bricks) {
+    const id = brick.id < 10 ? brick.id : brick.id + 16;
+    assert.equal(context.previewGame.bricks[id].kind, brick.kind);
+  }
+  for (let id = 10; id < 26; id++) assert.equal(context.previewGame.bricks[id].kind, 'normal');
 });
 
-test('editor rejects a resize that would collapse or overlap combined bricks without changing the level', () => {
-  const base = { ...blank(), autoscroll: { length: 24, speed: 0, events: [] } };
-  for (const groups of [
-    [{ owner: 48, members: [48, 50] }],
-    [{ owner: 10, members: [10, 12, 14, 16] }, { owner: 18, members: [18, 20, 22, 24] }],
-  ]) {
-    const { context, $, apply } = settingsEditor({ ...base, brickGroups: groups });
-    const before = JSON.stringify(context.level);
-    $('#scroll-length').value = 8;
-    assert.throws(apply, /collapse or overlap/);
-    assert.equal(JSON.stringify(context.level), before);
-  }
+test('resizing blocks a combined brick spanning the moving wall and stationary edge', () => {
+  const bricks = makeBricks(), dimensions = boardDimensions();
+  const perimeter = brickPerimeter(bricks, dimensions.width, dimensions.height);
+  const corner = perimeter.findIndex((id, i) => id < 10 && id % 2 === 0 && perimeter[(i + 1) % perimeter.length] >= 10);
+  const members = [perimeter[corner], perimeter[(corner + 1) % perimeter.length]];
+  const { context, $, apply } = settingsEditor({ ...blank(), brickGroups: [{ owner: members[0], members }] });
+  $('#autoscroll-enabled').checked = true;
+  $('#scroll-length').value = 16;
+  assert.throws(apply, /combined brick would be separated/);
+  assert.equal(context.level.autoscroll, undefined);
 });
 
 test('scrolling kills only once Koshi is completely offscreen in any direction, bypassing all protection', () => {

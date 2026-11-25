@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, ITEMS, SHIELDS, SWORDS, WEAPONS, OBJECTS, CHARACTERS, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, brickRegions, brickEditRegions, COOLDOWNS } = require('../src/game.js');
+const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, catBlockDescription, validateCustomLevel, levelObjective, snapWheel, FOODS, ITEMS, SHIELDS, SWORDS, WEAPONS, OBJECTS, CHARACTERS, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, brickRegions, brickEditRegions, COOLDOWNS, makeBricks, boardDimensions, brickPerimeter, obstructionGeometry, obstructionVertices, obstructionSpikes } = require('../src/game.js');
 const { isBossType } = require('../src/game.js');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
@@ -1158,10 +1158,13 @@ test('settings changes automatically update the level, report invalid fields, an
     return nodes.get(selector);
   };
   const context = vm.createContext({ $, level: blank(), CAT_BLOCK_TRIGGERS, catBlockDescription,
+    Game, OBJECTS, makeBricks, boardDimensions, brickPerimeter, obstructionGeometry, obstructionVertices, obstructionSpikes,
+    immutableBrick: kind => ['cinder', 'goal'].includes(kind), selectedBricks: new Set(), connectingSpawn: null,
     validateDraft: validateCustomLevel, readOnly: () => locked,
     attempt: action => { try { action(); } catch (error) { messages.push(error.message); } },
     markChanged() { changed++; }, render() {}, message: text => messages.push(text) });
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf('function brickEntry('), source.indexOf('function saveBrick(')), context);
   vm.runInContext(source.slice(source.indexOf("$('#settings-form').addEventListener"), source.indexOf('function addSceneLine(')), context);
   context.populateSettings();
   assert.equal($('#power-start').value, 'off');
