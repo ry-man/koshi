@@ -18,9 +18,8 @@ const relative = (game, point) => {
   return { x: (point.x - b.left) / (b.right - b.left), y: (point.y - b.top) / (b.bottom - b.top) };
 };
 
-test('all authored Official placements preserve desktop coordinates and rotate with bricks on phones', () => {
-  const manifest = require('../levels/official/campaign.json');
-  for (const entry of manifest.levels) {
+for (const entry of require('../levels/official/campaign.json').levels) {
+  test(`Official placement rotation: ${entry.id}`, () => {
     const source = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'levels', 'official', ...entry.file.split('/')), 'utf8'));
     const before = JSON.stringify(source);
     const level = officialCampaign.findIndex(level => level.id === entry.id);
@@ -78,8 +77,8 @@ test('all authored Official placements preserve desktop coordinates and rotate w
       }
     }
     assert.equal(JSON.stringify(source), before);
-  }
-});
+  });
+}
 
 test('the scrolling phone camera and first screen preserve visibility without reversing brick identity', () => {
   const source = require('../levels/official/world-1/1-7.json');

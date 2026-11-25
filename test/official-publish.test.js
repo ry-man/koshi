@@ -94,6 +94,61 @@ test('check mode runs gates without fetching, committing, or pushing', async t =
   assert.equal(f.calls.some(call => call.includes('fetch') || call.includes('commit') || call.includes('push')), false);
 });
 
+test('incremental publishing builds once, selects changed-level tests and smoke, and verifies deployment', async t => {
+  const f = fixture(t); f.edit();
+  let deployed = false;
+  const result = await publishOfficialLevels({
+    ...f.options, incremental: true,
+    deployment: async sha => { deployed = true; return f.options.deployment(sha); },
+  });
+  const commands = f.calls.filter(call => call[0] !== 'git');
+  assert.deepEqual(commands, [
+    [process.execPath, path.join('tools', 'build-official-levels.js')],
+    [process.execPath, '--test', '--test-name-pattern=^Official placement rotation: (?:official-1-1)$',
+      path.join('test', 'official-level-build.test.js')],
+  ]);
+  assert.deepEqual(result.ids, [entry.id]);
+  assert.equal(deployed, true, 'targeted local checks do not bypass GitHub deployment verification');
+  assert.equal(f.git('ls-remote', 'origin', 'refs/heads/main').split(/\s+/)[0], result.sha);
+});
+
+test('incremental no-change updates skip tests, browsers, commits and pushes', async t => {
+  const f = fixture(t); f.setTest(() => {});
+  const result = await publishOfficialLevels({
+    ...f.options, incremental: true,
+    smoke: async () => assert.fail('must not launch all-level smoke when nothing changed'),
+    deployment: async () => assert.fail('must not deploy unchanged content'),
+  });
+  assert.equal(result.unchanged, true);
+  assert.deepEqual(f.calls.filter(call => call[0] !== 'git'), [
+    [process.execPath, path.join('tools', 'build-official-levels.js')],
+  ]);
+  assert.equal(f.calls.some(call => call.includes('commit') || call.includes('push')), false);
+});
+
+test('incremental check mode and failures never commit or push', async t => {
+  for (const gate of ['check', 'build', 'test', 'smoke']) {
+    await t.test(gate, async t => {
+      const f = fixture(t); f.edit();
+      const run = f.options.run;
+      const options = {
+        ...f.options, incremental: true, check: true,
+        run(file, args, ...rest) {
+          if (file !== 'git' && (gate === 'build' && !args.includes('--test')
+            || gate === 'test' && args.includes('--test'))) throw new Error(`${gate} failed`);
+          return run(file, args, ...rest);
+        },
+        smoke: gate === 'smoke' ? async () => { throw new Error('smoke failed'); } : f.options.smoke,
+      };
+      if (gate === 'check') assert.equal((await publishOfficialLevels(options)).checked, true);
+      else await assert.rejects(publishOfficialLevels(options), new RegExp(`${gate} failed`));
+      assert.equal(f.git('rev-parse', 'HEAD'), f.start);
+      assert.equal(f.calls.some(call => call.includes('fetch') || call.includes('commit') || call.includes('push')), false);
+      assert.equal(f.lockExists(), false);
+    });
+  }
+});
+
 test('already current campaign does not commit or push', async t => {
   const f = fixture(t);
   f.setTest(() => {});

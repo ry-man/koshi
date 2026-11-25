@@ -20,6 +20,15 @@
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
     },
     {
+      "label": "Publish Official Levels (incremental testing)",
+      "type": "process",
+      "command": "node",
+      "args": ["tools/publish-official-levels.js", "--incremental"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
       "label": "Check Official Levels (no commit or push)",
       "type": "process",
       "command": "node",

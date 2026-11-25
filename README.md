@@ -252,6 +252,30 @@ For browser checks alone, use `npm run smoke:official`.
 The smoke check starts its own temporary server on an available loopback port,
 leaves any existing preview server alone, and closes Chromium/server afterward.
 
+### Incremental live updates for testing
+
+Use `/sync-official-levels-fast`, the VS Code **Publish Official Levels
+(incremental testing)** task, or `npm run publish:official:incremental`
+(`npm.cmd run publish:official:incremental` on Windows) for opt-in, level-only
+updates to the same live Official site. The original full-release workflow is
+unchanged.
+
+This mode validates the entire manifest and all published JSON, regenerates the
+bundle, and runs local placement/orientation tests and browser smoke checks only
+for added or semantically changed levels relative to HEAD. With no semantic
+level changes, it skips those expensive checks. It does not run the full local
+suite; GitHub still runs its independent full suite before Pages deployment.
+Validation, targeted tests, browser checks, deployment and total times are
+printed. CI queue/deployment time is not eliminated.
+
+All existing publisher safeguards apply, including stable IDs, approved manifest
+entries, a clear index, no unrelated code changes, matching `main`/`origin/main`,
+concurrent-edit checks and exact-commit deployment verification. This is not a
+staging environment, and creating the skill does not publish any levels.
+For incremental local validation without committing or pushing, use
+`npm run publish:official:incremental:check`. For code changes or comprehensive
+local release testing, keep using the original full workflow.
+
 Git authentication must be configured ahead of time; signing keys or Git hooks
 can impose their own interaction requirements. Public GitHub API access needs no
 CLI or token. If API rate limits/private repository access require authentication,

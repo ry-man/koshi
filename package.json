@@ -12,6 +12,8 @@
     "perf": "node tools/performance.js",
     "publish:official": "node tools/publish-official-levels.js",
     "publish:official:check": "node tools/publish-official-levels.js --check",
+    "publish:official:incremental": "node tools/publish-official-levels.js --incremental",
+    "publish:official:incremental:check": "node tools/publish-official-levels.js --incremental --check",
     "setup:publish": "playwright install chromium"
   },
   "devDependencies": {

@@ -83,7 +83,7 @@ async function waitForDeployment(sha, { api = githubAPI, sleep = ms => new Promi
 }
 
 async function publishOfficialLevels({
-  root = path.resolve(__dirname, '..'), check = false, run = command,
+  root = path.resolve(__dirname, '..'), check = false, incremental = false, run = command,
   smoke = smokeOfficialLevels, deployment = waitForDeployment,
 } = {}) {
   const git = (...args) => run('git', ['--no-pager', ...args], root).trimEnd();
@@ -99,6 +99,14 @@ async function publishOfficialLevels({
     throw error;
   }
   let committed = false, pushAttempted = false, pushed = false;
+  const started = Date.now();
+  const phase = async (label, action) => {
+    const start = Date.now();
+    try { return await action(); }
+    finally {
+      if (incremental) console.log(`${label}: ${((Date.now() - start) / 1000).toFixed(1)}s`);
+    }
+  };
   try {
     const assertNoOperation = () => {
       const markers = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply', 'sequencer', 'BISECT_LOG'];
@@ -136,7 +144,7 @@ async function publishOfficialLevels({
       if (unrelated.length) throw new Error(`Unrelated changes would affect release validation. Commit or set them aside manually:\n${unrelated.join('\n')}`);
     };
     assertScope();
-    if (smoke === smokeOfficialLevels) requireChromium();
+    if (!incremental && smoke === smokeOfficialLevels) requireChromium();
     // Include all tested inputs, not only release files, to catch edits during validation.
     const snapshot = () => new Map(files('ls-files', '--cached', '--others', '--exclude-standard')
       .filter(file => file !== BUNDLE && fs.existsSync(path.join(root, ...file.split('/')))).map(file => {
@@ -152,8 +160,11 @@ async function publishOfficialLevels({
       if (deployment === waitForDeployment) await githubAPI('actions/workflows/pages.yml');
     }
     const oldJSON = file => JSON.parse(git('show', `${start}:levels/official/${file}`));
-    // npm test's pretest is the one and only explicit generation step.
-    if (process.env.npm_execpath) {
+    // The full release generates through pretest; incremental checks generate directly.
+    if (incremental) {
+      await phase('Campaign validation and generation', () =>
+        run(process.execPath, [path.join('tools', 'build-official-levels.js')], root, true));
+    } else if (process.env.npm_execpath) {
       run(process.execPath, [process.env.npm_execpath, 'test'], root, true);
     } else if (process.platform === 'win32') {
       run(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'npm.cmd test'], root, true);
@@ -163,7 +174,18 @@ async function publishOfficialLevels({
     const plan = releasePlan(before, after, oldJSON, file => json(`levels/official/${file}`));
     console.log(plan.subject);
     const bundle = read(BUNDLE);
-    await smoke(plan.ids.length ? plan.ids : undefined, root);
+    if (incremental && plan.ids.length) {
+      if (smoke === smokeOfficialLevels) requireChromium();
+      const ids = plan.ids.map(id => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      await phase('Changed-level placement tests', () => run(process.execPath,
+        ['--test', `--test-name-pattern=^Official placement rotation: (?:${ids})$`,
+          path.join('test', 'official-level-build.test.js')], root, true));
+    }
+    if (!incremental || plan.ids.length) {
+      await phase('Browser checks', () => smoke(plan.ids.length ? plan.ids : undefined, root));
+    } else {
+      console.log('No semantic level changes: skipping placement tests and browser checks.');
+    }
     git('diff', '--check');
     if (!isDeepStrictEqual(inputs, snapshot()) || read(BUNDLE) !== bundle) throw new Error('Files changed during validation. No commit/push; rerun after edits finish.');
     if (git('rev-parse', 'HEAD') !== start || git('branch', '--show-current') !== 'main'
@@ -214,7 +236,7 @@ async function publishOfficialLevels({
     git('push', 'origin', `${sha}:refs/heads/main`);
     pushed = true;
     if (git('ls-remote', 'origin', 'refs/heads/main').split(/\s+/)[0] !== sha) throw new Error('Remote main does not match the published commit.');
-    const url = await deployment(sha);
+    const url = await phase('GitHub full tests and Pages deployment', () => deployment(sha));
     console.log(`Production deployed: ${sha}\n${url}`);
     return { sha, url, paths, ...plan };
   } catch (error) {
@@ -226,16 +248,17 @@ async function publishOfficialLevels({
   } finally {
     fs.closeSync(lock);
     fs.unlinkSync(lockPath);
+    if (incremental) console.log(`Incremental workflow total: ${((Date.now() - started) / 1000).toFixed(1)}s`);
   }
 }
 
 if (require.main === module) {
   const args = process.argv.slice(2);
-  if (args.some(arg => arg !== '--check')) {
-    console.error('Usage: node tools/publish-official-levels.js [--check]');
+  if (args.some(arg => !['--check', '--incremental'].includes(arg))) {
+    console.error('Usage: node tools/publish-official-levels.js [--check] [--incremental]');
     process.exitCode = 1;
   } else {
-    publishOfficialLevels({ check: args.includes('--check') })
+    publishOfficialLevels({ check: args.includes('--check'), incremental: args.includes('--incremental') })
       .catch(error => { console.error(error.message); process.exitCode = 1; });
   }
 }
