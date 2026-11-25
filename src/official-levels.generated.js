@@ -22141,7 +22141,7 @@ const levels = [
     "level": {
       "version": 1,
       "id": "Recurring Rapier",
-      "duration": 80,
+      "duration": 100,
       "goal": 20,
       "heartCost": 25,
       "brickSet": 1,
