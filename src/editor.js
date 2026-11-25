@@ -1047,7 +1047,95 @@ function choose(kind, value, additive) {
 }
 
 function selectAll() {
+  if (activeCategory === 'tracks' || activeCategory === 'terrain') {
+    selectedTrackNode = -1; selectedTerrainNode = -1;
+    renderBoard();
+    return;
+  }
   setSelection(level.events.map((_, index) => index), previewGame.bricks.filter(brick => brick.absorbedBy === null).map(brick => regionKey(brick.region)));
+}
+
+function selectedPlacementTargets() {
+  if (activeCategory === 'tracks' || activeCategory === 'terrain') {
+    const nodes = activeCategory === 'tracks' ? trackDrawNodes : terrainDrawNodes;
+    const selected = activeCategory === 'tracks' ? selectedTrackNode : selectedTerrainNode;
+    return nodes.flatMap((point, nodeIndex) => selected < 0 || selected === nodeIndex ? [{ point, nodeIndex }] : []);
+  }
+  return [
+    ...selectedList().flatMap(eventIndex => {
+      const point = level.events[eventIndex];
+      return point.random || point.x === undefined || point.y === undefined ? [] : [{ point, eventIndex }];
+    }),
+    ...spawnTemplates().filter(({ spawnKey }) => selectedBricks.has(spawnKey))
+      .map(({ event: point, spawnKey }) => ({ point, spawnKey })),
+  ];
+}
+
+function syncSelectionTransforms() {
+  const targets = selectedPlacementTargets();
+  const disabled = readOnly() || !targets.length;
+  $('#discretize-selection').disabled = disabled || !$('#discretize-xy').checked;
+  $('#symmetrize-vert').disabled = disabled;
+  $('#symmetrize-horiz').disabled = disabled;
+  if (activeCategory === 'tracks' || activeCategory === 'terrain') {
+    $('#selection-summary').textContent = targets.length ? `${plural(targets.length, 'node')} selected` : 'Nothing selected';
+    $('#clear-selection').disabled = !targets.length;
+  }
+}
+
+function transformSelection(mode) {
+  if (readOnly() || mode === 'discretize' && !$('#discretize-xy').checked) return;
+  const targets = selectedPlacementTargets();
+  if (!targets.length) return;
+  pausePreview();
+  const axis = mode === 'vertical' ? 'x' : 'y';
+  const mean = mode === 'discretize' ? 0 : targets.reduce((sum, { point }) =>
+    sum + previewGame.campaignEventCoordinates(point.x, point.y)[axis], 0) / targets.length;
+  const points = targets.map(({ point }) => {
+    if (mode === 'discretize') {
+      if (point.kind === 'object' && OBJECTS[point.type].obstruction && (point.rotation ?? 0) % 360 === 0) {
+        return snapObstructionFrame(point, sourcePlacementBounds());
+      }
+      const snapped = placementPosition(point.x, point.y);
+      return !point.group && point.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(point.type)
+        ? snapWheel(snapped.x, snapped.y) : snapped;
+    }
+    const displayed = previewGame.campaignEventCoordinates(point.x, point.y);
+    displayed[axis] += .5 - mean;
+    const shifted = previewGame.campaignSourceCoordinates(displayed.x, displayed.y);
+    if (shifted.x < 0 || shifted.x > 1 || shifted.y < 0 || shifted.y > 1) {
+      throw new Error('Symmetrizing would move part of the selection outside the playable area.');
+    }
+    if (!point.group && point.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(point.type)
+      && shifted.x !== 0 && shifted.x !== 1 && shifted.y !== 0 && shifted.y !== 1) {
+      throw new Error('Symmetrizing would move a perimeter enemy off its required edge.');
+    }
+    return shifted;
+  });
+  if (activeCategory === 'tracks' || activeCategory === 'terrain') {
+    const track = activeCategory === 'tracks';
+    const nodes = [...(track ? trackDrawNodes : terrainDrawNodes)];
+    targets.forEach(({ nodeIndex }, index) => { nodes[nodeIndex] = points[index]; });
+    const id = track ? selectedTrackId : selectedTerrainId;
+    if (id && !(track ? trackDrawing : terrainDrawing)) {
+      const key = track ? 'tracks' : 'terrains';
+      level = validateDraft({ ...level, [key]: level[key].map(entry => entry.id === id ? { ...entry, nodes } : entry) });
+      markChanged();
+    }
+    if (track) trackDrawNodes = nodes;
+    else terrainDrawNodes = nodes;
+  } else {
+    const draft = { ...level, events: [...level.events] };
+    targets.forEach(({ point, eventIndex, spawnKey }, index) => {
+      const updated = { ...point, ...points[index] };
+      if (spawnKey) updateSpawnTemplateDraft(spawnKey, updated, draft);
+      else draft.events[eventIndex] = updated;
+    });
+    level = validateDraft(draft);
+    markChanged();
+    populateEventForm();
+  }
+  renderBoard();
 }
 
 function relativeTimelineLayout(events, duration) {
@@ -1545,8 +1633,9 @@ function renderBoard() {
   board.dataset.orientation = portrait ? 'portrait' : 'landscape';
   board.dataset.fullGrid = String($('#full-grid').checked);
   $('#editor-board-scroll').dataset.orientation = board.dataset.orientation;
-  const availableWidth = $('#editor-board-scroll').clientWidth;
-  const screenWidth = portrait ? Math.min(availableWidth, 340) : availableWidth;
+  const border = 2 * board.clientLeft;
+  const availableWidth = $('#editor-board-scroll').clientWidth - border;
+  const screenWidth = portrait ? Math.min(availableWidth, 340 - border) : availableWidth;
   const screenHeight = screenWidth * (portrait ? 8 / 5 : 5 / 8);
   syncTool();
   previewGame = new Game(Math.random, { portrait, scale: portrait ? screenWidth / 600 : 1,
@@ -1695,6 +1784,7 @@ function renderBoard() {
   const b = previewGame.bounds();
   renderKoshiStart();
   $('#playable-area').style.cssText = `left:${b.left / previewGame.width * 100}%;top:${b.top / previewGame.height * 100}%;width:${(b.right - b.left) / previewGame.width * 100}%;height:${(b.bottom - b.top) / previewGame.height * 100}%`;
+  renderPlacementGuides();
   const alignmentGuides = $('#alignment-guides');
   alignmentGuides.setAttribute('viewBox', `0 0 ${previewGame.width} ${previewGame.height}`);
   alignmentGuides.replaceChildren();
@@ -2519,6 +2609,7 @@ function renderCatTracks() {
   }
   if (!selectedTrackId && trackDrawNodes.length) draw({ id: '', closed: $('#track-closed').checked, power: $('#track-power').value },
     (trackNodeGesture?.nodes ?? trackDrawNodes).map(node => previewGame.campaignEventPoint(node.x, node.y)));
+  syncSelectionTransforms();
 }
 
 function saveTrackNodeMove(index, point) {
@@ -2816,13 +2907,13 @@ function saveSpawnTemplate(key, spawn, removeIndex = null) {
   markChanged();
 }
 
-function updateSpawnTemplateDraft(key, spawn) {
+function updateSpawnTemplateDraft(key, spawn, draft = level) {
   const regions = brickEditRegions(previewGame.bricks);
   const { brick } = spawnTemplate(key);
   const entries = previewGame.bricks.filter(member => member.id === brick.id || member.initialOwner === brick.id)
     .map(member => ({ ...brickEntry(brick, regions.get(member.id)), spawner: { ...spawn } }));
   const keys = new Set(entries.map(regionKey));
-  level.brickTypes = [...(level.brickTypes ?? []).filter(entry => !keys.has(regionKey(entry))), ...entries];
+  draft.brickTypes = [...(draft.brickTypes ?? []).filter(entry => !keys.has(regionKey(entry))), ...entries];
 }
 
 function connectSpawn(index) {
@@ -2844,13 +2935,38 @@ function placementGrid() {
   return { width: rect.width, height: rect.height, left: area.clientLeft, top: area.clientTop, spacing };
 }
 
-function placementPosition(x, y) {
+function renderPlacementGuides() {
+  const spacing = 18 * Number($('#coordinate-discretization').value);
+  board.style.setProperty('--grid-spacing', `${spacing}px`);
+  const area = $('#playable-area'), overlay = $('#full-grid-overlay');
+  const areaRect = area.getBoundingClientRect(), boardRect = board.getBoundingClientRect();
+  overlay.hidden = !$('#full-grid').checked;
+  overlay.style.backgroundPosition = `${areaRect.left - boardRect.left - board.clientLeft + area.clientLeft + spacing / 2}px ${areaRect.top - boardRect.top - board.clientTop + area.clientTop + spacing / 2}px`;
+  const guides = $('#centerline-guides'), b = previewGame.bounds();
+  guides.hidden = !$('#centerlines').checked;
+  guides.setAttribute('viewBox', `0 0 ${previewGame.width} ${previewGame.height}`);
+  guides.replaceChildren();
+  if (!guides.hidden) {
+    for (const coordinates of [
+      { x1: (b.left + b.right) / 2, x2: (b.left + b.right) / 2, y1: 0, y2: previewGame.height },
+      { x1: 0, x2: previewGame.width, y1: (b.top + b.bottom) / 2, y2: (b.top + b.bottom) / 2 },
+    ]) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      for (const [name, value] of Object.entries(coordinates)) line.setAttribute(name, value);
+      guides.append(line);
+    }
+  }
+}
+
+function placementPosition(x, y, { constrain = true, centerlines = true } = {}) {
   const grid = placementGrid();
   const snap = (value, length, border) => {
     const first = border + grid.spacing / 2;
     const last = Math.max(0, Math.floor((length - border - first) / grid.spacing));
-    const index = Math.max(0, Math.min(last, Math.round((value * length - first) / grid.spacing)));
-    return (first + index * grid.spacing) / length;
+    const nearest = Math.round((value * length - first) / grid.spacing);
+    const index = constrain ? Math.max(0, Math.min(last, nearest)) : nearest;
+    const snapped = (first + index * grid.spacing) / length;
+    return centerlines && $('#centerlines').checked && Math.abs(value - .5) <= Math.abs(value - snapped) ? .5 : snapped;
   };
   if (!grid) return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
   const point = previewGame.campaignEventCoordinates(x, y);
@@ -2893,6 +3009,68 @@ function eventPlacementPosition(event) {
     (camera.y + camera.height / 2 - bounds.top) / (bounds.bottom - bounds.top));
 }
 
+function sourcePlacementBounds() {
+  const bounds = previewGame.bounds();
+  return previewGame.landscapePortrait
+    ? { left: bounds.top, right: bounds.bottom, top: bounds.left, bottom: bounds.right } : bounds;
+}
+
+function snapObstructionFrame(obstruction, bounds, handle = '') {
+  const grid = placementGrid();
+  if (!grid || (obstruction.rotation ?? 0) % 360 !== 0) return obstruction;
+  const geometry = obstructionGeometry(obstruction);
+  const spanX = bounds.right - bounds.left, spanY = bounds.bottom - bounds.top;
+  const options = { constrain: false, centerlines: false };
+  const rawFirst = { x: obstruction.x - geometry.width / (2 * spanX), y: obstruction.y - geometry.height / (2 * spanY) };
+  const rawLast = { x: obstruction.x + geometry.width / (2 * spanX), y: obstruction.y + geometry.height / (2 * spanY) };
+  let first = placementPosition(rawFirst.x, rawFirst.y, options);
+  let last = placementPosition(rawLast.x, rawLast.y, options);
+  const horizontal = placementStep([1, 0]), vertical = placementStep([0, 1]);
+  const stepX = Math.abs(horizontal.x) + Math.abs(vertical.x);
+  const stepY = Math.abs(horizontal.y) + Math.abs(vertical.y);
+  let cellsX = Math.round((last.x - first.x) / stepX);
+  let cellsY = Math.round((last.y - first.y) / stepY);
+  const circle = OBJECTS[obstruction.type].obstruction === 'circle';
+  const pitchX = stepX * spanX, pitchY = stepY * spanY;
+  const minCells = circle ? Math.ceil(1 / Math.min(pitchX, pitchY)) : 0;
+  const maxCells = circle ? Math.floor(10000 / Math.max(pitchX, pitchY)) : Infinity;
+  if (circle) {
+    const ideal = Math.round((geometry.width / pitchX + geometry.height / pitchY) / 2);
+    let best;
+    for (let candidate = ideal - 1; candidate <= ideal + 1; candidate++) {
+      const cells = Math.max(minCells, Math.min(maxCells, candidate));
+      const corner = placementPosition(obstruction.x - cells * stepX / 2, obstruction.y - cells * stepY / 2, options);
+      if (handle.includes('w')) corner.x = last.x - cells * stepX;
+      else if (handle.includes('e')) corner.x = first.x;
+      if (handle.includes('n')) corner.y = last.y - cells * stepY;
+      else if (handle.includes('s')) corner.y = first.y;
+      const cost = ((corner.x - rawFirst.x) / stepX) ** 2 + ((corner.x + cells * stepX - rawLast.x) / stepX) ** 2
+        + ((corner.y - rawFirst.y) / stepY) ** 2 + ((corner.y + cells * stepY - rawLast.y) / stepY) ** 2;
+      if (!best || cost < best.cost) best = { cells, corner, cost };
+    }
+    cellsX = cellsY = best.cells;
+    first = best.corner;
+    last = { x: first.x + cellsX * stepX, y: first.y + cellsY * stepY };
+  }
+  cellsX = Math.max(minCells, Math.ceil(1 / pitchX), Math.min(maxCells, Math.floor(10000 / pitchX), cellsX));
+  cellsY = Math.max(minCells, Math.ceil(1 / pitchY), Math.min(maxCells, Math.floor(10000 / pitchY), cellsY));
+  if (handle.includes('w')) first.x = last.x - cellsX * stepX;
+  else last.x = first.x + cellsX * stepX;
+  if (handle.includes('n')) first.y = last.y - cellsY * stepY;
+  else last.y = first.y + cellsY * stepY;
+  const fitCenter = (firstValue, lastValue, step) => {
+    const center = (firstValue + lastValue) / 2;
+    return center < 0 ? Math.ceil(-center / step) * step
+      : center > 1 ? -Math.ceil((center - 1) / step) * step : 0;
+  };
+  const width = cellsX * pitchX;
+  // A square screen grid can differ by a subpixel between axes after CSS layout.
+  const height = circle ? width : cellsY * pitchY;
+  return { ...obstruction, width, height,
+    x: (first.x + last.x) / 2 + fitCenter(first.x, last.x, stepX),
+    y: (first.y + last.y) / 2 + fitCenter(first.y, last.y, stepY) };
+}
+
 function resizedObstruction(origin, handle, dx, dy, bounds) {
   const geometry = obstructionGeometry(origin);
   const west = handle.includes('w'), east = handle.includes('e');
@@ -2912,9 +3090,10 @@ function resizedObstruction(origin, handle, dx, dy, bounds) {
   const offsetY = (south ? 1 : north ? -1 : 0) * (height - geometry.height) / 2;
   const worldOffsetX = offsetX * Math.cos(angle) - offsetY * Math.sin(angle);
   const worldOffsetY = offsetX * Math.sin(angle) + offsetY * Math.cos(angle);
-  return { ...origin, width, height,
+  const resized = { ...origin, width, height,
     x: Math.max(0, Math.min(1, origin.x + worldOffsetX / (bounds.right - bounds.left))),
     y: Math.max(0, Math.min(1, origin.y + worldOffsetY / (bounds.bottom - bounds.top))) };
+  return $('#discretize-xy').checked ? snapObstructionFrame(resized, bounds, handle) : resized;
 }
 
 function startGesture(event, target) {
@@ -3045,9 +3224,7 @@ board.addEventListener('pointermove', event => {
       gesture.point.x + point.x - gesture.start.x, gesture.point.y + point.y - gesture.start.y) };
     renderBoard();
   } else if (gesture.type === 'resize') {
-    const point = pointerPosition(event), bounds = previewGame.bounds();
-    const sourceBounds = previewGame.landscapePortrait
-      ? { left: bounds.top, right: bounds.bottom, top: bounds.left, bottom: bounds.right } : bounds;
+    const point = pointerPosition(event), sourceBounds = sourcePlacementBounds();
     const resized = resizedObstruction(gesture.origin, gesture.handle,
       (point.x - gesture.start.x) * (sourceBounds.right - sourceBounds.left),
       (point.y - gesture.start.y) * (sourceBounds.bottom - sourceBounds.top), sourceBounds);
@@ -3247,7 +3424,14 @@ $('#inspector-access').addEventListener('change', () => {
 $('#place-mode').addEventListener('click', startPlacement);
 $('#select-mode').addEventListener('click', () => { placing = false; render(); });
 $('#select-all').addEventListener('click', selectAll);
-$('#clear-selection').addEventListener('click', () => setSelection([], []));
+$('#clear-selection').addEventListener('click', () => {
+  if (activeCategory === 'tracks' && !trackDrawing) { selectedTrackId = ''; populateTrackForm(); }
+  if (activeCategory === 'terrain' && !terrainDrawing) { selectedTerrainId = ''; populateTerrainForm(); }
+  setSelection([], []);
+});
+$('#discretize-selection').addEventListener('click', () => attempt(() => transformSelection('discretize')));
+$('#symmetrize-vert').addEventListener('click', () => attempt(() => transformSelection('vertical')));
+$('#symmetrize-horiz').addEventListener('click', () => attempt(() => transformSelection('horizontal')));
 function brickEntry(brick, region) {
   if (immutableBrick(brick.kind)) return { ...region, kind: brick.kind,
     ...(brick.kind === 'goal' && brick.goalTeam ? { goalTeam: brick.goalTeam } : {}) };
@@ -4402,6 +4586,9 @@ $('#show-random').addEventListener('change', renderBoard);
 $('#dynamic-view').addEventListener('change', () => renderPreviewTime());
 $('#orientation').addEventListener('change', renderBoard);
 $('#full-grid').addEventListener('change', renderBoard);
+$('#centerlines').addEventListener('change', renderBoard);
+$('#coordinate-discretization').addEventListener('change', renderBoard);
+$('#discretize-xy').addEventListener('change', syncSelectionTransforms);
 new ResizeObserver(renderBoard).observe($('#editor-board-scroll'));
 function validateSavedLevel() {
   if (trackDrawing) throw new Error('Apply the Cat Track or Cancel edits before printing JSON or playtesting.');

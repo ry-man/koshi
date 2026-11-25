@@ -446,14 +446,198 @@ test('full grid toggle shows alignment guides and highlights markers sharing an 
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   const css = readFileSync(path.join(__dirname, '..', 'editor.css'), 'utf8');
   const editor = source.slice(source.indexOf("$('#full-grid').addEventListener"), source.indexOf("new ResizeObserver"));
-  assert.match(html, /id="full-grid" type="checkbox"> Full grid lines/);
+  assert.match(html, /id="full-grid" type="checkbox"> Full Grid/);
   assert.match(html, /id="alignment-guides"/);
   assert.match(editor, /renderBoard/);
   assert.match(source, /gesture\?\.type === 'marker' && gesture\.moved/);
   assert.match(source, /marker\.classList\.toggle\('alignment-highlight'/);
-  assert.match(css, /data-full-grid="true"\] #playable-area/);
+  assert.match(css, /#full-grid-overlay\s*\{[^}]*inset: 0;[^}]*background-image:/);
   assert.match(css, /#alignment-guides line\s*\{[^}]*stroke:/);
   assert.match(css, /\.marker\.alignment-highlight\s*\{[^}]*drop-shadow/);
+});
+
+test('coordinate spacing controls keep dots, full-board lines, steps and centerline snapping aligned', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const controls = {
+    '#discretize-xy': { checked: true },
+    '#coordinate-discretization': { value: '1' },
+    '#full-grid': { checked: true },
+    '#centerlines': { checked: false },
+    '#full-grid-overlay': { style: {} },
+    '#centerline-guides': {
+      setAttribute(name, value) { this[name] = value; },
+      replaceChildren() { this.lines = []; },
+      append(line) { this.lines.push(line); },
+    },
+    '#playable-area': {
+      clientLeft: 1, clientTop: 1,
+      getBoundingClientRect: () => ({ left: 37.25, top: 65.5, width: 503.5, height: 301.25 }),
+    },
+  };
+  const board = {
+    clientLeft: 1, clientTop: 1, style: { setProperty(name, value) { this[name] = value; } },
+    getBoundingClientRect: () => ({ left: 10, top: 20 }),
+  };
+  const context = vm.createContext({
+    $: selector => controls[selector], board,
+    getComputedStyle: () => ({ backgroundSize: board.style['--grid-spacing'] }),
+    document: { createElementNS: () => ({ setAttribute(name, value) { this[name] = value; } }) },
+  });
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function moveEvent(')), context);
+  for (const portrait of [false, true]) {
+    context.previewGame = new Game(() => .5, { customLevel: blank(), portrait });
+    for (const multiplier of [.25, .5, 1, 2, 4, 8]) {
+      controls['#coordinate-discretization'].value = String(multiplier);
+      controls['#centerlines'].checked = false;
+      context.renderPlacementGuides();
+      const spacing = 18 * multiplier;
+      assert.equal(board.style['--grid-spacing'], `${spacing}px`);
+      assert.equal(controls['#full-grid-overlay'].style.backgroundPosition, `${27.25 + spacing / 2}px ${45.5 + spacing / 2}px`);
+      const snapped = context.placementPosition(.237, .641);
+      const displayed = context.previewGame.campaignEventCoordinates(snapped.x, snapped.y);
+      for (const [axis, length] of [['x', 503.5], ['y', 301.25]]) {
+        const index = (displayed[axis] * length - 1 - spacing / 2) / spacing;
+        assert.ok(Math.abs(index - Math.round(index)) < 1e-10);
+      }
+      const step = context.placementStep([1, 0]);
+      const origin = context.previewGame.campaignEventCoordinates(0, 0);
+      const displayedStep = context.previewGame.campaignEventCoordinates(step.x, step.y);
+      assert.ok(Math.abs(displayedStep.x - origin.x - spacing / 503.5) < 1e-10);
+      controls['#centerlines'].checked = true;
+      context.renderPlacementGuides();
+      const guides = controls['#centerline-guides'];
+      assert.equal(guides.hidden, false);
+      assert.equal(guides.lines.length, 2);
+      assert.equal(guides.lines[0].y1, 0);
+      assert.equal(guides.lines[0].y2, context.previewGame.height);
+      assert.equal(guides.lines[1].x1, 0);
+      assert.equal(guides.lines[1].x2, context.previewGame.width);
+      for (const [x, y, axis, other] of [[.5, .23, 'x', 'y'], [.23, .5, 'y', 'x']]) {
+        const input = context.previewGame.campaignSourceCoordinates(x, y);
+        const result = context.placementPosition(input.x, input.y);
+        const output = context.previewGame.campaignEventCoordinates(result.x, result.y);
+        assert.equal(output[axis], .5, 'centerline is available even when not a grid coordinate');
+        const length = other === 'x' ? 503.5 : 301.25;
+        const index = (output[other] * length - 1 - spacing / 2) / spacing;
+        assert.ok(Math.abs(index - Math.round(index)) < 1e-10, 'the coordinate along the axis still uses the grid');
+      }
+    }
+  }
+  controls['#full-grid'].checked = false;
+  controls['#centerlines'].checked = false;
+  context.renderPlacementGuides();
+  assert.equal(controls['#full-grid-overlay'].hidden, true);
+  assert.equal(controls['#centerline-guides'].hidden, true);
+});
+
+test('selection discretization and symmetry preserve random placements, relative spacing and atomic validation', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const checkbox = { checked: false };
+  const area = { clientLeft: 1, clientTop: 1, getBoundingClientRect: () => ({ width: 503.5, height: 301.25 }) };
+  const context = vm.createContext({
+    $: selector => selector === '#discretize-xy' ? checkbox : area,
+    getComputedStyle: () => ({ backgroundSize: '9px 9px' }),
+    activeCategory: 'food', readOnly: () => false, snapWheel,
+    selectedList: () => [0, 1, 2], selectedBricks: new Set(['spawner']),
+    spawnTemplates: () => [{ event: { ...event(), x: .31, y: .41 }, spawnKey: 'spawner' }],
+    updateSpawnTemplateDraft: (key, spawn, draft) => { draft.spawn = spawn; },
+    validateDraft: candidate => validateCustomLevel(candidate),
+    pausePreview() {}, markChanged() {}, populateEventForm() {}, renderBoard() {},
+  });
+  vm.runInContext(source.slice(source.indexOf('function selectedPlacementTargets('), source.indexOf('function relativeTimelineLayout(')), context);
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function pointerPosition(')), context);
+  for (const portrait of [false, true]) {
+    const initial = { ...blank(), events: [
+      { ...event(), x: .21, y: .32 }, { ...event(), x: .61, y: .53 },
+      { ...event(), random: true },
+    ] };
+    delete initial.events[2].x; delete initial.events[2].y;
+    context.level = initial;
+    context.previewGame = new Game(() => .5, { customLevel: initial, portrait });
+    checkbox.checked = false;
+    context.transformSelection('discretize');
+    assert.equal(context.level, initial, 'disabled discretization is a true no-op');
+    checkbox.checked = true;
+    context.validateDraft = candidate => candidate;
+    const expected = context.placementPosition(.21, .32);
+    context.transformSelection('discretize');
+    assert.deepEqual(JSON.parse(JSON.stringify(context.level.events[0])), { ...initial.events[0], ...expected });
+    assert.deepEqual(context.level.events[2], initial.events[2]);
+    assert.ok(context.level.spawn.x !== .31, 'selected spawning-brick template is discretized too');
+    for (const [mode, axis] of [['vertical', 'x'], ['horizontal', 'y']]) {
+      context.level = initial;
+      const before = context.selectedPlacementTargets().map(({ point }) =>
+        context.previewGame.campaignEventCoordinates(point.x, point.y));
+      context.transformSelection(mode);
+      const after = [...context.level.events.slice(0, 2), context.level.spawn].map(point =>
+        context.previewGame.campaignEventCoordinates(point.x, point.y));
+      assert.ok(Math.abs(after.reduce((sum, point) => sum + point[axis], 0) / after.length - .5) < 1e-10);
+      for (let i = 1; i < after.length; i++) for (const dimension of ['x', 'y']) {
+        assert.ok(Math.abs((after[i][dimension] - after[0][dimension]) - (before[i][dimension] - before[0][dimension])) < 1e-10);
+      }
+      assert.deepEqual(context.level.events[2], initial.events[2]);
+    }
+  }
+  context.spawnTemplates = () => [];
+  context.selectedList = () => [0, 1, 2];
+  context.level = { ...blank(), events: [0, .1, 1].map(x => ({ ...event(), x })) };
+  context.previewGame = new Game(() => .5, { customLevel: context.level });
+  const before = JSON.stringify(context.level);
+  assert.throws(() => context.transformSelection('vertical'), /outside the playable area/);
+  assert.equal(JSON.stringify(context.level), before);
+  context.selectedList = () => [0];
+  context.level = { ...blank(), events: [{ ...event('enemy', 'wheel'), x: 0, y: .3 }] };
+  assert.throws(() => context.transformSelection('vertical'), /perimeter enemy off its required edge/);
+  context.readOnly = () => true;
+  const locked = context.level;
+  context.transformSelection('horizontal');
+  assert.equal(context.level, locked, 'read-only levels cannot be transformed');
+});
+
+test('selection transforms update a chosen track or terrain node, all outline nodes, and pending drawing nodes', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
+  const context = vm.createContext({
+    $: () => ({ checked: true }),
+    readOnly: () => false, pausePreview() {}, markChanged() {}, renderBoard() {},
+    validateDraft: candidate => validateCustomLevel(candidate),
+    placementPosition: (x, y) => ({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }),
+  });
+  vm.runInContext(source.slice(source.indexOf('function selectedPlacementTargets('), source.indexOf('function relativeTimelineLayout(')), context);
+  for (const [category, key, idKey, nodesKey, selectedKey, drawingKey] of [
+    ['tracks', 'tracks', 'selectedTrackId', 'trackDrawNodes', 'selectedTrackNode', 'trackDrawing'],
+    ['terrain', 'terrains', 'selectedTerrainId', 'terrainDrawNodes', 'selectedTerrainNode', 'terrainDrawing'],
+  ]) {
+    const nodes = [{ x: .23, y: .31 }, { x: .63, y: .31 }, { x: .43, y: .71 }];
+    context.activeCategory = category;
+    context[idKey] = 'outline'; context[drawingKey] = false;
+    context.level = { ...blank(), [key]: [{ id: 'outline', type: 'water', speed: 60, power: 'yellow', closed: false, nodes }] };
+    context.previewGame = new Game(() => .5, { customLevel: context.level });
+    context[nodesKey] = nodes;
+    context[selectedKey] = 1;
+    context.transformSelection('discretize');
+    assert.deepEqual(JSON.parse(JSON.stringify(context.level[key][0].nodes)), [nodes[0], { x: .6, y: .3 }, nodes[2]]);
+    assert.deepEqual(JSON.parse(JSON.stringify(context[nodesKey])), JSON.parse(JSON.stringify(context.level[key][0].nodes)));
+    context[selectedKey] = -1;
+    const before = context.level[key][0].nodes;
+    context.transformSelection('vertical');
+    const result = context.level[key][0].nodes;
+    assert.ok(Math.abs(result.reduce((sum, node) => sum + node.x, 0) / result.length - .5) < 1e-10);
+    assert.ok(Math.abs(result[1].x - result[0].x - (before[1].x - before[0].x)) < 1e-10);
+    context[drawingKey] = true;
+    const saved = JSON.stringify(context.level);
+    context.transformSelection('horizontal');
+    assert.equal(JSON.stringify(context.level), saved, 'drawing nodes stay in the unapplied draft');
+    assert.ok(Math.abs(context[nodesKey].reduce((sum, node) => sum + node.y, 0) / nodes.length - .5) < 1e-10);
+    context[drawingKey] = false;
+    context[nodesKey] = context.level[key][0].nodes;
+    context[selectedKey] = 0;
+    const savedNodes = JSON.stringify(context[nodesKey]);
+    context.validateDraft = () => { throw new Error('Invalid outline'); };
+    assert.throws(() => context.transformSelection('discretize'), /Invalid outline/);
+    assert.equal(JSON.stringify(context[nodesKey]), savedNodes, 'failed validation leaves node drafts unchanged');
+    assert.equal(JSON.stringify(context.level), saved);
+    context.validateDraft = candidate => validateCustomLevel(candidate);
+  }
 });
 
 test('the event timeline grows with its contents without changing overlap-dialog scrolling', () => {
@@ -471,6 +655,11 @@ test('the event timeline defaults to Time Plot while keeping Detailed available'
 });
 
 test('new levels reset Dynamic View only after confirming unsaved changes', () => {
+  const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+  const library = html.match(/<section class="editor-panel" aria-label="Level library">([\s\S]*?)<\/section>/)[1];
+  assert.doesNotMatch(library, /data-campaign-label/);
+  assert.match(library, /<button id="new-level" type="button">New level<\/button>\s*<label>Game version/);
+  assert.equal((html.match(/id="new-level"/g) ?? []).length, 1);
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const toggle = { checked: false };
   let create, replacements = 0;

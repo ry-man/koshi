@@ -2379,9 +2379,12 @@ function powerupStreamRows(game) {
 }
 
 function robotDrawOrder(robots) {
+  const isOctopus = enemy => enemy.type === 'robo-octopus-red' || enemy.type === 'robo-octopus-blue';
   const goalies = robots.filter(enemy => enemy.type === 'goalie').sort((a, b) => a.y - b.y);
-  let index = 0;
-  return robots.map(enemy => enemy.type === 'goalie' ? goalies[index++] : enemy);
+  const octopi = robots.filter(isOctopus).sort((a, b) => a.y - b.y);
+  let goalieIndex = 0, octopusIndex = 0;
+  return robots.map(enemy => enemy.type === 'goalie' ? goalies[goalieIndex++]
+    : isOctopus(enemy) ? octopi[octopusIndex++] : enemy);
 }
 
 function turretDomeRotation(turret) {

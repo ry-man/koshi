@@ -1662,12 +1662,31 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
    fading glass chunks. A contained Treasure Chest requires one key as usual.
    Existing campaign levels are unchanged.
    **Discretize X, Y** snaps board placements and marker moves to the visible
-   dots, including spawn templates and arrow-key moves. It defaults to checked;
+   dots, including spawn templates, track/terrain nodes and arrow-key moves.
+   Choose **0.25x**, **0.5x**, **1x** (default), **2x**, **4x** or **8x** grid
+   spacing from the adjacent dropdown. **Full Grid** extends aligned grid lines
+   over the entire board, including its boundary bricks. **Centerlines** under
+   View settings shows thin dotted red axes; enabled axes are additional snap
+   locations, while the coordinate along each axis still snaps to the grid.
+   Discretization defaults to checked;
    uncheck it for free placement. New board placements use the current preview
    time, snapped to the selected time spacing (1 second by default).
    Toggling it does not move existing elements; numeric inspector
-   coordinates and obstruction resizing remain exact. Perimeter enemies still
+   coordinates remain exact. Resizing an unrotated obstruction snaps its frame
+   corners to the grid; rotated obstruction resizing remains exact. Perimeter enemies still
    snap to their required board edge.
+   **Discretize** rounds selected fixed placements or nodes to the current grid;
+   for unrotated obstructions, it snaps all four frame corners instead of the
+   center. Circles retain the closest square grid-aligned frame. Frames remain at
+   least one grid cell wide and high; corners can extend beyond the playable area.
+   It does nothing when discretization is off. **Symmetrize Vert** and
+   **Symmetrize Horiz** translate the selection so its average displayed X or Y
+   is centered, preserving relative spacing without grid rounding. These actions
+   include selected fixed spawning-brick templates. For tracks and terrain,
+   select a node to transform just that node, or select the outline (or use
+   **Select all**) to transform all its nodes. Random placements and boundary
+   brick geometry are unchanged. A symmetry operation that would move a point
+   outside the playable area or a perimeter enemy off its edge is rejected.
 4. **Multiselection** works for any mix of bricks and food/enemy/weapon markers:
    - Drag a selection box on the board (with either tool, or from a brick) to
      select every brick it touches and every marker whose center it contains.

@@ -339,6 +339,23 @@ test('rendering shows only an oval shadow underwater and yellow pixel eyes when 
     && String(op[2]).startsWith('rgba(255, 150, 60')), 'the red octopus telegraphs its shot');
 });
 
+test('overlapping octopi draw from highest to lowest without changing simulation order', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const context = vm.createContext({});
+  vm.runInContext(source.slice(source.indexOf('function robotDrawOrder('), source.indexOf('function render(')), context);
+  const low = { type: 'robo-octopus-red', y: 300 };
+  const high = { type: 'robo-octopus-blue', y: 100 };
+  const middle = { type: 'robo-octopus-red', y: 200 };
+  const mouse = { type: 'mouse', y: 500 };
+  const robots = [low, mouse, high, middle];
+  const original = [...robots];
+  assert.deepEqual(Array.from(context.robotDrawOrder(robots)), [high, mouse, middle, low],
+    'the lowest octopus draws last regardless of color');
+  assert.deepEqual(robots, original, 'simulation order is unchanged');
+  high.y = 400;
+  assert.deepEqual(Array.from(context.robotDrawOrder(robots)), [middle, mouse, low, high], 'order updates as octopi move');
+});
+
 test('octopus rises and dives behind a wavy waterline without squashing', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const operations = [];

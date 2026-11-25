@@ -1397,7 +1397,7 @@ test('resize gestures commit validated dimensions, cancel without altering the d
     renderBoard() {}, render() {}, focusMarker() {},
     markChanged: () => changed++, attempt: action => action(),
   });
-  vm.runInContext(source.slice(source.indexOf('function resizedObstruction('), source.indexOf('function boxBounds(')), context);
+  vm.runInContext(source.slice(source.indexOf('function sourcePlacementBounds('), source.indexOf('function boxBounds(')), context);
   vm.runInContext(source.slice(source.indexOf("board.addEventListener('pointermove'"), source.indexOf("board.addEventListener('keydown'")), context);
   const start = () => context.startGesture({ pointerId: 1, clientX: 200, clientY: 200 }, { type: 'resize', index: 0, handle: 'e' });
   const move = () => listeners.get('pointermove')({ pointerId: 1, clientX: 280, clientY: 200 });
@@ -1413,6 +1413,128 @@ test('resize gestures commit validated dimensions, cancel without altering the d
   assert.equal(context.gesture, null);
   locked = true; start();
   assert.equal(context.gesture, null);
+});
+
+test('unrotated obstruction resizing snaps every frame corner across handles, grid sizes and orientations', () => {
+  const { $, context, source } = editorFixture();
+  let spacing = 18, dimensions;
+  $('#playable-area').clientLeft = $('#playable-area').clientTop = 1;
+  $('#playable-area').getBoundingClientRect = () => dimensions;
+  context.getComputedStyle = () => ({ backgroundSize: `${spacing}px ${spacing}px` });
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function startGesture(')), context);
+  const corners = obstruction => {
+    const bounds = context.sourcePlacementBounds(), geometry = obstructionGeometry(obstruction);
+    return [-1, 1].flatMap(x => [-1, 1].map(y => context.previewGame.campaignEventCoordinates(
+      obstruction.x + x * geometry.width / (2 * (bounds.right - bounds.left)),
+      obstruction.y + y * geometry.height / (2 * (bounds.bottom - bounds.top)))));
+  };
+  const assertOnGrid = obstruction => {
+    for (const corner of corners(obstruction)) {
+      for (const [axis, length] of [['x', dimensions.width], ['y', dimensions.height]]) {
+        const index = (corner[axis] * length - 1 - spacing / 2) / spacing;
+        assert.ok(Math.abs(index - Math.round(index)) < 1e-8, `${obstruction.type} ${axis} corner is on the grid`);
+      }
+    }
+  };
+  for (const portrait of [false, true]) {
+    context.previewGame = new Game(() => .5, { customLevel: blank(), portrait });
+    const b = context.previewGame.bounds(), bounds = context.sourcePlacementBounds();
+    dimensions = { width: (b.right - b.left) * .75, height: (b.bottom - b.top) * .75 };
+    for (spacing of [4.5, 9, 18, 36, 72, 144]) {
+      for (const shape of ['rectangle', 'diamond', 'circle']) {
+        const origin = placement(shape, { x: .38, y: .44, width: 137, height: shape === 'circle' ? 137 : 83 });
+        for (const handle of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
+          const dx = handle.includes('w') ? -31 : 31, dy = handle.includes('n') ? -23 : 23;
+          $('#discretize-xy').checked = false;
+          const raw = context.resizedObstruction(origin, handle, dx, dy, bounds);
+          $('#discretize-xy').checked = true;
+          $('#centerlines').checked = true;
+          const next = context.resizedObstruction(origin, handle, dx, dy, bounds);
+          assertOnGrid(next);
+          assert.ok(next.width >= spacing / .75 - 1e-8 && next.height >= spacing / .75 - 1e-8);
+          if (shape === 'circle') assert.equal(next.width, next.height, 'circles keep a square frame');
+          else {
+            const rawCorners = corners(raw), nextCorners = corners(next);
+            for (const [axis, length] of [['x', dimensions.width], ['y', dimensions.height]]) {
+              const indices = rawCorners.map(corner => Math.round((corner[axis] * length - 1 - spacing / 2) / spacing));
+              if (new Set(indices).size > 1) {
+                nextCorners.forEach((corner, index) => {
+                  assert.ok(Math.abs((corner[axis] * length - 1 - spacing / 2) / spacing - indices[index]) < 1e-8,
+                    'each non-collapsing frame edge uses its nearest grid point');
+                });
+              }
+            }
+          }
+          assert.equal(origin.width, 137, 'gesture origins are never mutated');
+          validateCustomLevel({ ...blank(), events: [next] });
+        }
+      }
+    }
+    for (const rotation of [45, 90, 270]) {
+      const origin = placement('rectangle', { rotation });
+      $('#discretize-xy').checked = false;
+      const unsnapped = context.resizedObstruction(origin, 'se', 31, 23, bounds);
+      $('#discretize-xy').checked = true;
+      assert.deepEqual(context.resizedObstruction(origin, 'se', 31, 23, bounds), unsnapped);
+    }
+    const edge = placement('rectangle', { x: 0, y: 1, width: 200, height: 200 });
+    const snapped = context.snapObstructionFrame(edge, bounds);
+    assertOnGrid(snapped);
+    assert.ok(snapped.x >= 0 && snapped.x <= 1 && snapped.y >= 0 && snapped.y <= 1);
+    assert.ok(corners(snapped).some(corner => corner.x < 0 || corner.y < 0 || corner.x > 1 || corner.y > 1),
+      'frame corners may extend into the boundary bricks without shrinking the obstruction to the playable area');
+  }
+});
+
+test('Discretize snaps unrotated obstruction frames, chooses the closest square for circles, and keeps rotated sizes', () => {
+  const { $, context, source } = editorFixture();
+  const game = new Game(() => .5, { customLevel: blank() }), b = game.bounds();
+  const bounds = { left: 0, right: b.right - b.left, top: 0, bottom: b.bottom - b.top };
+  context.previewGame = game;
+  context.activeCategory = 'object';
+  context.getComputedStyle = () => ({ backgroundSize: '18px 18px' });
+  Object.assign($('#playable-area'), { clientLeft: 1, clientTop: 1,
+    getBoundingClientRect: () => ({ width: bounds.right, height: bounds.bottom }) });
+  Object.assign(context, {
+    pausePreview() {}, renderBoard() {},
+    spawnTemplates: () => [{ spawnKey: 'test-spawner', event: placement('diamond', { width: 127, height: 81 }) }],
+    updateSpawnTemplateDraft: (key, spawn, draft) => { draft.snappedSpawn = spawn; },
+    validateDraft: candidate => { validateCustomLevel(candidate); return candidate; },
+  });
+  vm.runInContext(source.slice(source.indexOf('function selectedPlacementTargets('), source.indexOf('function relativeTimelineLayout(')), context);
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function startGesture(')), context);
+  $('#discretize-xy').checked = true;
+  const circleCenter = context.placementPosition(.4, .4);
+  const events = [
+    placement('rectangle', { x: .23, y: .31, width: 127, height: 81 }),
+    placement('rectangle', { x: .23, y: .31, width: 127, height: 81, rotation: 45 }),
+    placement('circle', { ...circleCenter, width: 21.6, height: 21.6 }),
+  ];
+  context.level = { ...blank(), events };
+  context.selectedEvents = new Set([0, 1, 2]);
+  context.selectedBricks = new Set(['test-spawner']);
+  const before = JSON.stringify(context.level);
+  $('#discretize-xy').checked = false;
+  context.transformSelection('discretize');
+  assert.equal(JSON.stringify(context.level), before);
+  $('#discretize-xy').checked = true;
+  context.transformSelection('discretize');
+  const gridCoordinate = (value, length) => (value * length - 10) / 18;
+  for (const frame of [context.level.events[0], context.level.events[2], context.level.snappedSpawn]) {
+    const geometry = obstructionGeometry(frame);
+    for (const [axis, size, length] of [['x', geometry.width, bounds.right], ['y', geometry.height, bounds.bottom]]) {
+      for (const sign of [-1, 1]) {
+        const index = gridCoordinate(frame[axis] + sign * size / (2 * length), length);
+        assert.ok(Math.abs(index - Math.round(index)) < 1e-10);
+      }
+    }
+  }
+  assert.equal(context.level.events[1].width, events[1].width);
+  assert.equal(context.level.events[1].height, events[1].height);
+  assert.equal(context.level.events[1].rotation, 45);
+  assert.equal(context.level.events[1].x, context.placementPosition(events[1].x, events[1].y).x);
+  assert.equal(context.level.events[2].width, 36, 'a circle centered on a grid point fits closest in a two-cell square, not a one-cell square');
+  assert.equal(context.level.events[2].height, 36);
 });
 
 test('editor placement and multiselection preserve independent obstruction texture fields', () => {

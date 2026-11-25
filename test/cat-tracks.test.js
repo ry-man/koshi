@@ -300,10 +300,12 @@ test('editor authors, attaches, detaches and deletes tracks transactionally, pre
     activeCategory: 'tracks', previewGame: { width: 960, height: 600, catTracks: [], terrains: [] },
     document: { createElement: () => ({}) },
     readOnly: () => locked, selectedList: () => [0], validateDraft: validateCustomLevel,
+    plural: (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`,
     attempt: action => { try { action(); } catch (error) { errors.push(error.message); } },
     markChanged() {}, render() {}, renderBoard() {}, populateEventForm() {}, message() {},
   });
   vm.runInContext(source.slice(source.indexOf('function populateTrackForm('), source.indexOf('function focusMarker(')), context);
+  vm.runInContext(source.slice(source.indexOf('function selectedPlacementTargets('), source.indexOf('function relativeTimelineLayout(')), context);
   vm.runInContext(source.slice(source.indexOf('function choose('), source.indexOf('function selectAll(')), context);
   context.populateTrackForm();
   context.trackDrawNodes = track().nodes;
