@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionVertices, obstructionSpikes, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
+const { Game, LEVELS, FOODS, ITEMS, OBJECTS, WEAPONS, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, COOLDOWNS, SLIMES, SHIELDS, CHARACTERS, PORTALS, CONTACT_SURFACES, OBSTRUCTION_SIZES, obstructionGeometry, obstructionVertices, obstructionSpikes, obstructionPresetGeometry, portalPairIssues, validateCustomLevel, snapWheel, makeBricks, matchingBricks, brickRegions, brickEditRegions, brickShape, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { catBlockObjective } = globalThis.KoshiGame;
 const { INFO_GRAPHICS } = globalThis.KoshiGame;
 const { isBossType } = globalThis.KoshiGame;
@@ -3904,6 +3904,45 @@ $('#settings-form').addEventListener('submit', event => {
   event.preventDefault();
   applyLevelSettings();
 });
+function resizeBrickGroups(length) {
+  if (!Number.isInteger(length) || length < 8 || length > 1000) {
+    throw new TypeError('Autoscroll length must be a whole brick count between 8 and 1000.');
+  }
+  const bricks = makeBricks(false, 1, length);
+  const used = new Set(), overrides = [];
+  const regions = brickEditRegions(bricks);
+  const mapRegion = region => matchingBricks(bricks, region, regions);
+  const groups = level.brickGroups.map(group => {
+    const mapped = new Set();
+    for (const id of group.members) {
+      for (const brick of mapRegion(previewGame.bricks[id].region)) mapped.add(brick.id);
+    }
+    if (mapped.size < 2 || [...mapped].some(id => used.has(id))) {
+      throw new TypeError('This board length would collapse or overlap combined bricks. Choose a longer length or split the affected bricks first.');
+    }
+    for (const id of mapped) used.add(id);
+    const ownerBrick = previewGame.bricks[group.owner];
+    const owner = mapRegion(ownerBrick.region)[0].id;
+    const members = [...mapped];
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+      const edgeBricks = bricks.filter(brick => brick.region.edge === edge)
+        .sort((a, b) => a.region.start - b.region.start);
+      let start = null;
+      for (let i = 0; i <= edgeBricks.length; i++) {
+        if (i < edgeBricks.length && mapped.has(edgeBricks[i].id)) {
+          if (start === null) start = i;
+        } else if (start !== null) {
+          const region = { edge, start: edgeBricks[start].region.start, end: edgeBricks[i - 1].region.end };
+          overrides.push({ ...brickEntry(ownerBrick, region), barrier: Boolean(ownerBrick.barrier) });
+          start = null;
+        }
+      }
+    }
+    return { owner, members };
+  });
+  const brickTypes = (level.brickTypes ?? []).filter(entry => !mapRegion(entry).every(brick => used.has(brick.id)));
+  return { brickGroups: groups, brickTypes: [...brickTypes, ...overrides] };
+}
 function applyLevelSettings() {
   if (readOnly()) return;
   attempt(() => {
@@ -3913,11 +3952,10 @@ function applyLevelSettings() {
       throw new TypeError('Level settings contain an invalid value. Correct the highlighted field to apply your changes.');
     }
     const length = $('#autoscroll-enabled').checked ? Number($('#scroll-length').value) : 8;
-    if (length !== (level.autoscroll?.length ?? 8) && level.brickGroups?.length) {
-      throw new TypeError('Split combined bricks before changing the board length.');
-    }
+    const lengthChanged = length !== (level.autoscroll?.length ?? 8);
     const candidate = validateDraft({
-      ...level, id: $('#level-name').value, duration: Number($('#duration').value),
+      ...level, ...(lengthChanged && level.brickGroups?.length ? resizeBrickGroups(length) : {}),
+      id: $('#level-name').value, duration: Number($('#duration').value),
       autoscroll: $('#autoscroll-enabled').checked ? {
         length, speed: Number($('#scroll-speed').value), events: level.autoscroll?.events ?? [],
       } : undefined,
@@ -3943,7 +3981,9 @@ function applyLevelSettings() {
         powerOn: $('#power-start').value === 'on',
       } : {}),
     });
-    level = candidate; markChanged(); populateSettings(); render(); message('Level settings applied.');
+    level = candidate;
+    if (lengthChanged) { selectedBricks.clear(); connectingSpawn = null; }
+    markChanged(); populateSettings(); render(); message('Level settings applied.');
   });
 }
 function populateSettings() {

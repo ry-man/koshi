@@ -278,15 +278,19 @@ function goalTiles(members) {
   return tiles.length < members.length ? goalTiles(tiles) : tiles;
 }
 
+function matchingBricks(bricks, entry, regions = brickEditRegions(bricks)) {
+  const edgeBricks = bricks.filter(brick => regions.get(brick.id).edge === entry.edge);
+  const center = brick => (regions.get(brick.id).start + regions.get(brick.id).end) / 2;
+  const matching = edgeBricks.filter(brick => center(brick) >= entry.start && center(brick) < entry.end);
+  if (!matching.length) matching.push(edgeBricks.reduce((best, brick) =>
+    Math.abs(center(brick) - (entry.start + entry.end) / 2) < Math.abs(center(best) - (entry.start + entry.end) / 2) ? brick : best));
+  return matching;
+}
+
 function applyBrickTypes(bricks, entries = []) {
   const regions = brickEditRegions(bricks);
   for (const entry of entries) {
-    const edgeBricks = bricks.filter(brick => regions.get(brick.id).edge === entry.edge);
-    const center = brick => (regions.get(brick.id).start + regions.get(brick.id).end) / 2;
-    const matching = edgeBricks.filter(brick => center(brick) >= entry.start && center(brick) < entry.end);
-    if (!matching.length) matching.push(edgeBricks.reduce((best, brick) =>
-      Math.abs(center(brick) - (entry.start + entry.end) / 2) < Math.abs(center(best) - (entry.start + entry.end) / 2) ? brick : best));
-    for (const brick of matching) {
+    for (const brick of matchingBricks(bricks, entry, regions)) {
       brick.kind = entry.kind;
       brick.goalTeam = entry.kind === 'goal' ? entry.goalTeam ?? null : null;
       if (['cinder', 'goal'].includes(brick.kind)) {
@@ -10821,7 +10825,7 @@ class Game {
 }
 
 // Classic scripts work over file:// as well as HTTP; Node uses the same engine.
-const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, SHARPSHOOTER_BOW, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
+const api = { Game, Cutscene, cameraAt, boardDimensions, CHARACTERS, SCENE_THEMES, SCENE_ACCESSORIES, SCENE_ACCESSORY_GROUPS, validateCutscene, INFO_GRAPHICS, validateLevelInfo, levelObjective, WIDTH, HEIGHT, DURATION, GOAL, SPEED, CONVEYOR_SPEED, SPAWN_SPACING, SOCCER_FRICTION, COW_SPEED, COW_EAT_DURATION, SHARPSHOOTER_BOW, OBSTRUCTION_RADIUS, OBSTRUCTION_PATTERNS, OBSTRUCTION_PRESETS, OBSTRUCTION_SIZES, obstructionGeometry, obstructionPresetGeometry, obstructionVertices, obstructionSurface, obstructionSpikes, COOLDOWNS, SLIMES, SHIELDS, CAT_SHIELDS, FOODS, ITEMS, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, catBlockDescription, catBlockObjective, OBJECTS, SCHEDULE, LEVEL_DATA, LEVELS, SWORDS, HAMMERS, AXES, WEAPONS, PORTALS, CONTACT_SURFACES, brickEnabled, goalTiles, portalPairIssues, makeBricks, matchingBricks, brickContact, validateCustomLevel, snapWheel, turretGeometry, middleBrickInGroup, brickPerimeter, brickRegions, brickEditRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor };
 api.HAZARDS = HAZARDS;
 api.CAT_LADY_POINTER = CAT_LADY_POINTER;
 api.ROPE_DARTS = ROPE_DARTS;

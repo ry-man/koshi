@@ -1354,7 +1354,10 @@ JSON stores this optional setting as
 `"autoscroll": { "length": 24, "speed": 0.25, "events": [{ "time": 10, "speed": 0 }, { "time": 15, "speed": 0.5 }] }`.
 Omit `autoscroll` for a traditional level. Placements use normalized coordinates
 over the entire board, not the camera. Changing board length changes those
-relative positions; split combined bricks before changing length.
+relative positions. Combined bricks are remapped to the same relative edge
+regions and keep their owner's attributes. Shortening can be blocked if a
+group would collapse to one brick or overlap another group; choose a longer
+length or split the affected groups first.
 
 For fixed placements, choose **Appearance trigger: Screen crossing** in the
 object inspector and enter **Center crossed screen (%)**. At 0% the placed

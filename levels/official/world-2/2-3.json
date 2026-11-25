@@ -132,7 +132,7 @@
       "shield": null
     },
     {
-      "time": 45,
+      "time": 40,
       "kind": "item",
       "type": "battery",
       "x": 0.7174006510656593,
@@ -201,7 +201,7 @@
       "lifetime": 12
     },
     {
-      "time": 60,
+      "time": 55,
       "kind": "item",
       "type": "battery",
       "x": 0.9827406178981635,

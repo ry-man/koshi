@@ -11,7 +11,7 @@
       "kind": "object",
       "type": "obstruction-octagon",
       "x": 0.5051286775996561,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "color": "#fde68a",
       "patternColor": "#a58b73",
       "pattern": "polka-dots",
@@ -23,7 +23,7 @@
       "kind": "enemy",
       "type": "robo-crab",
       "x": 0.7350899821878263,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "shield": null,
       "crabDirection": "vertical"
     },
@@ -32,7 +32,7 @@
       "kind": "enemy",
       "type": "robo-crab",
       "x": 0.8942939622873288,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "shield": null,
       "crabDirection": "vertical"
     },
@@ -41,7 +41,7 @@
       "kind": "enemy",
       "type": "robo-crab",
       "x": 0.2751673730114858,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "shield": null,
       "crabDirection": "vertical"
     },
@@ -50,7 +50,7 @@
       "kind": "enemy",
       "type": "robo-crab",
       "x": 0.09827406178981635,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "shield": null,
       "crabDirection": "vertical"
     },
@@ -118,7 +118,7 @@
       "kind": "object",
       "type": "obstruction-circle",
       "x": 0.8058473066764941,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "color": "#fde68a",
       "patternColor": "#a58b73",
       "pattern": "polka-dots",
@@ -130,7 +130,7 @@
       "kind": "object",
       "type": "obstruction-circle",
       "x": 0.18672071740065108,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "color": "#fde68a",
       "patternColor": "#a58b73",
       "pattern": "polka-dots",
@@ -142,7 +142,7 @@
       "kind": "food",
       "type": "P",
       "x": 0.5051286775996561,
-      "y": 0.46671120017813406,
+      "y": 0.49999999999999994,
       "group": {
         "shape": "circle",
         "count": 8,
@@ -302,7 +302,7 @@
     "pages": [
       {
         "title": "Robo Crabs",
-        "text": "Robo Crabs only move either vertically or horizontally, but they do change their speed. Watch their eyes as it will telegraph when they are about to speed up!",
+        "text": "Robo Crabs only move either vertically or horizontally, but they do change their speed. Watch their mouths as it will telegraph when they are about to speed up!",
         "graphics": [
           "enemy:robo-crab"
         ]
