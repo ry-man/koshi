@@ -69,6 +69,8 @@ const SYMBOLS = {
   boss: 'M-23 20 V-7 Q-23 -23 -7 -23 H7 Q23 -23 23 -7 V20 Z M-17 -10 H-5 V-3 H-17 Z M5 -10 H17 V-3 H5 Z M-15 10 H15 M24 -6 V15 M22 5 H28 V10 H22 M-15 -19 H15',
   'tom-frog': 'M-27 23 V-18 L-20 -21 L-14 -10 H-11 V-17 H-3 V-11 H5 V-17 H13 V-10 H18 L24 -24 H28 V23 H20 V-4 L17 16 Q0 25 -17 16 L-20 -4 V23 Z M-10 -14 H-4 V-10 H-10 Z M6 -14 H12 V-10 H6 Z M-8 7 V3 H9 V7 M-14 3 V14 H-9 M14 3 V14 H9',
   'robo-unicorn': 'M-20 27 C-3 15 -12 4 -17 -7 C-27 -26 -8 -31 8 -21 C16 -16 15 -7 24 1 C35 10 25 21 17 15 C11 9 8 8 4 12 C2 20 -8 27 -20 27 Z M-9 -18 Q-18 -23 -10 -36 Q1 -28 -1 -20 Z M5 -21 L24 -40 L13 -16 Z M1 -14 Q7 -19 12 -12 Q7 -6 2 -9 Z M18 10 H27 V15 H18 Z',
+  'robo-octopus-red': 'M-24 8 Q-26 -20 0 -26 Q26 -20 24 8 Q21 16 15 9 Q12 20 6 10 Q0 19 -6 10 Q-12 20 -15 9 Q-21 16 -24 8 Z M-8 -25 L-13 -34 M8 -25 L13 -34 M-10 -36 A3 3 0 1 1 -16 -36 A3 3 0 1 1 -10 -36 M16 -36 A3 3 0 1 1 10 -36 A3 3 0 1 1 16 -36 M-16 -14 H-4 V-4 H-16 Z M4 -14 H16 V-4 H4 Z M-12 -14 V-4 M-8 -14 V-4 M8 -14 V-4 M12 -14 V-4 M-16 -9 H-4 M4 -9 H16 M3.5 4 A3.5 3.5 0 1 1 -3.5 4 A3.5 3.5 0 1 1 3.5 4',
+  'robo-octopus-blue': 'M-24 8 Q-26 -20 0 -26 Q26 -20 24 8 Q21 16 15 9 Q12 20 6 10 Q0 19 -6 10 Q-12 20 -15 9 Q-21 16 -24 8 Z M-8 -25 L-13 -34 M8 -25 L13 -34 M-10 -36 A3 3 0 1 1 -16 -36 A3 3 0 1 1 -10 -36 M16 -36 A3 3 0 1 1 10 -36 A3 3 0 1 1 16 -36 M-16 -14 H-4 V-4 H-16 Z M4 -14 H16 V-4 H4 Z M-12 -14 V-4 M-8 -14 V-4 M8 -14 V-4 M12 -14 V-4 M-16 -9 H-4 M4 -9 H16 M3.5 4 A3.5 3.5 0 1 1 -3.5 4 A3.5 3.5 0 1 1 3.5 4',
   'bubble-blue': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
   'bubble-green': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
   'bubble-red': 'M0 -22 A22 22 0 1 1 0 22 A22 22 0 1 1 0 -22 M-11 -15 Q-19 -8 -16 0 M-5 -18 L-2 -17',
@@ -402,6 +404,7 @@ function spawnColor(spawn) {
   if (spawn.kind === 'heart') return '#e47990';
   if (spawn.kind === 'enemy') return spawn.type === 'robo-koshi' ? '#454d52' : spawn.type === 'robo-fly' ? '#82989b' : ['ball', 'jackolantern'].includes(spawn.type) ? '#ed852e'
     : spawn.type === 'tom-frog' ? '#879779' : spawn.type === 'robo-snail' ? '#76b85a' : spawn.type === 'robo-trash-bin' ? '#008459' : spawn.type === 'robo-moon' ? '#9855cf' : spawn.type === 'robo-cow' ? '#9451bd' : spawn.type === 'robo-crab' ? '#929ba1'
+      : spawn.type === 'robo-octopus-red' ? '#d64f43' : spawn.type === 'robo-octopus-blue' ? '#4f86d6'
       : spawn.type === 'robo-love-bug' ? '#f29ac2' : spawn.type === 'robo-unicorn' ? '#ef9dca' : ['goalie', 'striker'].includes(spawn.type) ? '#27a6b0' : spawn.type === 'snake' ? '#bbc5ca' : spawn.type === 'bucket' ? '#c9bd76' : '#a3b3c2';
   if (spawn.kind === 'item') return ITEMS[spawn.type].color;
   if (spawn.kind === 'object') return spawn.color ?? OBJECTS[spawn.type].color;

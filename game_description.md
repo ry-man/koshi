@@ -841,6 +841,29 @@ and an expanding puff of smoke fades over 1.5 seconds. Custom placements,
 enemy spawners, editor graphics, guide, tutorial practice and cutscenes support
 it; existing campaign content remains unchanged.
 
+**Robo Octopus** (`robo-octopus-red`, `robo-octopus-blue`) is a robot octopus
+that lives only in water terrain, so levels that place or spawn one must have a
+water terrain region, and fixed placements and spawn points must lie inside
+one. Both varieties share a dome-shaped body with two antennae, wavy tentacles,
+a small round mouth and yellow pixelated eyes; the red variety has a red body
+and the blue one a blue body. It only moves while underwater, where it is
+visible as just a small oval shadow drifting inside the water: there it cannot
+hurt Koshi and nothing — weapons, Boost, turrets, rope darts or explosions —
+can hurt it. It favors the water's interior when there is room, but can still
+swim and surface in narrow regions. After swimming for a few seconds it pops up
+out of the water and stays still while it shoots once at Koshi. The red octopus fires a single slow
+red fireball (95 game units/second) that travels until it hits an obstruction,
+a brick, or Koshi himself, costing one heart; barriers and bumpers do not stop
+it. The blue octopus fires one ordinary bubble of random color (green, red or
+blue) that behaves exactly like existing bubbles, and holds its shot while
+Koshi is already trapped in a bubble. After shooting, the octopus pauses for
+2 seconds, then dives back underwater and swims again. While surfaced it can
+be killed by weapons and Boost and its touch hurts, but reaching it over open
+water is much harder without a Surf Board. Music Box freezes it in place;
+Spooky Mask sends a surfaced octopus diving and keeps it underwater while the
+fear lasts. Custom placements, enemy spawners, editor graphics, guide and
+tutorial practice support it; existing campaign content remains unchanged.
+
 **Robo Snail** (`robo-snail`) wanders continuously at 85 game units/second,
 slightly faster than Robo Mouse, without the Mouse's resting pauses. Its green
 body has two robotic antennae ending in red square eyes and a rigid frown, with

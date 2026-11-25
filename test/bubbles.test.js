@@ -62,6 +62,68 @@ test('bubble confinement does not disable sword damage or enemy contact damage',
     x: victim.cat.x, y: victim.cat.y, age: 0, transition: .18, duration: SLIMES.red.duration };
   victim.combat(.01, victim.cat.x, victim.cat.y);
   assert.equal(victim.hearts, 2, 'enemies can still hurt Koshi inside a bubble');
+  assert.equal(victim.bubbleTrap, null);
+  assert.deepEqual(victim.bubblePops, [{ x: victim.cat.x, y: victim.cat.y, color: 'red', age: 0 }]);
+});
+
+test('a projectile hit pops a bubble during capture without moving Koshi', () => {
+  const game = arena();
+  const { cat } = game;
+  game.bubbleTrap = { color: 'blue', fromX: cat.x, fromY: cat.y,
+    x: cat.x + 20, y: cat.y + 10, age: 0, transition: .18, duration: SLIMES.blue.duration };
+  game.updateBubbleTrap(.09);
+  const x = cat.x, y = cat.y;
+  game.octopusFireballs = [{ x: x - 50, y, vx: 95, vy: 0, radius: 8, age: 0 }];
+  game.updateHazardDamage(1, [], x, y);
+  assert.equal(game.hearts, 2);
+  assert.equal(game.bubbleTrap, null);
+  assert.deepEqual({ x: cat.x, y: cat.y }, { x, y });
+  assert.deepEqual(game.bubblePops, [{ x, y, color: 'blue', age: 0 }]);
+  game.updateBubbleTrap(10);
+  assert.equal(game.bubblePops.length, 1, 'a popped bubble cannot pop again');
+});
+
+test('enemy contact releases Koshi during a normal game update', () => {
+  const game = arena();
+  const { cat } = game;
+  game.bubbleTrap = { color: 'red', fromX: cat.x, fromY: cat.y, x: cat.x, y: cat.y,
+    age: 0, transition: .18, duration: SLIMES.red.duration };
+  game.robots.push(game.createCustomSpawn({ kind: 'enemy', type: 'mouse', x: .5, y: .5 })[0]);
+  game.update(.01);
+  assert.equal(game.hearts, 2);
+  assert.equal(game.bubbleTrap, null);
+  assert.equal(game.bubblePops.length, 1);
+  game.update(.01);
+  assert.equal(game.bubblePops.length, 1);
+});
+
+test('hits pop bubbles even when a shield or invulnerability prevents heart damage', () => {
+  for (const protection of ['shield', 'invulnerable']) {
+    const game = arena();
+    const { cat } = game;
+    game.bubbleTrap = { color: 'green', fromX: cat.x, fromY: cat.y, x: cat.x, y: cat.y,
+      age: 0, transition: .18, duration: SLIMES.green.duration };
+    if (protection === 'shield') game.catShield = 'red';
+    else game.invulnerableUntil = game.elapsed + 1;
+    game.octopusFireballs = [{ x: cat.x - 50, y: cat.y, vx: 95, vy: 0, radius: 8, age: 0 }];
+    game.updateHazardDamage(1, [], cat.x, cat.y);
+    assert.equal(game.hearts, 3);
+    assert.equal(game.bubbleTrap, null, `${protection} does not protect the bubble`);
+    assert.deepEqual(game.bubblePops, [{ x: cat.x, y: cat.y, color: 'green', age: 0 }]);
+    if (protection === 'shield') assert.equal(game.catShield, null);
+  }
+});
+
+test('a crushing obstruction pops a bubble on a lethal hit', () => {
+  const game = arena();
+  const { cat } = game;
+  game.bubbleTrap = { color: 'red', fromX: cat.x, fromY: cat.y, x: cat.x, y: cat.y,
+    age: 0, transition: .18, duration: SLIMES.red.duration };
+  const obstruction = game.createObstruction({ x: cat.x, y: cat.y }, { type: 'obstruction-circle' });
+  game.clearAppearingObstruction(obstruction);
+  assert.equal(game.state, 'lost');
+  assert.equal(game.bubbleTrap, null);
+  assert.deepEqual(game.bubblePops, [{ x: cat.x, y: cat.y, color: 'red', age: 0 }]);
 });
 
 test('each bubble pops once at release, freezes on pause, and clears on restart', () => {

@@ -154,6 +154,7 @@ const GUIDE = [
       ['Robo Sharpshooter', 'A grey robot in pink clothes with dark pink-tinted sunglasses and a crossbow. He wanders generally away from Koshi, pauses, and his glasses glimmer for one second before he fires three arrows. Each arrow aims at Koshi when fired, with a little variation. Arrows hurt Koshi and stop at bricks, barriers, obstructions and bumpers. Sleep pauses the robot; fear interrupts its attack while it flees. Defeat makes him frown, lose his glasses, split and explode. Available in custom levels and enemy spawners.', 'enemy:robo-sharpshooter'],
       ['Robo Cat Lady', 'A grey robot with blocky blue hair, red square glasses and a navy laser pointer. She wanders slowly, then stops to aim for three seconds. When a red star appears at the end of the dotted line, Koshi steers toward it without using a brick activation. Brick inputs cannot redirect him while the laser is active. The laser ends if he stops, its owner is defeated, or a different Cat Lady takes over with another shot. She aims at random half the time; otherwise she aims toward a spiked or slimed brick, a stationary bubble or another enemy, if present. Available in custom levels and enemy spawners.', 'enemy:robo-cat-lady'],
       ['Robo Crab', 'A grey robot with red arms and pincers and blinking green pixel eyes. Each crab shuffles back and forth horizontally or vertically, alternating between 45 and 150 board units per second. Each speed lasts a random 3 to 15 seconds; a wide-open mouth warns during the final 0.65 seconds before either change. Defeat it with a sword or Boost: its eyes and pincers fly off, it opens a big frown, and a smoke puff fades away. Sleep and fear work normally. Available in custom levels and enemy spawners.', 'enemy:robo-crab'],
+      ['Robo Octopus', 'A robot octopus that lives only in water terrain, in red and blue varieties that both have yellow pixelated eyes. While it swims underwater only a small oval shadow is visible, and it can neither hurt Koshi nor be hurt. It pops out of the water and stays still to shoot once at Koshi: the red octopus fires a slow fireball that stops only at a brick, an obstruction or Koshi; the blue octopus fires one ordinary bubble of random color. After shooting it pauses for 2 seconds, then dives back underwater. Weapons and Boost defeat it while surfaced — much easier to reach with a Surf Board. Sleep freezes it; fear keeps it hiding underwater. Available in custom levels and enemy spawners.', ['enemy:robo-octopus-red', 'enemy:robo-octopus-blue']],
       ['Robo Love Bug', 'Pink wings form a purple heart beneath a dark grey head with square red eyes, dark red legs and antennae. Love Bugs shuffle and bounce like Robo Balls at 120 board units per second. Swords, hammers, Boost and turret attacks cannot damage them or their shields, but explosive soccer balls can. Alternatively, isolate them with Barrier fences: a lone visible Love Bug, or the only bug in a closed barrier region, dies automatically. An open route around a fence still connects companions; other enemy types and spawn previews do not count. Its eyes swell with blue tears, then its head and two wings split apart before a Wheel-style explosion. Sleep and fear affect movement but do not prevent isolation. Available in custom levels, spawners and barrier practice.', 'enemy:robo-love-bug'],
       ['Robo Cow', 'The Cow walks only along the board perimeter. After walking past several brick lengths, it stops to eat a boundary brick; after five seconds, that brick and its merged group become Cinder. Cinder and Goal bricks cannot be eaten. A Spooky Mask cancels eating and makes it flee. It can be defeated with a sword or Boost.', 'enemy:robo-cow'],
       ['Robo Unicorn', 'The Unicorn pauses to aim, then charges toward the nearest food and eats it. With no food left, it turns red and moves faster. Protect your food and use a sword or Boost to defeat it.', 'enemy:robo-unicorn'],
@@ -220,6 +221,8 @@ const LESSONS = [
   { id: 'robo-moon', title: 'Robo Moon', instruction: 'Collect a sword and defeat Robo Moon. Keep clear of the purple water when it becomes a glowing full moon.' },
   { id: 'robo-sharpshooter', title: 'Robo Sharpshooter', instruction: 'Collect a sword and intercept the Sharpshooter. Watch for his glimmering glasses, then dodge his three aimed arrows.' },
   { id: 'robo-crab', title: 'Robo Crab', instruction: 'Collect a sword and intercept the shuffling Crab. Its wide-open mouth warns before switching between slow and fast patrols.' },
+  { id: 'robo-octopus-red', title: 'Red Robo Octopus', instruction: 'Collect the Surf Board and a sword, then strike the Red Robo Octopus while it floats on the surface to shoot fireballs. Underwater it is only a harmless shadow.' },
+  { id: 'robo-octopus-blue', title: 'Blue Robo Octopus', instruction: 'Collect the Surf Board and a sword, then strike the Blue Robo Octopus while it floats on the surface to shoot bubbles. Underwater it is only a harmless shadow.' },
   { id: 'robo-love-bug', title: 'Robo Love Bug', instruction: 'Select the outlined Barrier brick and let its fence cross the arena. Separate the two Love Bugs: attacks cannot defeat them, but each dies when isolated.' },
   { id: 'robo-cow', title: 'Robo Cow', instruction: 'Collect a sword and intercept the Cow on the perimeter. If left alone, it eats a boundary brick and turns it into Cinder after five seconds.' },
   { id: 'robo-unicorn', title: 'Robo Unicorn', instruction: 'Collect a sword and intercept the Unicorn. It aims at and eats food; with no food left it turns red and speeds up.' },
@@ -540,6 +543,22 @@ class Tutorial {
         { x: right, y: start.y + 60 }, { x: left, y: start.y + 60 }];
       game.terrains.push({ id: 'skate-ice', type: 'ice', path: { nodes } });
     }
+    if (id === 'robo-octopus-red' || id === 'robo-octopus-blue') {
+      addSword();
+      addItem('surf-board-blue', .32);
+      const left = along(.45).x, right = along(.95).x;
+      const nodes = [{ x: left, y: start.y - 55 }, { x: right, y: start.y - 55 },
+        { x: right, y: start.y + 55 }, { x: left, y: start.y + 55 }];
+      game.terrains.push({ id: 'octopus-water', type: 'water', path: { nodes } });
+      const bounds = game.bounds(), point = along(.8);
+      const enemy = game.createCustomSpawn({ kind: 'enemy', type: id,
+        x: (point.x - bounds.left) / (bounds.right - bounds.left),
+        y: (point.y - bounds.top) / (bounds.bottom - bounds.top) })[0];
+      // Keep it surfaced long enough to practice the strike.
+      enemy.octopusState = 'pause';
+      enemy.octopusTime = -10;
+      game.robots.push(enemy);
+    }
     if (id === 'magic-sunglasses') {
       game.items.push(game.createCollectible(0, id, null, { x: game.cat.x - 50, y: game.cat.y }));
     }
@@ -622,6 +641,8 @@ class Tutorial {
       'robo-sharpshooter': game.enemies >= 1,
       'robo-cat-lady': game.enemies >= 1,
       'robo-crab': game.enemies >= 1,
+      'robo-octopus-red': game.enemies >= 1,
+      'robo-octopus-blue': game.enemies >= 1,
       'robo-love-bug': game.enemies >= 2,
       'robo-cow': game.enemies >= 1,
       'robo-unicorn': game.enemies >= 1,

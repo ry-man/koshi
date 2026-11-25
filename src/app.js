@@ -4,7 +4,7 @@
 const { Game, LEVELS, CHARACTERS, WEAPONS, ITEMS, CAT_SHIELDS, CAT_BLOCK_MESSAGES, OBJECTS, COOLDOWNS, SLIMES, SHIELDS, FOODS, CONVEYOR_SPEED, COW_EAT_DURATION, brickEnabled, validateCustomLevel, levelObjective, brickRegions, brickShape, brickRecharge, brickSlime, brickSpring, brickSpikes, brickConveyor } = globalThis.KoshiGame;
 const { isBossType, SHARPSHOOTER_BOW, CAT_LADY_POINTER } = globalThis.KoshiGame;
 const { drawRoboCatLady, drawRoboCatLadyDeath } = globalThis.KoshiBrickVisuals;
-const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash, drawSurfBoard, drawIceSkate, drawWaterSplash } = globalThis.KoshiBrickVisuals;
+const { decorateBrick, updateBrick, exposePortalCloud, exposeBrickInfo, specialLabel, drawBoost, traceSawBlade, drawBarrier, drawCatCircle, drawSoccerBall, drawItemCase, drawGlassBreak, drawBumper, drawFlameHazard, drawObstruction, drawObstructionDestruction, drawGoal, drawPaintbrush, drawPaintSplash, drawSurfBoard, drawIceSkate, drawWaterSplash, terrainPathData } = globalThis.KoshiBrickVisuals;
 const { GUIDE, LESSONS, Tutorial } = globalThis.KoshiLearning;
 const { SaveSlots, levelStats } = globalThis.KoshiSaves;
 const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = globalThis.KoshiCollectibles;
@@ -1740,7 +1740,7 @@ function selectTutorial(index) {
   document.querySelector('#tutorial-prev').disabled = index === 0;
   document.querySelector('#tutorial-next').textContent = index === LESSONS.length - 1 ? 'Finish tutorial' : 'Next';
   document.querySelector('#tutorial-sword-label').hidden = ![
-    'mouse', 'wheel', 'goalie', 'striker', 'robo-snail', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'robo-crab', 'robo-cow', 'robo-unicorn', 'robo-koshi',
+    'mouse', 'wheel', 'goalie', 'striker', 'robo-snail', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'robo-crab', 'robo-octopus-red', 'robo-octopus-blue', 'robo-cow', 'robo-unicorn', 'robo-koshi',
     'ram', 'bucket', 'ball', 'jackolantern', 'snake', 'objectives', 'anvil',
   ].includes(tutorial.lesson.id);
   makeBrickButtons();
@@ -2524,6 +2524,23 @@ function drawHazards(context, camera = null) {
     context.lineTo(-18, 4); context.closePath(); context.fill();
     context.restore();
   }
+  for (const fireball of game.octopusFireballs ?? []) {
+    if (camera && !cameraBoundsVisible(camera, fireball.x, fireball.y, 0, 0, 24)) continue;
+    context.save(); context.translate(fireball.x, fireball.y);
+    context.rotate(Math.atan2(fireball.vy, fireball.vx));
+    const flicker = 1 + Math.sin(game.elapsed * 30 + fireball.x) * .12;
+    context.shadowColor = '#ff5324'; context.shadowBlur = 14;
+    context.fillStyle = '#ff8c42';
+    context.beginPath(); context.moveTo(2, -6 * flicker);
+    context.quadraticCurveTo(-16 * flicker, 0, 2, 6 * flicker);
+    context.closePath(); context.fill();
+    context.fillStyle = '#e63c1e';
+    context.beginPath(); context.arc(2, 0, 8, 0, Math.PI * 2); context.fill();
+    context.shadowBlur = 0;
+    context.fillStyle = '#ffd8a8';
+    context.beginPath(); context.arc(3.5, 0, 4, 0, Math.PI * 2); context.fill();
+    context.restore();
+  }
   const visible = (x, y, w = 0, h = 0, margin = 32) => !camera || cameraBoundsVisible(camera, x, y, w, h, margin);
   for (const beam of game.hazardBeams) {
     if (!visible(Math.min(beam.start.x, beam.end.x), Math.min(beam.start.y, beam.end.y),
@@ -2810,7 +2827,7 @@ function render(now) {
       }
       ctx.restore();
     }
-    drawRobot(enemy, null, game.enemyDamageProgress(enemy));
+    drawRobot(enemy, null, game.enemyDamageProgress(enemy), game.terrains);
     if (enemy.asleep) {
       ctx.save(); ctx.fillStyle = '#d7c3ff'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('Z z', enemy.x + 19, enemy.y - enemy.radius - 6); ctx.restore();
@@ -4516,12 +4533,13 @@ function drawSnakeRobot(enemy, deathProgress = null, damageColor = null) {
   for (const segment of segments) drawSnakeSegment(segment, enemy, deathProgress, damageColor);
 }
 
-function drawRobot(enemy, deathProgress = null, damageProgress = null) {
+function drawRobot(enemy, deathProgress = null, damageProgress = null, terrains = []) {
   ctx.save();
   const damageColor = damageProgress === null ? null : Math.floor(damageProgress * 4) % 2 === 0 ? '#dc626b' : '#f2a0a5';
-  drawRobotBody(enemy, deathProgress, damageColor);
-  if (enemy.afraid && enemy.fleeMoving && !enemy.asleep && deathProgress === null) drawFearSweat(enemy);
-  if (enemy.shield && deathProgress === null) {
+  drawRobotBody(enemy, deathProgress, damageColor, terrains);
+  const submerged = enemy.octopusState === 'swim' && deathProgress === null;
+  if (enemy.afraid && enemy.fleeMoving && !enemy.asleep && deathProgress === null && !submerged) drawFearSweat(enemy);
+  if (enemy.shield && deathProgress === null && !submerged) {
     ctx.strokeStyle = SHIELDS[enemy.shield].color;
     ctx.lineWidth = 3;
     ctx.globalAlpha *= .8;
@@ -5385,7 +5403,7 @@ function drawToasterBoss(enemy, deathProgress = null, damageColor = null) {
   ctx.restore();
 }
 
-function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
+function drawRobotBody(enemy, deathProgress = null, damageColor = null, terrains = []) {
   if (enemy.type === 'tom-frog') {
     drawFrogBoss(enemy, deathProgress, damageColor);
     return;
@@ -5434,6 +5452,10 @@ function drawRobotBody(enemy, deathProgress = null, damageColor = null) {
   }
   if (enemy.type === 'robo-crab') {
     drawRoboCrab(enemy, deathProgress, damageColor);
+    ctx.restore(); return;
+  }
+  if (enemy.type === 'robo-octopus-red' || enemy.type === 'robo-octopus-blue') {
+    drawRoboOctopus(enemy, deathProgress, damageColor, terrains);
     ctx.restore(); return;
   }
   if (enemy.type === 'robo-love-bug') {
@@ -5921,6 +5943,121 @@ function drawRoboSharpshooter(enemy, deathProgress = null, damageColor = null) {
   ctx.restore();
 }
 
+function drawRoboOctopus(enemy, deathProgress = null, damageColor = null, terrains = []) {
+  const state = enemy.octopusState;
+  const age = enemy.asleep || deathProgress !== null ? 0 : enemy.age ?? 0;
+  const blue = enemy.type === 'robo-octopus-blue';
+  const bodyColor = damageColor ?? (blue ? '#4f86d6' : '#d64f43');
+  const outline = blue ? '#1c3b66' : '#6b1f1c';
+  if (deathProgress === null && state === 'swim') {
+    // Underwater, only a small drifting oval shadow is visible.
+    const wobble = Math.sin(age * 4 + (enemy.phase ?? 0)) * 1.5;
+    ctx.fillStyle = 'rgba(9, 34, 48, .38)';
+    ctx.beginPath(); ctx.ellipse(0, 2, 16 + wobble, 10 - wobble * .5, 0, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
+  const progress = deathProgress ?? 0;
+  ctx.save();
+  ctx.scale(.75, .75);
+  if (deathProgress !== null) {
+    ctx.globalAlpha *= Math.max(0, Math.min(1, (1 - progress) / .3));
+    ctx.translate(0, progress * 18);
+    ctx.rotate(Math.sin(progress * Math.PI) * .35);
+  } else {
+    const waterY = 31.5;
+    function waterline() {
+      ctx.beginPath(); ctx.moveTo(-48, waterY);
+      for (let x = -48; x < 48; x += 16) {
+        ctx.quadraticCurveTo(x + 4, waterY - 2.5, x + 8, waterY);
+        ctx.quadraticCurveTo(x + 12, waterY + 2.5, x + 16, waterY);
+      }
+    }
+    ctx.strokeStyle = '#54bde8'; ctx.lineWidth = 2;
+    for (const terrain of terrains) {
+      if (terrain.type !== 'water') continue;
+      ctx.save();
+      ctx.scale(1 / .75, 1 / .75);
+      ctx.translate(-enemy.x, -enemy.y);
+      ctx.clip(new Path2D(terrainPathData(terrain.path.nodes)));
+      ctx.translate(enemy.x, enemy.y);
+      ctx.scale(.75, .75);
+      waterline(); ctx.stroke();
+      ctx.restore();
+    }
+    waterline();
+    ctx.lineTo(100, waterY); ctx.lineTo(100, -200); ctx.lineTo(-100, -200); ctx.lineTo(-100, waterY);
+    ctx.closePath(); ctx.clip();
+    if (state === 'rise' || state === 'dive') {
+      const t = Math.max(0, Math.min(1, (enemy.octopusTime ?? 0) / .45));
+      const emerge = state === 'rise' ? t : 1 - t;
+      ctx.translate(0, 74 * (1 - emerge));
+    }
+  }
+  ctx.strokeStyle = outline; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-8, -23); ctx.lineTo(-13, -33); ctx.moveTo(8, -23); ctx.lineTo(13, -33); ctx.stroke();
+  ctx.fillStyle = '#39454c';
+  for (const side of [-1, 1]) {
+    ctx.beginPath(); ctx.arc(side * 13, -34, 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  ctx.fillStyle = bodyColor; ctx.strokeStyle = outline; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -26);
+  ctx.bezierCurveTo(16, -26, 23, -18, 23, 3);
+  ctx.bezierCurveTo(23, 10, 29, 11, 35, 7);
+  ctx.bezierCurveTo(38, 5, 38, 1, 40, 2);
+  ctx.bezierCurveTo(44, 3, 42, 13, 38, 16);
+  ctx.bezierCurveTo(33, 20, 27, 17, 20, 14);
+  ctx.bezierCurveTo(17, 13, 17, 16, 18, 20);
+  ctx.bezierCurveTo(19, 25, 19, 28, 16, 28);
+  ctx.bezierCurveTo(12, 28, 11, 24, 10, 21);
+  ctx.bezierCurveTo(9, 18, 6, 19, 6, 22);
+  ctx.bezierCurveTo(6, 27, 4, 29, 0, 29);
+  ctx.bezierCurveTo(-4, 29, -6, 27, -6, 22);
+  ctx.bezierCurveTo(-6, 19, -9, 18, -10, 21);
+  ctx.bezierCurveTo(-11, 24, -12, 28, -16, 28);
+  ctx.bezierCurveTo(-19, 28, -19, 25, -18, 20);
+  ctx.bezierCurveTo(-17, 16, -17, 13, -20, 14);
+  ctx.bezierCurveTo(-27, 17, -33, 20, -38, 16);
+  ctx.bezierCurveTo(-42, 13, -44, 3, -40, 2);
+  ctx.bezierCurveTo(-38, 1, -38, 5, -35, 7);
+  ctx.bezierCurveTo(-29, 11, -23, 10, -23, 3);
+  ctx.bezierCurveTo(-23, -18, -16, -26, 0, -26);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (enemy.afraid && deathProgress === null) {
+    drawScaredFace();
+    ctx.restore(); return;
+  }
+  const blink = deathProgress === null && age % 4 > 3.82;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    if (deathProgress !== null) {
+      const flight = Math.max(0, (progress - .15) / .85);
+      ctx.translate(side * flight * 26, -flight * 45 + 60 * flight * flight);
+      ctx.rotate(side * flight * 1.1);
+    }
+    const x = side === -1 ? -16 : 4;
+    ctx.fillStyle = '#27333b';
+    ctx.fillRect(x, -14, 12, 10);
+    ctx.fillStyle = '#ffdf3d';
+    for (let row = 0; row < (blink ? 1 : 2); row++) {
+      for (let column = 0; column < 3; column++) {
+        ctx.fillRect(x + 1.5 + column * 3.5, -12.5 + row * 4.5, 2.5, blink ? 2 : 3.5);
+      }
+    }
+    ctx.restore();
+  }
+  if (deathProgress === null && state === 'aim' && !enemy.asleep && !enemy.afraid) {
+    const charge = Math.max(0, Math.min(1, enemy.octopusTime ?? 0));
+    ctx.fillStyle = blue ? `rgba(126, 220, 255, ${.25 + charge * .55})` : `rgba(255, 150, 60, ${.25 + charge * .55})`;
+    ctx.beginPath(); ctx.arc(0, 4, 4 + charge * 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = '#1d262c'; ctx.lineWidth = 2;
+  ctx.fillStyle = deathProgress === null ? '#1d262c' : '#53616b';
+  ctx.beginPath(); ctx.arc(0, 4, deathProgress === null ? 3.5 : 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 4, 6.5, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
 function drawRobotExplosion(blast) {
   const radius = 3 + Math.sin(Math.PI * blast) * 29;
   ctx.save(); ctx.globalAlpha *= 1 - blast;
@@ -5987,6 +6124,12 @@ function drawEnemyDeath(enemy) {
     }
   } else if (enemy.type === 'robo-crab') {
     drawRobot(enemy, progress);
+  } else if (enemy.type === 'robo-octopus-red' || enemy.type === 'robo-octopus-blue') {
+    drawRobot(enemy, progress);
+    if (progress >= .6) {
+      ctx.translate(enemy.x, enemy.y);
+      drawRobotExplosion((progress - .6) / .4);
+    }
   } else if (enemy.type === 'robo-snail') {
     drawRobot(enemy, progress);
   } else if (enemy.type === 'robo-unicorn') {

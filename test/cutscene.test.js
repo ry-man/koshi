@@ -427,13 +427,15 @@ test('all campaign scenes validate and every campaign story character speaks', (
     assert.deepEqual(validateCutscene(level.cutscene), level.cutscene);
     if (level.worldId !== '5') for (const line of level.cutscene.lines) speakers.add(line.speaker);
   }
-  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['striker', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'tom-frog'].includes(character)).sort());
+  assert.deepEqual([...speakers].sort(), Object.keys(CHARACTERS).filter(character => !['striker', 'robo-fly', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady', 'robo-octopus-red', 'robo-octopus-blue', 'tom-frog'].includes(character)).sort());
   assert.ok(!speakers.has('striker'), 'custom-only enemies do not change campaign scenes');
   assert.ok(!speakers.has('tom-frog'), 'custom-only bosses do not change campaign scenes');
   assert.ok(!speakers.has('robo-fly'), 'custom-only enemies do not change campaign scenes');
   assert.ok(!speakers.has('robo-trash-bin'), 'custom-only enemies do not change campaign scenes');
   assert.ok(!speakers.has('robo-moon'), 'custom-only enemies do not change campaign scenes');
   assert.ok(!speakers.has('robo-sharpshooter'), 'custom-only enemies do not change campaign scenes');
+  assert.ok(!speakers.has('robo-octopus-red'), 'custom-only enemies do not change campaign scenes');
+  assert.ok(!speakers.has('robo-octopus-blue'), 'custom-only enemies do not change campaign scenes');
   const beforeWorldFour = new Set(LEVELS.filter(level => !['4', '5'].includes(level.worldId))
     .flatMap(level => level.cutscene.lines.map(line => line.speaker)));
   assert.ok(!beforeWorldFour.has('robo-crab'), 'Crabs do not change earlier campaign scenes');

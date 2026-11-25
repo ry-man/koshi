@@ -1875,7 +1875,8 @@ counts toward chest requirements.
 
 Food types are `S`, `P`, `B`, `C`, `L`, `F`, `H`; enemy types are `mouse`,
 `wheel`, `ram`, `bucket`, `ball`, `jackolantern`, `snake`, `goalie`, `striker`,
-`robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`, `robo-crab`, `robo-love-bug`; weapon types are `wood`,
+`robo-koshi`, `robo-snail`, `robo-cow`, `robo-unicorn`, `robo-crab`,
+`robo-octopus-red`, `robo-octopus-blue`, `robo-love-bug`; weapon types are `wood`,
 `bronze`, `silver`, `gold`, `hammer-bronze`, `hammer-silver`, and `hammer-gold`.
 Item types (`kind: "item"`) include `cat-block`, `key`, and `treasure-chest` as
 well as the power-ups. Enemy events can carry any item by setting
@@ -1979,7 +1980,8 @@ Food, weapons, items and healing hearts cannot overlap bumpers or obstructions:
 random pickups avoid them, and covered live or queued pickups are removed.
 Custom levels can also place blue, green and red bubbles (`bubble-blue`,
 `bubble-green`, `bubble-red`); they trap Koshi for the same 5-, 3- and
-1-second durations as the corresponding slime colors.
+1-second durations as the corresponding slime colors. A hit pops the bubble,
+even if Koshi is protected.
 Cat Circles (`cat-circle`) are dark-green, semi-transparent rest spots with a
 cat-head icon, the same size as bubbles. Contact smoothly pulls Koshi to the
 center, after which he can be redirected immediately. Cat Circles remain in
@@ -2514,6 +2516,26 @@ a big frown, and a smoke puff expands and fades. Available in custom placements,
 enemy spawners, the guide, tutorial practice and cutscenes; no existing campaign
 levels are changed.
 
+Robo Octopus (`robo-octopus-red`, `robo-octopus-blue`) lives only in water
+terrain: levels that place or spawn one must include a water terrain region,
+and fixed placements and spawner points must lie inside one. Both varieties
+have yellow pixelated eyes on a dome-shaped body with antennae and wavy
+tentacles; the red variety is red and the blue one blue. It moves only while
+underwater, where it appears as just a small oval shadow in the water, favoring
+the interior of the region when there is room. It hurts nothing and is immune
+to every attack underwater. It then pops up out of the water and stays
+still while it shoots once at Koshi: the red octopus fires one slow red
+fireball that stops only when it hits an obstruction, a brick, or Koshi
+himself (barriers and bumpers let it pass); the blue octopus fires one
+ordinary bubble of random color (green, red or blue), identical to existing
+bubbles, and holds fire while Koshi is already bubble-trapped. After the shot
+it pauses for 2 seconds, then dives back underwater. While surfaced, weapons
+and Boost defeat it normally and its touch costs a heart, but it is harder to
+reach without first collecting a Surf Board. Music Box freezes it; Spooky Mask
+sends it diving and keeps it underwater. Available in custom placements, enemy
+spawners, editor graphics, the guide and tutorial practice; no existing
+campaign levels are changed.
+
 Robo Moon (`robo-moon`) is available in custom levels, enemy spawners, the
 guide, tutorial practice and cutscenes. It wanders without chasing Koshi for
 four seconds, then stops and smoothly changes from a purple crescent into a
@@ -2614,6 +2636,8 @@ Blue, green and red Bubbles (`bubble-blue`, `bubble-green`, `bubble-red`) are
 custom-level objects slightly larger than Koshi. Contact pulls Koshi smoothly
 to the center, where he is held for the matching slime duration: 5, 3 or 1
 seconds. Enemies can still hurt him, and he can still attack with his sword.
+Any hit pops the bubble, including hits absorbed by a shield or during
+invulnerability.
 Cat Circles (`cat-circle`) are small, fixed, dark-green rest spots. Like a
 bubble, contact pulls Koshi smoothly to the center; unlike a bubble, there is
 no timed hold and the circle is never consumed. Koshi can be redirected as soon

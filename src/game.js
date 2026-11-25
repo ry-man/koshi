@@ -18,6 +18,10 @@ const COW_SPEED = 190;
 const COW_EAT_DURATION = 5;
 const SHARPSHOOTER_BOW = Object.freeze({ x: 18, y: 11, arrowTip: 31, projectileTip: 15 });
 const CAT_LADY_POINTER = Object.freeze({ x: 23, y: 10, tip: 17, charge: 3 });
+const OCTOPUS_SWIM_SPEED = 85;
+const OCTOPUS_WATER_MARGIN = 36;
+const OCTOPUS_FIREBALL = Object.freeze({ speed: 95, radius: 8 });
+const OCTOPUS_TIMINGS = Object.freeze({ rise: .45, aim: 1, pause: 2, dive: .45 });
 const TRASH_BIN_SPEED = 75;
 const OBSTRUCTION_RADIUS = 48;
 const OBSTRUCTION_PATTERNS = ['solid', 'polka-dots', 'stripes', 'checkered'];
@@ -305,7 +309,10 @@ const CHARACTERS = { koshi: 'Koshi', mouse: 'Robo Mouse', wheel: 'Robo Wheel', r
 CHARACTERS['tom-frog'] = 'Tom the Frog';
 CHARACTERS['robo-sharpshooter'] = 'Robo Sharpshooter';
 CHARACTERS['robo-cat-lady'] = 'Robo Cat Lady';
+CHARACTERS['robo-octopus-red'] = 'Red Robo Octopus';
+CHARACTERS['robo-octopus-blue'] = 'Blue Robo Octopus';
 const isBossType = type => type === 'boss' || type === 'tom-frog';
+const isOctopusType = type => type === 'robo-octopus-red' || type === 'robo-octopus-blue';
 const frogAirborne = enemy => enemy.type === 'tom-frog' && ['jump-up', 'jump-track', 'jump-fall'].includes(enemy.state);
 const SCENE_THEMES = ['garden', 'workshop', 'foundry', 'happy-meadows', 'catnip-beach',
   'fuzzy-falls', 'mouser-mesa', 'alpine-litterbox', 'yarnball-moon',
@@ -2441,8 +2448,15 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         fail(`${name} group center must leave room for its formation inside the playable area.`);
       }
     }
-    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, striker: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
+    const types = { food: FOODS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, striker: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true,     'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true, 'robo-octopus-red': true, 'robo-octopus-blue': true, boss: true, 'tom-frog': true }, weapon: WEAPONS, item: ITEMS, object: OBJECTS };
     if (!Object.hasOwn(types, event.kind) || !Object.hasOwn(types[event.kind], event.type)) fail(`${name} has an unknown category or type.`);
+        if (event.kind === 'enemy' && isOctopusType(event.type)) {
+          const waters = terrains.filter(terrain => terrain.type === 'water');
+          if (!waters.length) fail(`${name}: a Robo Octopus needs a water terrain region.`);
+          if (!random && !waters.some(terrain => terrainContains(terrain, { x, y }))) {
+            fail(`${name}: place the Robo Octopus inside a water terrain region.`);
+          }
+        }
     let randomCount;
     if (event.randomCount !== undefined) {
       if (!random || group) {
@@ -2631,12 +2645,20 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       if (entry.spawner !== undefined) {
         if (entry.spawner === null) override.spawner = null;
         else {
-          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, striker: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true, 'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
+          const spawn = normalizeLegacyObstruction(entry.spawner), types = { food: FOODS, weapon: WEAPONS, enemy: { mouse: true, wheel: true, ram: true, bucket: true, ball: true, jackolantern: true, snake: true, goalie: true, striker: true, 'robo-koshi': true, 'robo-snail': true, 'robo-fly': true, 'robo-cow': true, 'robo-unicorn': true, 'robo-crab': true,           'robo-love-bug': true, 'robo-trash-bin': true, 'robo-moon': true, 'robo-sharpshooter': true, 'robo-cat-lady': true, 'robo-octopus-red': true, 'robo-octopus-blue': true }, heart: { heart: true }, item: ITEMS, object: OBJECTS };
           if (!spawn || !Object.hasOwn(types, spawn.kind) || !Object.hasOwn(types[spawn.kind], spawn.type)) fail(`Brick override ${i + 1} has an unknown spawning item.`);
           override.spawner = { kind: spawn.kind, type: spawn.type };
+                    if (spawn.kind === 'enemy' && isOctopusType(spawn.type)
+                      && !terrains.some(terrain => terrain.type === 'water')) {
+                      fail(`Brick override ${i + 1}: a Robo Octopus spawner needs a water terrain region.`);
+                    }
           if (spawn.x !== undefined || spawn.y !== undefined) {
             override.spawner.x = number(spawn.x, 0, 1, `Brick override ${i + 1} spawn X`);
             override.spawner.y = number(spawn.y, 0, 1, `Brick override ${i + 1} spawn Y`);
+                      if (spawn.kind === 'enemy' && isOctopusType(spawn.type)
+                        && !terrains.some(terrain => terrain.type === 'water' && terrainContains(terrain, { x: override.spawner.x, y: override.spawner.y }))) {
+                        fail(`Brick override ${i + 1}: place the Robo Octopus spawn point inside a water terrain region.`);
+                      }
             if (spawn.kind === 'enemy' && ['wheel', 'snake', 'robo-cow'].includes(spawn.type)) {
               Object.assign(override.spawner, snapWheel(override.spawner.x, override.spawner.y));
             }
@@ -3866,6 +3888,7 @@ class Game {
     this.hazardFlames = [];
     this.hazardMissiles = [];
     this.sharpshooterArrows = [];
+    this.octopusFireballs = [];
     this.catLadyShots = [];
     this.catLadyLaserOwner = null;
     this.hazardExplosions = [];
@@ -4048,7 +4071,9 @@ class Game {
   }
 
   takeDamage() {
-    if (this.state !== 'playing' || this.hearts <= 0 || this.invulnerable || this.activeTurret) return false;
+    if (this.state !== 'playing' || this.hearts <= 0) return false;
+    this.popBubbleTrap();
+    if (this.invulnerable || this.activeTurret) return false;
     if (this.catShield) this.catShield = CAT_SHIELDS[this.catShield].next;
     else this.hearts--;
     this.tookDamage = true;
@@ -4555,6 +4580,7 @@ class Game {
 
   damageRangedEnemy(enemy, explosion = false) {
     if (isBossType(enemy.type) || (enemy.type === 'robo-love-bug' && !explosion)) return;
+    if (this.octopusSubmerged(enemy)) return;
     if (this.enemyDamageProgress(enemy) !== null || !this.robots.includes(enemy)) return;
     if (enemy.shield) {
       enemy.shield = SHIELDS[enemy.shield].next;
@@ -4752,6 +4778,7 @@ class Game {
     }
     this.conveyorRide = null;
     if (solids.some(solid => depth(solid) > .25) || this.catInsideBrick(parts, .25)) {
+      this.popBubbleTrap();
       this.hearts = 0;
       this.tookDamage = true;
       cat.vx = 0; cat.vy = 0;
@@ -4818,6 +4845,22 @@ class Game {
       }
       arrow.x += mx; arrow.y += my;
       return this.entityIntersectsBounds(arrow, this.simulationBounds(), 100);
+    });
+    this.octopusFireballs = this.octopusFireballs.filter(fireball => {
+      fireball.age += dt;
+      const mx = fireball.vx * dt, my = fireball.vy * dt;
+      const catTime = Math.hypot(fireball.x - startX, fireball.y - startY) <= fireball.radius + cat.radius ? 0
+        : circleContact(fireball.x - startX, fireball.y - startY, mx - dx, my - dy, fireball.radius + cat.radius);
+      // Fireballs stop only at bricks, obstructions and Koshi; bumpers and fences let them pass.
+      const obstacleTime = this.hazardObstacleTime(fireball, mx, my, fireball.radius, parts, new Set(this.bumpers));
+      if (catTime <= 1 || obstacleTime <= 1) {
+        if (catTime <= obstacleTime + 1e-9) this.takeDamage();
+        const contact = Math.max(0, Math.min(catTime, obstacleTime, 1));
+        this.hazardExplosions.push({ x: fireball.x + mx * contact, y: fireball.y + my * contact, age: 0 });
+        return false;
+      }
+      fireball.x += mx; fireball.y += my;
+      return this.entityIntersectsBounds(fireball, this.simulationBounds(), 100);
     });
   }
 
@@ -5525,6 +5568,7 @@ class Game {
       return [object];
     }
     const carriedItems = carriedItemTypes(event).filter(type => !this.catBlockCollected || type !== 'cat-block');
+    if (isOctopusType(event.type) && !this.waterTerrains().length) return [];
     const carriedItem = event.carriesItem && carriedItems.includes(event.carriesItem)
       ? event.carriesItem : carriedItems.length === 1 ? carriedItems[0] : null;
     const enemy = { ...point, type: event.type, radius: event.type === 'robo-cow' ? 26 : event.type === 'robo-fly' ? 15 : 19,
@@ -5540,6 +5584,7 @@ class Game {
     if (event.type === 'goalie') this.initializeGoalie(enemy);
     if (event.type === 'striker') this.initializeStriker(enemy);
     if (event.type === 'robo-crab') this.initializeRoboCrab(enemy, event.crabDirection);
+    if (isOctopusType(event.type)) this.initializeOctopus(enemy);
     if (['wheel', 'snake', 'robo-cow'].includes(event.type)) {
       const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
       const x = (point.x - b.left) / w, y = (point.y - b.top) / h;
@@ -5684,6 +5729,7 @@ class Game {
         : obstructionSurface(actor.x, actor.y, obstruction).gap) < radius - 1e-7;
     if (overlaps(this.cat)) {
       if (this.openKeydoor(obstruction)) return;
+      this.popBubbleTrap();
       this.hearts = 0;
       this.tookDamage = true;
       this.cat.vx = 0; this.cat.vy = 0;
@@ -6146,6 +6192,18 @@ class Game {
 
   ensureEnemySpawnClear(enemy) {
     if (this.enemySpawnClear(enemy)) return;
+    if (isOctopusType(enemy.type)) {
+      for (let attempt = 0; attempt < 64; attempt++) {
+        const point = this.randomWaterPoint();
+        if (point && this.enemySpawnClear({ ...enemy, ...point })) {
+          Object.assign(enemy, point);
+          enemy.octopusHome = { ...point };
+          return;
+        }
+      }
+      // Underwater spawns stay harmless, so a crowded pool may keep the placement.
+      return;
+    }
     if (this.level.autoscroll) {
       Object.assign(enemy, this.customEventPoints({ kind: 'enemy', type: enemy.type, random: true, time: this.elapsed })[0]);
       if (['wheel', 'snake', 'robo-cow'].includes(enemy.type)) {
@@ -6173,6 +6231,7 @@ class Game {
     const items = [];
     const b = this.bounds(), w = b.right - b.left, h = b.bottom - b.top;
     for (let i = 0; i < count; i++) {
+      if (isOctopusType(type) && !this.waterTerrains().length) continue;
       const carriedItems = i === 0 && options ? carriedItemTypes(options)
         .filter(item => !this.catBlockCollected || item !== 'cat-block') : [];
       const carriedItem = options?.carriesItem && carriedItems.includes(options.carriesItem)
@@ -6192,6 +6251,7 @@ class Game {
       if (type === 'striker') this.initializeStriker(enemy);
       if (type === 'robo-crab') this.initializeRoboCrab(enemy,
         this.campaignEventAppearance({ type, crabDirection: options?.crabDirection }).crabDirection);
+      if (isOctopusType(type)) this.initializeOctopus(enemy);
       if (['wheel', 'snake', 'robo-cow'].includes(type)) {
         if (this.level.autoscroll) enemy.distance = this.perimeterPosition(point);
         this.placeWheel(enemy);
@@ -7216,6 +7276,178 @@ class Game {
           enemy.aimAngle = angle;
         }
         else enemy.sharpshooterState = 'shoot';
+      }
+    }
+  }
+
+  initializeOctopus(enemy) {
+    if (!this.inWater(enemy)) {
+      const point = this.randomWaterPoint();
+      if (point) Object.assign(enemy, point);
+    }
+    enemy.octopusHome = { x: enemy.x, y: enemy.y };
+    enemy.octopusState = 'swim';
+    enemy.octopusTime = 0;
+    enemy.octopusSwimDuration = 2.5 + this.random() * 2.5;
+    enemy.aimAngle = Math.atan2(this.cat.y - enemy.y, this.cat.x - enemy.x);
+  }
+
+  waterTerrains() {
+    return this.terrains.filter(terrain => terrain.type === 'water');
+  }
+
+  inWater(point) {
+    return this.terrains.some(terrain => terrain.type === 'water' && terrainContains(terrain, point));
+  }
+
+  randomWaterPoint() {
+    const waters = this.waterTerrains();
+    if (!waters.length) return null;
+    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+    for (const terrain of waters) for (const node of terrain.path.nodes) {
+      left = Math.min(left, node.x); right = Math.max(right, node.x);
+      top = Math.min(top, node.y); bottom = Math.max(bottom, node.y);
+    }
+    for (let attempt = 0; attempt < 256; attempt++) {
+      const point = { x: left + this.random() * (right - left), y: top + this.random() * (bottom - top) };
+      if (this.inWater(point)) return point;
+    }
+    const nodes = waters[0].path.nodes;
+    return { x: nodes.reduce((sum, node) => sum + node.x, 0) / nodes.length,
+      y: nodes.reduce((sum, node) => sum + node.y, 0) / nodes.length };
+  }
+
+  octopusSubmerged(enemy) {
+    return isOctopusType(enemy.type) && enemy.octopusState === 'swim';
+  }
+
+  octopusWaterClearance(terrain, point) {
+    if (!terrainContains(terrain, point)) return { distance: -Infinity, tangent: 0 };
+    const nodes = terrain.path.nodes;
+    let distance = Infinity, tangent = 0;
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i], b = nodes[(i + 1) % nodes.length];
+      const gap = distanceToSegment(point.x, point.y, a.x, a.y, b.x, b.y);
+      if (gap < distance) {
+        distance = gap;
+        tangent = Math.atan2(b.y - a.y, b.x - a.x);
+      }
+    }
+    return { distance, tangent };
+  }
+
+  octopusSwimPathClear(terrain, start, end) {
+    const dx = end.x - start.x, dy = end.y - start.y;
+    const nodes = terrain.path.nodes;
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i], b = nodes[(i + 1) % nodes.length];
+      const ex = b.x - a.x, ey = b.y - a.y;
+      const denominator = dx * ey - dy * ex;
+      if (Math.abs(denominator) < 1e-12) continue;
+      const ox = a.x - start.x, oy = a.y - start.y;
+      const t = (ox * ey - oy * ex) / denominator;
+      const u = (ox * dy - oy * dx) / denominator;
+      if (t > 1e-9 && t < 1 - 1e-9 && u >= -1e-9 && u <= 1 + 1e-9) return false;
+    }
+    return true;
+  }
+
+  swimOctopus(enemy, step) {
+    let remaining = step;
+    while (remaining > 1e-9) {
+      const dt = Math.min(remaining, .05);
+      remaining -= dt;
+      const terrain = this.terrains.find(region => region.type === 'water' && terrainContains(region, enemy));
+      if (!terrain) {
+        const home = enemy.octopusHome ?? this.randomWaterPoint() ?? enemy;
+        const distance = Math.hypot(home.x - enemy.x, home.y - enemy.y);
+        const travel = Math.min(distance, OCTOPUS_SWIM_SPEED * dt);
+        if (distance > 1e-9) {
+          enemy.phase = Math.atan2(home.y - enemy.y, home.x - enemy.x);
+          enemy.x += (home.x - enemy.x) / distance * travel;
+          enemy.y += (home.y - enemy.y) / distance * travel;
+        }
+        continue;
+      }
+      enemy.octopusHome = { x: enemy.x, y: enemy.y };
+      enemy.phase += Math.sin(enemy.age * 1.7 + enemy.phase) * dt;
+      const clearance = this.octopusWaterClearance(terrain, enemy);
+      const phases = [enemy.phase, Math.PI - enemy.phase, -enemy.phase, enemy.phase + Math.PI,
+        clearance.tangent, clearance.tangent + Math.PI];
+      for (let i = 0; i < 8; i++) phases.push(i * Math.PI / 4);
+      let best = null;
+      for (const phase of phases) {
+        const x = enemy.x + Math.cos(phase) * OCTOPUS_SWIM_SPEED * dt;
+        const y = enemy.y + Math.sin(phase) * OCTOPUS_SWIM_SPEED * dt;
+        if (clearance.distance <= OCTOPUS_SWIM_SPEED * dt
+          && !this.octopusSwimPathClear(terrain, enemy, { x, y })) continue;
+        const distance = this.octopusWaterClearance(terrain, { x, y }).distance;
+        if (!best || distance > best.distance + 1e-9) best = { x, y, phase, distance };
+        if (clearance.distance >= OCTOPUS_WATER_MARGIN && distance >= OCTOPUS_WATER_MARGIN) break;
+      }
+      if (best && best.distance >= 0) {
+        enemy.phase = best.phase;
+        enemy.x = best.x; enemy.y = best.y;
+        enemy.octopusHome = { x: enemy.x, y: enemy.y };
+      } else {
+        enemy.phase = this.random() * Math.PI * 2;
+      }
+    }
+  }
+
+  shootOctopus(enemy) {
+    const angle = Math.atan2(this.cat.y - enemy.y, this.cat.x - enemy.x);
+    enemy.aimAngle = angle;
+    const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+    if (enemy.type === 'robo-octopus-red') {
+      const offset = enemy.radius + OCTOPUS_FIREBALL.radius + .1;
+      this.octopusFireballs.push({ x: enemy.x + direction.x * offset, y: enemy.y + direction.y * offset,
+        vx: direction.x * OCTOPUS_FIREBALL.speed, vy: direction.y * OCTOPUS_FIREBALL.speed,
+        radius: OCTOPUS_FIREBALL.radius, age: 0 });
+      return;
+    }
+    if (this.bubbleTrap) return;
+    const color = ['green', 'red', 'blue'][Math.min(2, Math.floor(this.random() * 3))];
+    const bubble = this.createBubble({ x: 0, y: 0 }, `bubble-${color}`);
+    const offset = enemy.radius + bubble.radius + .1;
+    bubble.x = enemy.x + direction.x * offset;
+    bubble.y = enemy.y + direction.y * offset;
+    this.bubbles.push({ ...bubble, vx: direction.x * 120, vy: direction.y * 120, hazardShot: true });
+  }
+
+  updateOctopus(enemy, seconds) {
+    let remaining = seconds;
+    while (remaining > 1e-9) {
+      if (enemy.afraid && enemy.octopusState !== 'swim' && enemy.octopusState !== 'dive') {
+        enemy.octopusState = 'dive';
+        enemy.octopusTime = 0;
+      }
+      const duration = enemy.octopusState === 'swim' ? enemy.octopusSwimDuration : OCTOPUS_TIMINGS[enemy.octopusState];
+      const step = Math.min(remaining, duration - enemy.octopusTime);
+      if (enemy.octopusState === 'swim') this.swimOctopus(enemy, step);
+      if (enemy.octopusState === 'rise' || enemy.octopusState === 'aim') {
+        enemy.aimAngle = Math.atan2(this.cat.y - enemy.y, this.cat.x - enemy.x);
+      }
+      enemy.octopusTime += step;
+      remaining -= step;
+      if (enemy.octopusTime < duration - 1e-9) break;
+      enemy.octopusTime = 0;
+      if (enemy.octopusState === 'swim') {
+        if (enemy.afraid || !this.inWater(enemy)) {
+          enemy.octopusSwimDuration = 1 + this.random() * 1.5;
+          continue;
+        }
+        enemy.octopusState = 'rise';
+      } else if (enemy.octopusState === 'rise') {
+        enemy.octopusState = 'aim';
+      } else if (enemy.octopusState === 'aim') {
+        this.shootOctopus(enemy);
+        enemy.octopusState = 'pause';
+      } else if (enemy.octopusState === 'pause') {
+        enemy.octopusState = 'dive';
+      } else {
+        enemy.octopusState = 'swim';
+        enemy.octopusSwimDuration = 2.5 + this.random() * 2.5;
       }
     }
   }
@@ -8867,6 +9099,7 @@ class Game {
       for (let j = i + 1; j < this.robots.length; j++) {
         const a = this.robots[i], b = this.robots[j], oldA = previous.get(a), oldB = previous.get(b);
         if (a.type === 'robo-koshi' || b.type === 'robo-koshi' || frogAirborne(a) || frogAirborne(b)) continue;
+        if (this.octopusSubmerged(a) || this.octopusSubmerged(b)) continue;
         // Goalie priority preserves the leader's full step; overlap resolution moves only the yielding guard.
         if (a.type === b.type && ['goalie', 'robo-trash-bin'].includes(a.type)) continue;
         const x = oldA.x - oldB.x, y = oldA.y - oldB.y, radius = a.radius + b.radius;
@@ -8894,6 +9127,7 @@ class Game {
         for (let j = i + 1; j < this.robots.length; j++) {
           const a = this.robots[i], b = this.robots[j];
           if (a.type === 'robo-koshi' || b.type === 'robo-koshi' || frogAirborne(a) || frogAirborne(b)) continue;
+          if (this.octopusSubmerged(a) || this.octopusSubmerged(b)) continue;
           const x = a.x - b.x, y = a.y - b.y, distance = Math.hypot(x, y);
           const overlap = a.radius + b.radius - distance;
           if (overlap <= 1e-7) continue;
@@ -9180,6 +9414,7 @@ class Game {
       ? [...this.brickParts(), ...fences] : [];
     const snapshot = enemy => ({ x: enemy.x, y: enemy.y, distance: enemy.distance,
       ...(enemy.type === 'robo-trash-bin' ? { binState: enemy.binState, binTarget: enemy.binTarget } : {}),
+      ...(isOctopusType(enemy.type) ? { octopusState: enemy.octopusState } : {}),
       ...(enemy.type === 'snake' ? { segments: this.snakeSegments(enemy) } : {}) });
     const previous = new Map(this.robots.map(enemy => [enemy, snapshot(enemy)]));
     for (const enemy of this.robots) {
@@ -9212,6 +9447,8 @@ class Game {
         this.moveRoboKoshi(enemy, dt);
       } else if (enemy.type === 'goalie') {
         this.moveGoalie(enemy, dt);
+      } else if (isOctopusType(enemy.type)) {
+        this.updateOctopus(enemy, dt);
       } else if (enemy.afraid) {
         enemy.resting = false;
         if (enemy.type === 'striker') this.initializeStriker(enemy);
@@ -9314,6 +9551,12 @@ class Game {
         if (!enemy.asleep) this.updateRoboCowFacing(enemy, dt);
       }
       if (enemy.type !== 'robo-koshi') this.blockEnemyWithObstructions(enemy, old);
+      if (isOctopusType(enemy.type) && old.octopusState === 'swim'
+        && enemy.octopusState === 'rise' && !this.inWater(enemy)) {
+        enemy.octopusState = 'swim';
+        enemy.octopusTime = 0;
+        enemy.octopusSwimDuration = 1 + this.random() * 1.5;
+      }
       if (enemy.type === 'robo-trash-bin') this.containTrashBin(enemy, old);
       if (enemy.type === 'robo-trash-bin' && !enemy.asleep && !enemy.afraid
         && old.binState === 'travel' && old.binTarget === enemy.binTarget
@@ -9413,7 +9656,7 @@ class Game {
         if (enemy.state !== 'sleep' && contactDistance <= this.cat.radius + enemy.radius && this.enemyDamageProgress(enemy) === null) this.takeDamage();
         return true;
       }
-      if (enemy.type !== 'robo-love-bug' && !this.activeTurret
+      if (enemy.type !== 'robo-love-bug' && !this.octopusSubmerged(enemy) && !this.activeTurret
         && (this.weapon && !WEAPONS[this.weapon.type].ropeDart || this.boosted)
         && distance <= this.cat.radius + enemy.radius + 18) {
         if (this.enemyDamageProgress(enemy) === null) {
@@ -9439,7 +9682,7 @@ class Game {
         enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
         return true;
       }
-      if (!['goalie', 'striker'].includes(enemy.type) && !enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius
+      if (!['goalie', 'striker'].includes(enemy.type) && !this.octopusSubmerged(enemy) && !enemy.asleep && !enemy.afraid && distance <= this.cat.radius + enemy.radius
         && (!enemy.touching || enemy.type === 'robo-koshi') && this.enemyDamageProgress(enemy) === null) this.takeDamage();
       enemy.touching = Math.hypot(this.cat.x - enemy.x, this.cat.y - enemy.y) <= this.cat.radius + enemy.radius;
       return true;
@@ -9887,7 +10130,7 @@ class Game {
 
   updateEnemyDeaths(seconds) {
     this.enemyDeaths = this.enemyDeaths.filter(enemy => {
-      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin', 'robo-cat-lady'].includes(enemy.type) ? 2 : ['goalie', 'striker'].includes(enemy.type) ? 1.8 : ['robo-crab', 'robo-love-bug', 'robo-sharpshooter'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
+      enemy.deathProgress += seconds / (isBossType(enemy.type) ? 2.4 : enemy.type === 'robo-cow' ? 2.1 : ['robo-unicorn', 'robo-trash-bin', 'robo-cat-lady'].includes(enemy.type) ? 2 : ['goalie', 'striker'].includes(enemy.type) ? 1.8 : ['robo-crab', 'robo-love-bug', 'robo-sharpshooter', 'robo-octopus-red', 'robo-octopus-blue'].includes(enemy.type) ? 1.5 : ['jackolantern', 'snake'].includes(enemy.type) ? 1.2 : ['ball', 'mouse', 'robo-koshi'].includes(enemy.type) ? 1.1 : ['ram', 'bucket', 'robo-snail'].includes(enemy.type) ? .9 : .7);
       return enemy.deathProgress < 1 - 1e-9;
     });
   }
@@ -9921,6 +10164,12 @@ class Game {
     });
   }
 
+  popBubbleTrap() {
+    if (!this.bubbleTrap) return;
+    this.bubblePops.push({ x: this.cat.x, y: this.cat.y, color: this.bubbleTrap.color, age: 0 });
+    this.bubbleTrap = null;
+  }
+
   updateBubbleTrap(seconds) {
     const trap = this.bubbleTrap;
     if (!trap) return;
@@ -9928,8 +10177,7 @@ class Game {
     if (trap.age >= trap.transition + trap.duration - 1e-9) {
       this.cat.x = trap.x;
       this.cat.y = trap.y;
-      this.bubblePops.push({ x: trap.x, y: trap.y, color: trap.color, age: 0 });
-      this.bubbleTrap = null;
+      this.popBubbleTrap();
       return;
     }
     const progress = Math.min(1, trap.age / trap.transition);
@@ -10514,6 +10762,7 @@ class Game {
         this.target = null;
       }
       if (launchBlocked || this.catInsideBrick(parts)) {
+        this.popBubbleTrap();
         this.hearts = 0;
         this.tookDamage = true;
         cat.vx = 0; cat.vy = 0;
@@ -10579,6 +10828,7 @@ api.ROPE_DARTS = ROPE_DARTS;
 api.hazardEnabled = hazardEnabled;
 Object.assign(api, { catTrackPath, catTrackPoint, catTrackProjection, validateCatTracks, terrainContains, validateTerrainRegions });
 api.isBossType = isBossType;
+api.isOctopusType = isOctopusType;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = api;
 } else {

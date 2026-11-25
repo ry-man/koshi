@@ -36,7 +36,7 @@ const OBSTRUCTION_COLORS = [
   '#fecdd3', '#b7707d', '#f43f5e', '#be123c', '#4c0519',
   '#ead8c5', '#a58b73', '#a66b36', '#704522', '#29190d',
 ];
-for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, striker: { name: 'Robo Striker' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-fly': { name: 'Robo Fly' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' }, 'robo-crab': { name: 'Robo Crab' }, 'robo-love-bug': { name: 'Robo Love Bug' }, 'robo-trash-bin': { name: 'Robo Trash Bin' }, 'robo-moon': { name: 'Robo Moon' }, 'robo-sharpshooter': { name: 'Robo Sharpshooter' }, 'robo-cat-lady': { name: 'Robo Cat Lady' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
+for (const [kind, types] of Object.entries({ food: FOODS, weapon: WEAPONS, enemy: { mouse: { name: 'Robo Mouse' }, wheel: { name: 'Robo Wheel' }, ram: { name: 'Robo Ram' }, bucket: { name: 'Robo Bucket' }, ball: { name: 'Robo Ball' }, jackolantern: { name: 'Robo Jackolantern' }, snake: { name: 'Robo Snake' }, goalie: { name: 'Robo Goalie' }, striker: { name: 'Robo Striker' }, 'robo-koshi': { name: 'Robo Koshi' }, 'robo-snail': { name: 'Robo Snail' }, 'robo-fly': { name: 'Robo Fly' }, 'robo-cow': { name: 'Robo Cow' }, 'robo-unicorn': { name: 'Robo Unicorn' }, 'robo-crab': { name: 'Robo Crab' }, 'robo-octopus-red': { name: 'Red Robo Octopus' }, 'robo-octopus-blue': { name: 'Blue Robo Octopus' }, 'robo-love-bug': { name: 'Robo Love Bug' }, 'robo-trash-bin': { name: 'Robo Trash Bin' }, 'robo-moon': { name: 'Robo Moon' }, 'robo-sharpshooter': { name: 'Robo Sharpshooter' }, 'robo-cat-lady': { name: 'Robo Cat Lady' } }, heart: { heart: { name: 'Heart' } }, item: ITEMS, object: OBJECTS })) {
   const group = document.createElement('optgroup');
   group.label = kind;
   for (const [type, item] of Object.entries(types)) {
@@ -317,6 +317,7 @@ function picture(value, control) {
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), path = document.createElementNS(ns, 'path');
     svg.setAttribute('viewBox', item.type === 'robo-snail' ? '-32 -32 64 64'
       : item.type === 'robo-love-bug' ? '-32 -40 64 72' : item.type === 'robo-crab' ? '-42 -44 84 76' : item.type === 'robo-unicorn' ? '-38 -44 76 76'
+        : item.type === 'robo-octopus-red' || item.type === 'robo-octopus-blue' ? '-30 -42 60 68'
         : item.type === 'robo-cow' ? '-35 -30 70 60' : '-28 -28 56 56'); svg.setAttribute('aria-hidden', 'true');
     path.setAttribute('d', spawnSymbol(item));
     svg.append(path); image.append(svg);
@@ -356,6 +357,14 @@ function picture(value, control) {
       detail('M-23 2 H-35 V-24 H-29 M23 2 H35 V-24 H29 M-36 -24 L-37 -38 L-22 -38 L-30 -28 L-23 -31 V-24 Z M36 -24 L37 -38 L22 -38 L30 -28 L23 -31 V-24 Z', '#d33c43');
       detail('M-17 -22 H-3 V-16 H-17 Z M3 -22 H17 V-16 H3 Z', '#343e44', '#343e44');
       detail('M-16 -20 H-4 M-16 -17 H-4 M4 -20 H16 M4 -17 H16', '#79f58a');
+    }
+    if (item.type === 'robo-octopus-red' || item.type === 'robo-octopus-blue') {
+      const detail = (d, color, fill = 'none') => {
+        const layer = document.createElementNS(ns, 'path');
+        layer.setAttribute('d', d); layer.setAttribute('stroke', color); layer.setAttribute('fill', fill); svg.append(layer);
+      };
+      detail('M-16 -14 H-4 V-4 H-16 Z M4 -14 H16 V-4 H4 Z', '#27333b', '#27333b');
+      detail('M-14 -12 H-6 M-14 -8 H-6 M6 -12 H14 M6 -8 H14', '#ffdf3d');
     }
     if (item.type === 'robo-unicorn') {
       path.setAttribute('fill', '#f5b5d3');
@@ -830,7 +839,7 @@ function description(event) {
 }
 
 function icon(event) {
-  if (event.kind === 'enemy' && (isBossType(event.type) || ['ram', 'striker', 'robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
+  if (event.kind === 'enemy' && (isBossType(event.type) || ['ram', 'striker', 'robo-snail', 'robo-fly', 'robo-cow', 'robo-unicorn', 'robo-crab', 'robo-octopus-red', 'robo-octopus-blue', 'robo-love-bug', 'robo-trash-bin', 'robo-moon', 'robo-sharpshooter', 'robo-cat-lady'].includes(event.type))) return picture(`enemy:${event.type}`, 'brick-spawn-item');
   return event.kind === 'food' ? FOODS[event.type].icon
     : event.kind === 'weapon' ? '⚔'
       : event.kind === 'item' ? ITEMS[event.type].icon

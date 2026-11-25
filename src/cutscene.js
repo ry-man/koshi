@@ -459,6 +459,24 @@ function drawPortrait(ctx, character, speaking, time) {
     }
     box('#202a30', 10, 20, 13, talking ? 5 : 1);
     box('#202a30', 10, 21, 1, 3); box('#202a30', 22, 21, 1, 3);
+  } else if (character === 'robo-octopus-red' || character === 'robo-octopus-blue') {
+    const body = character === 'robo-octopus-red' ? '#d64f43' : '#4f86d6';
+    const dark = character === 'robo-octopus-red' ? '#6b1f1c' : '#1c3b66';
+    const wave = Math.round(Math.sin(time * 6));
+    box('#39454c', 8, 1, 3, 3); box('#39454c', 21, 1, 3, 3);
+    box('#536067', 10, 3, 1, 4); box('#536067', 21, 3, 1, 4);
+    box(dark, 4, 9, 24, 15); box(dark, 7, 6, 18, 4);
+    box(body, 5, 8, 22, 15); box(body, 8, 7, 16, 3);
+    for (const [index, x] of [4, 9, 14, 19, 24].entries()) {
+      box(body, x, 23, 3, 4 + (index % 2 ? wave + 2 : -wave));
+    }
+    for (const x of [8, 18]) {
+      box('#27333b', x, 11, 7, 6);
+      for (let column = 0; column < 3; column++) {
+        box('#ffdf3d', x + 1 + column * 2, 12, 1, blink ? 1 : 4);
+      }
+    }
+    box('#1d262c', 14, 19, 5, talking ? 6 : 4);
   } else if (character === 'robo-moon') {
     for (let y = 2; y < 31; y++) for (let x = 1; x < 30; x++) {
       if ((x - 16) ** 2 + (y - 16) ** 2 <= 14 ** 2
