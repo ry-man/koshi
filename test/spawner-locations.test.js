@@ -281,7 +281,7 @@ test('spawn template dragging and resizing commit valid attributes but cancellat
     renderBoard: refresh, render: refresh, focusSpawnTemplate() {},
     obstructionGeometry: gameApi.obstructionGeometry,
   });
-  vm.runInContext(source.slice(source.indexOf('function resizedObstruction('), source.indexOf('function boxBounds(')), context);
+  vm.runInContext(source.slice(source.indexOf('function sourcePlacementBounds('), source.indexOf('function boxBounds(')), context);
   vm.runInContext(source.slice(source.indexOf("board.addEventListener('pointermove'"), source.indexOf("board.addEventListener('keydown'")), context);
   const original = JSON.stringify(context.level);
   const down = { pointerId: 1, clientX: 100, clientY: 100 };
