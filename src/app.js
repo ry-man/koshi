@@ -6289,7 +6289,10 @@ campaignMode.setup({
     return saveAttempt(flushSaves);
   },
 });
-document.querySelector('#campaign-empty').hidden = campaignId !== 'official';
+document.querySelector('#campaign-empty').textContent = campaignId === 'official'
+  ? 'Official game under construction.'
+  : 'Beta game levels are randomly generated and intended to demo game features.';
+document.querySelector('#campaign-empty').hidden = false;
 game = createGame();
 updateBoardVisibility();
 saveAttempt(renderSaveSlots);

@@ -21,7 +21,7 @@ function campaign(id) {
 function resolveCampaign(search) {
   const explicit = new URLSearchParams(search).get('game');
   if (explicit !== null) return campaign(explicit);
-  return CAMPAIGNS.beta;
+  return CAMPAIGNS.official;
 }
 
 function storageKey(kind, id = 'beta') {
@@ -47,7 +47,7 @@ function gameURL(path, hash = '', id = active.id) {
   return `${path}?game=${id}${hash}`;
 }
 
-let active = CAMPAIGNS.beta;
+let active = CAMPAIGNS.official;
 let startupError = null;
 const browser = typeof module === 'undefined' || !module.exports;
 if (browser) {

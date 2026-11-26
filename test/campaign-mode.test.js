@@ -37,20 +37,26 @@ test('title notice preserves spacing in both games and startup hides the unfinis
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[^\n]*animation: none;/);
 });
 
-test('Official title shows the unchanged Beta recommendation even when Official has levels', () => {
+test('title notice shows the selected game message', () => {
   const html = read('index.html');
-  assert.match(html, /<p id="campaign-empty" hidden>Official game under construction\. Beta game recommended for playtesting at this time\.<\/p>/);
+  assert.match(html, /<p id="campaign-empty" hidden>Official game under construction\.<\/p>/);
   const app = read('src/app.js');
-  const assignment = app.match(/document\.querySelector\('#campaign-empty'\)\.hidden = [^;]+;/);
-  assert.ok(assignment);
-  for (const [campaignId, expected] of [['official', false], ['beta', true]]) {
-    const notice = { hidden: null };
+  const textAssignment = app.match(/document\.querySelector\('#campaign-empty'\)\.textContent = [^;]+;/s);
+  const visibilityAssignment = app.match(/document\.querySelector\('#campaign-empty'\)\.hidden = [^;]+;/);
+  assert.ok(textAssignment);
+  assert.ok(visibilityAssignment);
+  for (const [campaignId, expected] of [
+    ['official', 'Official game under construction.'],
+    ['beta', 'Beta game levels are randomly generated and intended to demo game features.'],
+  ]) {
+    const notice = { textContent: '', hidden: true };
     const document = { querySelector: selector => {
       assert.equal(selector, '#campaign-empty');
       return notice;
     } };
-    vm.runInNewContext(assignment[0], { document, campaignId, LEVELS: [{}] });
-    assert.equal(notice.hidden, expected, campaignId);
+    vm.runInNewContext(`${textAssignment[0]}; ${visibilityAssignment[0]}`, { document, campaignId });
+    assert.equal(notice.textContent, expected, campaignId);
+    assert.equal(notice.hidden, false, campaignId);
   }
 });
 
@@ -87,18 +93,18 @@ function browserFixture({ search = '?game=official', hash = '', storage = storag
   return { context, storage, location, errors };
 }
 
-test('selection defaults to Beta regardless of the previously selected game and honors explicit links', () => {
+test('selection defaults to Official regardless of the previously selected game and honors explicit links', () => {
   const storage = storageFixture();
   const resolve = (search = '', hash = '') => mode.resolveCampaign(search, hash, () => storage).id;
-  assert.equal(resolve(), 'beta');
-  storage.setItem(mode.ACTIVE_KEY, 'official');
-  assert.equal(resolve(), 'beta');
-  assert.equal(resolve('', '#campaign=1-1'), 'beta');
+  assert.equal(resolve(), 'official');
+  storage.setItem(mode.ACTIVE_KEY, 'beta');
+  assert.equal(resolve(), 'official');
+  assert.equal(resolve('', '#campaign=1-1'), 'official');
   assert.equal(resolve('?game=official', '#campaign=1-1'), 'official');
   assert.equal(resolve('?game=beta', '#level=snapshot'), 'beta');
   assert.throws(() => resolve('?game=missing'), /Unknown game/);
   storage.setItem(mode.ACTIVE_KEY, 'missing');
-  assert.equal(resolve(), 'beta');
+  assert.equal(resolve(), 'official');
 });
 
 test('campaign storage preserves legacy Beta keys and isolates all Official progress', () => {
@@ -399,11 +405,11 @@ test('storage failures are reported rather than silently switching or hiding sta
     onSwitch: () => { switched = true; },
     reportError: error => reported.push(error.message),
   });
-  select.value = 'official';
+  select.value = 'beta';
   change();
   assert.equal(navigated, false);
   assert.equal(switched, false, 'failed selection persistence must not end the active run or discard a draft');
-  assert.equal(select.value, 'beta');
+  assert.equal(select.value, 'official');
   assert.equal(reported.length, 2);
   assert.ok(errors.length >= 2);
   assert.ok(reported.every(message => message === 'Storage blocked'));
