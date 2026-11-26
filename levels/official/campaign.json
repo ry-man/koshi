@@ -180,6 +180,12 @@
       "worldId": "2",
       "number": "5",
       "id": "official-2-5"
+    },
+    {
+      "file": "world-2/2-6.json",
+      "worldId": "2",
+      "number": "6",
+      "id": "official-2-6"
     }
   ]
 }
