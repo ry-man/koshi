@@ -286,12 +286,12 @@
     ]
   },
   "catBlock": {
-    "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+    "description": "To earn Cat Block: Collect enough keys to open the treasure chest containing it.",
     "messages": {
       "item": "Koshi found the Cat Block!",
       "enemy": "Koshi found a Cat Block carried by an enemy!",
       "chest": "Koshi opened the treasure chest and found the Cat Block!",
-      "achievement": "Koshi earned the Cat Brick!"
+      "achievement": "Koshi earned the Cat Block!"
     },
     "trigger": {
       "type": "chest"

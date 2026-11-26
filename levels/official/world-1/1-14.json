@@ -250,12 +250,12 @@
   "killGoal": 15,
   "survive": false,
   "catBlock": {
-    "description": "To earn Cat Brick: Complete the level in under 60 seconds.",
+    "description": "To earn Cat Block: Complete the level in under 60 seconds.",
     "messages": {
       "item": "Koshi found the Cat Block!",
       "enemy": "Koshi found a Cat Block carried by an enemy!",
       "chest": "Koshi opened the treasure chest and found the Cat Block!",
-      "achievement": "Koshi earned the Cat Brick!"
+      "achievement": "Koshi earned the Cat Block!"
     },
     "trigger": {
       "type": "time",

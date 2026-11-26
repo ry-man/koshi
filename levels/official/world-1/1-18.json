@@ -218,12 +218,12 @@
   "killGoal": 0,
   "survive": false,
   "catBlock": {
-    "description": "To earn Cat Brick: Defeat the enemy carrying it then collect it.",
+    "description": "To earn Cat Block: Defeat the enemy carrying it then collect it.",
     "messages": {
       "item": "Koshi found the Cat Block!",
       "enemy": "Koshi found a Cat Block carried by an enemy!",
       "chest": "Koshi opened the treasure chest and found the Cat Block!",
-      "achievement": "Koshi earned the Cat Brick!"
+      "achievement": "Koshi earned the Cat Block!"
     },
     "trigger": {
       "type": "carrier"

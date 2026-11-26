@@ -335,14 +335,21 @@ canvas { display: block; width: 100%; height: 100%; }
 .overlay[hidden] { display: none; }
 .dialog { text-align: center; max-width: 410px; padding: 25px; }
 .overlay.level-briefing .dialog { max-width: 560px; padding: clamp(24px, 5vw, 48px); border: 1px solid #d3ef8b55; border-radius: 16px; background: #15252cf2; box-shadow: 0 24px 70px #0009, inset 0 1px #ffffff12; }
-.overlay.level-briefing .dialog h2 { font-size: clamp(30px, 5vw, 44px); }
-.briefing-conditions { white-space: pre-line; font-weight: 700; }
+.overlay.level-briefing .dialog-icon, .overlay.level-briefing .eyebrow { display: none; }
+.overlay.level-briefing .dialog h2 { font-size: clamp(30px, 5vw, 44px); color: var(--accent); font-weight: 700; letter-spacing: .18em; }
+.briefing-conditions { white-space: pre-line; font-weight: 700; width: fit-content; min-width: min(280px, 100%); margin: 0 auto; padding: 14px 22px; border: 2px solid #ffd36a; border-radius: 16px; box-shadow: 0 0 10px #ffd36a55, inset 0 0 8px #ffd36a22; animation: briefing-conditions-glow 2.2s ease-in-out infinite alternate; }
+@keyframes briefing-conditions-glow {
+  from { box-shadow: 0 0 6px #ffd36a33, inset 0 0 6px #ffd36a1a; }
+  to { box-shadow: 0 0 18px #ffd36a88, inset 0 0 10px #ffd36a33; }
+}
+@media (prefers-reduced-motion: reduce) { .briefing-conditions { animation: none; } }
 .briefing-conditions > p { margin: 0; }
 .briefing-objective { position: relative; }
 .briefing-objective-button { display: block; width: 100%; min-height: 44px; padding: 6px 8px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; }
 .briefing-objective-button:hover { background: #ffffff08; }
 .briefing-objective .map-collectible-description { white-space: normal; font-weight: 400; text-align: left; }
 .briefing-cat-block { margin-top: 20px; }
+.briefing-cat-block p { margin: 8px 0; }
 .briefing-cat-block img { display: block; width: 50px; height: 50px; margin: 0 auto; }
 .level-results-cat-block { margin: 20px 0; text-align: center; }
 .level-results-cat-block img { display: block; margin: 0 auto; }

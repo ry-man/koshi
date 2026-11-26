@@ -102,12 +102,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Find during gameplay when it spawns.",
+        "description": "To earn Cat Block: Find during gameplay when it spawns.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "spawn"
@@ -544,12 +544,12 @@ const levels = [
       "killGoal": 0,
       "survive": true,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level with at least 20 food points.",
+        "description": "To earn Cat Block: Complete the level with at least 20 food points.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "food",
@@ -1098,12 +1098,12 @@ const levels = [
       "killGoal": 10,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Find during gameplay when it spawns.",
+        "description": "To earn Cat Block: Find during gameplay when it spawns.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "spawn"
@@ -1399,12 +1399,12 @@ const levels = [
       "killGoal": 10,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+        "description": "To earn Cat Block: Collect enough keys to open the treasure chest containing it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "chest"
@@ -1934,12 +1934,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Defeat the enemy carrying it then collect it.",
+        "description": "To earn Cat Block: Defeat the enemy carrying it then collect it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "carrier"
@@ -2630,12 +2630,12 @@ const levels = [
       "killGoal": 12,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Find during gameplay when it spawns.",
+        "description": "To earn Cat Block: Find during gameplay when it spawns.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "spawn"
@@ -3522,12 +3522,12 @@ const levels = [
         ]
       },
       "catBlock": {
-        "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+        "description": "To earn Cat Block: Collect enough keys to open the treasure chest containing it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "chest"
@@ -4834,12 +4834,12 @@ const levels = [
       "killGoal": 10,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level without selecting any brick of type Fast.",
+        "description": "To earn Cat Block: Complete the level without selecting any brick of type Fast.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "noSelect",
@@ -5447,12 +5447,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Find during gameplay when it spawns.",
+        "description": "To earn Cat Block: Find during gameplay when it spawns.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "spawn"
@@ -6271,12 +6271,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Defeat no more than 1 of enemy type Robo Wheel.",
+        "description": "To earn Cat Block: Defeat no more than 1 of enemy type Robo Wheel.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "enemyMax",
@@ -6870,12 +6870,12 @@ const levels = [
       "killGoal": 10,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+        "description": "To earn Cat Block: Collect enough keys to open the treasure chest containing it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "chest"
@@ -7689,12 +7689,12 @@ const levels = [
       "killGoal": 0,
       "survive": true,
       "catBlock": {
-        "description": "To earn Cat Brick: Find during gameplay when it spawns.",
+        "description": "To earn Cat Block: Find during gameplay when it spawns.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "spawn"
@@ -8504,12 +8504,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+        "description": "To earn Cat Block: Collect enough keys to open the treasure chest containing it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "chest"
@@ -9222,12 +9222,12 @@ const levels = [
       "killGoal": 15,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level in under 70 seconds.",
+        "description": "To earn Cat Block: Complete the level in under 70 seconds.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "time",
@@ -10101,12 +10101,12 @@ const levels = [
         "events": []
       },
       "catBlock": {
-        "description": "To earn Cat Brick: Collect enough keys to open the treasure chest containing it.",
+        "description": "To earn Cat Block: Collect enough keys to open the treasure chest containing it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "chest"
@@ -11841,12 +11841,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Defeat no more than 1 of enemy type Robo Trash Bin.",
+        "description": "To earn Cat Block: Defeat no more than 1 of enemy type Robo Trash Bin.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "enemyMax",
@@ -12673,12 +12673,12 @@ const levels = [
       "killGoal": 10,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level in at most 20 moves.",
+        "description": "To earn Cat Block: Complete the level in at most 20 moves.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "moves",
@@ -13489,12 +13489,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Defeat the enemy carrying it then collect it.",
+        "description": "To earn Cat Block: Defeat the enemy carrying it then collect it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "carrier"
@@ -14209,12 +14209,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level without collecting any weapons.",
+        "description": "To earn Cat Block: Complete the level without collecting any weapons.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "noSwords"
@@ -14940,12 +14940,12 @@ const levels = [
       "killGoal": 8,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level without touching any brick of type Slow.",
+        "description": "To earn Cat Block: Complete the level without touching any brick of type Slow.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "noTouch",
@@ -15745,12 +15745,12 @@ const levels = [
       "killGoal": 4,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level with at least 37 food points.",
+        "description": "To earn Cat Block: Complete the level with at least 37 food points.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "food",
@@ -16650,12 +16650,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level with at least 9 enemy points.",
+        "description": "To earn Cat Block: Complete the level with at least 9 enemy points.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "enemyPoints",
@@ -17401,12 +17401,12 @@ const levels = [
       "killGoal": 0,
       "survive": true,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level with at least 45 food points.",
+        "description": "To earn Cat Block: Complete the level with at least 45 food points.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "food",
@@ -18487,12 +18487,12 @@ const levels = [
         ]
       },
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level with at least 30 food points.",
+        "description": "To earn Cat Block: Complete the level with at least 30 food points.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "food",
@@ -20723,12 +20723,12 @@ const levels = [
       "killGoal": 10,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level with at least 40 food points.",
+        "description": "To earn Cat Block: Complete the level with at least 40 food points.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "food",
@@ -21346,12 +21346,12 @@ const levels = [
       "killGoal": 0,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Defeat at least 4 of enemy type Robo Wheel.",
+        "description": "To earn Cat Block: Defeat at least 4 of enemy type Robo Wheel.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "enemyMin",
@@ -22352,12 +22352,12 @@ const levels = [
       "killGoal": 12,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Defeat the enemy carrying it then collect it.",
+        "description": "To earn Cat Block: Defeat the enemy carrying it then collect it.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "carrier"
@@ -23389,12 +23389,12 @@ const levels = [
         "events": []
       },
       "catBlock": {
-        "description": "To earn Cat Brick: Complete the level with at least 60 food points.",
+        "description": "To earn Cat Block: Complete the level with at least 60 food points.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "food",
@@ -24813,12 +24813,12 @@ const levels = [
       "killGoal": 7,
       "survive": false,
       "catBlock": {
-        "description": "To earn Cat Brick: Find during gameplay when it spawns.",
+        "description": "To earn Cat Block: Find during gameplay when it spawns.",
         "messages": {
           "item": "Koshi found the Cat Block!",
           "enemy": "Koshi found a Cat Block carried by an enemy!",
           "chest": "Koshi opened the treasure chest and found the Cat Block!",
-          "achievement": "Koshi earned the Cat Brick!"
+          "achievement": "Koshi earned the Cat Block!"
         },
         "trigger": {
           "type": "spawn"

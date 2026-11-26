@@ -206,7 +206,7 @@ test('glass fragments animate for .8 seconds, freeze on pause, finish after vict
   assert.equal(game.glassBreaks.length, 0);
 });
 
-test('contained Cat Blocks and chests respect Cat Brick validation and never duplicate collected rewards', () => {
+test('contained Cat Blocks and chests respect Cat Block validation and never duplicate collected rewards', () => {
   const options = { requireCatBlockConsistency: true };
   assert.throws(() => validateCustomLevel(level([placement('cat-block')])), /Enable Cat Block/);
   for (const type of ['cat-block', 'treasure-chest']) {

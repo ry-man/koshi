@@ -92,7 +92,7 @@ test('team race and goal assignments validate and preserve optional level data',
   assert.match(levelObjective(level), /team Koshi score 3 goals before team Enemy/);
 });
 
-test('team Cat Brick conditions evaluate at victory and remember who reached a target first', () => {
+test('team Cat Block conditions evaluate at victory and remember who reached a target first', () => {
   for (const [type, sequence, expected] of [
     ['teamRace', ['enemy', 'enemy', 'koshi', 'koshi'], true],
     ['teamRace', ['koshi', 'koshi', 'enemy', 'enemy', 'enemy'], false],

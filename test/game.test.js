@@ -590,7 +590,7 @@ test('HUD counters follow health, food, enemies, soccer goals, keys, batteries o
 test('Start on a level briefing begins the existing level instead of rebuilding it', () => {
   assert.doesNotMatch(readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /dialog-note/);
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
-  assert.match(source, /showDialog\(`LEVEL \$\{game\.level\.number \?\? game\.level\.id\}`, 'Ready for this level\?', description, 'Start', '🐾'\)/);
+  assert.match(source, /showDialog\('', `LEVEL \$\{game\.level\.number \?\? game\.level\.id\}`, description, 'Start', ''\)/);
   const start = source.indexOf("\nplay.addEventListener('click'") + 1;
   const end = source.indexOf("\ndocument.querySelector('#title-start')", start);
   const handler = source.slice(start, end);
@@ -635,7 +635,7 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
   assert.equal(rebuilt, 2, 'custom playtests can replay without campaign maps');
 });
 
-test('opening briefings omit the Cat Brick objective and graphic after acquisition', () => {
+test('opening briefings omit the Cat Block objective and graphic after acquisition', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const node = () => ({
     children: [], textContent: '', attributes: {}, listeners: {},
@@ -695,14 +695,23 @@ test('opening briefings omit the Cat Brick objective and graphic after acquisiti
       assert.equal(image.alt, 'Cat Block');
       assert.equal(hint.textContent, description);
     }
+    context.renderLevelBriefing(container, { ...level, catBlock: { description: 'To earn Cat Brick: Collect it quickly.' } }, false);
+    const [legacyIntro, legacyImage, legacyHint] = container.children[1].children;
+    assert.equal(legacyIntro.textContent, 'To earn the Cat Block:', 'legacy hint prefixes are normalized to the Cat Block term');
+    assert.equal(legacyImage.alt, 'Cat Block');
+    assert.equal(legacyHint.textContent, 'Collect it quickly.');
     context.renderLevelBriefing(container, level, false);
     assert.equal(container.children.length, 1, 'switching levels removes stale Cat Block sections');
   }
   for (const level of require('../src/game.js').LEVELS.filter(level => level.catBlock)) {
     const container = node();
     context.renderLevelBriefing(container, level);
-    assert.equal(container.children[1].children[1].textContent, context.KoshiGame.catBlockObjective(level));
-    assert.match(container.children[1].children[1].textContent, /^To earn Cat Brick: /);
+    const objective = context.KoshiGame.catBlockObjective(level);
+    assert.match(objective, /^To earn Cat Block: /);
+    const [intro, image, condition] = container.children[1].children;
+    assert.equal(intro.textContent, 'To earn the Cat Block:');
+    assert.equal(image.alt, 'Cat Block');
+    assert.equal(condition.textContent, objective.slice('To earn Cat Block: '.length));
   }
   assert.match(source, /renderLevelBriefing\(content, game\.level, game\.catBlockPreviouslyCollected\)/);
 });

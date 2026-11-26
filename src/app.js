@@ -923,9 +923,18 @@ function renderLevelBriefing(container, level, catBlockCollected = false) {
     const image = document.createElement('img');
     image.src = './icons/cat-building-block.png';
     image.alt = 'Cat Block';
+    const objective = globalThis.KoshiGame.catBlockObjective(level);
+    const prefix = objective.match(/^To earn Cat (?:Block|Brick): */);
     const hint = document.createElement('p');
-    hint.textContent = globalThis.KoshiGame.catBlockObjective(level);
-    section.append(image, hint);
+    if (prefix) {
+      const intro = document.createElement('p');
+      intro.textContent = 'To earn the Cat Block:';
+      hint.textContent = objective.slice(prefix[0].length);
+      section.append(intro, image, hint);
+    } else {
+      hint.textContent = objective;
+      section.append(image, hint);
+    }
     container.append(section);
   }
 }
@@ -1376,7 +1385,7 @@ function syncUI() {
   displayedState = game.state;
   if (game.state === 'ready') {
     const description = levelBriefingText(game.level);
-    showDialog(`LEVEL ${game.level.number ?? game.level.id}`, 'Ready for this level?', description, 'Start', '🐾');
+    showDialog('', `LEVEL ${game.level.number ?? game.level.id}`, description, 'Start', '');
     status.textContent = 'Your next adventure is one click away.';
   } else if (game.state === 'playing') {
     overlay.hidden = true;

@@ -1321,7 +1321,7 @@ test('weapon budget includes grouped pickups, hammers, enemy drops and active sp
   assert.equal(JSON.stringify({ events, bricks }), before);
 });
 
-test('point targets include Cat Brick goals and warnings use strict thresholds and exact messages', () => {
+test('point targets include Cat Block goals and warnings use strict thresholds and exact messages', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'editor.js'), 'utf8');
   const context = vm.createContext({});
   vm.runInContext(source.slice(source.indexOf('function pointTargets('), source.indexOf('function renderPointReference(')), context);
@@ -1690,41 +1690,46 @@ test('playtesting preserves the editor snapshot in history before navigating wit
 test('custom playtests expose a toolbar link back to the unchanged editor snapshot', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const hash = `#level=${encodeURIComponent(JSON.stringify({ ...blank(), events: [event()] }))}`;
-  const nodes = new Map(), failures = [];
-  const context = vm.createContext({
-    location: { hash, search: '' }, customLevel: null, playtestStart: null, Game, LEVELS: [{}],
-    validateCustomLevel, levelObjective, URLSearchParams,
-    campaignMode: require('../src/campaign-mode.js'),
-    levelSelect: { append() {} },
-    document: {
-      createElement: () => ({}),
-      querySelector(selector) {
-        if (!nodes.has(selector)) nodes.set(selector, { hidden: true });
-        return nodes.get(selector);
+  for (const [search, campaign] of [['', 'official'], ['?game=official', 'official'], ['?game=beta', 'beta']]) {
+    const nodes = new Map(), failures = [];
+    const context = vm.createContext({
+      location: { hash, search }, customLevel: null, playtestStart: null, Game, LEVELS: [{}],
+      validateCustomLevel, levelObjective, URLSearchParams,
+      levelSelect: { append() {} },
+      document: {
+        createElement: () => ({}),
+        querySelector(selector) {
+          if (!nodes.has(selector)) nodes.set(selector, { hidden: true });
+          return nodes.get(selector);
+        },
       },
-    },
-    console: { error: (...args) => failures.push(args) },
-  });
-  vm.runInContext(source.slice(source.indexOf('function levelBriefingText('), source.indexOf('\nfunction showDialog(')), context);
-  vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"), source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
-  assert.equal(failures.length, 0);
-  assert.equal(nodes.get('#back-to-editor').hidden, false);
-  assert.equal(nodes.get('#back-to-editor').href, `./editor.html?game=beta${hash}`);
-  assert.equal(nodes.get('#editor-link').href, `./editor.html?game=beta${hash}`);
-  const start = { time: 12, x: .4, y: .6 };
-  context.location.search = `?playtestStart=${encodeURIComponent(JSON.stringify(start))}`;
-  vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"),
-    source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
-  assert.deepEqual(JSON.parse(JSON.stringify(context.playtestStart)), start);
-  assert.equal(nodes.get('#back-to-editor').href, `./editor.html?game=beta${hash}`,
-    'returning to edit does not persist a temporary spawn');
-  context.location.search = '?playtestStart=%7B%22time%22%3A-1%7D';
-  vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"),
-    source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
-  assert.equal(context.customLevel, null);
-  assert.equal(context.playtestStart, null);
-  assert.equal(nodes.get('#level-error').hidden, false);
-  assert.match(nodes.get('#level-error').textContent, /Invalid playtest/);
+      console: { error: (...args) => failures.push(args) },
+    });
+    vm.runInContext(readFileSync(path.join(__dirname, '..', 'src', 'campaign-mode.js'), 'utf8'), context);
+    context.campaignMode = context.KoshiCampaignMode;
+    vm.runInContext(source.slice(source.indexOf('function levelBriefingText('), source.indexOf('\nfunction showDialog(')), context);
+    const loadLevel = () => vm.runInContext(source.slice(source.indexOf("if (location.hash.startsWith('#level='))"),
+      source.indexOf("if (location.hash.startsWith('#campaign='))")), context);
+    loadLevel();
+    assert.equal(failures.length, 0);
+    assert.equal(nodes.get('#back-to-editor').hidden, false);
+    const editorHref = `./editor.html?game=${campaign}${hash}`;
+    assert.equal(nodes.get('#back-to-editor').href, editorHref);
+    assert.equal(nodes.get('#editor-link').href, editorHref);
+    const start = { time: 12, x: .4, y: .6 };
+    context.location.search = `${search}${search ? '&' : '?'}playtestStart=${encodeURIComponent(JSON.stringify(start))}`;
+    loadLevel();
+    assert.deepEqual(JSON.parse(JSON.stringify(context.playtestStart)), start);
+    assert.equal(nodes.get('#back-to-editor').href, editorHref,
+      'returning to edit does not persist a temporary spawn');
+    assert.equal(nodes.get('#editor-link').href, editorHref);
+    context.location.search = `${search}${search ? '&' : '?'}playtestStart=%7B%22time%22%3A-1%7D`;
+    loadLevel();
+    assert.equal(context.customLevel, null);
+    assert.equal(context.playtestStart, null);
+    assert.equal(nodes.get('#level-error').hidden, false);
+    assert.match(nodes.get('#level-error').textContent, /Invalid playtest/);
+  }
 });
 
 test('nonzero playtests ask for a spawn before navigating and keep test settings outside level JSON', () => {

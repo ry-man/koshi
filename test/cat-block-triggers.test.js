@@ -7,7 +7,7 @@ const { Game, CAT_BLOCK_MESSAGES, CAT_BLOCK_TRIGGERS, CAT_BRICK_TYPES, CHARACTER
   catBlockDescription, catBlockObjective, validateCustomLevel } = require('../src/game.js');
 
 const level = trigger => ({
-  version: 1, id: 'Cat Brick triggers', duration: 30, goal: 1, heartCost: null,
+  version: 1, id: 'Cat Block triggers', duration: 30, goal: 1, heartCost: null,
   brickSet: 1, events: [], catBlock: { description: 'Replaced hint', trigger },
 });
 const create = trigger => {
@@ -56,7 +56,7 @@ test('all triggers generate the exact requested language and round-trip their pa
     const trigger = triggerFor(type);
     const saved = validateCustomLevel(level(trigger));
     assert.deepEqual(saved.catBlock.trigger, trigger);
-    assert.equal(saved.catBlock.description, `To earn Cat Brick: ${expected[index]}`);
+    assert.equal(saved.catBlock.description, `To earn Cat Block: ${expected[index]}`);
     assert.deepEqual(validateCustomLevel(JSON.parse(JSON.stringify(saved))), saved);
   }
 });
@@ -72,7 +72,7 @@ test('invalid trigger types, thresholds and target types are rejected', () => {
     { type: 'enemyMin', amount: 1, enemyType: 'toString' },
     { type: 'noTouch', brickType: 'unknown' },
     { type: 'bricksMin', amount: 1, brickType: 'toString' },
-  ]) assert.throws(() => validateCustomLevel(level(trigger)), /Cat Brick/);
+  ]) assert.throws(() => validateCustomLevel(level(trigger)), /Cat Block/);
   assert.equal(validateCustomLevel(level({ type: 'time', amount: .5 })).catBlock.trigger.amount, .5);
   for (const type of Object.keys(CAT_BLOCK_TRIGGERS).filter(type => CAT_BLOCK_TRIGGERS[type].amount && type !== 'time')) {
     assert.equal(validateCustomLevel(level({ ...triggerFor(type), amount: 0 })).catBlock.trigger.amount, 0);
@@ -363,7 +363,7 @@ test('save checks count keys, key carriers and battery-recharged key spawners fo
   assert.throws(() => save({ ...draft, events: [...draft.events, item('battery'), item('battery')] }), /more keys/);
 });
 
-test('save consistency permits only one Cat Brick source, including legacy hints and effective spawners', () => {
+test('save consistency permits only one Cat Block source, including legacy hints and effective spawners', () => {
   const methods = [
     ['spawn', item('cat-block')],
     ['carrier', carrier({ carriesItem: 'cat-block' })],
@@ -373,7 +373,7 @@ test('save consistency permits only one Cat Brick source, including legacy hints
     for (const trigger of [{ type }, undefined]) {
       const draft = { ...level(trigger), events: [source, source, item('key')] };
       assert.doesNotThrow(() => validateCustomLevel(draft), 'incomplete edits remain possible');
-      assert.throws(() => save(draft), /only one Cat Brick source/);
+      assert.throws(() => save(draft), /only one Cat Block source/);
       assert.doesNotThrow(() => save({ ...draft, events: [source, item('key')] }));
     }
   }
@@ -386,8 +386,8 @@ test('save consistency permits only one Cat Brick source, including legacy hints
     ...regions.get(brick.id), kind: 'normal', spawner: { kind: 'item', type: 'cat-block' },
   }));
   const draft = { ...level({ type: 'spawn' }), brickTypes };
-  assert.throws(() => save(draft), /only one Cat Brick source/);
-  assert.throws(() => save({ ...draft, brickTypes: [brickTypes[0]], events: [item('cat-block')] }), /only one Cat Brick source/);
+  assert.throws(() => save(draft), /only one Cat Block source/);
+  assert.throws(() => save({ ...draft, brickTypes: [brickTypes[0]], events: [item('cat-block')] }), /only one Cat Block source/);
   assert.doesNotThrow(() => save({ ...draft, brickGroups: [{ owner: owner.id, members: [owner.id, member.id] }] }),
     'one merged spawning brick counts as one source');
   assert.doesNotThrow(() => save({ ...draft, brickTypes: [brickTypes[0], brickTypes[0]] }),
@@ -414,14 +414,14 @@ test('save consistency uses effective spawners rather than overridden or absorbe
   assert.throws(() => save({ ...level({ type: 'spawn' }), brickTypes: [chestSpawner], events: [item('cat-block')] }), /do not match/);
 });
 
-test('Cat Brick messages are built-in even when imported data supplies overrides', () => {
+test('Cat Block messages are built-in even when imported data supplies overrides', () => {
   const saved = validateCustomLevel({ ...level({ type: 'spawn' }), catBlock: {
     ...level({ type: 'spawn' }).catBlock, messages: { item: 'Override', enemy: 'Override', chest: 'Override', achievement: 'Override' },
   } });
   assert.deepEqual(saved.catBlock.messages, CAT_BLOCK_MESSAGES);
 });
 
-test('printing JSON and playtesting reject inconsistent Cat Brick data before output or navigation', () => {
+test('printing JSON and playtesting reject inconsistent Cat Block data before output or navigation', () => {
   const nodes = new Map();
   const $ = selector => {
     if (!nodes.has(selector)) nodes.set(selector, { listeners: {}, value: '',
@@ -440,7 +440,7 @@ test('printing JSON and playtesting reject inconsistent Cat Brick data before ou
   }
   context.level = { ...level({ type: 'spawn' }), events: [item('cat-block'), item('cat-block')] };
   for (const selector of ['#generate-json', '#playtest']) {
-    assert.throws(() => $(selector).listeners.click({ preventDefault() {} }), /only one Cat Brick source/, selector);
+    assert.throws(() => $(selector).listeners.click({ preventDefault() {} }), /only one Cat Block source/, selector);
   }
   assert.equal(writes, 0);
   assert.equal($('#level-json').value, '');

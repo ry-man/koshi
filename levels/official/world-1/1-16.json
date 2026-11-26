@@ -192,12 +192,12 @@
   "killGoal": 0,
   "survive": false,
   "catBlock": {
-    "description": "To earn Cat Brick: Defeat no more than 1 of enemy type Robo Trash Bin.",
+    "description": "To earn Cat Block: Defeat no more than 1 of enemy type Robo Trash Bin.",
     "messages": {
       "item": "Koshi found the Cat Block!",
       "enemy": "Koshi found a Cat Block carried by an enemy!",
       "chest": "Koshi opened the treasure chest and found the Cat Block!",
-      "achievement": "Koshi earned the Cat Brick!"
+      "achievement": "Koshi earned the Cat Block!"
     },
     "trigger": {
       "type": "enemyMax",

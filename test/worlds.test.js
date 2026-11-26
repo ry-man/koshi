@@ -667,7 +667,7 @@ test('Cat Block hints are available beside the star on touch and hover, and the 
   const button = map.details.children[0].children[2];
   const information = button;
   const description = map.details.children[0].children[3];
-  assert.equal(button.title, 'To earn Cat Brick: Find during gameplay when it spawns.');
+  assert.equal(button.title, 'To earn Cat Block: Find during gameplay when it spawns.');
   assert.equal(button.type, 'button');
   assert.equal(map.details.children[0].children.length, 5, 'hints overlay the heading without separate information icons');
   assert.equal(information.getAttribute('aria-expanded'), 'false');
@@ -730,7 +730,7 @@ test('collectible hints float above content and map dialogs override browser wid
   assert.match(css, /\.world-picker \{[^}]*width: 100vw;[^}]*max-width: none;[^}]*inset: 0;/);
 });
 
-test('map Cat Brick hints match generated editor and briefing text for every trigger', () => {
+test('map Cat Block hints match generated editor and briefing text for every trigger', () => {
   for (const [type, definition] of Object.entries(engine.CAT_BLOCK_TRIGGERS)) {
     const trigger = { type, ...(definition.amount ? { amount: 7 } : {}),
       ...(definition.enemy ? { enemyType: 'mouse' } : {}),
@@ -748,7 +748,7 @@ test('map Cat Brick hints match generated editor and briefing text for every tri
   }
 });
 
-test('campaign Cat Brick hints use editor wording without changing campaign reward data', () => {
+test('campaign Cat Block hints use editor wording without changing campaign reward data', () => {
   const { map } = mapFixture();
   map.open();
   map.showWorld(WORLDS[0]);

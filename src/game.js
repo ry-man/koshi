@@ -86,7 +86,7 @@ const CAT_BLOCK_MESSAGES = {
   item: 'Koshi found the Cat Block!',
   enemy: 'Koshi found a Cat Block carried by an enemy!',
   chest: 'Koshi opened the treasure chest and found the Cat Block!',
-  achievement: 'Koshi earned the Cat Brick!',
+  achievement: 'Koshi earned the Cat Block!',
 };
 const CAT_BRICK_TYPES = {
   slow: 'Slow', normal: 'Normal', fast: 'Fast', cinder: 'Cinder', goal: 'Goal',
@@ -119,7 +119,7 @@ const CAT_BLOCK_TRIGGERS = {
 function catBlockDescription(trigger) {
   const definition = CAT_BLOCK_TRIGGERS[trigger.type];
   const type = definition.enemy ? CHARACTERS[trigger.enemyType] : CAT_BRICK_TYPES[trigger.brickType];
-  return `To earn Cat Brick: ${definition.text.replace('[X]', definition.amount ? trigger.amount : type).replace('[Y]', type)}`;
+  return `To earn Cat Block: ${definition.text.replace('[X]', definition.amount ? trigger.amount : type).replace('[Y]', type)}`;
 }
 function catBlockObjective(level) {
   if (!level.catBlock) return '';
@@ -2552,19 +2552,19 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     if (catBlock.trigger !== undefined) {
       const trigger = catBlock.trigger;
       if (!trigger || typeof trigger !== 'object' || Array.isArray(trigger)
-        || !Object.hasOwn(CAT_BLOCK_TRIGGERS, trigger.type)) fail('Cat Brick has an invalid trigger type.');
+        || !Object.hasOwn(CAT_BLOCK_TRIGGERS, trigger.type)) fail('Cat Block has an invalid trigger type.');
       const definition = CAT_BLOCK_TRIGGERS[trigger.type];
       const saved = { type: trigger.type };
       if (definition.amount) {
-        saved.amount = number(trigger.amount, trigger.type === 'time' ? .001 : 0, 100000, 'Cat Brick trigger amount');
-        if (trigger.type !== 'time' && !Number.isInteger(saved.amount)) fail('Cat Brick trigger amount must be a whole number.');
+        saved.amount = number(trigger.amount, trigger.type === 'time' ? .001 : 0, 100000, 'Cat Block trigger amount');
+        if (trigger.type !== 'time' && !Number.isInteger(saved.amount)) fail('Cat Block trigger amount must be a whole number.');
       }
       if (definition.enemy) {
-        if (!Object.hasOwn(CHARACTERS, trigger.enemyType) || ['koshi', 'tom'].includes(trigger.enemyType)) fail('Cat Brick has an invalid enemy type.');
+        if (!Object.hasOwn(CHARACTERS, trigger.enemyType) || ['koshi', 'tom'].includes(trigger.enemyType)) fail('Cat Block has an invalid enemy type.');
         saved.enemyType = trigger.enemyType;
       }
       if (definition.brick) {
-        if (!Object.hasOwn(CAT_BRICK_TYPES, trigger.brickType)) fail('Cat Brick has an invalid brick type.');
+        if (!Object.hasOwn(CAT_BRICK_TYPES, trigger.brickType)) fail('Cat Block has an invalid brick type.');
         saved.brickType = trigger.brickType;
       }
       result.catBlock.trigger = saved;
@@ -2725,18 +2725,18 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
     const type = result.catBlock.trigger?.type;
     if (['spawn', 'carrier', 'chest'].includes(type)) {
       if (!catSources.some(source => sourceType(source) === type)) {
-        fail(`Cat Brick trigger "${type}" requires a matching ${type === 'carrier' ? 'enemy carrying a Cat Block' : type === 'chest' ? 'treasure chest' : 'Cat Block pickup or spawner'}.`);
+        fail(`Cat Block trigger "${type}" requires a matching ${type === 'carrier' ? 'enemy carrying a Cat Block' : type === 'chest' ? 'treasure chest' : 'Cat Block pickup or spawner'}.`);
       }
       if (catSources.some(source => sourceType(source) !== type)) {
-        fail(`Cat Brick sources do not match the selected "${type}" trigger. Remove the conflicting pickups, carriers or chests.`);
+        fail(`Cat Block sources do not match the selected "${type}" trigger. Remove the conflicting pickups, carriers or chests.`);
       }
     } else if (type && hasCatBlockSource) {
-      fail('Achievement Cat Brick triggers cannot include Cat Block pickups, carriers or treasure chests.');
+      fail('Achievement Cat Block triggers cannot include Cat Block pickups, carriers or treasure chests.');
     } else if (!type && !hasCatBlockSource) {
-      fail('Cat Brick requires a collection trigger or a pickup, carrier or treasure chest.');
+      fail('Cat Block requires a collection trigger or a pickup, carrier or treasure chest.');
     }
     if (catSources.reduce((sum, source) => sum + (source.group?.count ?? source.randomCount ?? 1), 0) > 1) {
-      fail('A level can include only one Cat Brick source: one pickup, enemy carrier, treasure chest or spawner.');
+      fail('A level can include only one Cat Block source: one pickup, enemy carrier, treasure chest or spawner.');
     }
     const chests = catSources.filter(source => sourceType(source) === 'chest');
     if (chests.length) {
@@ -2750,7 +2750,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
       const batteries = count(sources.filter(isBattery));
       const keys = count(sources.filter(isKey)) + (keySpawners ? batteries : 0);
       if (!chests.some(chest => keys >= (chest.keysRequired ?? 1))) {
-        fail('Cat Brick treasure chests require more keys than the level provides. Add keys or key-carrying enemies, or reduce the required keys.');
+        fail('Cat Block treasure chests require more keys than the level provides. Add keys or key-carrying enemies, or reduce the required keys.');
       }
     }
   }

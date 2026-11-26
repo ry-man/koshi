@@ -352,8 +352,8 @@ switching warns about unsaved levels; print JSON and save it manually before swi
 
 Use `index.html?game=beta` or `index.html?game=official` for explicit game links;
 the same query works on `editor.html`. Without a query, the game always opens
-in Beta, regardless of the previous selection. Old `#campaign=...` links without a game query always open
-Beta. Editor playtest and return links include the selected game automatically.
+in Official, regardless of the previous selection. Old `#campaign=...` links without a game query always open
+Official. Editor playtest and return links include the selected game automatically.
 Custom playtests and tutorial attempts do not contribute to campaign progress.
 
 ## Controls and rules
@@ -508,8 +508,9 @@ and keyboard focus to show the same explanation as the level-selection map;
 Explanations appear beside their associated item, constrained horizontally to
 the containing frame, and follow scrolling. Escape dismisses the explanation.
 Where applicable, a centered Cat Block image
-appears below them with the same `To earn Cat Brick: ...` objective as the editor
-and map, including when the Cat Brick has already been acquired.
+appears below a `To earn the Cat Block:` line with the condition from the same
+`To earn Cat Block: ...` objective as the editor
+and map, including when the Cat Block has already been acquired.
 Uncollected stars and Cat Blocks use outlines with the same shape, size and
 position as their collected artwork, both beside map stops and in level details.
 Cat Block outlines follow the artwork's alpha silhouette. Cat Blocks are omitted
@@ -1659,9 +1660,9 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
    The **Available points reference** table compares food points, shield-weighted
    enemy points and soccer balls in the level against their targets, with estimated
    weapon strikes below the enemy column. Targets use the greater of the win goal
-   and the applicable Cat Brick target, not their sum; minimum-enemy Cat Brick
+   and the applicable Cat Block target, not their sum; minimum-enemy Cat Block
    targets contribute at least one point per required enemy. Score win goals are
-   disabled for survival/boss levels, but Cat Brick targets still apply.
+   disabled for survival/boss levels, but Cat Block targets still apply.
    Totals include scheduled placements, one spawn per spawning brick, groups,
    independently random placements, enemy weapon drops, and weapons in Item Cases.
    Swords/hammers count their charges. Axes assume one strike per active second
@@ -1897,9 +1898,9 @@ given a separate random position; it cannot be combined with a formation:
   "randomCount": 4, "shield": "green" }
 ```
 
-Cat Brick consistency checks count every member of grouped or independently
+Cat Block consistency checks count every member of grouped or independently
 randomized pickups, carriers and chests, so repeated placements cannot bypass
-the one-Cat-Brick limit. Grouped keys and key carriers contribute their full
+the one-Cat-Block limit. Grouped keys and key carriers contribute their full
 counts toward chest requirements.
 
 ```json
@@ -1936,13 +1937,13 @@ Chest events accept `"keysRequired"` (a positive whole number, default 1);
 collecting keys adds to the HUD counter, and opening a chest spends the required
 keys. In the editor, enable Cat Block in level settings and choose its **Trigger
 type**. Only the relevant amount, enemy type, and brick type options appear.
-Hints are generated with the prefix `To earn Cat Brick: ` and shown in the game.
+Hints are generated with the prefix `To earn Cat Block: ` and shown in the game.
 The editor shows a live, read-only objective reference with the chosen variables
-filled in. This exact text is also used in the starting briefing and the Cat Brick
+filled in. This exact text is also used in the starting briefing and the Cat Block
 hint in level details, without extra text appended to the hint.
 Campaign pickup, enemy-carrier, and treasure-chest rewards also use these standard
 descriptions, without changing their placements, schedules, or requirements.
-The collapsible **Cat Brick** section uses compact trigger names and shows only
+The collapsible **Cat Block** section uses compact trigger names and shows only
 the required parameter fields. Acquisition messages are built into the game,
 not editable per level. Boundary brick presets are no longer selectable in the
 editor; imported levels retain their existing preset and individual bricks remain
@@ -1977,12 +1978,12 @@ Enemy-specific triggers also require `enemyType`; brick-specific triggers requir
 except `time`, which accepts positive fractional seconds and uses a strict
 less-than comparison. Descriptions are regenerated from validated triggers.
 Legacy levels without a trigger keep their existing hints and pickup behavior.
-Printing JSON and playtesting check that Cat Brick
+Printing JSON and playtesting check that Cat Block
 sources agree with the selected trigger. Pickup, carrier, and chest triggers
 require a matching source and reject conflicting source types; achievement
 triggers reject physical Cat Block sources. Chests require enough potential keys
 from placements, carriers, or active spawners (including Battery-powered repeats).
-Each level may include at most one physical Cat Brick source across pickups,
+Each level may include at most one physical Cat Block source across pickups,
 enemy carriers, treasure chests and spawners, including legacy levels without a
 trigger. Checks use the effective, merged board rather than superseded brick overrides.
 Incomplete configurations can be edited and imported but cannot be saved until
@@ -2811,7 +2812,7 @@ opposing team, independently of the ordinary total-goal counter. Team goals
 show a world-colored scoreboard below the HUD, with green digital Koshi scores
 and red digital enemy scores, and cannot be used in boss levels. On phones, the
 scoreboard shares the boss meter's space so it does not shrink the play area.
-The editor also offers Cat Brick conditions `teamRace`, `teamEnemyMax`, and
+The editor also offers Cat Block conditions `teamRace`, `teamEnemyMax`, and
 `teamKoshiMin`, each with an `amount`. They are evaluated when the level is won;
 `teamRace` remembers whether Koshi reached that amount before the enemies.
 

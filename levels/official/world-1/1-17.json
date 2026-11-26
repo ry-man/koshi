@@ -227,12 +227,12 @@
   "killGoal": 10,
   "survive": false,
   "catBlock": {
-    "description": "To earn Cat Brick: Complete the level in at most 20 moves.",
+    "description": "To earn Cat Block: Complete the level in at most 20 moves.",
     "messages": {
       "item": "Koshi found the Cat Block!",
       "enemy": "Koshi found a Cat Block carried by an enemy!",
       "chest": "Koshi opened the treasure chest and found the Cat Block!",
-      "achievement": "Koshi earned the Cat Brick!"
+      "achievement": "Koshi earned the Cat Block!"
     },
     "trigger": {
       "type": "moves",

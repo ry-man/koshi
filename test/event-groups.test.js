@@ -237,12 +237,12 @@ test('random tools preserve required brick clearance even for maximum-sized form
   }
 });
 
-test('group counts participate in Cat Brick source and chest key consistency checks', () => {
-  const catBlock = { description: 'Cat Brick', trigger: { type: 'spawn' } };
+test('group counts participate in Cat Block source and chest key consistency checks', () => {
+  const catBlock = { description: 'Cat Block', trigger: { type: 'spawn' } };
   for (const source of [event('item', 'cat-block'), event('item', 'treasure-chest'), event('enemy', 'mouse', { carriesCatBlock: true })]) {
     const type = source.kind === 'enemy' ? 'carrier' : source.type === 'treasure-chest' ? 'chest' : 'spawn';
     const level = { ...blank([{ ...source, group: { shape: 'line', count: 2 } }, event('item', 'key')]), catBlock: { ...catBlock, trigger: { type } } };
-    assert.throws(() => validateCustomLevel(level, { requireCatBlockConsistency: true }), /only one Cat Brick/);
+    assert.throws(() => validateCustomLevel(level, { requireCatBlockConsistency: true }), /only one Cat Block/);
   }
   const chest = event('item', 'treasure-chest', { keysRequired: 5 });
   for (const source of [event('item', 'key'), event('enemy', 'mouse', { carriesKey: true })]) {
@@ -254,11 +254,11 @@ test('group counts participate in Cat Brick source and chest key consistency che
   }
 });
 
-test('independent random counts participate in Cat Brick and key-source limits', () => {
-  const catBlock = { description: 'Cat Brick', trigger: { type: 'carrier' } };
+test('independent random counts participate in Cat Block and key-source limits', () => {
+  const catBlock = { description: 'Cat Block', trigger: { type: 'carrier' } };
   const carrier = event('enemy', 'mouse', { random: true, randomCount: 2, carriesCatBlock: true });
   assert.throws(() => validateCustomLevel({ ...blank([carrier]), catBlock },
-    { requireCatBlockConsistency: true }), /only one Cat Brick/);
+    { requireCatBlockConsistency: true }), /only one Cat Block/);
   const level = { ...blank([
     event('item', 'treasure-chest', { keysRequired: 5 }),
     event('enemy', 'mouse', { random: true, randomCount: 5, carriesKey: true }),
