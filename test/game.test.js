@@ -635,6 +635,61 @@ test('Start on a level briefing begins the existing level instead of rebuilding 
   assert.equal(rebuilt, 2, 'custom playtests can replay without campaign maps');
 });
 
+test('defeat dialog keeps the loss explanation and restores other dialog content', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  const css = readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  const nodes = new Map();
+  const game = {
+    state: 'lost', hearts: 0, elapsed: 10, timeLimit: 60, score: 3, enemies: 2, goals: 1,
+    width: 100, height: 100, cat: { x: 50, y: 50, radius: 5 },
+    level: { goal: 10, killGoal: 5, goalsGoal: 2 },
+  };
+  const context = vm.createContext({
+    game, tutorial: null,
+    overlay: { classList: { toggle() {} }, hidden: true },
+    play: { focus() {} }, status: {}, toast: {},
+    document: { querySelector(selector) {
+      if (!nodes.has(selector)) nodes.set(selector, {});
+      return nodes.get(selector);
+    } },
+  });
+  vm.runInContext(source.slice(source.indexOf('function levelDefeatReason('), source.indexOf('\nfunction showCompletionResults(')), context);
+  const start = source.indexOf("  } else if (game.state === 'lost') {");
+  const end = source.indexOf('\nfunction begin()', start);
+  vm.runInContext(`function showDefeat() {\n${source.slice(start, end).replace('  } else if', '  if')}`, context);
+  for (const [changes, reason] of [
+    [{ hearts: 0 }, 'Koshi ran out of hearts.'],
+    [{ hearts: 0, level: { survive: true } }, 'Koshi ran out of hearts.'],
+    [{ hearts: 0, level: { teamGoalsGoal: 3 }, teamRaceWinner: 'enemy' }, 'Koshi ran out of hearts.'],
+    [{ hearts: 0, offscreenDeath: true }, 'Koshi was left outside the screen.'],
+    [{ hearts: 0, boomHelmet: { exploded: true } }, "Koshi's Boom Helmet exploded."],
+    [{ hearts: 1, elapsed: 60, cat: { x: 0, y: 50, radius: 5 } }, 'Koshi slipped off the edge.'],
+    [{ hearts: 1, elapsed: 60 }, 'Time ran out. Food target not met: 3 of 10 points. Enemy target not met: 2 of 5 points. Soccer target not met: 1 of 2 goals.'],
+    [{ hearts: 1, elapsed: 60, score: 10, goals: 2 }, 'Time ran out. Enemy target not met: 2 of 5 points.'],
+    [{ hearts: 1, elapsed: 60, level: { teamGoalsGoal: 3 } }, 'Time ran out before Koshi won the soccer match.'],
+    [{ hearts: 1, elapsed: 60, level: { teamGoalsGoal: 3 }, teamRaceWinner: 'enemy' }, 'Koshi lost the soccer match.'],
+    [{ hearts: 1, elapsed: 10, cat: { x: 0, y: 50, radius: 5 } }, 'Koshi slipped off the edge.'],
+  ]) {
+    Object.assign(game, {
+      hearts: 1, elapsed: 10, score: 3, enemies: 2, goals: 1, offscreenDeath: false,
+      boomHelmet: null, teamRaceWinner: null, cat: { x: 50, y: 50, radius: 5 },
+      level: { goal: 10, killGoal: 5, goalsGoal: 2 },
+    }, changes);
+    context.showDefeat();
+    assert.equal(nodes.get('#dialog-title').textContent, 'DEFEAT');
+    assert.equal(nodes.get('#dialog-kicker').textContent, '');
+    assert.equal(nodes.get('#dialog-icon').textContent, '');
+    assert.equal(nodes.get('#dialog-text').textContent, reason);
+    assert.equal(context.play.textContent, 'Try again →');
+  }
+  context.tutorial = {};
+  context.showDefeat();
+  assert.equal(nodes.get('#dialog-title').textContent, 'Try that step again.');
+  assert.equal(nodes.get('#dialog-kicker').textContent, 'PRACTICE MAKES PROGRESS');
+  assert.equal(nodes.get('#dialog-icon').textContent, '🐾');
+  assert.match(css, /\.dialog-icon:empty,\s*\.dialog \.eyebrow:empty\s*\{\s*display:\s*none;/);
+});
+
 test('opening briefings omit the Cat Block objective and graphic after acquisition', () => {
   const source = readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
   const node = () => ({

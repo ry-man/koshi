@@ -939,6 +939,27 @@ function renderLevelBriefing(container, level, catBlockCollected = false) {
   }
 }
 
+function levelDefeatReason(game) {
+  if (game.offscreenDeath) return 'Koshi was left outside the screen.';
+  if (game.boomHelmet?.exploded) return "Koshi's Boom Helmet exploded.";
+  if (game.hearts <= 0) return 'Koshi ran out of hearts.';
+  const { cat, level } = game;
+  if (cat.x - cat.radius < 0 || cat.x + cat.radius > game.width
+    || cat.y - cat.radius < 0 || cat.y + cat.radius > game.height) return 'Koshi slipped off the edge.';
+  if (level.teamGoalsGoal && game.teamRaceWinner === 'enemy') return 'Koshi lost the soccer match.';
+  if (game.elapsed >= game.timeLimit) {
+    if (level.teamGoalsGoal) return 'Time ran out before Koshi won the soccer match.';
+    const unmet = [];
+    if (!level.bossLevel && !level.survive) {
+      if (level.goal > 0 && game.score < level.goal) unmet.push(`Food target not met: ${game.score} of ${level.goal} points.`);
+      if (level.killGoal > 0 && game.enemies < level.killGoal) unmet.push(`Enemy target not met: ${game.enemies} of ${level.killGoal} points.`);
+      if (level.goalsGoal > 0 && game.goals < level.goalsGoal) unmet.push(`Soccer target not met: ${game.goals} of ${level.goalsGoal} goals.`);
+    }
+    return ['Time ran out.', ...unmet].join(' ');
+  }
+  return 'Koshi was defeated.';
+}
+
 function showDialog(kicker, title, text, label, icon) {
   overlay.classList.toggle('level-briefing', game.state === 'ready');
   document.querySelector('#dialog-kicker').textContent = kicker;
@@ -1411,10 +1432,8 @@ function syncUI() {
       showDialog('PRACTICE MAKES PROGRESS', 'Try that step again.', 'Nothing lost! Retry this step, or choose any other topic in the tutorial menu.', 'Retry step →', '🐾');
       return;
     }
-    const reason = game.hearts <= 0 ? 'Koshi ran out of hearts.' : game.elapsed >= DURATION ? 'Time ran out.' : 'Koshi slipped off the edge.';
-    const result = survive ? ` You survived ${Math.floor(game.elapsed)} of ${DURATION} seconds.`
-      : `${foodTarget ? ` You collected ${game.score} of ${GOAL} food.` : ''}${enemyTarget ? ` You earned ${game.enemies} of ${killGoal} enemy points. Pick up a sword before taking on robots!` : ''}`;
-    showDialog('ANOTHER TRY, ANOTHER ADVENTURE', 'Still hungry for more?', `${reason}${result}`, 'Try again →', '🐾');
+    const reason = levelDefeatReason(game);
+    showDialog('', 'DEFEAT', reason, 'Try again →', '');
     status.textContent = `${reason} Give it another go.`;
     toast.textContent = 'Try again!';
   }

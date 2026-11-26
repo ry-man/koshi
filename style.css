@@ -356,6 +356,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .overlay.level-briefing #play { min-width: min(320px, 100%); min-height: 72px; font-size: 22px; box-shadow: 0 8px 26px #d3ef8b30; }
 .overlay.level-briefing #play span { font-size: 24px; }
 .dialog-icon { display: inline-block; font-size: 40px; margin-bottom: 18px; }
+.dialog-icon:empty, .dialog .eyebrow:empty { display: none; }
 .dialog h2 { font-size: 32px; font-weight: 500; letter-spacing: -1px; margin: 0 0 16px; }
 .dialog > p:not(.eyebrow), #dialog-text { color: #b0bec3; font-size: 14px; line-height: 1.8; margin: 0 0 25px; }
 .primary { border: 0; background: var(--accent); color: #1c2a22; padding: 14px 28px; border-radius: 7px; font-weight: 700; min-width: 174px; }
