@@ -168,6 +168,12 @@
       "worldId": "2",
       "number": "3",
       "id": "official-2-3"
+    },
+    {
+      "file": "world-2/2-4.json",
+      "worldId": "2",
+      "number": "4",
+      "id": "official-2-4"
     }
   ]
 }
