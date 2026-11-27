@@ -26353,6 +26353,153 @@ const levels = [
           "type": "carrier"
         }
       },
+      "cutscene": {
+        "theme": "catnip-beach",
+        "lines": [
+          {
+            "speaker": "boss",
+            "text": "Excellent! These new hammer weapons are exactly what we need. Hopefully Koshi never becomes aware of their power...",
+            "actors": [
+              {
+                "character": "boss",
+                "x": 0.1,
+                "y": 0.65
+              },
+              {
+                "character": "ram",
+                "x": 0.9,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-bronze"
+                ]
+              },
+              {
+                "character": "wheel",
+                "x": 0.58,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-silver"
+                ]
+              }
+            ]
+          },
+          {
+            "speaker": "koshi",
+            "text": "Oh hey guys! What are those powerful looking weapons you have there?",
+            "actors": [
+              {
+                "character": "boss",
+                "x": 0.1,
+                "y": 0.65
+              },
+              {
+                "character": "ram",
+                "x": 0.9,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-bronze"
+                ]
+              },
+              {
+                "character": "wheel",
+                "x": 0.42,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-silver"
+                ]
+              },
+              {
+                "character": "koshi",
+                "x": 0.74,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "boss",
+            "text": "Doggone it! Hurry up and hide them, you fools!",
+            "actors": [
+              {
+                "character": "boss",
+                "x": 0.1,
+                "y": 0.65
+              },
+              {
+                "character": "ram",
+                "x": 0.9,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-bronze"
+                ]
+              },
+              {
+                "character": "wheel",
+                "x": 0.42,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-silver"
+                ]
+              },
+              {
+                "character": "koshi",
+                "x": 0.74,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "wheel",
+            "text": "Yessss ssssir!",
+            "actors": [
+              {
+                "character": "boss",
+                "x": 0.1,
+                "y": 0.65
+              },
+              {
+                "character": "ram",
+                "x": 0.9,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-bronze"
+                ]
+              },
+              {
+                "character": "wheel",
+                "x": 0.42,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-silver"
+                ]
+              },
+              {
+                "character": "koshi",
+                "x": 0.74,
+                "y": 0.65
+              }
+            ]
+          },
+          {
+            "speaker": "koshi",
+            "text": "Oh lookie here...",
+            "actors": [
+              {
+                "character": "boss",
+                "x": 0.1,
+                "y": 0.65
+              },
+              {
+                "character": "koshi",
+                "x": 0.74,
+                "y": 0.65,
+                "accessories": [
+                  "weapon:hammer-gold"
+                ]
+              }
+            ]
+          }
+        ]
+      },
       "levelInfo": {
         "pages": [
           {
