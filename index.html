@@ -26,6 +26,7 @@
     <script defer src="./src/cat-town.js"></script>
     <script defer src="./src/world-map.js"></script>
     <script defer src="./src/transitions.js"></script>
+    <script defer src="./src/roguelike.js"></script>
     <script defer src="./src/app.js"></script>
     <script defer src="./src/pwa.js"></script>
   </head>
@@ -95,6 +96,7 @@
           <button id="title-saves" class="title-secondary" type="button" aria-haspopup="dialog">Save slots</button>
           <button id="title-help" class="title-secondary" type="button" aria-haspopup="dialog">How to play</button>
           <button id="title-tutorial" class="title-secondary" type="button">Tutorial</button>
+          <button id="title-roguelike" class="title-secondary" type="button">Roguelike (beta)</button>
           <button class="title-secondary" id="install-button" type="button" aria-haspopup="dialog">📲 Install app</button>
         </div>
         <p id="save-profile">Guest play - progress is not saved.</p>
@@ -103,6 +105,7 @@
         <p class="title-feedback">Feedback? Please send to <a href="mailto:koshisquest@gmail.com">koshisquest@gmail.com</a></p>
       </div>
     </dialog>
+    <dialog id="roguelike-screen" class="roguelike-screen" aria-label="Roguelike Mode"></dialog>
     <dialog id="level-picker" class="install-dialog world-picker" aria-labelledby="level-picker-heading">
       <header class="learning-heading">
         <h2 id="level-picker-heading">World Map</h2>

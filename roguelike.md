@@ -51,6 +51,8 @@ A  spell selection would consist of:
 
 A player may NOT skip any spell selection - one must always be picked.
 
+An initial set of spells is listed in the spells.csv of this repo.
+
 ### Brick Spells
 Brick spells which require a certain type of brick to be placed have some constraints on where they are to be placed. Brick attributes can be split into two different types:
 

@@ -86,6 +86,7 @@ let brickRevision = -1;
 const destructionVisuals = new Map();
 let customLevel = null;
 let playtestStart = null;
+let roguelikeSetup = null;
 let displayedStuck = false;
 let tutorial = null;
 let guideIndex = 0;
@@ -282,6 +283,13 @@ function layoutOptions() {
 }
 
 function createGame() {
+  if (roguelikeSetup) {
+    const game = new Game(Math.random, { ...layoutOptions(), level: 0, customLevel: roguelikeSetup.definition });
+    game.roguelike = roguelikeSetup.modifiers;
+    game.hearts = Math.max(1, Math.min(roguelikeSetup.modifiers.maxHearts, roguelikeSetup.hearts));
+    if (roguelikeSetup.shield) game.catShield = roguelikeSetup.shield;
+    return game;
+  }
   if (!LEVELS.length && levelSelect.value !== 'custom') return null;
   const level = LEVELS[Number(levelSelect.value)];
   const profile = activeSave ? activeSave.slot : guestProfile;
@@ -1209,10 +1217,11 @@ function syncUI() {
   timer.classList.toggle('win-target', survive);
   foodCount.classList.toggle('win-target', foodTarget);
   foodCount.setAttribute('aria-label', foodTarget ? `${game.score} of ${GOAL} food collected` : `${game.score} food collected`);
-  hearts.textContent = '♥ '.repeat(game.hearts).trim() + ' ♡'.repeat(3 - game.hearts);
+  const maxHearts = game.roguelike?.maxHearts ?? 3;
+  hearts.textContent = '♥ '.repeat(game.hearts).trim() + ' ♡'.repeat(Math.max(0, maxHearts - game.hearts));
   const activationStatus = game.activationsRemaining == null
     ? '' : `; ${game.activationsRemaining} Boom Helmet activations remaining`;
-  hearts.setAttribute('aria-label', `${game.hearts} of 3 hearts${activationStatus}`);
+  hearts.setAttribute('aria-label', `${game.hearts} of ${maxHearts} hearts${activationStatus}`);
   const heartCost = game.level.heartCost;
   const heartSpawning = Number.isFinite(heartCost) && heartCost > 0;
   document.querySelector('#heart-cost').hidden = !heartSpawning;
@@ -1404,6 +1413,16 @@ function syncUI() {
     status.textContent = game.state === 'won' ? 'Level complete! Koshi is celebrating.' : 'Koshi needs another try.';
   }
   if (ending && !endingMotion.matches && ending.elapsed < ending.duration) return;
+  if (game.roguelike && ['won', 'lost'].includes(game.state) && !ending.resultsShown) {
+    ending.resultsShown = true;
+    ending.mapReturned = true;
+    displayedState = game.state;
+    overlay.hidden = true;
+    status.textContent = game.state === 'won' ? 'Arena complete! Choose your spells.' : 'The roguelike run has ended.';
+    roguelikeSetup = null;
+    roguelike.onLevelEnd(game);
+    return;
+  }
   if (ending?.resultsShown && !ending.mapReturned) return;
   if (game.state === 'won' && !tutorial && !ending.resultsShown) {
     ending.resultsShown = true;
@@ -1444,10 +1463,10 @@ function syncUI() {
 
 function begin() {
   if (tutorial) { selectTutorial(tutorial.index); return; }
-  if (!LEVELS.length && levelSelect.value !== 'custom') { openLevelPicker(); return; }
+  if (!roguelikeSetup && !LEVELS.length && levelSelect.value !== 'custom') { openLevelPicker(); return; }
   phaseTransition.run(() => {
     saveResult();
-    for (const dialog of [titleScreen, saveDialog, levelPicker]) if (dialog.open) dialog.close();
+    for (const dialog of [titleScreen, saveDialog, levelPicker, roguelikeDialog]) if (dialog.open) dialog.close();
     game = createGame();
     attemptId = makeAttemptId();
     runSave = activeSave && !game.customLevel ? { index: activeSave.index, id: activeSave.slot.id } : null;
@@ -1741,6 +1760,13 @@ document.querySelector('#exit-confirm-restart').addEventListener('click', () => 
 document.querySelector('#exit-confirm-end').addEventListener('click', () => {
   exitConfirm.close();
   resumeAfterExitConfirm = false;
+  if (game?.roguelike) {
+    phaseTransition.run(() => {
+      roguelikeSetup = null;
+      roguelike.onLevelAbandoned();
+    });
+    return;
+  }
   phaseTransition.run(() => {
     saveResult();
     if (tutorial) leaveTutorial();
@@ -6363,4 +6389,27 @@ if (new URLSearchParams(location.search).get('perf') === '1') {
     requestAnimationFrame(frame);
   });
 } else requestAnimationFrame(frame);
+
+const roguelikeDialog = document.querySelector('#roguelike-screen');
+const roguelike = new globalThis.KoshiRoguelike.RoguelikeController({
+  dialog: roguelikeDialog,
+  officialLevel: name => globalThis.KoshiCampaign?.OFFICIAL_LEVEL_DATA?.[name] ?? null,
+  playLevel: (definition, setup) => {
+    roguelikeSetup = { definition, ...setup };
+    begin();
+  },
+  onExit: () => {
+    roguelikeSetup = null;
+    // A finished roguelike board should not linger behind the title screen.
+    if (game?.roguelike) resetBoard();
+    showTitle();
+  },
+});
+document.querySelector('#title-roguelike').addEventListener('click', () => {
+  autoPause();
+  phaseTransition.run(() => {
+    if (titleScreen.open) titleScreen.close();
+    roguelike.open();
+  });
+});
 })();

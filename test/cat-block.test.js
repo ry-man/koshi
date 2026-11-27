@@ -77,7 +77,7 @@ test('game creation uses the selected profile, pending discoveries and guest sta
   const context = vm.createContext({
     Game, LEVELS, Math, layoutOptions: () => ({}), levelSelect: { value: '0' },
     activeSave: null, pendingSaves: [], guestProfile: { catBlocks: [LEVELS[0].id] },
-    customLevel: level([]), playtestStart: { time: 12, x: .5, y: .5 },
+    customLevel: level([]), playtestStart: { time: 12, x: .5, y: .5 }, roguelikeSetup: null,
   });
   vm.runInContext(source.slice(source.indexOf('function createGame('), source.indexOf('function makeAttemptId(')), context);
   assert.equal(context.createGame().catBlockCollected, true);

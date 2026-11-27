@@ -44,12 +44,12 @@ test('direct-file startup uses ordered classic scripts and exposes the browser e
   const root = path.resolve(__dirname, '..');
   const html = readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b([^>]*)><\/script>/g)];
-  assert.equal(scripts.length, 15);
+  assert.equal(scripts.length, 16);
   for (const [, attributes] of scripts) {
     assert.match(attributes, /\bdefer\b/);
     assert.doesNotMatch(attributes, /\btype\s*=\s*["']module["']/);
   }
-  const ordered = ['campaign-mode', 'official-levels.generated', 'campaign', 'game', 'brick-visuals', 'cutscene', 'learning', 'saves', 'worlds', 'collectibles', 'cat-town', 'world-map', 'transitions', 'app', 'pwa'];
+  const ordered = ['campaign-mode', 'official-levels.generated', 'campaign', 'game', 'brick-visuals', 'cutscene', 'learning', 'saves', 'worlds', 'collectibles', 'cat-town', 'world-map', 'transitions', 'roguelike', 'app', 'pwa'];
   for (const [index, name] of ordered.entries()) {
     assert.ok(scripts[index][1].includes(`src="./src/${name}.js"`));
   }
@@ -552,7 +552,7 @@ test('viewed cutscenes persist and restarting the level skips the scene', () => 
   let opened = 0, briefings = 0;
   Object.assign(context, {
     phaseTransition: { run(action) { action(); } },
-    titleScreen: dialog(), saveDialog: dialog(), levelPicker: dialog(),
+    titleScreen: dialog(), saveDialog: dialog(), levelPicker: dialog(), roguelikeDialog: dialog(), roguelikeSetup: null,
     skipCutscene, activeSave: { index: 0, slot: { id: 'slot-a' } }, tutorial: null,
     createGame() { return { level: { id: '1-1', number: '1-1', cutscene: {} }, customLevel: false }; },
     makeAttemptId() { return 'attempt'; }, saveResult() {}, updateSaveProfile() {}, makeBrickButtons() {},

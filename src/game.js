@@ -4115,7 +4115,7 @@ class Game {
     if (!this.sunglassesActive) {
       brick.readyAt = this.elapsed + COOLDOWNS[brick.kind]
         + Math.max(0, this.snailCooldownFreezeUntil - this.elapsed);
-      if (brick.usesLeft !== null) brick.usesLeft--;
+      if (brick.usesLeft !== null && !this.roguelike?.crumblerImmunity) brick.usesLeft--;
     }
     if (brick.warped) this.absorbNeighbor(brick);
     if (brick.power) {
@@ -5709,7 +5709,7 @@ class Game {
             distanceToSegment(cat.x, cat.y, ax, ay, ...triangle[(i + 1) % 3]) <= cat.radius + 1e-5));
       if (!contact) continue;
       touching.add(obstruction);
-      if (!this.obstructionSpikeTouching.has(obstruction)) this.takeDamage();
+      if (!this.obstructionSpikeTouching.has(obstruction) && !this.roguelike?.spikeImmunity) this.takeDamage();
     }
     this.obstructionSpikeTouching = touching;
   }
@@ -6044,7 +6044,7 @@ class Game {
         if (speed) { ball.vx *= nextSpeed / speed; ball.vy *= nextSpeed / speed; }
         remaining -= spent;
         if (goal) {
-          this.goals++;
+          this.goals += 1 + (this.roguelike?.goalBonus ?? 0);
           const team = this.bricks[obstacle.id].goalTeam;
           if (team) teamScorings.push({ team, time: activeTime - remaining });
           this.goalEffects.push({ x: ball.x, y: ball.y, age: 0, duration: .65 });
@@ -9682,7 +9682,7 @@ class Game {
     if (this.hearts <= 0) return;
     this.healing = this.healing.filter(item => {
       if (distanceToSegment(item.x, item.y, startX, startY, this.cat.x, this.cat.y) > this.cat.radius + 13) return true;
-      this.hearts = Math.min(3, this.hearts + 1);
+      this.hearts = Math.min(this.roguelike?.maxHearts ?? 3, this.hearts + 1);
       this.catBlockProgress.hearts++;
       return false;
     });
@@ -10620,9 +10620,13 @@ class Game {
     }
     if (bubbleHit && bubbleTime <= contact + 1e-9 && bubbleTime <= 1) {
       this.bubbles = this.bubbles.filter(bubble => bubble !== bubbleHit);
-      cat.vx = 0; cat.vy = 0;
-      this.bubbleTrap = { color: bubbleHit.color, fromX: endX, fromY: endY,
-        x: bubbleHit.x, y: bubbleHit.y, age: 0, transition: .18, duration: SLIMES[bubbleHit.color].duration };
+      if (this.roguelike?.bubbleImmunity) {
+        this.bubblePops.push({ x: bubbleHit.x, y: bubbleHit.y, color: bubbleHit.color, age: 0 });
+      } else {
+        cat.vx = 0; cat.vy = 0;
+        this.bubbleTrap = { color: bubbleHit.color, fromX: endX, fromY: endY,
+          x: bubbleHit.x, y: bubbleHit.y, age: 0, transition: .18, duration: SLIMES[bubbleHit.color].duration };
+      }
     }
     if (circleHit && circleTime <= contact + 1e-9 && circleTime <= 1 && !bubbleHit) {
       this.catCircleTrap = { circle: circleHit, fromX: endX, fromY: endY,
@@ -10636,7 +10640,7 @@ class Game {
     this.updateObstructionSpikeDamage(this.tickStart?.x ?? startX, this.tickStart?.y ?? startY);
     const keydoorOpened = this.openKeydoors(startX, startY);
     if (!sawing && !stamping) {
-      if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
+      if (!this.roguelike?.spikeImmunity && [...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
       for (const id of spikeIds) this.spikeTouching.add(id);
     }
     this.combat(dt, startX, startY);
@@ -10662,7 +10666,7 @@ class Game {
     if (sawing || stamping) {
       for (const part of contacts) if (this.bricks[part.id].spikes) spikeIds.add(part.id);
       for (const id of spikeIds) if (!this.bricks[id].spikes) spikeIds.delete(id);
-      if ([...spikeIds].some(id => !this.spikeTouching.has(id))) this.takeDamage();
+      if ([...spikeIds].some(id => !this.spikeTouching.has(id)) && !this.roguelike?.spikeImmunity) this.takeDamage();
       for (const id of spikeIds) this.spikeTouching.add(id);
     }
     for (const id of new Set(contacts.map(part => part.id))) {
@@ -10677,8 +10681,9 @@ class Game {
       const solid = contacts.filter(part => !this.bricks[part.id].springs);
       if (solid.length || ride) {
         cat.vx = 0; cat.vy = 0;
-        const slimes = solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed)
-          .sort((a, b) => SLIMES[b.slimeColor ?? 'green'].duration - SLIMES[a.slimeColor ?? 'green'].duration);
+        const slimes = this.roguelike?.slimeImmunity ? []
+          : solid.map(part => this.bricks[part.id]).filter(brick => brick.slimed)
+            .sort((a, b) => SLIMES[b.slimeColor ?? 'green'].duration - SLIMES[a.slimeColor ?? 'green'].duration);
         if (slimes.length) {
           this.stuckColor = slimes[0].slimeColor ?? 'green';
           this.stuckUntil = this.elapsed - dt + dt * contact + SLIMES[this.stuckColor].duration;

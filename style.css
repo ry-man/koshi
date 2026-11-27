@@ -740,3 +740,41 @@ body:has(.learning-guide[open]) { overflow: hidden; }
   .tutorial-active .stat-label { margin-bottom: 2px; }
   .tutorial-active .stat strong { font-size: 14px; }
 }
+
+/* Roguelike Mode */
+.roguelike-screen { width: min(880px, calc(100vw - 24px)); max-height: calc(100svh - 24px); overflow: auto; padding: 24px; border: 1px solid #ffffff20; border-radius: 16px; background: var(--panel); color: var(--text); box-shadow: 0 25px 70px #000a; }
+.roguelike-screen::backdrop { background: #10191fe6; }
+.roguelike-header h2 { margin: 0 0 6px; color: var(--accent); }
+.roguelike-subtitle { margin: 0 0 14px; color: var(--muted); }
+.roguelike-status { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; padding: 8px 12px; border: 1px solid #ffffff16; border-radius: 8px; background: var(--bg); font-size: 14px; }
+.roguelike-seed { color: var(--muted); margin-left: auto; overflow-wrap: anywhere; }
+.roguelike-seed-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 16px 0; }
+.roguelike-seed-form input { padding: 10px; border: 1px solid var(--muted); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; }
+.roguelike-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 0 0 16px; }
+.roguelike-option { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px; border: 1px solid #ffffff26; border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; cursor: pointer; }
+.roguelike-option:hover:not(:disabled) { border-color: var(--accent); }
+.roguelike-option:disabled { opacity: .45; cursor: default; }
+.roguelike-option strong { color: var(--accent); }
+.roguelike-option-static { cursor: default; }
+.roguelike-muted { color: var(--muted); font-size: 13px; }
+.roguelike-flavor { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.roguelike-flavor-pawsitive { color: #63d877; }
+.roguelike-flavor-pawful { color: #ed5555; }
+.roguelike-forced { color: #f0ce35; }
+.roguelike-log { color: var(--accent); font-size: 13px; }
+.roguelike-profile { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+.roguelike-profile-box { border: 1px solid #ffffff16; border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+.roguelike-profile-box h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.roguelike-profile-box ul { margin: 0; padding-left: 16px; font-size: 13px; }
+.roguelike-board { display: grid; grid-template-columns: repeat(7, 30px); grid-template-rows: repeat(10, 24px); gap: 3px; justify-content: center; align-content: start; padding: 10px; border: 1px solid #ffffff16; border-radius: 8px; background: var(--bg); }
+.roguelike-brick { display: grid; place-items: center; border: 1px solid #0006; border-radius: 4px; color: #10191f; font: 11px/1 'DM Sans', sans-serif; overflow: hidden; padding: 0; }
+button.roguelike-brick:disabled { opacity: .35; }
+.roguelike-brick-eligible { outline: 2px solid var(--accent); cursor: pointer; }
+.roguelike-brick-merged { border: 2px dashed #10191f; }
+.roguelike-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.roguelike-chip { padding: 8px 12px; margin: 4px 6px 0 0; border: 1px solid #ffffff26; border-radius: 16px; background: var(--bg); color: var(--text); font: inherit; }
+.roguelike-chip-active { border-color: var(--accent); color: var(--accent); }
+.roguelike-target-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.roguelike-psychic { margin: 0 0 12px; }
+.roguelike-result { font-size: 16px; }
+.roguelike-sold { text-decoration: line-through; }

@@ -22,6 +22,7 @@ const ASSETS = [
   './src/cat-town.js',
   './src/world-map.js',
   './src/transitions.js',
+  './src/roguelike.js',
   './src/app.js',
   './src/editor.js',
   './src/pwa.js',

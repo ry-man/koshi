@@ -285,6 +285,28 @@ approval remains a separate gate; remove that requirement in repository settings
 only if you intentionally want unattended deployment. A push alone is never
 reported as a verified production deployment.
 
+## Roguelike Mode (prototype)
+
+The title screen's **Roguelike (beta)** button opens a seeded run mode that
+needs no save slot or player profile; a run lives in memory until the page is
+closed. The design outline lives in `roguelike.md`, the implementation in
+`src/roguelike.js`, and the initial spell pool in `spells.csv`. A run spans
+three acts of six chosen events (Arenas, Shops, Cat Beds and Cat Toys), each
+act ending with a boss battle in Tom the Toaster's 2-25 arena. Elite Arenas
+are not implemented yet. The seed shown during a run regenerates the same
+three acts when reused.
+
+Arenas are generated as custom levels from the evolving player profile: the
+26-brick ring, shuffled weapon/item/soccer-ball spawn cycles, powers, and
+attributes such as hearts and spawn intervals. Victories convert points into
+gold (`food + 10 × enemy + 25 × goals`), grant two spell picks (one pawful
+brick set, one mixed set of a shared flavor and rarity), and spell selections
+can never be skipped. Soccer objectives force a Goal Brick conversion and Love
+Bugs force a Barrier Brick conversion before the battle starts. Power spells
+(immunities, Power Shot, extra hearts, starting shields) are applied through a
+`game.roguelike` modifier object read by small hooks in `src/game.js`;
+campaign play never sets it, so regular games are unaffected.
+
 ## Beta and Official games
 
 Only the title screen offers a **Beta / Official** selector. The world map and
