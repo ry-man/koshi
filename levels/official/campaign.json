@@ -192,6 +192,12 @@
       "worldId": "2",
       "number": "7",
       "id": "official-2-7"
+    },
+    {
+      "file": "world-2/2-25.json",
+      "worldId": "2",
+      "number": "25",
+      "id": "official-2-25"
     }
   ]
 }

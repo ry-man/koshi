@@ -11,7 +11,7 @@ const { collectibleTotals, levelRewardStates, catBlockIcon, goldStarIcon } = glo
 let displayedLevelRewards = '';
 let levelRewardGame = null;
 let previousLevelRewardResults = {};
-const { WORLDS, nextLevelIndex } = globalThis.KoshiWorlds;
+const { WORLDS } = globalThis.KoshiWorlds;
 const campaignMode = globalThis.KoshiCampaignMode;
 const campaignId = campaignMode.active.id;
 const { INFO_GRAPHICS, validateLevelInfo } = globalThis.KoshiGame;
@@ -469,6 +469,16 @@ function saveResult() {
   };
   storeAttempt(result);
   return summary;
+}
+
+// Custom (editor playtest) levels share the campaign results popup without persisting records.
+function customLevelSummary() {
+  return {
+    result: attemptResult(game.state),
+    newCatBlock: false,
+    previousStats: levelStats({}, game.level.id),
+    newRecords: {},
+  };
 }
 
 function continueSave(index, id, fresh = false) {
@@ -981,7 +991,7 @@ function showCompletionResults(summary) {
   const rows = document.querySelector('#level-results-rows tbody');
   const recordLegend = document.querySelector('#level-results-record-legend');
   heading.textContent = `Level ${game.level.number ?? game.level.id} complete`;
-  star.hidden = !summary.result.damageFree;
+  star.hidden = !summary.result.damageFree || Boolean(game.customLevel);
   previousStar.hidden = !summary.result.damageFree || !summary.previousStats.goldStar;
   document.querySelector('#level-results-cat-block').hidden = !summary.newCatBlock;
   rows.replaceChildren();
@@ -1025,9 +1035,11 @@ function showCompletionResults(summary) {
     rows.append(row);
   }
   recordLegend.hidden = !hasNewRecord;
+  const continueButton = document.querySelector('#level-results-continue');
+  continueButton.textContent = game.customLevel ? 'Play again →' : 'Continue to map →';
   overlay.hidden = true;
   dialog.showModal();
-  document.querySelector('#level-results-continue').focus({ preventScroll: true });
+  continueButton.focus({ preventScroll: true });
 }
 
 function syncLevelRewards() {
@@ -1387,17 +1399,18 @@ function syncUI() {
   if (ending?.game !== game || ending?.state !== game.state) ending = null;
   if (['won', 'lost'].includes(game.state) && !ending) {
     ending = { game, state: game.state, elapsed: 0, duration: game.state === 'won' ? 2.4 : 1.8 };
-    if (!tutorial) ending.summary = saveResult();
+    if (!tutorial) ending.summary = saveResult() ?? customLevelSummary();
     overlay.hidden = true;
     toast.textContent = '';
     status.textContent = game.state === 'won' ? 'Level complete! Koshi is celebrating.' : 'Koshi needs another try.';
   }
   if (ending && !endingMotion.matches && ending.elapsed < ending.duration) return;
   if (ending?.resultsShown && !ending.mapReturned) return;
-  if (game.state === 'won' && !tutorial && !game.customLevel && !ending.resultsShown) {
+  if (game.state === 'won' && !tutorial && !ending.resultsShown) {
     ending.resultsShown = true;
     displayedState = game.state;
-    status.textContent = 'Level complete! Review your results, then continue to the map.';
+    status.textContent = game.customLevel ? 'Level complete! Review your results, then play again.'
+      : 'Level complete! Review your results, then continue to the map.';
     toast.textContent = 'Level complete!';
     showCompletionResults(ending.summary);
     return;
@@ -1415,18 +1428,9 @@ function syncUI() {
     showDialog('TAKE A BREATHER', 'A little catnap.', 'The clock and cooldowns are paused. Your snacks will be right here when you return.', 'Keep exploring →', '☾');
     status.textContent = 'Paused. No snacks lost on our watch.';
   } else if (game.state === 'won') {
-    if (tutorial) {
-      overlay.hidden = true;
-      status.textContent = 'Practice challenge complete. Choose another step or exit to the title.';
-      return;
-    }
-    const next = game.customLevel ? -1 : nextLevelIndex(game.levelIndex);
-    const hasNext = next !== -1;
-    showDialog(`LEVEL ${game.level.number ?? game.level.id} COMPLETE`, 'One well-fed hero.', survive
-      ? `You survived all ${DURATION} seconds! You gathered ${game.score} food and earned ${game.enemies} enemy points.`
-      : `You gathered ${game.score} food and earned ${game.enemies} enemy points with ${Math.ceil(DURATION - game.elapsed)} seconds to spare.`, game.customLevel ? 'Play again →' : hasNext ? 'Choose next level →' : 'Choose a level →', '🏆');
-    status.textContent = hasNext ? `Level complete! Level ${LEVELS[next].number} is next.` : 'Level complete! Replay or choose a level.';
-    toast.textContent = 'Level complete!';
+    // Only tutorial wins reach here; other wins show the level results dialog above.
+    overlay.hidden = true;
+    status.textContent = 'Practice challenge complete. Choose another step or exit to the title.';
   } else if (game.state === 'lost') {
     if (tutorial) {
       showDialog('PRACTICE MAKES PROGRESS', 'Try that step again.', 'Nothing lost! Retry this step, or choose any other topic in the tutorial menu.', 'Retry step →', '🐾');
@@ -1657,6 +1661,7 @@ levelResultsDialog.addEventListener('cancel', event => event.preventDefault());
 function continueFromCompletion() {
   levelResultsDialog.close();
   if (ending?.game === game) ending.mapReturned = true;
+  if (game.customLevel) { begin(); return; }
   openLevelPicker({ insideWorld: true, level: game.levelIndex, advance: true });
 }
 document.querySelector('#level-results-continue').addEventListener('click', continueFromCompletion);
