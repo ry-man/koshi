@@ -293,6 +293,15 @@
       }
     ]
   },
+  "levelInfo": {
+    "pages": [
+      {
+        "title": "Enemy Shields",
+        "text": "Some enemies have shields which allow them to take more than one hit from Koshi before being destroyed.\n\nNote that shielded enemies also give you more enemy points (one per hit), but you ONLY collect the enemy points once the enemy is destroyed.\n\nRed shields = +1 hit / +1 enemy point\nGreen shield = +2 hits / +2 enemy points\nBlue shield = +3 hits / +3 enemy points",
+        "graphics": []
+      }
+    ]
+  },
   "brickTypes": [
     {
       "edge": "right",
