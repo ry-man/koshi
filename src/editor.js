@@ -785,6 +785,11 @@ function populateObstructionFields(prefix, items) {
   syncObstructionSize(prefix, items[0]);
 }
 
+function obstructionRotation(value) {
+  const rotation = Number(value);
+  return rotation % 90 === 0 ? ((rotation % 360) + 360) % 360 : rotation;
+}
+
 function readObstructionFields(prefix) {
   const fields = Object.fromEntries(['color', 'pattern', 'patternColor'].map(field => [field, $(`#${prefix}-${field}`).value]));
   for (const field of ['width', 'height']) {
@@ -796,7 +801,7 @@ function readObstructionFields(prefix) {
     if (fields.width !== undefined) fields.height = fields.width;
     else if (fields.height !== undefined) fields.width = fields.height;
   }
-  const rotation = Number($(`#${prefix}-rotation`).value);
+  const rotation = obstructionRotation($(`#${prefix}-rotation`).value);
   if (rotation) fields.rotation = rotation;
   for (const field of ['destructible', 'spiked', 'keydoor']) {
     if ($(`#${prefix}-${field}`).checked) fields[field] = true;
@@ -1094,7 +1099,7 @@ function transformSelection(mode) {
     sum + previewGame.campaignEventCoordinates(point.x, point.y)[axis], 0) / targets.length;
   const points = targets.map(({ point }) => {
     if (mode === 'discretize') {
-      if (point.kind === 'object' && OBJECTS[point.type].obstruction && (point.rotation ?? 0) % 360 === 0) {
+      if (point.kind === 'object' && OBJECTS[point.type].obstruction && (point.rotation ?? 0) % 90 === 0) {
         return snapObstructionFrame(point, sourcePlacementBounds());
       }
       const snapped = placementPosition(point.x, point.y);
@@ -3018,12 +3023,19 @@ function sourcePlacementBounds() {
 
 function snapObstructionFrame(obstruction, bounds, handle = '') {
   const grid = placementGrid();
-  if (!grid || (obstruction.rotation ?? 0) % 360 !== 0) return obstruction;
+  const rotation = obstruction.rotation ?? 0;
+  if (!grid || rotation % 90 !== 0) return obstruction;
+  const quarterTurns = ((rotation / 90) % 4 + 4) % 4;
+  const swapped = quarterTurns % 2 === 1;
+  const directions = ['n', 'e', 's', 'w'];
+  handle = [...handle].map(direction => directions[(directions.indexOf(direction) + quarterTurns) % 4]).join('');
   const geometry = obstructionGeometry(obstruction);
+  const frameWidth = swapped ? geometry.height : geometry.width;
+  const frameHeight = swapped ? geometry.width : geometry.height;
   const spanX = bounds.right - bounds.left, spanY = bounds.bottom - bounds.top;
   const options = { constrain: false, centerlines: false };
-  const rawFirst = { x: obstruction.x - geometry.width / (2 * spanX), y: obstruction.y - geometry.height / (2 * spanY) };
-  const rawLast = { x: obstruction.x + geometry.width / (2 * spanX), y: obstruction.y + geometry.height / (2 * spanY) };
+  const rawFirst = { x: obstruction.x - frameWidth / (2 * spanX), y: obstruction.y - frameHeight / (2 * spanY) };
+  const rawLast = { x: obstruction.x + frameWidth / (2 * spanX), y: obstruction.y + frameHeight / (2 * spanY) };
   let first = placementPosition(rawFirst.x, rawFirst.y, options);
   let last = placementPosition(rawLast.x, rawLast.y, options);
   const horizontal = placementStep([1, 0]), vertical = placementStep([0, 1]);
@@ -3036,7 +3048,7 @@ function snapObstructionFrame(obstruction, bounds, handle = '') {
   const minCells = circle ? Math.ceil(1 / Math.min(pitchX, pitchY)) : 0;
   const maxCells = circle ? Math.floor(10000 / Math.max(pitchX, pitchY)) : Infinity;
   if (circle) {
-    const ideal = Math.round((geometry.width / pitchX + geometry.height / pitchY) / 2);
+    const ideal = Math.round((frameWidth / pitchX + frameHeight / pitchY) / 2);
     let best;
     for (let candidate = ideal - 1; candidate <= ideal + 1; candidate++) {
       const cells = Math.max(minCells, Math.min(maxCells, candidate));
@@ -3067,7 +3079,7 @@ function snapObstructionFrame(obstruction, bounds, handle = '') {
   const width = cellsX * pitchX;
   // A square screen grid can differ by a subpixel between axes after CSS layout.
   const height = circle ? width : cellsY * pitchY;
-  return { ...obstruction, width, height,
+  return { ...obstruction, width: swapped ? height : width, height: swapped ? width : height,
     x: (first.x + last.x) / 2 + fitCenter(first.x, last.x, stepX),
     y: (first.y + last.y) / 2 + fitCenter(first.y, last.y, stepY) };
 }
@@ -3824,7 +3836,7 @@ function applyToSelected() {
       }
       if (rotationChanged) {
         if (value('#event-rotation') === '') delete next.rotation;
-        else next.rotation = Number(value('#event-rotation'));
+        else next.rotation = obstructionRotation(value('#event-rotation'));
       }
       if (destructibleChanged) next.destructible = $('#event-destructible').checked;
       if (spikedChanged) next.spiked = $('#event-spiked').checked;

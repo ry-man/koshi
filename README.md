@@ -1700,11 +1700,13 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
    uncheck it for free placement. New board placements use the current preview
    time, snapped to the selected time spacing (1 second by default).
    Toggling it does not move existing elements; numeric inspector
-   coordinates remain exact. Resizing an unrotated obstruction snaps its frame
-   corners to the grid; rotated obstruction resizing remains exact. Perimeter enemies still
+   coordinates remain exact. Resizing an obstruction at a multiple of 90 degrees
+   snaps its frame corners to the grid; other rotations resize exactly. Equivalent
+   quarter-turn inputs such as 360 or -90 degrees are saved as 0 or 270 degrees.
+   Perimeter enemies still
    snap to their required board edge.
    **Discretize** rounds selected fixed placements or nodes to the current grid;
-   for unrotated obstructions, it snaps all four frame corners instead of the
+   for obstructions at multiples of 90 degrees, it snaps all four frame corners instead of the
    center. Circles retain the closest square grid-aligned frame. Frames remain at
    least one grid cell wide and high; corners can extend beyond the playable area.
    It does nothing when discretization is off. **Symmetrize Vert** and

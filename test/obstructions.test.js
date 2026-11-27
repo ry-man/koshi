@@ -1350,6 +1350,26 @@ test('obstruction shapes retain fixed defaults after custom edits in either insp
   }
 });
 
+test('editor normalizes equivalent quarter-turn inputs for new and edited obstructions', () => {
+  const { $, context } = editorFixture();
+  $('#event-type').value = 'obstruction-rectangle';
+  $('#brick-spawn-item').value = 'object:obstruction-rectangle';
+  for (const prefix of ['event', 'brick-spawn']) {
+    for (const [input, expected] of [['360', undefined], ['450', 90], ['-90', 270]]) {
+      $(`#${prefix}-rotation`).value = input;
+      assert.equal(context.readObstructionFields(prefix).rotation, expected);
+    }
+  }
+  context.level.events = [placement('rectangle')];
+  context.selectedEvents = new Set([0]);
+  context.touched.add('#event-rotation');
+  for (const [input, expected] of [['360', 0], ['450', 90], ['-90', 270]]) {
+    $('#event-rotation').value = input;
+    context.applyToSelected();
+    assert.equal(context.level.events[0].rotation, expected);
+  }
+});
+
 test('all eight resize handles anchor edges and corners; only circles retain equal dimensions', () => {
   const { context, source } = editorFixture();
   vm.runInContext(source.slice(source.indexOf('function resizedObstruction('), source.indexOf('function startGesture(')), context);
@@ -1415,7 +1435,7 @@ test('resize gestures commit validated dimensions, cancel without altering the d
   assert.equal(context.gesture, null);
 });
 
-test('unrotated obstruction resizing snaps every frame corner across handles, grid sizes and orientations', () => {
+test('axis-aligned obstruction resizing snaps every frame corner across handles, grid sizes and orientations', () => {
   const { $, context, source } = editorFixture();
   let spacing = 18, dimensions;
   $('#playable-area').clientLeft = $('#playable-area').clientTop = 1;
@@ -1424,9 +1444,13 @@ test('unrotated obstruction resizing snaps every frame corner across handles, gr
   vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function startGesture(')), context);
   const corners = obstruction => {
     const bounds = context.sourcePlacementBounds(), geometry = obstructionGeometry(obstruction);
-    return [-1, 1].flatMap(x => [-1, 1].map(y => context.previewGame.campaignEventCoordinates(
-      obstruction.x + x * geometry.width / (2 * (bounds.right - bounds.left)),
-      obstruction.y + y * geometry.height / (2 * (bounds.bottom - bounds.top)))));
+    const angle = (obstruction.rotation ?? 0) * Math.PI / 180;
+    return [-1, 1].flatMap(x => [-1, 1].map(y => {
+      const localX = x * geometry.width / 2, localY = y * geometry.height / 2;
+      return context.previewGame.campaignEventCoordinates(
+        obstruction.x + (localX * Math.cos(angle) - localY * Math.sin(angle)) / (bounds.right - bounds.left),
+        obstruction.y + (localX * Math.sin(angle) + localY * Math.cos(angle)) / (bounds.bottom - bounds.top));
+    }));
   };
   const assertOnGrid = obstruction => {
     for (const corner of corners(obstruction)) {
@@ -1441,8 +1465,8 @@ test('unrotated obstruction resizing snaps every frame corner across handles, gr
     const b = context.previewGame.bounds(), bounds = context.sourcePlacementBounds();
     dimensions = { width: (b.right - b.left) * .75, height: (b.bottom - b.top) * .75 };
     for (spacing of [4.5, 9, 18, 36, 72, 144]) {
-      for (const shape of ['rectangle', 'diamond', 'circle']) {
-        const origin = placement(shape, { x: .38, y: .44, width: 137, height: shape === 'circle' ? 137 : 83 });
+      for (const shape of ['rectangle', 'diamond', 'circle']) for (const rotation of [0, 90, 180, 270, 360, -90, 450]) {
+        const origin = placement(shape, { x: .38, y: .44, width: 137, height: shape === 'circle' ? 137 : 83, rotation });
         for (const handle of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
           const dx = handle.includes('w') ? -31 : 31, dy = handle.includes('n') ? -23 : 23;
           $('#discretize-xy').checked = false;
@@ -1466,11 +1490,11 @@ test('unrotated obstruction resizing snaps every frame corner across handles, gr
             }
           }
           assert.equal(origin.width, 137, 'gesture origins are never mutated');
-          validateCustomLevel({ ...blank(), events: [next] });
+          if (rotation >= 0 && rotation <= 350) validateCustomLevel({ ...blank(), events: [next] });
         }
       }
     }
-    for (const rotation of [45, 90, 270]) {
+    for (const rotation of [45, -45, 89.9, 135]) {
       const origin = placement('rectangle', { rotation });
       $('#discretize-xy').checked = false;
       const unsnapped = context.resizedObstruction(origin, 'se', 31, 23, bounds);
@@ -1486,7 +1510,43 @@ test('unrotated obstruction resizing snaps every frame corner across handles, gr
   }
 });
 
-test('Discretize snaps unrotated obstruction frames, chooses the closest square for circles, and keeps rotated sizes', () => {
+test('quarter-turned resize handles keep the opposite frame edge anchored when shrinking to one cell', () => {
+  const { $, context, source } = editorFixture();
+  let dimensions;
+  Object.assign($('#playable-area'), { clientLeft: 1, clientTop: 1, getBoundingClientRect: () => dimensions });
+  context.getComputedStyle = () => ({ backgroundSize: '18px 18px' });
+  vm.runInContext(source.slice(source.indexOf('function placementGrid('), source.indexOf('function startGesture(')), context);
+  $('#discretize-xy').checked = true;
+  const directions = ['n', 'e', 's', 'w'];
+  for (const portrait of [false, true]) {
+    context.previewGame = new Game(() => .5, { customLevel: blank(), portrait });
+    const b = context.previewGame.bounds(), bounds = context.sourcePlacementBounds();
+    dimensions = { width: b.right - b.left, height: b.bottom - b.top };
+    for (const rotation of [0, 90, 180, 270, 360, -90, 450]) for (const handle of directions) {
+      const origin = context.snapObstructionFrame(placement('rectangle', {
+        x: .5, y: .5, width: 90, height: 72, rotation,
+      }), bounds);
+      const angle = rotation * Math.PI / 180;
+      const localX = handle === 'e' ? -1000 : handle === 'w' ? 1000 : 0;
+      const localY = handle === 's' ? -1000 : handle === 'n' ? 1000 : 0;
+      const next = context.resizedObstruction(origin, handle,
+        localX * Math.cos(angle) - localY * Math.sin(angle),
+        localX * Math.sin(angle) + localY * Math.cos(angle), bounds);
+      const turns = ((rotation / 90) % 4 + 4) % 4;
+      const worldHandle = directions[(directions.indexOf(handle) + turns) % 4];
+      const axis = ['e', 'w'].includes(worldHandle) ? 'x' : 'y';
+      const span = axis === 'x' ? bounds.right - bounds.left : bounds.bottom - bounds.top;
+      const size = frame => axis === 'x'
+        ? turns % 2 ? frame.height : frame.width : turns % 2 ? frame.width : frame.height;
+      const opposite = ['n', 'w'].includes(worldHandle) ? 1 : -1;
+      assert.ok(Math.abs((next[axis] * span + opposite * size(next) / 2)
+        - (origin[axis] * span + opposite * size(origin) / 2)) < 1e-8,
+      `${portrait ? 'portrait' : 'landscape'} ${rotation} ${handle} anchors the opposite edge`);
+    }
+  }
+});
+
+test('Discretize snaps quarter-turned obstruction frames, chooses the closest square for circles, and keeps diagonal sizes', () => {
   const { $, context, source } = editorFixture();
   const game = new Game(() => .5, { customLevel: blank() }), b = game.bounds();
   const bounds = { left: 0, right: b.right - b.left, top: 0, bottom: b.bottom - b.top };
@@ -1509,9 +1569,11 @@ test('Discretize snaps unrotated obstruction frames, chooses the closest square 
     placement('rectangle', { x: .23, y: .31, width: 127, height: 81 }),
     placement('rectangle', { x: .23, y: .31, width: 127, height: 81, rotation: 45 }),
     placement('circle', { ...circleCenter, width: 21.6, height: 21.6 }),
+    ...[90, 180, 270].map(rotation =>
+      placement('rectangle', { x: .23, y: .31, width: 127, height: 81, rotation })),
   ];
   context.level = { ...blank(), events };
-  context.selectedEvents = new Set([0, 1, 2]);
+  context.selectedEvents = new Set(events.map((_, index) => index));
   context.selectedBricks = new Set(['test-spawner']);
   const before = JSON.stringify(context.level);
   $('#discretize-xy').checked = false;
@@ -1520,9 +1582,11 @@ test('Discretize snaps unrotated obstruction frames, chooses the closest square 
   $('#discretize-xy').checked = true;
   context.transformSelection('discretize');
   const gridCoordinate = (value, length) => (value * length - 10) / 18;
-  for (const frame of [context.level.events[0], context.level.events[2], context.level.snappedSpawn]) {
+  for (const frame of [context.level.events[0], ...context.level.events.slice(2), context.level.snappedSpawn]) {
     const geometry = obstructionGeometry(frame);
-    for (const [axis, size, length] of [['x', geometry.width, bounds.right], ['y', geometry.height, bounds.bottom]]) {
+    const swapped = Math.abs((frame.rotation ?? 0) % 180) === 90;
+    for (const [axis, size, length] of [['x', swapped ? geometry.height : geometry.width, bounds.right],
+      ['y', swapped ? geometry.width : geometry.height, bounds.bottom]]) {
       for (const sign of [-1, 1]) {
         const index = gridCoordinate(frame[axis] + sign * size / (2 * length), length);
         assert.ok(Math.abs(index - Math.round(index)) < 1e-10);

@@ -88,7 +88,7 @@ test('built-in level choices start with their world-level number', () => {
 test('obstruction rotation controls accept 5-degree increments', () => {
   const html = readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
   for (const id of ['brick-spawn-rotation', 'event-rotation']) {
-    assert.ok(html.includes(`Rotation (degrees, 5° steps)<input id="${id}" type="number" min="0" max="350" step="5"`));
+    assert.ok(html.includes(`Rotation (degrees, 5° steps)<input id="${id}" type="number" step="5"`));
   }
 });
 
