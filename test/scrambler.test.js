@@ -100,7 +100,6 @@ test('Scrambler shuffles attributes between brick groups while preserving their 
   const geometry = game.bricks.map(({ id, x, y, w, h, absorbedBy }) => ({ id, x, y, w, h, absorbedBy }));
   first.readyAt = 20;
   second.spawned = true;
-  second.warpUntil = 25;
 
   game.collectItem({ type: 'chisel' });
   game.collectItem({ type: 'scrambler' });
@@ -127,7 +126,6 @@ test('Scrambler shuffles attributes between brick groups while preserving their 
   assert.equal(first.toggleRemaining, first.toggle);
   assert.equal(second.toggleRemaining, second.toggle ?? 0);
   assert.equal(second.spawned, false);
-  assert.equal(second.warpUntil, null);
   assert.deepEqual(groups.map(brick => JSON.stringify(propertyBundle(brick))).sort(), beforeAttributes);
   game.update(effect.duration / 2);
   assert.equal(game.scramblerEffect, null);

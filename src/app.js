@@ -1355,7 +1355,6 @@ function syncUI() {
       button.querySelector('.brick-cracks path').setAttribute('d', shape.cracks);
     }
     const remaining = Math.max(0, brick.readyAt - Math.max(game.elapsed, game.snailCooldownFreezeUntil));
-    const warpSeconds = brick.warpUntil === null || brick.usesLeft === 0 ? null : Math.max(0, Math.ceil(brick.warpUntil - game.elapsed - 1e-9));
     const immutableGoal = brick.kind === 'goal';
     button.setAttribute('aria-disabled', String(immutableGoal || stuck || !game.brickSelectable(brick)));
     if (item.special) updateBrick(item.special, brick, game.elapsed, game.sunglassesActive && !['cinder', 'goal'].includes(brick.kind));
@@ -1376,7 +1375,7 @@ function syncUI() {
       item.conveyor.querySelector('.conveyor-teeth').setAttribute('d', geometry.teeth);
     }
     button.dataset.deactivated = String(brick.kind !== 'goal' && !game.sunglassesActive && brick.usesLeft === 0);
-    const label = `${brick.kind} brick ${brick.id + 1}${immutableGoal && brick.goalTeam ? `, team ${brick.goalTeam === 'koshi' ? 'Koshi' : 'Enemy'}` : ''}, ${immutableGoal ? 'scoring goal, cannot be activated or changed, and cannot be absorbed' : brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? `, Warped: ${brick.usesLeft === 0 ? 'frozen until restart or absorption' : warpSeconds === null ? `${brick.warped} second duration` : `${warpSeconds} seconds until restoration`}` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${game.sunglassesActive && !['cinder', 'goal'].includes(brick.kind) ? ', Magical Sunglasses: cooldown and selection locks temporarily bypassed' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
+    const label = `${brick.kind} brick ${brick.id + 1}${immutableGoal && brick.goalTeam ? `, team ${brick.goalTeam === 'koshi' ? 'Koshi' : 'Enemy'}` : ''}, ${immutableGoal ? 'scoring goal, cannot be activated or changed, and cannot be absorbed' : brick.kind === 'cinder' ? 'solid, cannot activate or be absorbed' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler: ${brick.usesLeft} selections left${brick.usesLeft === 0 ? ', permanently deactivated' : ''}` : ''}${brick.warped ? ', Warped: grows permanently on selection' : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}${specialLabel(brick)}${game.sunglassesActive && !['cinder', 'goal'].includes(brick.kind) ? ', Magical Sunglasses: cooldown and selection locks temporarily bypassed' : ''}${tutorial?.target.id === brick.id ? ', suggested tutorial target' : ''}`;
     if (button.getAttribute('aria-label') !== label) {
       button.setAttribute('aria-label', label);
       button.title = label;
@@ -1941,14 +1940,6 @@ function guidePicture(picture, title, fillBrick = false) {
         ctx.strokeStyle = '#392b20'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
         ctx.restore();
       }
-    }
-    if (!fillBrick && warped) {
-      const top = crumbler ? 22 : 28;
-      const baseline = crumbler ? 32 : 41;
-      const badgeWidth = crumbler ? 46 : 70;
-      ctx.fillStyle = '#111d25'; ctx.fillRect(80 - badgeWidth / 2, top, badgeWidth, 17);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('W:12', 80, baseline);
     }
   } else if (kind === 'enemy') {
     drawRobot({ type, x: 80, y: 42, distance: 0 });

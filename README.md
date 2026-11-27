@@ -1603,8 +1603,7 @@ arena plus Koshi's weapon). Pausing freezes all battle timers.
    (black circle, yellow symbol). Restart restores that choice; newly stamped
    Power Blocks use the current shared state. Hazard Bricks with a black or
    yellow border operate only when Power Blocks match that border.
-   Set the selection limit (default 5) or warp duration
-   (default 15 seconds). Changes apply immediately. Each brick
+   Set the Crumbler selection limit (default 5). Changes apply immediately. Each brick
    can have its own type, independent of the preset. Applying a different boundary
    preset changes defaults but keeps individual overrides.
 2. Choose **Koshi** to optionally place his starting point. Click the playable
@@ -2398,7 +2397,7 @@ It presses onto that brick's center to capture its properties, then returns
 beside Koshi with matching ink. The next landing presses onto the destination's
 center and copies all that source's properties before
 contact effects run, but keeps its own position, size and current merged shape.
-Cooldowns, Crumbler uses, Toggle counters, spawners and warp timers start fresh;
+Cooldowns, Crumbler uses, Toggle counters and spawners start fresh;
 spawner settings are copied independently. Portals neither supply a copy nor
 consume the stamp. Merging Warped bricks can be copied without copying their
 geometry. Midair redirects and Portal travel retain the captured source.
@@ -2840,8 +2839,10 @@ top-to-bottom on sides) in the **phone layout**, and `kind` (`slow`, `normal`,
 `fast`, `cinder`, `goal`). Desktop rotates these saved slots clockwise, including reversing
 slot order when phone left/right edges become desktop top/bottom.
 Optional
-`crumbler` is an integer selection limit (1–100000); `warped` is a duration
-in seconds (0.1–3600). Set either to `null` to explicitly remove that attribute.
+`crumbler` is an integer selection limit (1–100000); `warped` is a positive
+number (0.1–3600) retained for compatibility with existing levels. Any valid
+value enables permanent Warped growth; it no longer specifies a duration. Set
+either to `null` to explicitly remove that attribute.
 Optional `power` is a boolean; `true` adds a Power Block switch and `false`
 removes it. Level-wide `powerOn` is an optional boolean specifying the shared
 starting state (default `false`, yellow face). Gameplay changes to this state
@@ -2977,8 +2978,8 @@ and rotate with the phone board; custom-level event coordinates remain relative
 to the playable area in both orientations. Older exports from the variable-count
 editor continue to use their saved edge segments and may affect more than
 one current brick. Up to 2000 overrides are
-supported. Base positions and counts remain unchanged; Warped bricks temporarily
-merge during play.
+supported. Base positions and counts remain unchanged; Warped growth lasts
+until the level restarts or another effect changes the group.
 
 ### Crumbler and Warped behavior
 
@@ -2992,8 +2993,8 @@ merge during play.
   the selections used; at zero, their outline is heavily eroded and visibly
   fractured. Rejected selections and cooldowns do not add wear, and restarting
   restores the initial appearance. These changes are visual: exhausted bricks
-  remain solid. Crumblers also show a `C` counter in an unclipped label above
-  the damage, so every remaining-use count stays readable. Merged Crumblers keep one
+  remain solid. Crumblers also show cracked-brick pips for their remaining uses.
+  Merged Crumblers keep one
   continuous chipped outer edge without internal seams; editor previews use
   the initial, unworn shape. These chips are visual
   only and do not change collision geometry. Only a successful selection consumes
@@ -3010,20 +3011,12 @@ merge during play.
   group, wrapping around corners. The enlarged area can be clicked to select
   the owner and shares its cooldown, attributes, and selection limit. Connecting
   gaps become solid; corner merges stay L-shaped rather than filling the board.
-- The first absorption starts the `W` countdown. Further absorptions do not
-  restart it. Absorbed bricks cannot be selected separately. Neighbors can be
-  absorbed even while cooling down, exhausted, or already warped. An existing
-  warp group is absorbed in full, with its old timer replaced by the selected
-  owner's countdown. Absorption only stops once the entire perimeter is owned.
-- At expiry, all absorbed bricks regain their original geometry and attributes.
-  Their original cooldown deadlines continue to elapse while absorbed; their
-  remaining Crumbler selections are preserved. If the owner exhausts its
-  Crumbler selections, the entire enlarged brick is frozen and deactivated,
-  including its absorbed bricks; its own warp timer no longer restores it.
-  Another Warped brick can still absorb this group; when that new owner restores
-  it, exhausted bricks remain unselectable. The counter shows `W:X` for this state.
-  Pause freezes cooldowns and warp timers. Restart restores
-  every brick and replenishes Crumbler selections.
+- Absorbed bricks cannot be selected separately. Neighbors can be absorbed even
+  while cooling down, exhausted, or already warped; existing groups are absorbed
+  in full. Growth persists without a timer and stops when no eligible neighboring
+  group remains. If the owner exhausts its Crumbler selections, the enlarged
+  brick remains solid and unselectable; another Warped brick can absorb it.
+  Restart restores starting groups and replenishes Crumbler selections.
 
 ### Slimed, Springs, Spikes, and Conveyor behavior
 
@@ -3095,15 +3088,14 @@ Drafts, JSON, and playtests preserve optional `brickGroups`, for example
 phone/desktop layouts, and shown as one-based brick numbers in the editor.
 Every group needs 2–26 unique adjacent IDs, including its owner; groups cannot
 overlap. A Portal group counts as one endpoint. Warped growth can absorb
-entire starting groups, but timer restoration and restart retain their saved
-combined sizes. Existing levels without groups are unchanged.
+entire starting groups; restart restores their saved combined sizes.
 
 ### Portal, Toggle, spawning, and Boost behavior
 
 These mechanics are available in the editor, guide, and dedicated tutorial
 steps, alongside practice for every other current brick type.
 
-Crumbler counts (`C:`), Warped seconds (`W:`), and Toggle switches share a
+Toggle switches and item icons use a
 centered information strip, arranged along the original brick's long axis.
 Any combination is supported, with item icons alongside when present. The strip
 keeps its original size but centers on the full starting or grown group.
@@ -3112,7 +3104,6 @@ not merely its center point. Boost flames, spawner and Barrier icons use the
 same bounded layout without growing to the group's bounding-box size.
 It remains outside Crumbler clipping. Larger non-Crumbler groups have slightly
 rounded exterior and interior corners, without seams between their segments.
-`W:X` denotes a frozen, exhausted Warped Crumbler.
 
 - **Portal pairs:** matching colored smoke encloses the boundaries, with fixed
   rounded puffs that gently breathe without flickering at the corners. A
@@ -3146,7 +3137,7 @@ rounded exterior and interior corners, without seams between their segments.
   appear on the inner perimeter. Merely selecting the brick does not spawn it.
   Once physical contact spawns the item, its icon becomes contrasting dark grey
   without a glow, and it cannot spawn again until restart, even
-  after leaving, returning, being absorbed, or restoring from a Warped group.
+  after leaving, returning, or being absorbed by a Warped group.
 - Swords and hammers have thin dark outlines around their blades/heads and handles.
   Bronze uses a dark green patina, distinct from brown wood, silver, and gold.
   These colors are shared by gameplay weapons, editor palettes, and spawner icons.

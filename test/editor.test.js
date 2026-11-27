@@ -2907,4 +2907,20 @@ test('editor goal bricks clear attributes, reject surface edits, and combine onl
       assert.equal(JSON.stringify(context.level), before);
     }
   }
+  game = setup({ ...blank(), brickTypes: [{ ...region, kind: 'normal', warped: 7 }] });
+  context.selectedBricks.add(regionKey(region));
+  context.renderBrickInspector(game.bricks);
+  assert.equal($('#brick-warped').checked, true);
+  $('#brick-power').checked = true;
+  context.saveBrick({ target: { id: 'brick-power' } });
+  assert.equal(context.level.brickTypes[0].warped, 7, 'unrelated edits preserve the legacy value');
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  $('#brick-warped').checked = false;
+  context.saveBrick({ target: { id: 'brick-warped' } });
+  assert.equal(context.level.brickTypes[0].warped, null);
+  game = setup(context.level); context.selectedBricks.add(regionKey(region));
+  $('#brick-warped').checked = true;
+  context.saveBrick({ target: { id: 'brick-warped' } });
+  assert.equal(context.level.brickTypes[0].warped, 15);
+  assert.doesNotMatch(readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8'), /brick-warp-seconds/);
 });

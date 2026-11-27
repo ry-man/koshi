@@ -583,7 +583,7 @@ function syncPalettes() {
     const plain = CONTACT_SURFACES.every(surface => !$(`#brick-${surface}`).checked && !$(`#brick-${surface}`).indeterminate);
     button.setAttribute('aria-pressed', attribute === 'plain' ? String(plain) : box.indeterminate ? 'mixed' : String(box.checked));
   }
-  for (const id of ['brick-uses', 'brick-warp-seconds', 'brick-spawn-lifetime', 'brick-spawn-shield', 'brick-spawn-crab-direction']) $(`#${id}`).parentElement.hidden = $(`#${id}`).disabled;
+  for (const id of ['brick-uses', 'brick-spawn-lifetime', 'brick-spawn-shield', 'brick-spawn-crab-direction']) $(`#${id}`).parentElement.hidden = $(`#${id}`).disabled;
 }
 
 function message(text, error = false) {
@@ -1600,7 +1600,7 @@ function renderBrickInspector(bricks) {
     if (color === MIXED) mixedOption($('#brick-slime-color')); else $('#brick-slime-color').value = color;
   }
   if (!chosen.length) {
-    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-toggle', '#brick-power', '#brick-hazard']) $(selector).disabled = true;
+    for (const selector of ['#brick-kind', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-toggle', '#brick-power', '#brick-hazard']) $(selector).disabled = true;
     for (const selector of ['#brick-crumbler', '#brick-warped', '#brick-slimed', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-portal', '#brick-spawner', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-toggle', '#brick-power']) $(selector).indeterminate = false;
     $('#brick-selection').textContent = '';
     return;
@@ -1618,8 +1618,7 @@ function renderBrickInspector(bricks) {
     $(input).placeholder = value === MIXED ? 'Mixed' : '';
   };
   flag('#brick-crumbler', '#brick-uses', chosen.map(brick => brick.crumbler), 5);
-  flag('#brick-warped', '#brick-warp-seconds', chosen.map(brick => brick.warped), 15);
-  for (const attribute of [...CONTACT_SURFACES, 'toggle', 'power']) {
+  for (const attribute of ['warped', ...CONTACT_SURFACES, 'toggle', 'power']) {
     const box = $(`#brick-${attribute}`), count = chosen.filter(brick => brick[attribute]).length;
     box.disabled = inert;
     box.checked = count === chosen.length;
@@ -1675,7 +1674,7 @@ function renderBoard() {
     element.classList.toggle('springs', Boolean(brick.springs));
     element.dataset.id = brick.id;
     element.dataset.region = key;
-    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}${brick.kind === 'goal' && brick.goalTeam ? `, team ${brick.goalTeam === 'koshi' ? 'Koshi' : 'Enemy'}` : ''}, ${immutableBrick(brick.kind) ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? `, Warped ${brick.warped} seconds` : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}`);
+    element.setAttribute('aria-label', `${displayedEdge} brick ${brick.id + 1}: ${brick.kind}${brick.kind === 'goal' && brick.goalTeam ? `, team ${brick.goalTeam === 'koshi' ? 'Koshi' : 'Enemy'}` : ''}, ${immutableBrick(brick.kind) ? 'solid, cannot activate' : `${COOLDOWNS[brick.kind]} second cooldown`}${brick.crumbler ? `, Crumbler ${brick.crumbler} selections` : ''}${brick.warped ? ', Warped: grows permanently on selection' : ''}${brick.slimed ? `, ${brick.slimeColor ?? 'green'} slime: sticks for ${SLIMES[brick.slimeColor ?? 'green'].duration} seconds` : ''}${brick.springs ? ', Springs: reflects Koshi' : ''}${brick.spikes ? ', Spikes: loses one heart on contact' : ''}${brick.conveyor ? `, Conveyor: carries Koshi ${brick.conveyorDirection ?? 'clockwise'}` : ''}`);
     element.setAttribute('aria-pressed', String(selectedBricks.has(key)));
     element.setAttribute('aria-label', element.getAttribute('aria-label') + specialLabel(brick));
     // Pointer clicks are handled by the board gesture; detail 0 means keyboard activation.
@@ -3493,8 +3492,7 @@ function saveBrick(event) {
       }
       if (id === 'brick-crumbler') entry.crumbler = $('#brick-crumbler').checked ? entry.crumbler ?? number('#brick-uses') ?? 5 : null;
       if (id === 'brick-uses' && entry.crumbler && number('#brick-uses') !== null) entry.crumbler = number('#brick-uses');
-      if (id === 'brick-warped') entry.warped = $('#brick-warped').checked ? entry.warped ?? number('#brick-warp-seconds') ?? 15 : null;
-      if (id === 'brick-warp-seconds' && entry.warped && number('#brick-warp-seconds') !== null) entry.warped = number('#brick-warp-seconds');
+      if (id === 'brick-warped') entry.warped = $('#brick-warped').checked ? entry.warped ?? 15 : null;
       if (id === 'brick-toggle') entry.toggle = $('#brick-toggle').checked ? Number($('#brick-toggle-clicks').value || 1) : null;
       if (id === 'brick-power') entry.power = $('#brick-power').checked;
       if (id === 'brick-toggle-clicks' && $('#brick-toggle-clicks').value !== MIXED) entry.toggle = Number($('#brick-toggle-clicks').value);
@@ -3644,7 +3642,7 @@ function splitBricks() {
     message('Combined bricks split. Each retains the group\'s current attributes.');
   });
 }
-for (const selector of ['#brick-kind', '#brick-goal-team', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-warp-seconds', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-power', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-hazard', '#brick-hazard-type', '#brick-hazard-power', '#brick-hazard-interval', '#brick-hazard-color', '#brick-hazard-pattern', '#brick-hazard-patternColor']) {
+for (const selector of ['#brick-kind', '#brick-goal-team', '#brick-crumbler', '#brick-uses', '#brick-warped', '#brick-slimed', '#brick-slime-color', '#brick-springs', '#brick-spikes', '#brick-conveyor', '#brick-conveyor-direction', '#brick-portal', '#brick-portal-color', '#brick-toggle', '#brick-toggle-clicks', '#brick-power', '#brick-spawner', '#brick-spawn-item', '#brick-spawn-lifetime', '#brick-boost', '#brick-barrier', '#brick-turret', '#brick-turret-type', '#brick-hazard', '#brick-hazard-type', '#brick-hazard-power', '#brick-hazard-interval', '#brick-hazard-color', '#brick-hazard-pattern', '#brick-hazard-patternColor']) {
   $(selector).addEventListener('change', saveBrick);
 }
 for (const selector of ['#brick-spawn-fixed', '#brick-spawn-x', '#brick-spawn-y']) $(selector).addEventListener('change', saveBrick);

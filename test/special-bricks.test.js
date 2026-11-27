@@ -51,7 +51,7 @@ test('starting brick groups validate adjacency, ownership and portable membershi
 });
 
 for (const options of [{}, { portrait: true, scale: .3 }]) {
-  test(`starting groups share selection and contact effects and survive Warped restoration in ${options.portrait ? 'phone' : 'desktop'}`, () => {
+  test(`starting groups share selection and contact effects with lasting Warped growth in ${options.portrait ? 'phone' : 'desktop'}`, () => {
     const base = arena(), ids = base.perimeter.slice(0, 3), ownerId = ids[1], memberId = ids[0];
     const source = { ...level(), brickGroups: [{ owner: ownerId, members: ids }], brickTypes: [
       { ...base.bricks[ownerId].region, kind: 'fast', crumbler: 5, warped: 1, spawner: { kind: 'heart', type: 'heart' } },
@@ -67,8 +67,8 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
     assert.equal(owner.readyAt, 3);
     assert.equal(member.toggleRemaining, 4);
     assert.ok(game.bricks.some(brick => !ids.includes(brick.id) && brick.absorbedBy === owner.id));
-    game.elapsed = 1.1; game.restoreWarps();
-    for (const brick of game.bricks) assert.equal(brick.absorbedBy, ids.includes(brick.id) && brick.id !== owner.id ? owner.id : null);
+    game.update(1.1);
+    assert.ok(game.bricks.some(brick => !ids.includes(brick.id) && brick.absorbedBy === owner.id));
     const exit = game.portalExit({ ...member, id: ownerId });
     game.cat.x = exit.x - exit.nx * .01; game.cat.y = exit.y - exit.ny * .01;
     game.cat.vx = 0; game.cat.vy = 0;
@@ -82,7 +82,7 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
   });
 }
 
-test('a Warped owner absorbs and restores entire permanent groups, including its own starting group', () => {
+test('a Warped owner absorbs permanent groups until restart restores starting groups', () => {
   const base = arena(), ids = base.perimeter;
   const source = { ...level(), brickGroups: [
     { owner: ids[0], members: ids.slice(0, 2) }, { owner: ids[2], members: ids.slice(2, 5) },
@@ -90,7 +90,9 @@ test('a Warped owner absorbs and restores entire permanent groups, including its
   const game = new Game(() => 0, { customLevel: source }), owner = game.bricks[ids[0]];
   for (let i = 0; i < 26; i++) game.absorbNeighbor(owner);
   assert.equal(game.bricks.every(brick => brick.id === owner.id || brick.absorbedBy === owner.id), true);
-  game.elapsed = 2; game.restoreWarps();
+  game.start(); game.update(2);
+  assert.equal(game.bricks.every(brick => brick.id === owner.id || brick.absorbedBy === owner.id), true);
+  game.reset();
   for (const group of source.brickGroups) {
     for (const id of group.members) assert.equal(game.bricks[id].absorbedBy, id === group.owner ? null : group.owner);
   }
@@ -721,16 +723,16 @@ test('shared visuals render matching portal colors, countdown switches and grey 
     for (let mask = 0; mask < 8; mask++) {
       const brick = { id: 0, x: 20, y: 20, w: vertical ? 22 : 110, h: vertical ? 110 : 22,
         crumbler: mask & 1 ? 5 : null, usesLeft: mask & 1 ? 3 : null,
-        warped: mask & 2 ? 15 : null, warpUntil: mask & 2 ? 12 : null,
+        warped: mask & 2 ? 15 : null,
         toggle: mask & 4 ? 4 : null, toggleRemaining: 2 };
       const plain = context.KoshiBrickVisuals.decorateBrick(node(), brick, [brick]);
       const members = [brick, { x: 20, y: 20, w: 800, h: 22 }, { x: 798, y: 20, w: 22, h: 500 }];
       const merged = context.KoshiBrickVisuals.decorateBrick(node(), brick, members);
       assert.equal(merged.vertical, vertical, 'orientation follows original owner, not merged bounding box');
-      if (!(mask & 6)) { assert.equal(merged.info, null); }
+      if (!(mask & 4)) { assert.equal(merged.info, null); }
       else {
         assert.equal(merged.info.attributes.viewBox, plain.info.attributes.viewBox, 'growth never enlarges the information layout');
-        assert.equal(merged.info.children.length, [2, 4].filter(bit => mask & bit).length);
+        assert.equal(merged.info.children.length, 1);
       }
       if (!mask) continue;
       const container = node();
@@ -744,13 +746,12 @@ test('shared visuals render matching portal colors, countdown switches and grey 
         assert.equal(merged.crumblerPips.filter(pip => pip.attributes.opacity === '1').length, 3);
         assert.equal(merged.crumblerPips.length, 5);
       }
-      if (mask & 2) assert.equal(merged.warpCount.textContent, 'W:8');
+      if (merged.info) assert.ok(merged.info.children.every(child => child.attributes.class !== 'brick-number-badge'));
       if (mask & 4) assert.equal(merged.count.textContent, '2');
       if (mask & 1) {
         brick.usesLeft = 0;
         context.KoshiBrickVisuals.updateBrick(merged, brick, 4);
         assert.equal(merged.crumblerPips.filter(pip => pip.attributes.opacity === '1').length, 0);
-        if (mask & 2) assert.equal(merged.warpCount.textContent, 'W:X');
       }
     }
   }
@@ -914,9 +915,9 @@ test('shared visuals render matching portal colors, countdown switches and grey 
   assert.equal(boostVisual.symbol.style.opacity, '.8', 'Toggle state does not dim an active Boost surface');
   const compact = { x: 0, y: 0, w: 68, h: 50, crumbler: 5, usesLeft: 5, warped: 15, toggle: 4, toggleRemaining: 4 };
   const compactVisual = context.KoshiBrickVisuals.decorateBrick(node(), compact, [compact]);
-  assert.equal(compactVisual.info.attributes.viewBox, '0 0 158 58');
+  assert.equal(compactVisual.info.attributes.viewBox, '0 0 94 58');
+  assert.equal(compactVisual.info.children.length, 1);
   assert.equal(compactVisual.info.children[0].attributes.x, '0');
-  assert.equal(compactVisual.info.children[1].attributes.x, '64');
 });
 
 test('special graphics center on the full starting or grown brick, including corner unions', () => {

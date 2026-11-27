@@ -109,7 +109,7 @@ for (const options of [{}, { portrait: true, scale: .3 }]) {
     assert.equal(target.crumbler, 7); assert.equal(target.usesLeft, 7);
     assert.equal(target.toggle, 3); assert.equal(target.toggleRemaining, 3);
     assert.equal(target.readyAt, 0);
-    assert.equal(target.warped, 20); assert.equal(target.warpUntil, null);
+    assert.equal(target.warped, 20);
     assert.equal(target.slimed, true); assert.equal(target.slimeColor, 'red');
     assert.ok(game.stuckUntil > game.elapsed, 'copied slime applies on the same landing');
     assert.equal(target.springs, undefined); assert.equal(target.spawner, undefined);
@@ -245,7 +245,7 @@ for (const copiedSpikes of [false, true]) {
   });
 }
 
-test('stamping keeps an absorbed union intact but resets its warp timer', () => {
+test('stamping keeps an absorbed union intact', () => {
   const game = arena(), source = edgeBrick(game, 'bottom'), target = edgeBrick(game, 'top');
   target.warped = 10; game.absorbNeighbor(target);
   source.kind = 'fast';
@@ -256,7 +256,6 @@ test('stamping keeps an absorbed union intact but resets its warp timer', () => 
   assert.deepEqual(game.brickParts().filter(part => part.id === target.id), before);
   game.update(11);
   assert.deepEqual(game.brickParts().filter(part => part.id === target.id), before);
-  assert.equal(target.warpUntil, null);
 });
 
 test('a saw takes priority and leaves the stamp equipped', () => {

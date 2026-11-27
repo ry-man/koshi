@@ -143,12 +143,11 @@ test('riding pauses, resets, allows steering away, and collects items along its 
   assert.equal(game.elapsed, 0);
 });
 
-test('warped conveyors carry across absorbed gaps and stop when the supporting member is restored', () => {
+test('warped conveyors carry across absorbed gaps without expiring', () => {
   const { game, brick } = setup('top');
   const top = game.bricks.filter(other => brickRegions(game.bricks, game.width, game.height).get(other.id).edge === 'top').sort((a, b) => a.x - b.x);
   const neighbor = top[top.indexOf(brick) + 1];
   neighbor.absorbedBy = brick.id;
-  brick.warpUntil = 20;
   land(game, neighbor);
   assert.deepEqual(game.conveyorRide, { id: brick.id });
   const edge = game.conveyorEdge(brick.id, game.brickParts());
@@ -156,13 +155,10 @@ test('warped conveyors carry across absorbed gaps and stop when the supporting m
   game.update((neighbor.w / 2 + (neighbor.x - brick.x - brick.w) + 5) / CONVEYOR_SPEED);
   assert.ok(game.cat.x < brick.x + brick.w);
   assert.deepEqual(game.conveyorRide, { id: brick.id });
-  // Move onto the absorbed member again, then expire its owner's warp.
   game.cat.x = neighbor.x + neighbor.w / 2;
-  brick.warpUntil = game.elapsed;
   game.update(.01);
-  assert.equal(neighbor.absorbedBy, null);
-  assert.equal(game.conveyorRide, null);
-  assert.equal(game.cat.vx, 0); assert.equal(game.cat.vy, 0);
+  assert.equal(neighbor.absorbedBy, brick.id);
+  assert.deepEqual(game.conveyorRide, { id: brick.id });
 });
 
 test('corner and non-arena-facing contact do not incorrectly attach to a belt', () => {

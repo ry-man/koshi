@@ -613,7 +613,7 @@ function bandEndInset(run) {
   return Math.min(run.thickness / 4, (run.end - run.start) / 2);
 }
 function decorateBrick(button, brick, members, width, height, groupCenterBrick = null, portalExit = null, perimeterIds = null) {
-  let cloud = null, knob = null, count = null, symbol = null, warpCount = null, turretFill = null, crumblerPipLayer = null;
+  let cloud = null, knob = null, count = null, symbol = null, turretFill = null, crumblerPipLayer = null;
   const crumblerPips = [];
   let powerDisc = null, powerMark = null;
   const shape = brickShape(members, Boolean(brick.crumbler));
@@ -674,7 +674,7 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
   }
   button.dataset.specialVertical = String(vertical);
   const slots = [brick.spawner || brick.boost || brick.barrier || brick.turret || brick.hazard ? 'symbol' : null,
-    brick.warped ? 'warped' : null, brick.toggle ? 'toggle' : null, brick.power ? 'power' : null].filter(Boolean);
+    brick.toggle ? 'toggle' : null, brick.power ? 'power' : null].filter(Boolean);
   const length = slots.reduce((total, slot) => total + (slot === 'toggle' ? 94 : 64), 0);
   const stacked = !vertical && brick.w / brick.h < 2 && brick.toggle && slots.length > 2;
   const rows = slots.length - 1;
@@ -848,13 +848,6 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
     }
     button.append(crumblerPipLayer);
   }
-  if (brick.warped) {
-    const badge = svgNode('svg', { class: 'brick-number-badge', viewBox: '0 0 64 58' });
-    badge.append(svgNode('rect', { x: 2, y: 7, width: 60, height: 44, rx: 6, fill: '#111d25', 'fill-opacity': .9 }));
-    const text = svgNode('text', { x: 32, y: 36, 'text-anchor': 'middle', fill: 'white', 'font-size': 24, 'font-weight': 'bold' });
-    badge.append(text); place(badge, 'warped');
-    warpCount = text;
-  }
   if (brick.toggle) {
     const toggle = svgNode('svg', { class: 'brick-toggle', viewBox: vertical ? '-3 -3 58 94' : '-3 -3 94 58', 'aria-hidden': 'true' });
     toggle.style.color = { 1: PORTALS.red, 2: PORTALS.green, 4: PORTALS.blue }[brick.toggle];
@@ -887,7 +880,7 @@ function decorateBrick(button, brick, members, width, height, groupCenterBrick =
     place(power, 'power');
   }
   const visual = { button, cloud, knob, count, symbol, vertical, info, infoBounds, crumblerPips, crumblerPipLayer,
-    crumblerGeometry: { members, width, height, shape, maxCount: brick.crumbler, perimeterIds }, warpCount, turretFill, powerDisc, powerMark };
+    crumblerGeometry: { members, width, height, shape, maxCount: brick.crumbler, perimeterIds }, turretFill, powerDisc, powerMark };
   updateBrick(visual, brick, 0);
   return visual;
 }
@@ -934,11 +927,6 @@ function updateBrick(visual, brick, elapsed, sunglassesActive = false) {
       visual.crumblerUsesLeft = remaining;
     }
   }
-  if (visual.warpCount) {
-    const seconds = brick.warpUntil == null ? brick.warped : Math.max(0, Math.ceil(brick.warpUntil - elapsed - 1e-9));
-    visual.warpCount.textContent = `W:${brick.usesLeft === 0 ? 'X' : seconds}`;
-  }
-  if (visual.warpCount) visual.warpCount.setAttribute('font-size', Math.min(28, 120 / visual.warpCount.textContent.length));
 }
 function exposeBrickInfo(visual, container, brick, width, height) {
   if (!visual.info) return;

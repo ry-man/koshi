@@ -11,7 +11,7 @@ const GUIDE = [
     sections: [
       ['Aim at bricks, not objects', 'Click or tap a boundary brick. Koshi travels toward that exact spot, collecting anything along his path. He stops at the first solid brick he touches. Pick another brick to leave it.'],
       ['Change course', 'Select a different available brick while Koshi is moving to redirect him immediately. A blocked or invalid selection does not use a cooldown or a Crumbler selection.'],
-      ['Keyboard & pause', 'Tab to a brick and press Enter or Space to aim at its center. Open the exit button to pause, then choose Cancel to resume, or use Escape or Space outside a control to pause/resume. Pause freezes cooldowns, slime holds, weapons, previews, and Warped timers. In the installed app, intercepted Back gestures are ignored rather than pausing. Switching away pauses automatically; resume explicitly.'],
+      ['Keyboard & pause', 'Tab to a brick and press Enter or Space to aim at its center. Open the exit button to pause, then choose Cancel to resume, or use Escape or Space outside a control to pause/resume. Pause freezes cooldowns, slime holds, weapons, and previews. In the installed app, intercepted Back gestures are ignored rather than pausing. Switching away pauses automatically; resume explicitly.'],
       ['A fresh attempt', 'Choose Restart Level in the pause menu to reset the current level. End Level returns to the level map.'],
     ],
   },
@@ -37,7 +37,7 @@ const GUIDE = [
       [ITEMS['saw-blade'].name, 'Koshi instantly grows a ring of ears shaped into rapidly spinning saw teeth. His next brick contact other than Cinder or Goal permanently turns the entire current brick shape into Cinder, overriding its contact effects. It shakes, smokes, and fades into concrete, then Koshi returns to normal. Existing Cinder and Goal bricks do not use the saw; extra saw pickups do not stack. Cracker Causeway introduces it.', 'item:saw-blade'],
       [ITEMS.chisel.name, 'A steel blade and wooden handle float beside Koshi. His next touch on a merged brick splits it into separate bricks, all matching the merged brick’s type and attributes, with smoke puffing along the new seams. Touching a single brick does not use it; a different equipped item replaces it, while power-ups can stack. Available for custom-level placements and spawners only.', 'item:chisel'],
       [ITEMS.scrambler.name, 'A wacky purple egg fades every brick to black, then sparkles and smoke burst out as a fast light wave swirls around the board and the shuffled bricks fade back in. Brick positions, sizes, and merged shapes stay put, so a small brick can inherit the attributes of a large one. Available for custom-level placements and spawners only.', 'item:scrambler'],
-      [ITEMS['ditto-stamp'].name, 'An orange wooden stamp follows Koshi without sparkles. His first stop after pickup captures that brick’s properties with a press onto its center. The stamp returns beside him with matching ink, then presses onto his next landing brick’s center to copy the properties before contact effects run, preserving destination size and merged shape. Cooldown, Crumbler uses, Toggle counter, spawner and warp timers start fresh. Portals never act as sources or consume the stamp; merging Warped bricks can be copied. Spring bounces do not capture a source because Koshi does not stop. Pickup while resting waits for a new landing. Midair redirects keep the captured copy. Extra stamps do not stack. A colored ripple marks the change. A held Saw Blade takes priority and leaves the stamp unused.', 'item:ditto-stamp'],
+      [ITEMS['ditto-stamp'].name, 'An orange wooden stamp follows Koshi without sparkles. His first stop after pickup captures that brick’s properties with a press onto its center. The stamp returns beside him with matching ink, then presses onto his next landing brick’s center to copy the properties before contact effects run, preserving destination size and merged shape. Cooldown, Crumbler uses, Toggle counter and spawner state start fresh. Portals never act as sources or consume the stamp; merging Warped bricks can be copied. Spring bounces do not capture a source because Koshi does not stop. Pickup while resting waits for a new landing. Midair redirects keep the captured copy. Extra stamps do not stack. A colored ripple marks the change. A held Saw Blade takes priority and leaves the stamp unused.', 'item:ditto-stamp'],
       ...['pencil', 'wide', 'roller'].map(brush => {
         const variants = Object.entries(ITEMS).filter(([, item]) => item.brush === brush);
         const item = variants[0][1];
@@ -95,8 +95,8 @@ const GUIDE = [
     practice: 'crumbler',
     sections: [
       ['Crumblers / cracked-brick pips', 'Jagged Crumblers have limited selections. Each successful selection deepens their chips and cracks and removes one cracked-brick pip. With no pips left, the brick stays solid but cannot be selected until restart. Its cooldown animation stops.', 'brick:crumbler'],
-      ['Warped / W counter', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes. The first absorption starts W; further selections do not restart it. When W expires, absorbed bricks regain their own attributes and remaining uses. A Warped brick that is also a Crumbler and runs out of uses freezes enlarged with W:X until restart or absorption by another Warped owner.', 'brick:warped'],
-      ['Larger starting bricks', 'Double and triple bricks appear in the campaign. Aim anywhere on their surface: the whole group shares one owner’s cooldown, selection count, and attributes. In the editor, select adjacent bricks and choose an owner before Combine. Groups can cross corners; Cinder combines only with Cinder. Split retains current attributes. Warped timer restoration and restart preserve saved starting groups. A Portal group counts as one endpoint.'],
+      ['Warped bricks', 'Swirl-patterned Warped bricks absorb one neighboring brick or entire group each successful selection, including around corners. The enlarged surface acts as one brick with the selected owner’s cooldown and attributes and does not shrink over time. An exhausted Warped Crumbler remains enlarged and unselectable. Restart restores starting groups.', 'brick:warped'],
+      ['Larger starting bricks', 'Double and triple bricks appear in the campaign. Aim anywhere on their surface: the whole group shares one owner’s cooldown, selection count, and attributes. In the editor, select adjacent bricks and choose an owner before Combine. Groups can cross corners; Cinder combines only with Cinder. Split retains current attributes. Restart preserves saved starting groups. A Portal group counts as one endpoint.'],
     ],
   },
   {
@@ -204,7 +204,7 @@ const LESSONS = [
   { id: 'food', title: 'Collect food', instruction: 'Tap the outlined brick to travel through all three strawberries. Watch the food counter rise.' },
   { id: 'cooldown', title: 'Brick recharge', instruction: `Use the outlined red fast brick, then wait for its ${COOLDOWNS.fast}-second full-surface refill. Green normal bricks take ${COOLDOWNS.normal} seconds and blue slow bricks take ${COOLDOWNS.slow} seconds. Other ready bricks remain available while one recharges.` },
   { id: 'crumbler', title: 'Crumblers', instruction: 'Use the outlined Crumbler twice: go to it, go to the opposite brick, then return after it recharges. When its cracked-brick pips are gone, it is solid but permanently unselectable.' },
-  { id: 'warped', title: 'Warped bricks', instruction: 'Select the outlined Warped brick. Watch it absorb a neighbor, then wait 8 seconds for the group to restore.' },
+  { id: 'warped', title: 'Warped bricks', instruction: 'Select the outlined Warped brick and watch it permanently absorb a neighbor.' },
   ...['red', 'green', 'blue'].map(color => ({
     id: `slime-${color}`, title: `${color[0].toUpperCase() + color.slice(1)} slime`,
     instruction: `Touch the outlined slime brick. Steering locks for ${SLIMES[color].duration} second${color === 'red' ? '' : 's'} while the ring drains. Wait for FREE!, then pick a brick to leave.`,
@@ -251,7 +251,7 @@ const LESSONS = [
   { id: 'conveyor', title: 'Conveyor belts', instruction: 'Touch the outlined grey Conveyor and watch Koshi ride along its arrows. Then select another brick to move away; you can redirect even while riding. Belts can run clockwise or counterclockwise; larger Warped belts can carry him around corners.' },
   { id: 'cinder', title: 'Cinder blocks', instruction: 'Koshi starts stopped against a grey Cinder block. It is solid but cannot be selected or absorbed, and has no special effects. Tap the outlined brick across the board to leave the Cinder and land safely.' },
   { id: 'larger', title: 'Larger bricks', instruction: 'Aim anywhere on the outlined double brick. Both segments share one cooldown and the owner’s attributes; they are not separate targets. Land on it and watch the entire surface recharge together.' },
-  { id: 'warped-crumbler', title: 'Warped Crumblers', instruction: 'Select the outlined Warped Crumbler once. It absorbs a neighbor but uses its last selection. With no cracked-brick pips and W:X, it stays solid and enlarged even after its 8-second timer; only restart or absorption can restore it.' },
+  { id: 'warped-crumbler', title: 'Warped Crumblers', instruction: 'Select the outlined Warped Crumbler once. It absorbs a neighbor but uses its last selection. With no cracked-brick pips, it stays solid, enlarged, and unselectable until restart.' },
   { id: 'bumper', title: 'Bumpers', instruction: 'Aim through the red bumper. It bounces Koshi away and increases his speed; green preserves speed and blue reduces it.' },
   { id: 'bubble', title: 'Bubbles', instruction: 'Touch the blue bubble and wait until it releases Koshi. Bubbles hold for the matching slime duration: blue 5 seconds, green 3, red 1.' },
   { id: 'obstruction', title: 'Obstructions', instruction: 'Steer into the fixed circle, then choose another brick to route around it. Obstructions block Koshi, robots, and soccer balls.' },
@@ -291,7 +291,6 @@ class Tutorial {
     this.actions = 0;
     this.lastBrick = undefined;
     this.redirected = false;
-    this.warpSeen = false;
     this.held = false;
     this.paused = false;
     this.previewSeen = false;
@@ -611,7 +610,6 @@ class Tutorial {
   observe() {
     const game = this.game, id = this.lesson.id;
     if (game.state === 'paused') this.paused = true;
-    if (this.target.warpUntil !== null) this.warpSeen = true;
     if (game.stuckUntil > game.elapsed + 1e-9) this.held = true;
     if (game.spawnCues.length) this.previewSeen = true;
     if (game.conveyorRide?.id === this.target.id) this.rideSeen = true;
@@ -628,7 +626,7 @@ class Tutorial {
       food: game.score >= 3,
       cooldown: this.target.readyAt > 0 && game.elapsed >= this.target.readyAt - 1e-9,
       crumbler: this.target.usesLeft === 0,
-      warped: this.warpSeen && this.target.warpUntil === null,
+      warped: game.bricks.some(brick => brick.absorbedBy === this.target.id),
       springs: this.target.hitAt !== null,
       mouse: game.enemies >= 1,
       wheel: game.enemies >= 1,
@@ -672,7 +670,7 @@ class Tutorial {
       conveyor: this.rideSeen && this.actions >= 2 && this.lastBrick !== this.target.id,
       cinder: this.actions > 0 && !game.cat.vx && !game.cat.vy && Math.hypot(game.cat.x - this.origin.x, game.cat.y - this.origin.y) > 10,
       larger: this.target.readyAt > 0 && !game.cat.vx && !game.cat.vy,
-      'warped-crumbler': this.warpSeen && this.target.usesLeft === 0 && game.elapsed >= this.target.warpUntil,
+      'warped-crumbler': this.target.usesLeft === 0 && game.bricks.some(brick => brick.absorbedBy === this.target.id),
       bumper: game.bumpers.some(bumper => bumper.hitAt > 0),
       bubble: this.bubbleSeen && game.bubbleTrap === null && this.actions > 0,
       obstruction: this.obstructionSeen && this.actions > 1 && this.lastBrick !== this.target.id,

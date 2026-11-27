@@ -587,7 +587,7 @@ test('map brick preview fills its picture and shows Crumbler pips instead of a c
   assert.match(picture, /brickSpring\(\[brick\], 600, 960, 0, 1\.8\)/);
   assert.match(picture, /if \(!fillBrick && crumbler\)/);
   assert.match(picture, /for \(const x of \[43, 80, 117\]\)/);
-  assert.match(picture, /if \(!fillBrick && warped\)/);
+  assert.doesNotMatch(picture, /W:12/);
   assert.doesNotMatch(picture, /C:3/);
   const visuals = fs.readFileSync(path.join(__dirname, '..', 'src', 'brick-visuals.js'), 'utf8');
   assert.match(visuals, /fill: '#1b2623'/);

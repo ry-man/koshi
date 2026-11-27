@@ -1,0 +1,127 @@
+﻿Spell Name,Flavor,Type,Rarity,Description
+New Ball,+,Soccer,Common,Add one normal soccer ball
+New Big Ball,+,Soccer,Uncommon,Add one jumbo soccer ball
+New Red Ball,-,Soccer,Rare,Add one normal sized red explosive soccer ball
+New Green Ball,-,Soccer,Uncommon,Add one normal sized green explosive soccer ball
+New Blue Ball,-,Soccer,Common,Add one normal sized blue explosive soccer ball
+New Big Red Ball,-,Soccer,Rare,Add one jumbo red explosive soccer ball
+New Big Green Ball,-,Soccer,Uncommon,Add one jumbo green explosive soccer ball
+New Big Blue Ball,-,Soccer,Common,Add one jumbo blue explosive soccer ball
+Deflate,+,Soccer,Common,Remove one selected soccer ball
+Random Deflate,-,Soccer,Common,Remove one random soccer ball
+Weapon Pyschic 1,+,Power,Common,Koshi can select first 1 weapon to appear regardless of shuffle
+Weapon Pyschic 2,+,Power,Uncommon,Koshi can select first 2 weapons to appear regardless of shuffle
+Weapon Pyschic 3,+,Power,Rare,Koshi can select first 3 weapons to appear regardless of shuffle
+Item Psychic 1,+,Power,Common,Koshi can select first 1 item to appear regardless of shuffle
+Item Psychic 2,+,Power,Uncommon,Koshi can select first 2 items to appear regardless of shuffle
+Item Psychic 3,+,Power,Rare,Koshi can select first 3 items to appear regardless of shuffle
+Weapon Speed Up,+,Power,Uncommon,Weapon speed up (decreased delay between spawns)
+Item Speed Up,+,Power,Uncommon,Item speed up (decreased delay between spawns)
+Soccer Speed Up,+,Power,Uncommon,Soccer ball speed up (decreased delay between spawns)
+Bubble Immunity,+,Power,Common,No longer impacted by bubbles (they just pop on contact)
+Slime Immunity,+,Power,Uncommon,No longer stuck due to slime
+Crumber Immunity,+,Power,Uncommon,No longer activates the counter on crumblers when clicked
+Spike Immunity,+,Power,Rare,No longer take damage from spike blocks and spiked obstructions
+Health Bonus,+,Power,Rare,+1 additional heart (maximu of 6)
+Red Shield,+,Power,Uncommon,Start with red shield
+Green Shield,+,Power,Rare,Start with green shield
+Power Shot,+,Power,Rare,+1 point for all soccer goals
+Super Duper,+,Weapon,Uncommon,Duplicate 1 selected weapon
+Weapon Dumpster,+,Weapon,Uncommon,Remove 1 selected weapon
+Wood Sword,+,Weapon,Common,Add wood sword to weapons
+Bronze Sword,+,Weapon,Common,Add bronze sword to weapons
+Silver Sword,+,Weapon,Uncommon,Add silver sword to weapons
+Gold Sword,+,Weapon,Rare,Add gold sword to weapons
+Bronze Hammer,+,Weapon,Common,Add bronze hammer to weapons
+Silver Hammer,+,Weapon,Uncommon,Add silver hammer to weapons
+Gold Hammer,+,Weapon,Rare,Add gold hammer to weapons
+Silver Axe,+,Weapon,Uncommon,Add silver axe to weapons
+Gold Axe,+,Weapon,Rare,Add gold axe to weapons
+Random Lil Smith,+,Weapon,Common,+1 strike to one random weapon
+Lil Smith,+,Weapon,Common,+1 strike to one selected weapon
+Random Smith,+,Weapon,Uncommon,+2 strike to one random weapon
+Smith,+,Weapon,Uncommon,+2 strike to one selected weapon
+Systemic Smith,+,Weapon,Rare,+1 strike to all weapons
+Random Weapon Dumpster,-,Weapon,Uncommon,Remove 1 weapon at random
+Random Lil Rust,-,Weapon,Common,-1 strike to one random weapon
+Lil Rust,-,Weapon,Common,-1 strike to one selected weapon
+Random Rust,-,Weapon,Uncommon,-2 strike to one random weapon
+Rust,-,Weapon,Common,-2 strike to one selected weapon
+Random Rustier,-,Weapon,Rare,-3 strike to one random weapon
+Rustier,-,Weapon,Uncommon,-3 strike to one selected weapon
+Systemic Rust,-,Weapon,Rare,-1 strike to all weapons
+Lost Weapon,-,Weapon,Common,Replace one selected weapon with wood sword
+Oops! All Swords,-,Weapon,Uncommon,Replace all weapons with swords of matching strike count
+Stuper Duper,-,Weapon,Common,Copy your weapon with lowest strike
+Downgrade,-,Weapon,Rare,Replace your weapon with highest strike with wood sword
+Where'd That Go?,-,Weapon,Uncommon,Remove your most recently acquired weapon
+Control C,+,Item,Uncommon,Duplicate 1 selected item
+Control X,+,Item,Uncommon,Remove 1 selected item
+Cat Shield (Red),+,Item,Common,Add Cat Shield (Red) to item inventory
+Cat Shield (Green),+,Item,Uncommon,Add Cat Shield (Green) to item inventory
+Cat Shield (Blue),+,Item,Rare,Add Cat Shield (Blue) to item inventory
+Battery,+,Item,Uncommon,Add Battery to item inventory
+Smiley Cookie,+,Item,Common,Add Smiley Cookie to item inventory
+Anvil,+,Item,Common,Add Anvil to item inventory
+Music Box,+,Item,Common,Add Music Box to item inventory
+Saw Blade,-,Item,Uncommon,Add Saw Blade to item inventory
+Eggplant,-,Item,Common,Add Eggplant to item inventory
+Chisel,+,Item,Common,Add Chisel to item inventory
+Scrambler,+,Item,Uncommon,Add Scrambler to item inventory
+Magical Sunglasses,+,Item,Uncommon,Add Magical Sunglasses to item inventory
+Kitty Cape,+,Item,Common,Add Kitty Cape to item inventory
+Surf Board (Red),+,Item,Common,Add Surf Board (Red) to item inventory
+Surf Board (Green),+,Item,Uncommon,Add Surf Board (Green) to item inventory
+Surf Board (Blue),+,Item,Rare,Add Surf Board (Blue) to item inventory
+Ice Skate (Red),+,Item,Common,Add Ice Skate (Red) to item inventory
+Ice Skate (Green),+,Item,Uncommon,Add Ice Skate (Green) to item inventory
+Ice Skate (Blue),+,Item,Rare,Add Ice Skate (Blue) to item inventory
+Ditto Stamp,+,Item,Common,Add Ditto Stamp to item inventory
+Spooky Mask,+,Item,Common,Add Spooky Mask to item inventory
+Thin Brush (Red),+,Item,Common,Add Thin Brush (Red) to item inventory
+Thin Brush (Green),+,Item,Uncommon,Add Thin Brush (Green) to item inventory
+Thin Brush (Blue),+,Item,Rare,Add Thin Brush (Blue) to item inventory
+Wide Brush (Red),+,Item,Common,Add Wide Brush (Red) to item inventory
+Wide Brush (Green),+,Item,Uncommon,Add Wide Brush (Green) to item inventory
+Wide Brush (Blue),+,Item,Rare,Add Wide Brush (Blue) to item inventory
+Paint Roller (Red),+,Item,Common,Add Paint Roller (Red) to item inventory
+Paint Roller (Green),+,Item,Uncommon,Add Paint Roller (Green) to item inventory
+Paint Roller (Blue),+,Item,Rare,Add Paint Roller (Blue) to item inventory
+Random Eggplant Evolution,-,Item,Uncommon,Convert random item to eggplant
+Eggplant Evolution,-,Item,Common,Convert selected item to eggplant
+Random Remove 1,-,Item,Uncommon,Randomly remove one item
+Random Remove 2,-,Item,Rare,Randomly remove two items
+Random sawblade Evolution,-,Item,Uncommon,Convert random item to sawblade
+Sawblade Evolution,-,Item,Common,Convert selected item to sawblade
+Restore 1,+,Brick,Uncommon,"Restore one brick to green steering, no attributes"
+Restore 2,+,Brick,Rare,"Restore two bricks to green steering, no attributes"
+Quicker Cooldown,+,Brick,Common,Speed up brick cooldown (blue --> green --> red)
+Slower Cooldown,-,Brick,Common,Slow down brick cooldown (red --> green --> blue)
+Merge,-,Brick,Common,Merge two adjacent selected bricks
+Random Merge,-,Brick,Uncommon,Merge two adjacent random bricks
+Break Up,+,Brick,Uncommon,Unmerged brick into individual bricks of matching type
+Cinder Brick,-,Brick,Common,Convert brick into 
+Goal Brick,-,Brick,Uncommon,Convert brick into 
+Slime (Red) Brick,-,Brick,Common,Convert brick into 
+Slime (Green) Brick,-,Brick,Uncommon,Convert brick into 
+Slime (Blue) Brick,-,Brick,Rare,Convert brick into 
+Spring Brick,-,Brick,Common,Convert brick into 
+Spikes Brick,-,Brick,Common,Convert brick into 
+Conveyer Brick,-,Brick,Common,Convert brick into 
+Portal Brick,-,Brick,Rare,Convert 2 bricks into Portal pair of same color
+Spawner Brick - Item,+,Brick,Uncommon,Convert brick into Spawner of a random item
+Spawner Brick - Wood,+,Brick,Uncommon,Convert brick into a Spawner of wood sword
+Spawner Brick - Bronze,+,Brick,Uncommon,Convert brick into a Spawner of bronze sword or hammer
+Spawner Brick - Silver,+,Brick,Rare,Convert brick into a Spawner of silver sword or hammer
+Spawner Brick - Gold,+,Brick,Rare,Convert brick into a Spawner of gold sword or hammer
+Boost Brick,+,Brick,Common,Convert brick into 
+Barrier Brick,-,Brick,Uncommon,Convert brick into 
+Turret (Fireball) Brick,+,Brick,Rare,Convert brick into 
+Turret (Laser) Brick,+,Brick,Uncommon,Convert brick into 
+Hazard Brick,-,Brick,Uncommon,"Convert brick into Hazard (random type and random yellow/black color). If no Power brick exists yet, also convert one brick to Power type."
+Crumbler Brick,-,Brick,Common,Convert brick into 
+Warped Brick,-,Brick,Common,Convert brick into 
+Toggle (2 step) Brick,-,Brick,Common,Convert brick into 
+Toggle (3 step) Brick,-,Brick,Uncommon,Convert brick into 
+Toggle (4 step) Brick,-,Brick,Rare,Convert brick into 
+Power Brick,-,Brick,Uncommon,Convert brick into 

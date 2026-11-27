@@ -431,7 +431,7 @@ The bricks have the following classifications based on their cooldown time:
 Some bricks are "Crumblers". These bricks can only be selected a certain number of times before they are permanently de-activated for the rest of the level. These crumbler bricks have chipped, non-uniform boundaries rather than a crack texture and also have a numerical counter on them which indicates how many times the brick may be selected before it permanently de-activates. This number counts down by one each time it is selected.
 
 ### Brick Attribute - Warped
-Some bricks are "Warped". These bricks, upon selecting, absorb an adjacent brick and form a larger brick. The specific brick selected is randomly chosen from the two adjacent bricks. Once the warped brick first absorbs an adjacent brick, it then kicks off a timer on the warped brick which counts down each second. Once this timer reaches zero, the warped brick returns to its original size and shape and all absorbed bricks return to their original state.
+Some bricks are "Warped". Each successful selection absorbs a randomly chosen adjacent brick or group, forming a larger brick. Growth persists without a timer; restarting the level restores the starting groups.
 
 ### Brick Attribute - Slimed
 Some bricks have oozy slime only on the center-facing edge which Koshi touches, not around the other sides. It looks like bold cake icing with rounded, uneven goopy drips and a very dark border. Slime color is independent of brick cooldown color: blue holds Koshi for 5 seconds, green for 3 seconds, and red for 1 second. Unspecified slime color defaults to green. Warped groups use their owner's slime color along their exposed inner rim. This sticky slime holds Koshi stationary and blocks steering until he is released; simultaneous slime contacts use the longest hold. A matching-color countdown ring starts as a full circle and drains proportionally to the remaining hold time, without stuck text or duration messages. An expanding ring and FREE! label announce release. Koshi remains stationary until another valid brick is selected. Pause freezes the hold and countdown ring.
@@ -444,7 +444,7 @@ Many triangular white spikes line the arena-facing edge. The brick body is reces
 
 ### Brick Attributes - Conveyor
 
-A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); a large centered arrow indicates the direction of travel. Landing on the arena-facing edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Restoration stops a ride if its supporting surface is no longer owned by the conveyor. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors first appear in Level 2-1. Desktop rotates their directions with the bricks.
+A thin grey, finely toothed conveyor belt rotates around the entire brick perimeter. The editor offers clockwise and counterclockwise directions (clockwise by default); a large centered arrow indicates the direction of travel. Landing on the arena-facing edge carries Koshi at 85 game units per second until the belt ends or another brick blocks him. He stops at the end without launching and can steer away while riding. Warped conveyors carry him continuously across absorbed bricks, connecting gaps, and corners, with clearance for his body even at stepped phone-layout corners. Items and enemy contact work during the ride. Pause freezes carrying and belt rotation; restart clears the ride. Campaign conveyors first appear in Level 2-1. Desktop rotates their directions with the bricks.
 
 Slimed, Springs, Spikes, Conveyor, Portal, Spawning, and Boost are mutually exclusive: choosing one in the custom-level editor replaces the others. All seven can combine with any cooldown color, Toggle, Crumbler, and Warped. Contact effects work even during cooldown, after Crumbler exhaustion, or while Toggle-disabled; touching a brick does not activate its cooldown or consume a selection. A warped group uses its owner's contact attribute across the entire merged shape, including connecting gaps. Slime starts in Level 1-6, Spikes in 1-8, Springs in 1-10, and Conveyors in 2-1. Restart clears spike contacts and restores health.
 
@@ -463,17 +463,16 @@ attributes; the full combined surface has one cooldown, Crumbler count,
 Toggle cycle, and contact effect. Cinder groups contain only Cinder blocks.
 Split returns them to individual sizes with the group's current attributes.
 Starting groups persist in drafts, exports, playtests, and restart. Warped
-bricks can absorb entire groups; restoration returns every group to its
+bricks can absorb entire groups; restart returns every group to its
 starting combined shape instead of splitting it. A grouped Portal is one
 endpoint. Portal exits remain anchored to the chosen owner; graphics center on the group.
 
-Crumbler counts, Warped timer counts, and Toggle switches form a centered strip
+Toggle switches and item icons form a centered strip
 along the original brick's long axis. They can appear in any combination.
 The strip retains its original size but centers on the full starting or grown
 brick, staying on the solid rim around corners rather than in empty arena.
 It remains readable outside Crumbler's chipped outline. Larger non-Crumbler
 bricks retain slightly rounded corners, including around turns.
-`C:` identifies remaining uses, `W:` identifies seconds, and `W:X` means frozen.
 
 Portal pairs have matching red, orange, yellow, green, blue, or purple smoky
 borders. Touching one transports Koshi to its partner's center line, moving
@@ -566,7 +565,7 @@ presses onto that brick's center to capture its properties and returns beside
 him with matching ink. His next landing presses onto the destination's center
 and copies the captured properties before contact
 effects, preserving destination size and merged shape and refreshing cooldowns,
-Crumbler uses, Toggle counters, spawners and warp timers. Portals do not supply
+Crumbler uses, Toggle counters and spawners. Portals do not supply
 or consume copies; merging Warped bricks can be copied. Both presses travel to
 the center and squash against it; a colored ripple shows the transformation.
 Pickup while resting waits for a new landing, and Spring bounces cannot capture
@@ -588,7 +587,7 @@ gameplay attributes are shuffled among the brick groups, then sparkles and smoke
 appear at full blackout. A fast light wave swirls around the board as the bricks
 fade back in. Positions, sizes and merged shapes do not change; the type and
 modifiers can move between large and small shapes. Transient cooldowns, Crumbler
-uses, Toggle counters, spawner state and warp timers restart fresh. It is
+uses, Toggle counters and spawner state restart fresh. It is
 available for custom-level placements and spawners only.
 Smiley Cookie, all Stopwatches, Battery, Music Box, Eggplant, Saw Blade,
 Magical Sunglasses, Ditto Stamp and Spooky Mask are available in the editor for

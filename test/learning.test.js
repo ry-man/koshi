@@ -368,7 +368,7 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     assert.equal(cooldown.observe(), true);
   });
 
-  test(`Crumblers, Warped restoration, slime holds, and Springs work on ${layout}`, () => {
+  test(`Crumblers, Warped growth, slime holds, and Springs work on ${layout}`, () => {
     const crumbler = practice('crumbler', options);
     aim(crumbler); wait(crumbler, 1);
     const left = opposite(crumbler);
@@ -382,9 +382,10 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     const warped = practice('warped', options);
     aim(warped); wait(warped, 1);
     assert.ok(warped.game.bricks.some(brick => brick.absorbedBy !== null));
-    assert.equal(warped.observe(), false);
+    assert.equal(warped.observe(), true);
     wait(warped, 7.1);
     assert.equal(warped.observe(), true);
+    assert.ok(warped.game.bricks.some(brick => brick.absorbedBy === warped.target.id));
     for (const color of ['red', 'green', 'blue']) {
       const slime = practice(`slime-${color}`, options);
       aim(slime); wait(slime, 1.05);
@@ -438,11 +439,10 @@ for (const options of [{}, { portrait: true, scale: .5 }, { portrait: true, scal
     assert.equal(member.absorbedBy, larger.target.id);
     const combined = practice('warped-crumbler', options);
     aim(combined); wait(combined, 1.05);
-    assert.equal(combined.observe(), false, 'must wait past the restoration time');
+    assert.equal(combined.observe(), true);
     wait(combined, 7.1);
     assert.equal(combined.observe(), true);
     assert.equal(combined.target.usesLeft, 0);
-    assert.notEqual(combined.target.warpUntil, null);
     assert.ok(combined.game.bricks.some(brick => brick.absorbedBy === combined.target.id));
     assert.equal(aim(combined), false);
   });

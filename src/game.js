@@ -2590,7 +2590,7 @@ function validateCustomLevel(value, { allowUnpairedPortals = false, allowIncompl
         override.crumbler = entry.crumbler === null ? null : number(entry.crumbler, 1, 100000, `Brick override ${i + 1} selections`);
         if (override.crumbler !== null && !Number.isInteger(override.crumbler)) fail(`Brick override ${i + 1} selections must be a whole number.`);
       }
-      if (entry.warped !== undefined) override.warped = entry.warped === null ? null : number(entry.warped, .1, 3600, `Brick override ${i + 1} warp duration`);
+      if (entry.warped !== undefined) override.warped = entry.warped === null ? null : number(entry.warped, .1, 3600, `Brick override ${i + 1} warped value`);
       if (entry.slimeColor !== undefined) {
         if (typeof entry.slimeColor !== 'string' || !Object.hasOwn(SLIMES, entry.slimeColor)) fail(`Brick override ${i + 1} has an unknown slime color.`);
         override.slimeColor = entry.slimeColor;
@@ -3946,7 +3946,6 @@ class Game {
       brick.usesLeft = brick.crumbler ?? null;
       brick.absorbedBy = null;
       brick.initialOwner = null;
-      brick.warpUntil = null;
       brick.hitAt = null;
       brick.hitNormal = null;
       brick.hitPoint = null;
@@ -5037,18 +5036,7 @@ class Game {
     for (const member of this.bricks) {
       if (member.id === neighbor.id || member.absorbedBy === neighbor.id) member.absorbedBy = brick.id;
     }
-    neighbor.warpUntil = null;
-    if (brick.warpUntil === null) brick.warpUntil = this.elapsed + brick.warped;
     this.brickRevision++;
-  }
-
-  restoreWarps() {
-    for (const brick of this.bricks) {
-      if (brick.usesLeft === 0 || brick.warpUntil === null || brick.warpUntil > this.elapsed + 1e-9) continue;
-      for (const member of this.bricks) if (member.absorbedBy === brick.id) member.absorbedBy = member.initialOwner ?? null;
-      brick.warpUntil = null;
-      this.brickRevision++;
-    }
   }
 
   prepareSpawns() {
@@ -9873,7 +9861,7 @@ class Game {
     for (const member of this.bricks) {
       if (member.id === brick.id || member.absorbedBy === brick.id) {
         member.kind = 'cinder';
-        member.crumbler = null; member.warped = null; member.warpUntil = null;
+        member.crumbler = null; member.warped = null;
         member.usesLeft = null; member.readyAt = 0;
         member.toggle = null; member.toggleRemaining = 0;
         member.power = false; member.powerOn = false;
@@ -9950,9 +9938,7 @@ class Game {
       member.toggleRemaining = member.toggle ?? 0;
       member.powerOn = this.powerOn;
       member.spawned = false;
-      member.warpUntil = null;
       member.hitAt = null; member.hitNormal = null; member.hitPoint = null;
-      // Keep the current union, even if its former warp would have split it later.
       member.initialOwner = member.id === brick.id ? null : brick.id;
       member.absorbedBy = member.initialOwner;
     }
@@ -9997,7 +9983,6 @@ class Game {
     if (this.conveyorRide && ids.has(this.conveyorRide.id)) this.conveyorRide = null;
     for (const member of members) {
       Object.assign(member, dittoProperties(properties), state);
-      member.warpUntil = null;
       member.hitAt = null; member.hitNormal = null; member.hitPoint = null;
       member.initialOwner = null;
       member.absorbedBy = null;
@@ -10061,7 +10046,6 @@ class Game {
         brick.toggleRemaining = brick.toggle ?? 0;
         brick.powerOn = this.powerOn;
         brick.spawned = false;
-        brick.warpUntil = null;
         brick.slimeAppliedAt = brick.slimed ? this.elapsed : undefined;
         brick.hitAt = null; brick.hitNormal = null; brick.hitPoint = null;
       }
@@ -10323,7 +10307,6 @@ class Game {
     this.updateBubbleTrap(dt);
     this.updateCatCircleTrap(dt);
     if (this.checkOffscreenDeath()) { this.tickStart = null; return; }
-    this.restoreWarps();
     this.updateBarriers(dt);
     this.prepareSpawns();
     this.spawnCustomEvents();

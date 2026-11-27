@@ -164,7 +164,7 @@ test('existing cinder contacts keep the saw ready, extra pickups do not stack, a
   assert.notEqual(third.kind, 'cinder', 'only one landing is affected');
 });
 
-test('the saw permanently converts starting groups and temporarily absorbed corner shapes, including every gap', () => {
+test('the saw permanently converts starting groups and absorbed corner shapes, including every gap', () => {
   const base = arena(), ids = base.perimeter.slice(0, 3), ownerId = ids[1];
   const custom = { ...level([]), brickGroups: [{ owner: ownerId, members: ids }], brickTypes: [
     { ...base.bricks[ownerId].region, kind: 'normal', warped: .1, crumbler: 5 },
@@ -186,10 +186,10 @@ test('the saw permanently converts starting groups and temporarily absorbed corn
     assert.equal(game.bricks[id].kind, 'cinder');
     assert.equal(game.bricks[id].initialOwner, id === owner.id ? null : owner.id);
   }
-  game.update(.2); game.restoreWarps();
+  game.update(.2);
   assert.deepEqual(game.brickParts().filter(part => part.id === owner.id), shape, 'former warp cannot restore neighbors');
   const neighbor = game.bricks.find(brick => brick.kind !== 'cinder' && brick.absorbedBy === null);
-  neighbor.warped = .1; neighbor.warpUntil = null; neighbor.usesLeft = null;
+  neighbor.warped = .1; neighbor.usesLeft = null;
   game.absorbNeighbor(neighbor);
   assert.equal(owner.absorbedBy, null, 'cinder cannot be absorbed again');
   game.reset();

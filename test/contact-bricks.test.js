@@ -284,7 +284,7 @@ test('contact effects cover merged connecting gaps without consuming Crumbler us
   }
 });
 
-test('merged groups use owner contact attributes, restore absorbed attributes, and exhausted contacts still work', () => {
+test('merged groups keep owner contact attributes after the old warp duration and when exhausted', () => {
   for (const attribute of ['slimed', 'springs']) {
     const game = setup(attribute), owner = game.bricks[0], neighbor = game.bricks[2];
     owner.warped = .2;
@@ -299,7 +299,7 @@ test('merged groups use owner contact attributes, restore absorbed attributes, a
     assert.equal(neighbor.absorbedBy, 0);
     owner.usesLeft = null;
     game.update(.2);
-    assert.equal(neighbor.absorbedBy, null);
+    assert.equal(neighbor.absorbedBy, 0);
     assert.equal(neighbor[attribute === 'slimed' ? 'springs' : 'slimed'], true);
   }
 });
@@ -450,7 +450,7 @@ test('spike sides stop oblique motion before the brick body and blocked launches
   assert.equal(JSON.stringify(game.bricks), before);
 });
 
-test('warped spike groups cover connecting gaps and restore absorbed surfaces', () => {
+test('warped spike groups cover connecting gaps and retain absorbed surfaces', () => {
   for (const options of [{}, { portrait: true, scale: .31 }]) {
     const game = setup('spikes', options), owner = game.bricks[0], neighbor = game.bricks[2];
     owner.warped = 1;
@@ -487,7 +487,7 @@ test('warped spike groups cover connecting gaps and restore absorbed surfaces', 
     assert.equal(game.stuckUntil, 0);
     game.cat.x = game.width / 2; game.cat.y = game.height / 2;
     game.update(1);
-    assert.equal(neighbor.absorbedBy, null);
+    assert.equal(neighbor.absorbedBy, owner.id);
     assert.equal(neighbor.slimed, true);
     assert.ok(!neighbor.spikes);
   }

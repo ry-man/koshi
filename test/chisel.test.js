@@ -68,7 +68,6 @@ test('splitting copies the merged brick attributes and shared state to every pie
   assert.equal(game.splitBrick(brick), true);
   for (const member of members) {
     for (const [key, value] of Object.entries(expected)) assert.deepEqual(member[key], value, key);
-    assert.equal(member.warpUntil, null);
     assert.equal(member.absorbedBy, null);
     assert.equal(member.initialOwner, null);
   }

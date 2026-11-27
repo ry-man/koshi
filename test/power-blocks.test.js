@@ -85,7 +85,7 @@ test('Power only switches on a successful selection of that block, including sun
   assert.equal(brick.toggleRemaining, 1);
 });
 
-test('Power state belongs to the combined owner and survives temporary Warped growth', () => {
+test('Power state belongs to the combined owner and survives Warped growth', () => {
   const base = setup(), index = base.perimeter.indexOf(0);
   const ids = [0, base.perimeter[(index + 1) % base.perimeter.length]];
   const source = { ...base.customLevel, brickGroups: [{ owner: 0, members: ids }],
@@ -95,7 +95,7 @@ test('Power state belongs to the combined owner and survives temporary Warped gr
   assert.equal(game.steer(owner.id, member.x + member.w / 2, member.y + member.h / 2), true);
   assert.equal(owner.powerOn, true);
   assert.equal(aim(game, member), false);
-  game.elapsed = 2; game.restoreWarps();
+  game.update(2);
   assert.equal(owner.powerOn, true);
   assert.equal(member.absorbedBy, owner.id);
 });

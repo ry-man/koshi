@@ -290,7 +290,7 @@ test('rounded-corner contact rejects blocked launches without consuming an activ
     assert.equal(aim(game, brick), false);
     assert.equal(brick.readyAt, 0);
     assert.equal(brick.usesLeft, 2);
-    assert.equal(brick.warpUntil, null);
+    assert.ok(game.bricks.every(other => other.absorbedBy === null));
     assert.equal(game.brickRevision, 0);
   }
 });
@@ -423,32 +423,30 @@ test('Warped bricks choose either adjacent perimeter neighbor and fill only the 
       recenter(game);
       assert.equal(game.steer(0, absorbed.x + absorbed.w / 2, absorbed.y + absorbed.h / 2), true);
       assert.equal(game.bricks.filter(brick => brick.absorbedBy === 0).length, 3);
-      assert.equal(game.bricks[0].warpUntil, 15);
       assert.equal(game.steer(0, game.width / 2, game.height / 2), false);
     }
   }
 });
 
-test('warps freeze while paused, expire exactly, and preserve absorbed attributes and cooldown state', () => {
+test('warped growth persists past the old duration, through pause, and until restart', () => {
   const game = setup({ warped: 15 });
   const neighbor = game.bricks[2];
   neighbor.kind = 'slow'; neighbor.crumbler = 5; neighbor.usesLeft = 4;
   neighbor.warped = 7; neighbor.readyAt = 20;
-  const original = { ...neighbor };
   aim(game, game.bricks[0]);
   assert.equal(neighbor.absorbedBy, 0);
   game.update(5);
   game.pause(); game.update(100);
   assert.ok(Math.abs(game.elapsed - 5) < 1e-8);
   assert.equal(neighbor.absorbedBy, 0);
-  game.resume(); game.update(9.99);
+  game.resume(); game.update(30);
   assert.equal(neighbor.absorbedBy, 0);
-  game.update(.01);
-  assert.deepEqual(neighbor, original);
-  assert.equal(game.bricks[0].warpUntil, null);
-  assert.equal(game.brickParts().length, 26);
+  assert.equal(neighbor.crumbler, 5);
+  assert.equal(neighbor.usesLeft, 4);
+  assert.equal(neighbor.readyAt, 20);
+  assert.ok(game.brickParts().some(part => part.id === 0 && part.sourceId === neighbor.id));
   game.reset();
-  assert.ok(game.bricks.every(brick => brick.absorbedBy === null && brick.warpUntil === null));
+  assert.ok(game.bricks.every(brick => brick.absorbedBy === null));
 });
 
 test('exhausted Warped Crumblers permanently freeze their entire enlarged shape until restart', () => {
@@ -486,7 +484,6 @@ test('Warped bricks absorb active neighboring groups through either their owner 
       assert.equal(aim(game, neighbor), true);
       const member = game.bricks.find(brick => brick.absorbedBy === neighbor.id);
       assert.equal(member.id, throughMember ? 2 : 6);
-      assert.equal(neighbor.warpUntil, 7);
       const cooldown = neighbor.readyAt, uses = neighbor.usesLeft;
       game.random = () => .99;
       if (!throughMember) {
@@ -496,17 +493,17 @@ test('Warped bricks absorb active neighboring groups through either their owner 
       assert.equal(aim(game, game.bricks[0]), true);
       assert.equal(neighbor.absorbedBy, 0);
       assert.equal(member.absorbedBy, 0);
-      assert.equal(neighbor.warpUntil, null);
       assert.equal(neighbor.readyAt, cooldown);
       assert.equal(neighbor.usesLeft, uses);
-      assert.equal(game.bricks[0].warpUntil, 15);
       const parts = game.brickParts();
       game.update(7);
       assert.deepEqual(game.brickParts(), parts);
       game.update(8);
-      assert.ok(game.bricks.every(brick => brick.absorbedBy === null && brick.warpUntil === null));
+      assert.deepEqual(game.brickParts(), parts);
       assert.equal(neighbor.readyAt, cooldown);
       assert.equal(neighbor.usesLeft, uses);
+      game.reset();
+      assert.ok(game.bricks.every(brick => brick.absorbedBy === null));
     }
   }
 });
@@ -539,10 +536,9 @@ test('exhausted neighboring warp groups can be absorbed without replenishing the
   assert.equal(neighbor.absorbedBy, 0);
   assert.equal(game.bricks[6].absorbedBy, 0);
   game.update(15);
-  assert.equal(neighbor.absorbedBy, null);
-  assert.equal(neighbor.warpUntil, null);
+  assert.equal(neighbor.absorbedBy, 0);
   assert.equal(neighbor.usesLeft, 0);
-  assert.equal(game.bricks[6].absorbedBy, null);
+  assert.equal(game.bricks[6].absorbedBy, 0);
   assert.equal(aim(game, neighbor), false);
 });
 
